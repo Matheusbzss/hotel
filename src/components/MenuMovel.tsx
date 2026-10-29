@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { IconeWhatsApp } from './IconeWhatsApp';
 
 export function MenuMovel({
   links,
@@ -26,14 +27,14 @@ export function MenuMovel({
   }, [aberto]);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         type="button"
         aria-expanded={aberto}
         aria-controls="menu-movel"
         aria-label={aberto ? rotuloFechar : rotuloAbrir}
         onClick={() => setAberto((v) => !v)}
-        className="flex size-12 items-center justify-center rounded-full bg-tinta text-white active:scale-95"
+        className="flex size-12 items-center justify-center bg-(--acao) text-(--acao-tinta) transition-transform active:scale-95"
       >
         <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" fill="currentColor">
           {aberto ? (
@@ -44,20 +45,18 @@ export function MenuMovel({
         </svg>
       </button>
       {aberto && (
-        <div
-          id="menu-movel"
-          className="absolute inset-x-0 top-full z-50 bg-tinta px-[var(--margem)] pb-8 pt-4 text-white shadow-[0_24px_40px_rgba(11,59,92,0.35)]"
-        >
+        <div id="menu-movel" className="tom-mar absolute inset-x-0 top-full z-50 px-(--margem) pb-8 pt-2">
           <ul className="flex flex-col">
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="block py-3 text-2xl font-semibold">
+                <Link href={l.href} className="meio-largo block py-3 text-lead">
                   {l.texto}
                 </Link>
               </li>
             ))}
           </ul>
           <a href={whatsapp.href} target="_blank" rel="noopener noreferrer" className="botao botao-whats mt-6 w-full" data-evento="Contact">
+            <IconeWhatsApp className="size-5" />
             {whatsapp.texto}
           </a>
         </div>

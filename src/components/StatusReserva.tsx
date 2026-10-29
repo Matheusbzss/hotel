@@ -99,37 +99,32 @@ export function StatusReserva({
 
   const brl = formatarCentavos(r.totalCentavos, locale);
   const dataTexto = formatarDataIso(r.data, locale);
-  const pessoas = [
-    `${r.adultos} ${r.adultos === 1 ? textos.adulto : textos.adultos}`,
-    r.criancas ? `${r.criancas} ${r.criancas === 1 ? textos.crianca : textos.criancas}` : '',
-  ]
-    .filter(Boolean)
-    .join(' + ');
+  const pessoas = r.pessoasTexto;
+  const nomePasseio = r.opcaoNome ? `${r.passeioNome} (${r.opcaoNome})` : r.passeioNome;
 
   const msgVoucher = textos.msgVoucher
     .replace('{codigo}', r.codigo)
-    .replace('{passeio}', r.passeioNome)
+    .replace('{passeio}', nomePasseio)
     .replace('{data}', dataTexto)
     .replace('{pessoas}', pessoas)
     .replace('{hotel}', `${r.hotel} (${r.cidadeHospedagem})`);
   const msgFinalizar = textos.msgWhatsapp
     .replace('{codigo}', r.codigo)
-    .replace('{passeio}', r.passeioNome)
+    .replace('{passeio}', nomePasseio)
     .replace('{data}', dataTexto)
     .replace('{pessoas}', pessoas)
     .replace('{total}', brl);
   const wa = (m: string) => `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(m)}`;
 
   const Voucher = (
-    <div className="bilhete bg-areia-clara" style={{ ['--corte' as string]: 'calc(100% - 92px)' }}>
-      <div className="faixa-guarda-sol h-3" aria-hidden="true" />
-      <div className="px-6 pb-6 pt-5 md:px-8">
+    <div className="tom-sol">
+      <div className="px-6 pb-6 pt-6 md:px-8">
         <p className="text-small font-semibold">{r.status === 'pago' ? textos.voucher : textos.codigoReserva}</p>
-        <p className="text-[clamp(2.25rem,1.6rem+3vw,3.5rem)] font-bold leading-none tracking-tight">{r.codigo}</p>
+        <p className="largo numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
         <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <dt className="text-small">{textos.passeio}</dt>
-            <dd className="text-[1.25rem] font-bold leading-tight">{r.passeioNome}</dd>
+            <dd className="text-lead font-bold leading-tight">{nomePasseio}</dd>
           </div>
           <div>
             <dt className="text-small">{textos.data}</dt>
@@ -151,10 +146,9 @@ export function StatusReserva({
           </div>
         </dl>
       </div>
-      <div className="picote-areia mx-4" aria-hidden="true" />
-      <div className="flex h-[88px] items-center justify-between gap-4 bg-turquesa px-6 md:px-8">
+      <div className="tom-mar flex items-center justify-between gap-4 px-6 py-5 md:px-8">
         <span className="font-semibold">{statusTextos[r.status]}</span>
-        <span className="text-[1.5rem] font-bold">{brl}</span>
+        <span className="numeros text-lead font-bold text-sol">{brl}</span>
       </div>
     </div>
   );
@@ -163,19 +157,19 @@ export function StatusReserva({
     return (
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
-          <h1 className="titulo-display text-head">{textos.confirmadoTitulo}</h1>
+          <h1 className="largo text-head text-sol">{textos.confirmadoTitulo}</h1>
           <p className="mt-4 max-w-[46ch] text-lead">{textos.confirmadoTexto}</p>
           <div className="mt-8">{Voucher}</div>
         </div>
         <div className="space-y-3 lg:col-span-5 lg:pt-32">
-          <a href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`} className="botao botao-tinta w-full" download>
+          <a href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`} className="botao w-full" download>
             {textos.baixarPdf}
           </a>
           <a href={wa(msgVoucher)} target="_blank" rel="noopener noreferrer" className="botao botao-whats w-full" data-evento="Contact">
             <IconeWhatsApp className="size-5" />
             {textos.enviarWhatsapp}
           </a>
-          <div className="mt-6 bg-sol-claro px-5 py-5">
+          <div className="mt-6 bg-mar-2 px-5 py-5">
             <h2 className="font-bold">{textos.proximos}</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>{textos.proximo1}</li>
@@ -192,11 +186,11 @@ export function StatusReserva({
     return (
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-6">
-          <h1 className="titulo-display text-head">{textos.aguardandoPix}</h1>
+          <h1 className="largo text-head text-sol">{textos.aguardandoPix}</h1>
           <p className="mt-4 max-w-[44ch] text-lead">{textos.pixInstrucoes}</p>
           <div className="mt-8 flex flex-col gap-6">
             <div className="order-2 lg:order-1">
-              <div className="bg-white">
+              <div className="bg-papel">
                 {qrSvg && (
                   <div
                     className="mx-auto w-full max-w-[320px] bg-white p-3"
@@ -223,7 +217,7 @@ export function StatusReserva({
               />
               <button
                 type="button"
-                className="botao botao-coral mt-3 w-full"
+                className="botao mt-3 w-full"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(r.pixCopiaECola ?? '');
@@ -236,7 +230,7 @@ export function StatusReserva({
               </button>
             </div>
           </div>
-          <p className="mt-6 bg-turquesa-clara px-5 py-4">{textos.atualizaSozinho}</p>
+          <p className="mt-6 bg-mar-2 px-5 py-4">{textos.atualizaSozinho}</p>
         </div>
         <div className="lg:col-span-6">{Voucher}</div>
       </div>
@@ -256,7 +250,7 @@ export function StatusReserva({
   return (
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-6">
-        <h1 className="titulo-display text-head">{m.titulo}</h1>
+        <h1 className="largo text-head text-sol">{m.titulo}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{m.texto}</p>
         <div className="mt-8 space-y-3">
           {r.status === 'aguardando_whatsapp' ? (
@@ -273,7 +267,7 @@ export function StatusReserva({
           ) : (
             <>
               {(r.status === 'recusado' || r.status === 'expirado') && (
-                <a href={linkNovaReserva} className="botao botao-tinta w-full sm:w-auto">
+                <a href={linkNovaReserva} className="botao w-full sm:w-auto">
                   {textos.tentarNovamente}
                 </a>
               )}

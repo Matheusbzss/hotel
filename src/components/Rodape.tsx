@@ -3,93 +3,91 @@ import { EMPRESA, enderecoCurto } from '@/config/empresa';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { linkWhatsApp } from '@/lib/whatsapp';
+import { RedefinirCookies } from './RedefinirCookies';
 
+/** Fecho do site: o convite, os contatos, os dados legais e o nome da agência cortado pela borda. */
 export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const ano = new Date().getFullYear();
+  const R = d.rodape;
+  const links = [
+    { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
+    { href: rota(idioma, '/passeio-e-hospedagem'), texto: d.nav.hospedagem },
+    { href: rota(idioma, '/contato'), texto: d.nav.contato },
+  ];
   return (
-    <footer className="bg-tinta pt-16 text-white md:pt-24">
-      <div className="moldura">
-        <div className="mx-auto max-w-6xl">
-          <div className="recorte-topo" aria-hidden="true" />
-          <div className="relative grid gap-10 bg-papel px-6 pb-10 pt-8 text-tinta md:grid-cols-2 md:gap-16 md:px-14 md:pb-14 md:pt-12">
-            <div>
-              <p className="script text-[2.75rem] leading-none text-coral md:text-[3.5rem]">{d.rodape.assinatura}</p>
-              <p className="mt-5 max-w-[40ch]">{d.rodape.mensagem}</p>
-              <p className="mt-6 font-semibold">{d.rodape.pagamentos}</p>
-            </div>
-            <div className="relative md:pl-10">
-              <div className="absolute right-0 top-0 hidden rotate-3 bg-white p-[6px] sm:block" aria-hidden="true">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo/agencia-victor-hugo-emblema.svg" alt="" width={76} height={76} className="size-[76px]" loading="lazy" />
-              </div>
-              <h2 className="text-lead font-semibold">{d.rodape.contato}</h2>
-              <ul className="mt-4 space-y-3 text-[1.0625rem]">
-                <li>
-                  <a
-                    href={linkWhatsApp(d.contato.msg)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline-offset-4 hover:underline"
-                    data-evento="Contact"
-                  >
-                    WhatsApp {EMPRESA.telefoneExibicao}
-                  </a>
-                </li>
-                <li>
-                  <a href={`mailto:${EMPRESA.email}`} className="break-all underline-offset-4 hover:underline">
-                    {EMPRESA.email}
-                  </a>
-                </li>
-                <li>
-                  <a href={EMPRESA.instagramUrl} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
-                    Instagram {EMPRESA.instagramUsuario}
-                  </a>
-                </li>
-                <li>{enderecoCurto}</li>
-              </ul>
-              <h2 className="mt-8 text-lead font-semibold">{d.rodape.politicas}</h2>
-              <ul className="mt-4 space-y-3 text-[1.0625rem]">
-                <li>
-                  <Link href={rota(idioma, '/politica-de-cancelamento')} className="underline-offset-4 hover:underline">
-                    {d.rodape.cancelamento}
-                  </Link>
-                </li>
-                <li>
-                  <Link href={rota(idioma, '/termos-de-uso')} className="underline-offset-4 hover:underline">
-                    {d.rodape.termos}
-                  </Link>
-                </li>
-                <li>
-                  <Link href={rota(idioma, '/politica-de-privacidade')} className="underline-offset-4 hover:underline">
-                    {d.rodape.privacidade}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div className="bg-areia-clara px-5 py-4 text-small md:col-span-2">
-              <p>
-                <strong>{d.rodape.razao}:</strong> {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa}) · <strong>{d.rodape.cnpj}:</strong>{' '}
-                {EMPRESA.cnpj}
-              </p>
-              <p className="mt-1">
-                {enderecoCurto} · {EMPRESA.email} · {EMPRESA.telefoneExibicao}
-              </p>
-            </div>
-          </div>
+    <footer className="tom-sol relative overflow-hidden">
+      <div className="moldura grid gap-12 pt-20 md:grid-cols-12 md:pt-28">
+        <div className="md:col-span-7">
+          <h2 className="largo text-[clamp(2.25rem,1rem+4.6vw,5.25rem)]">{R.convite}</h2>
+          <Link href={rota(idioma, '/passeios')} className="botao mt-8 w-full sm:w-auto">
+            {R.botao}
+          </Link>
         </div>
-        <div className="flex flex-col items-start justify-between gap-6 py-12 md:flex-row md:items-end">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo/agencia-victor-hugo-horizontal-fundo-escuro.svg"
-            alt={EMPRESA.marca}
-            width={344}
-            height={100}
-            loading="lazy"
-            className="h-auto w-full max-w-[520px]"
-          />
-          <p className="text-small text-white/85">{fmt(d.rodape.direitos, { ano, marca: EMPRESA.marca })}</p>
-        </div>
+        <nav aria-label={R.contato} className="md:col-span-3 md:col-start-10">
+          <ul className="space-y-2 text-lead">
+            {links.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} className="link font-semibold">
+                  {l.texto}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <a
+                href={linkWhatsApp(d.contato.msg)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link font-semibold"
+                data-evento="Contact"
+              >
+                WhatsApp {EMPRESA.telefoneExibicao}
+              </a>
+            </li>
+            <li>
+              <a href={EMPRESA.instagramUrl} target="_blank" rel="noopener noreferrer" className="link font-semibold">
+                Instagram
+              </a>
+            </li>
+            <li>
+              <a href={`mailto:${EMPRESA.email}`} className="link break-all font-semibold">
+                {EMPRESA.email}
+              </a>
+            </li>
+          </ul>
+        </nav>
       </div>
+
+      <div className="moldura mt-20 flex flex-col gap-4 text-small md:flex-row md:items-end md:justify-between">
+        <p className="max-w-[60ch]">
+          {R.razao}: {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa}) · {R.cnpj} {EMPRESA.cnpj} · {enderecoCurto} · {R.pagamentos}
+          <br />
+          {fmt(R.direitos, { ano, marca: EMPRESA.marca })}
+        </p>
+        <ul className="flex flex-wrap gap-x-5 gap-y-1">
+          <li>
+            <Link href={rota(idioma, '/politica-de-cancelamento')} className="link">
+              {R.cancelamento}
+            </Link>
+          </li>
+          <li>
+            <Link href={rota(idioma, '/termos-de-uso')} className="link">
+              {R.termos}
+            </Link>
+          </li>
+          <li>
+            <Link href={rota(idioma, '/politica-de-privacidade')} className="link">
+              {R.privacidade}
+            </Link>
+          </li>
+          <li>
+            <RedefinirCookies rotulo={d.cookies.gerenciar} className="link text-left" />
+          </li>
+        </ul>
+      </div>
+
+      <p aria-hidden="true" className="largo mt-6 -mb-[0.2em] whitespace-nowrap pl-[calc(var(--margem)-0.06em)] text-[27vw] leading-[0.8]">
+        Victor Hugo
+      </p>
     </footer>
   );
 }

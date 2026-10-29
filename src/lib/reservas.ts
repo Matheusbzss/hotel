@@ -28,10 +28,16 @@ export interface Reserva {
     nome: string;
     cidade: string;
     unidade: 'pessoa' | 'veiculo' | 'embarcacao';
+    /** Opção escolhida (ex.: lancha 2 horas), quando o passeio tem opções. */
+    opcao?: { id: string; nome: string };
   };
   data: string;
+  /** Adultos e crianças que pagam inteira. */
   adultos: number;
+  /** Total de crianças com desconto (meia + grátis). */
   criancas: number;
+  criancasMeia?: number;
+  criancasGratis?: number;
   unidades: number;
   totalCentavos: number;
   /** Quanto vai para o parceiro (sem margem), para controle interno. */

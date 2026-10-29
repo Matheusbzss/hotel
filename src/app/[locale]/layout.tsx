@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { Albert_Sans, Imbue, Yellowtail } from 'next/font/google';
+import { TikTok_Sans } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { Cabecalho } from '@/components/Cabecalho';
+import { GrupoProvider } from '@/components/grupo/GrupoContexto';
 import { Rastreamento } from '@/components/Rastreamento';
 import { Rodape } from '@/components/Rodape';
 import { WhatsAppFlutuante } from '@/components/WhatsAppFlutuante';
@@ -11,9 +12,8 @@ import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
 import { urlDoSite } from '@/lib/site';
 import '../globals.css';
 
-const imbue = Imbue({ subsets: ['latin', 'latin-ext'], axes: ['opsz'], variable: '--font-imbue', display: 'swap' });
-const yellowtail = Yellowtail({ subsets: ['latin', 'latin-ext'], weight: '400', variable: '--font-yellowtail', display: 'swap' });
-const albert = Albert_Sans({ subsets: ['latin', 'latin-ext'], variable: '--font-albert', display: 'swap' });
+/** Uma família só: larga e pesada nos títulos, largura normal no texto. */
+const tiktok = TikTok_Sans({ subsets: ['latin', 'latin-ext'], axes: ['wdth', 'opsz'], variable: '--font-tiktok', display: 'swap' });
 
 export const dynamicParams = false;
 
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Pr
 }
 
 export const viewport: Viewport = {
-  themeColor: '#FF7A66',
+  themeColor: '#082f3f',
   width: 'device-width',
   initialScale: 1,
 };
@@ -68,13 +68,16 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
   };
 
   return (
-    <html lang={HREFLANG[locale]} className={`${imbue.variable} ${yellowtail.variable} ${albert.variable}`}>
+    <html lang={HREFLANG[locale]} className={tiktok.variable}>
       <body className="min-h-dvh">
-        <a href="#conteudo" className="sr-only z-50 bg-sol px-4 py-3 font-semibold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        <a
+          href="#conteudo"
+          className="sr-only z-50 bg-sol px-4 py-3 font-semibold text-mar focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
           {d.nav.pularConteudo}
         </a>
         <Cabecalho idioma={locale} d={d} />
-        <main id="conteudo">{children}</main>
+        <GrupoProvider>{children}</GrupoProvider>
         <Rodape idioma={locale} d={d} />
         <WhatsAppFlutuante rotulo={d.comum.whatsapp} mensagem={d.contato.msg} />
         <Rastreamento

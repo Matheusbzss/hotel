@@ -56,23 +56,19 @@ export function Rastreamento({
   };
 
   return (
-    <div
-      role="region"
-      aria-label="Cookies"
-      className="fixed inset-x-0 bottom-0 z-50 bg-tinta text-white shadow-[0_-12px_32px_rgba(11,59,92,0.3)]"
-    >
+    <div role="region" aria-label="Cookies" className="tom-claro fixed inset-x-0 bottom-0 z-50">
       <div className="moldura flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
-        <p className="text-[1rem]">
+        <p>
           {textos.texto}{' '}
-          <Link href={linkPrivacidade} className="font-semibold underline underline-offset-4">
+          <Link href={linkPrivacidade} className="link font-semibold">
             {textos.saibaMais}
           </Link>
         </p>
         <div className="flex shrink-0 gap-2">
-          <button type="button" onClick={() => escolher('nao')} className="botao botao-branco min-h-11 px-5 py-2">
+          <button type="button" onClick={() => escolher('nao')} className="botao botao-vazado min-h-11 px-5 py-2">
             {textos.recusar}
           </button>
-          <button type="button" onClick={() => escolher('sim')} className="botao botao-coral min-h-11 px-5 py-2">
+          <button type="button" onClick={() => escolher('sim')} className="botao min-h-11 px-5 py-2">
             {textos.aceitar}
           </button>
         </div>

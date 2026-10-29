@@ -23,13 +23,13 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
   let reserva = await obterReserva(codigo).catch(() => null);
   if (!reserva || !tokenConfere(reserva, token)) {
     return (
-      <div className="moldura pb-32 pt-16">
-        <h1 className="titulo-display text-head">{d.reserva.naoEncontrada}</h1>
+      <main id="conteudo" className="tom-mar moldura pb-32 pt-16">
+        <h1 className="largo text-head text-sol">{d.reserva.naoEncontrada}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{d.reserva.naoEncontradaTexto}</p>
         <a href={linkWhatsApp(d.contato.msg)} target="_blank" rel="noopener noreferrer" className="botao botao-whats mt-8">
           {d.comum.whatsapp}
         </a>
-      </div>
+      </main>
     );
   }
   if (reserva.status === 'pendente') {
@@ -37,11 +37,11 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
   }
   const publica = paraPublico(reserva, locale);
   const qrSvg = publica.pixCopiaECola
-    ? await QRCode.toString(publica.pixCopiaECola, { type: 'svg', margin: 1, color: { dark: '#0B3B5C', light: '#FFFFFF' } })
+    ? await QRCode.toString(publica.pixCopiaECola, { type: 'svg', margin: 1, color: { dark: '#082F3F', light: '#FFFFFF' } })
     : undefined;
 
   return (
-    <div className="moldura pb-24 pt-8 md:pb-32 md:pt-12">
+    <main id="conteudo" className="tom-mar moldura pb-24 pt-8 md:pb-32 md:pt-12">
       <StatusReserva
         inicial={publica}
         token={token}
@@ -55,13 +55,9 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         textos={{
           ...d.reserva,
           msgWhatsapp: d.checkout.msgWhatsapp,
-          adulto: d.comum.adulto,
-          adultos: d.comum.adultos.toLowerCase(),
-          crianca: d.comum.crianca,
-          criancas: d.comum.criancas.toLowerCase(),
           falarWhatsapp: d.comum.whatsapp,
         }}
       />
-    </div>
+    </main>
   );
 }

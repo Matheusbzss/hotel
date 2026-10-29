@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { obterPasseio } from '@/data/passeios';
 import { IDIOMAS } from '@/i18n/config';
 import { criarPedido, ErroPagarme, interpretarPedido, pagarmeConfigurado } from '@/lib/pagarme';
-import { calcularOrcamento, custoParceiroCentavos } from '@/lib/precos';
+import { calcular, normalizarPessoas } from '@/lib/orcamento';
+import { custoParceiroCentavos, obterOpcao, regraCriancas, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { atualizarReserva, criarReserva, registrar } from '@/lib/reservas';
 import {
   CIDADES_HOSPEDAGEM,
@@ -24,8 +25,10 @@ const Esquema = z.object({
   idioma: z.enum(IDIOMAS),
   slug: z.string().max(80),
   data: z.string(),
-  adultos: z.number().int().min(1).max(30),
-  criancas: z.number().int().min(0).max(30),
+  opcao: z.string().max(40).optional(),
+  adultos: z.number().int().min(1).max(40),
+  criancasMeia: z.number().int().min(0).max(30).optional().default(0),
+  criancasGratis: z.number().int().min(0).max(30).optional().default(0),
   cliente: z.object({
     nome: texto(120),
     email: texto(160),
@@ -87,8 +90,13 @@ export async function POST(req: Request) {
     return erro('cliente.documento');
   }
 
-  const orc = calcularOrcamento(passeio, e.adultos, e.criancas);
+  const opcao = obterOpcao(passeio, temOpcoes(passeio) ? e.opcao : undefined);
+  if (!opcao) return erro('opcao');
+  const tabela = tabelaPreco(passeio, opcao);
+  const pessoas = normalizarPessoas(tabela, e);
+  const orc = calcular(tabela, pessoas);
   if (orc.totalCentavos <= 0) return erro('total');
+  if (orc.pessoas > 40) return erro('pessoas');
 
   const online = pagarmeConfigurado() && e.pagamento.metodo !== 'whatsapp';
   const metodo = online ? e.pagamento.metodo : 'whatsapp';
@@ -98,13 +106,21 @@ export async function POST(req: Request) {
     reserva = await criarReserva({
       idioma: e.idioma,
       status: online ? 'pendente' : 'aguardando_whatsapp',
-      passeio: { slug: passeio.slug, nome: passeio.nome.pt, cidade: passeio.cidade, unidade: passeio.unidade },
+      passeio: {
+        slug: passeio.slug,
+        nome: passeio.nome.pt,
+        cidade: passeio.cidade,
+        unidade: passeio.unidade,
+        ...(temOpcoes(passeio) ? { opcao: { id: opcao.id, nome: opcao.nome.pt } } : {}),
+      },
       data: e.data,
-      adultos: e.adultos,
-      criancas: e.criancas,
+      adultos: pessoas.adultos,
+      criancas: pessoas.criancasMeia + pessoas.criancasGratis,
+      criancasMeia: pessoas.criancasMeia,
+      criancasGratis: pessoas.criancasGratis,
       unidades: orc.unidades,
       totalCentavos: orc.totalCentavos,
-      custoParceiroCentavos: custoParceiroCentavos(passeio, e.adultos, e.criancas),
+      custoParceiroCentavos: custoParceiroCentavos(passeio, opcao, pessoas),
       cliente: {
         nome: e.cliente.nome,
         email: e.cliente.email.toLowerCase(),
@@ -126,19 +142,23 @@ export async function POST(req: Request) {
   }
 
   // descrição interna (aparece no painel da Pagar.me), sempre em português
-  const nomePasseio = passeio.nome.pt;
+  const nomePasseio = temOpcoes(passeio) ? `${passeio.nome.pt} — ${opcao.nome.pt}` : passeio.nome.pt;
   const unidade = passeio.unidade === 'veiculo' ? 'veículo' : 'embarcação';
-  const itens = orc.linhas.map((l) => ({
-    descricao:
-      l.tipo === 'crianca'
-        ? `${nomePasseio} (criança)`
-        : l.tipo === 'unidade'
-          ? `${nomePasseio} (por ${unidade})`
-          : `${nomePasseio} (adulto)`,
-    quantidade: l.quantidade,
-    unitarioCentavos: l.unitarioCentavos,
-    codigo: `${passeio.slug}-${l.tipo}`,
-  }));
+  const regra = regraCriancas(passeio);
+  const rotuloInteira = regra.gratisAte === null && regra.meiaAte === undefined ? 'por pessoa' : 'adulto';
+  const itens = orc.linhas
+    .filter((l) => l.unitarioCentavos > 0)
+    .map((l) => ({
+      descricao:
+        l.tipo === 'meia'
+          ? `${nomePasseio} (criança, meia)`
+          : l.tipo === 'unidade'
+            ? `${nomePasseio} (por ${unidade})`
+            : `${nomePasseio} (${rotuloInteira})`,
+      quantidade: l.quantidade,
+      unitarioCentavos: l.unitarioCentavos,
+      codigo: `${passeio.slug}${temOpcoes(passeio) ? `-${opcao.id}` : ''}-${l.tipo}`,
+    }));
 
   try {
     const pedido = await criarPedido(

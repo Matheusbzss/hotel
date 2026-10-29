@@ -11,18 +11,22 @@ export default async function NaoEncontrado() {
   } catch {}
   const d = dicionario(idioma);
   return (
-    <div className="moldura pb-32 pt-16 md:pt-24">
-      <p className="script text-[clamp(3rem,2rem+4vw,5rem)] leading-none text-coral-forte">404</p>
-      <h1 className="titulo-display mt-2 text-head">{d.erro404.titulo}</h1>
-      <p className="mt-4 max-w-[40ch] text-lead">{d.erro404.texto}</p>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link href={rota(idioma, '/')} className="botao botao-tinta">
-          {d.erro404.voltar}
-        </Link>
-        <Link href={rota(idioma, '/passeios')} className="botao botao-coral">
-          {d.comum.verPasseios}
-        </Link>
+    <main id="conteudo" className="tom-mar">
+      <div className="moldura pb-32 pt-16 md:pt-24">
+        <p className="largo text-display text-sol" aria-hidden="true">
+          404
+        </p>
+        <h1 className="mt-6 text-head font-bold">{d.erro404.titulo}</h1>
+        <p className="mt-4 max-w-[40ch] text-lead">{d.erro404.texto}</p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href={rota(idioma, '/')} className="botao">
+            {d.erro404.voltar}
+          </Link>
+          <Link href={rota(idioma, '/passeios')} className="botao botao-vazado">
+            {d.comum.verPasseios}
+          </Link>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,4 +1,4 @@
-import type { Cena, Cidade, Texto } from './passeios';
+import type { Cidade, Icone, Texto } from './passeios';
 
 /**
  * PACOTES PASSEIO + HOSPEDAGEM — sob consulta, sem checkout.
@@ -7,7 +7,9 @@ import type { Cena, Cidade, Texto } from './passeios';
 export interface Pacote {
   slug: string;
   cidadeBase: Cidade;
-  ilustracao: Cena;
+  /** Foto de capa (em /public/fotos). Sem foto, aparece o ícone. */
+  foto?: string;
+  icone: Icone;
   /** Slugs dos passeios (de src/data/passeios.ts) que fazem parte do pacote. */
   passeios: string[];
   noites: Texto;
@@ -19,7 +21,8 @@ export const PACOTES: Pacote[] = [
   {
     slug: 'buzios-classico',
     cidadeBase: 'buzios',
-    ilustracao: 'escuna',
+    foto: '/fotos/buzios/vista-da-escuna.jpg',
+    icone: 'barco',
     passeios: ['escuna-buzios', 'city-tour-buzios', 'buggy-buzios'],
     noites: { pt: 'Sugestão: 3 a 4 noites', en: 'Suggested: 3 to 4 nights', es: 'Sugerencia: 3 a 4 noches' },
     nome: { pt: 'Búzios clássico', en: 'Classic Búzios', es: 'Búzios clásico' },
@@ -32,7 +35,8 @@ export const PACOTES: Pacote[] = [
   {
     slug: 'regiao-dos-lagos',
     cidadeBase: 'buzios',
-    ilustracao: 'barco',
+    foto: '/fotos/arraial/barco-gruta.jpg',
+    icone: 'barco',
     passeios: ['escuna-buzios', 'full-day-arraial-do-cabo', 'catamara-cabo-frio'],
     noites: { pt: 'Sugestão: 5 noites', en: 'Suggested: 5 nights', es: 'Sugerencia: 5 noches' },
     nome: { pt: 'Região dos Lagos em uma viagem', en: 'The Lakes Region in one trip', es: 'La Región de los Lagos en un viaje' },
@@ -45,7 +49,8 @@ export const PACOTES: Pacote[] = [
   {
     slug: 'arraial-azul',
     cidadeBase: 'arraial-do-cabo',
-    ilustracao: 'mergulho',
+    foto: '/fotos/arraial/mergulho.jpg',
+    icone: 'mergulho',
     passeios: ['barco-arraial-do-cabo', 'mergulho-arraial-do-cabo', 'city-tour-arraial-do-cabo'],
     noites: { pt: 'Sugestão: 3 noites', en: 'Suggested: 3 nights', es: 'Sugerencia: 3 noches' },
     nome: { pt: 'Arraial do Cabo azul', en: 'Blue Arraial do Cabo', es: 'Arraial do Cabo azul' },
@@ -58,7 +63,8 @@ export const PACOTES: Pacote[] = [
   {
     slug: 'casal-em-buzios',
     cidadeBase: 'buzios',
-    ilustracao: 'helicoptero',
+    foto: '/fotos/buzios/lancha.jpg',
+    icone: 'lancha',
     passeios: ['lancha-buzios', 'helicoptero-buzios'],
     noites: { pt: 'Sugestão: 2 a 3 noites', en: 'Suggested: 2 to 3 nights', es: 'Sugerencia: 2 a 3 noches' },
     nome: { pt: 'A dois em Búzios', en: 'Búzios for two', es: 'Búzios en pareja' },

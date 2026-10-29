@@ -5,18 +5,22 @@
  * - PREÇO: cada passeio guarda o preço do PARCEIRO em `precoParceiro` (em reais).
  *   O preço de venda é calculado automaticamente: precoParceiro + MARGEM_PERCENTUAL.
  *   Para mudar a margem de todos os passeios, troque só MARGEM_PERCENTUAL abaixo.
+ *   `origemPreco` diz de onde veio o valor: 'parceiro' (lista do parceiro) ou
+ *   'pesquisa' (preço médio de mercado pesquisado na internet — confirme com o parceiro).
+ * - OPÇÕES: passeios com mais de um formato (ex.: lancha 2 h ou 4 h) usam `opcoes`,
+ *   cada uma com o próprio preço do parceiro. O "a partir de" usa a opção mais barata.
  * - UNIDADE: 'pessoa' (por pessoa), 'veiculo' (por veículo) ou 'embarcacao' (por embarcação).
  *   Para 'veiculo' e 'embarcacao', informe `capacidadePorUnidade` (quantas pessoas cabem).
- * - FOTOS: coloque as imagens em /public/fotos/passeios/<slug>/ e liste os caminhos em `fotos`,
- *   por exemplo: ['/fotos/passeios/escuna-buzios/1.jpg', '/fotos/passeios/escuna-buzios/2.jpg'].
- *   A primeira foto é a capa. Sem fotos, o site mostra uma ilustração do tipo de passeio.
+ * - CRIANÇAS: `criancas.gratisAte` = idade até a qual não paga (padrão: 5 anos);
+ *   `criancas.meiaAte` = idade até a qual paga meia (ex.: 10). Sem `meiaAte`, quem passa da
+ *   idade grátis paga inteira. `gratisAte: null` = todos pagam (ex.: helicóptero, mergulho).
+ * - FOTOS: coloque as imagens em /public/fotos/ e liste os caminhos em `fotos`
+ *   (a primeira é a capa). Sem fotos, o card mostra uma capa com o ícone do passeio.
  * - TEXTOS: cada campo de texto tem as versões pt (português), en (inglês) e es (espanhol).
  * - Para tirar um passeio do ar sem apagar, use `ativo: false`.
  *
- * ATENÇÃO — REVISAR: o site do parceiro não pôde ser acessado na criação deste arquivo.
- * Nomes e preços vieram da lista enviada pelo cliente. Durações, unidades marcadas com
- * "CONFIRA", roteiros e itens inclusos foram escritos com base no formato padrão desses
- * passeios na Região dos Lagos e precisam ser conferidos com o parceiro.
+ * REVISAR: durações, roteiros e itens inclusos foram escritos com base no formato padrão
+ * desses passeios na Região dos Lagos. Confira com o parceiro antes de divulgar.
  */
 
 export type Idioma = 'pt' | 'en' | 'es';
@@ -24,39 +28,45 @@ export type Texto = Record<Idioma, string>;
 export type Lista = Record<Idioma, string[]>;
 
 export type Cidade = 'buzios' | 'arraial-do-cabo' | 'cabo-frio' | 'rio-de-janeiro';
-export type Categoria = 'barco' | 'buggy-quadriciclo' | 'city-tour' | 'aventura';
+export type Categoria = 'barco' | 'lancha' | 'buggy-quadriciclo' | 'mergulho' | 'city-tour' | 'aventura';
 export type UnidadePreco = 'pessoa' | 'veiculo' | 'embarcacao';
-export type Cena =
-  | 'escuna'
-  | 'catamara'
-  | 'barco'
-  | 'lancha'
-  | 'jetski'
-  | 'buggy'
-  | 'quadriciclo'
-  | 'trolley'
-  | 'cidade'
-  | 'mergulho'
-  | 'helicoptero'
-  | 'rio';
+export type Icone = 'barco' | 'lancha' | 'buggy' | 'quadriciclo' | 'jetski' | 'helicoptero' | 'mergulho' | 'van' | 'trolley';
+
+export interface PoliticaCriancas {
+  /** Idade até a qual a criança não paga (ex.: 5). `null` = todos pagam. */
+  gratisAte: number | null;
+  /** Idade até a qual a criança paga meia (ex.: 10). */
+  meiaAte?: number;
+  /** Idade mínima para participar. */
+  idadeMinima?: number;
+}
+
+export interface OpcaoPasseio {
+  id: string;
+  nome: Texto;
+  /** Preço do parceiro em reais desta opção, SEM a margem. */
+  precoParceiro: number;
+  origemPreco?: 'parceiro' | 'pesquisa';
+}
 
 export interface Passeio {
   slug: string;
   ativo?: boolean;
   cidade: Cidade;
   categoria: Categoria;
-  /** Preço do parceiro em reais, SEM a margem. */
+  /** Preço do parceiro em reais, SEM a margem (quando há opções, use o da opção mais barata). */
   precoParceiro: number;
-  /** Preço do parceiro para criança. Se não informado, criança paga o mesmo que adulto. */
-  precoCriancaParceiro?: number;
+  origemPreco: 'parceiro' | 'pesquisa';
+  opcoes?: OpcaoPasseio[];
   unidade: UnidadePreco;
   /** Pessoas por veículo/embarcação (obrigatório quando a unidade não é 'pessoa'). */
   capacidadePorUnidade?: number;
+  criancas?: PoliticaCriancas;
   duracao: Texto;
   destaque?: boolean;
   fotos: string[];
-  /** Ilustração usada enquanto o passeio não tem fotos. */
-  ilustracao: Cena;
+  /** Ícone da capa enquanto o passeio não tem fotos. */
+  icone: Icone;
   nome: Texto;
   resumo: Texto;
   descricao: Texto;
@@ -69,6 +79,9 @@ export interface Passeio {
 /** Margem aplicada sobre o preço do parceiro (10 = +10%). */
 export const MARGEM_PERCENTUAL = 10;
 
+/** Regra padrão de crianças: até 5 anos não paga; a partir de 6 paga inteira. */
+export const CRIANCAS_PADRAO: PoliticaCriancas = { gratisAte: 5 };
+
 export const CIDADES: Record<Cidade, { nome: Texto; ordem: number }> = {
   buzios: { nome: { pt: 'Búzios', en: 'Búzios', es: 'Búzios' }, ordem: 1 },
   'arraial-do-cabo': { nome: { pt: 'Arraial do Cabo', en: 'Arraial do Cabo', es: 'Arraial do Cabo' }, ordem: 2 },
@@ -76,11 +89,17 @@ export const CIDADES: Record<Cidade, { nome: Texto; ordem: number }> = {
   'rio-de-janeiro': { nome: { pt: 'Rio de Janeiro', en: 'Rio de Janeiro', es: 'Río de Janeiro' }, ordem: 4 },
 };
 
-export const CATEGORIAS: Record<Categoria, { nome: Texto; ordem: number }> = {
-  barco: { nome: { pt: 'Barco', en: 'Boat', es: 'Barco' }, ordem: 1 },
-  'buggy-quadriciclo': { nome: { pt: 'Buggy e quadriciclo', en: 'Buggy & quad', es: 'Buggy y cuatriciclo' }, ordem: 2 },
-  'city-tour': { nome: { pt: 'City tour', en: 'City tour', es: 'City tour' }, ordem: 3 },
-  aventura: { nome: { pt: 'Aventura', en: 'Adventure', es: 'Aventura' }, ordem: 4 },
+export const CATEGORIAS: Record<Categoria, { nome: Texto; ordem: number; icone: Icone }> = {
+  barco: { nome: { pt: 'Barcos e escunas', en: 'Boats & schooners', es: 'Barcos y goletas' }, ordem: 1, icone: 'barco' },
+  lancha: { nome: { pt: 'Lancha', en: 'Speedboat', es: 'Lancha' }, ordem: 2, icone: 'lancha' },
+  'buggy-quadriciclo': { nome: { pt: 'Buggy e quadriciclo', en: 'Buggy & quad', es: 'Buggy y cuatriciclo' }, ordem: 3, icone: 'buggy' },
+  mergulho: { nome: { pt: 'Mergulho', en: 'Diving', es: 'Buceo' }, ordem: 4, icone: 'mergulho' },
+  'city-tour': { nome: { pt: 'City tour e full day', en: 'City tours & day trips', es: 'City tour y full day' }, ordem: 5, icone: 'van' },
+  aventura: {
+    nome: { pt: 'Jet ski e helicóptero', en: 'Jet ski & helicopter', es: 'Moto de agua y helicóptero' },
+    ordem: 6,
+    icone: 'jetski',
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -181,14 +200,22 @@ export const PASSEIOS: Passeio[] = [
   /* ============================== BÚZIOS ============================== */
   {
     slug: 'escuna-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'barco',
     precoParceiro: 70,
     unidade: 'pessoa',
     duracao: { pt: '2h30', en: '2h30', es: '2h30' },
     destaque: true,
-    fotos: [],
-    ilustracao: 'escuna',
+    fotos: [
+      '/fotos/buzios/escuna-no-mar.jpg',
+      '/fotos/buzios/escuna-proa.jpg',
+      '/fotos/buzios/escuna-no-pier.jpg',
+      '/fotos/buzios/vista-da-escuna.jpg',
+      '/fotos/buzios/escuna-mastros.jpg',
+    ],
+    icone: 'barco',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'Passeio de Escuna em Búzios', en: 'Schooner Tour in Búzios', es: 'Paseo en Goleta por Búzios' },
     resumo: {
       pt: 'O clássico de Búzios: praias e ilhas vistas do mar, com paradas para banho em águas claras.',
@@ -236,13 +263,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'catamara-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'barco',
     precoParceiro: 110,
     unidade: 'pessoa',
-    duracao: { pt: '2h30', en: '2h30', es: '2h30' },
+    duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     fotos: [],
-    ilustracao: 'catamara',
+    icone: 'barco',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'Passeio de Catamarã em Búzios', en: 'Catamaran Tour in Búzios', es: 'Paseo en Catamarán por Búzios' },
     resumo: {
       pt: 'Mais espaço e estabilidade para conhecer as praias de Búzios pelo mar.',
@@ -287,14 +316,23 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'buggy-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 100,
-    unidade: 'pessoa', // CONFIRA: por pessoa ou por buggy?
+    unidade: 'pessoa',
     duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     destaque: true,
-    fotos: [],
-    ilustracao: 'buggy',
+    fotos: [
+      '/fotos/buzios/buggy-orla.jpg',
+      '/fotos/buzios/buggy-mirante.jpg',
+      '/fotos/buzios/buggy-comboio.jpg',
+      '/fotos/buzios/buggy-praia.jpg',
+      '/fotos/buzios/buggy-centro.jpg',
+      '/fotos/buzios/buggy-passeio.jpg',
+    ],
+    icone: 'buggy',
+    criancas: { gratisAte: 5 },
     nome: { pt: 'Passeio de Buggy em Búzios', en: 'Buggy Tour in Búzios', es: 'Paseo en Buggy por Búzios' },
     resumo: {
       pt: 'Vento no rosto e paradas nas praias e mirantes mais bonitos da península.',
@@ -342,6 +380,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'quadriciclo-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 280,
@@ -349,7 +388,8 @@ export const PASSEIOS: Passeio[] = [
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [],
-    ilustracao: 'quadriciclo',
+    icone: 'quadriciclo',
+    criancas: { gratisAte: null },
     nome: { pt: 'Passeio de Quadriciclo em Búzios', en: 'Quad Bike Tour in Búzios', es: 'Paseo en Cuatriciclo por Búzios' },
     resumo: {
       pt: 'Você no comando de um quadriciclo por trilhas de terra e praias mais selvagens.',
@@ -394,6 +434,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'city-tour-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
     precoParceiro: 190,
@@ -401,7 +442,8 @@ export const PASSEIOS: Passeio[] = [
     duracao: { pt: '4 horas', en: '4 hours', es: '4 horas' },
     destaque: true,
     fotos: [],
-    ilustracao: 'cidade',
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'City Tour em Búzios', en: 'Búzios City Tour', es: 'City Tour en Búzios' },
     resumo: {
       pt: 'Os cartões-postais de Búzios por terra, com mirantes, praias e o centrinho.',
@@ -452,41 +494,50 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'full-day-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
     precoParceiro: 240,
     unidade: 'pessoa',
-    duracao: { pt: 'Dia inteiro (cerca de 8 horas)', en: 'Full day (about 8 hours)', es: 'Día completo (unas 8 horas)' },
-    fotos: [],
-    ilustracao: 'escuna',
-    nome: { pt: 'Full Day Búzios', en: 'Búzios Full Day', es: 'Full Day Búzios' },
+    duracao: { pt: 'Dia inteiro (cerca de 9 horas)', en: 'Full day (about 9 hours)', es: 'Día completo (unas 9 horas)' },
+    fotos: ['/fotos/buzios/escuna-no-pier.jpg', '/fotos/buzios/escuna-no-mar.jpg', '/fotos/buzios/vista-da-escuna.jpg'],
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
+    nome: {
+      pt: 'Full Day Búzios: Escuna + City Tour',
+      en: 'Búzios Full Day: Schooner + City Tour',
+      es: 'Full Day Búzios: Goleta + City Tour',
+    },
     resumo: {
-      pt: 'Um dia inteiro em Búzios: pontos turísticos por terra, mar e tempo livre no centrinho.',
-      en: 'A whole day in Búzios: sights by land and sea, plus free time in the town centre.',
-      es: 'Un día completo en Búzios: lugares turísticos por tierra y mar, y tiempo libre en el centro.',
+      pt: 'Saindo de Cabo Frio ou Arraial: passeio de escuna, mirantes de Búzios e tempo livre na Rua das Pedras.',
+      en: 'From Cabo Frio or Arraial: a schooner trip, the Búzios viewpoints and free time on Rua das Pedras.',
+      es: 'Desde Cabo Frio o Arraial: paseo en goleta, miradores de Búzios y tiempo libre en la Rua das Pedras.',
     },
     descricao: {
-      pt: 'Para quem está hospedado em Cabo Frio ou Arraial do Cabo e quer conhecer Búzios em um dia só. O passeio reúne os principais mirantes e praias da península e tempo livre para almoçar e caminhar pela Rua das Pedras e pela Orla Bardot.\n\nO transporte sai do seu hotel e volta no fim da tarde, então você não precisa se preocupar com estacionamento nem com horários.',
-      en: 'For travellers staying in Cabo Frio or Arraial do Cabo who want to see Búzios in a single day. The tour combines the main viewpoints and beaches of the peninsula with free time for lunch and a stroll along Rua das Pedras and Orla Bardot.\n\nTransport leaves from your hotel and brings you back in the late afternoon, so there is no need to worry about parking or schedules.',
-      es: 'Para quienes se alojan en Cabo Frio o Arraial do Cabo y quieren conocer Búzios en un solo día. El paseo reúne los principales miradores y playas de la península, con tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot.\n\nEl traslado sale de tu hotel y vuelve al final de la tarde, así que no tenés que preocuparte por estacionamiento ni horarios.',
+      pt: 'O jeito mais completo de conhecer Búzios em um dia, para quem está hospedado em Cabo Frio ou Arraial do Cabo. A van busca você no hotel, faz o city tour pelos mirantes e praias mais bonitas da península e leva até o píer para o passeio de escuna, com paradas para banho em águas calmas.\n\nNo fim sobra tempo livre para almoçar e caminhar pela Rua das Pedras e pela Orla Bardot antes do retorno. Se o mar não permitir a navegação no dia, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
+      en: 'The most complete way to see Búzios in one day, for travellers staying in Cabo Frio or Arraial do Cabo. The van picks you up at your hotel, tours the peninsula’s best viewpoints and beaches and takes you to the pier for the schooner trip, with swim stops in calm water.\n\nAt the end there is free time for lunch and a stroll along Rua das Pedras and Orla Bardot before heading back. If the sea does not allow sailing that day, you choose between a new date or a refund, as our cancellation policy provides.',
+      es: 'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
     },
     inclui: {
       pt: [
-        'Transporte de ida e volta a partir do hotel/pousada na Região dos Lagos',
+        'Transporte de ida e volta a partir do hotel/pousada em Cabo Frio ou Arraial do Cabo',
+        'Passeio de escuna com paradas para banho',
+        'City tour com paradas em mirantes e praias',
         'Guia ou condutor local',
-        'Paradas em praias e mirantes',
         'Tempo livre no centro de Búzios',
       ],
       en: [
-        'Round-trip transport from your hotel in the Lakes Region',
+        'Round-trip transport from your hotel in Cabo Frio or Arraial do Cabo',
+        'Schooner trip with swim stops',
+        'City tour with stops at viewpoints and beaches',
         'Local guide or driver',
-        'Stops at beaches and viewpoints',
         'Free time in downtown Búzios',
       ],
       es: [
-        'Traslado de ida y vuelta desde el hotel/posada en la Región de los Lagos',
+        'Traslado de ida y vuelta desde el hotel/posada en Cabo Frio o Arraial do Cabo',
+        'Paseo en goleta con paradas para nadar',
+        'City tour con paradas en miradores y playas',
         'Guía o conductor local',
-        'Paradas en playas y miradores',
         'Tiempo libre en el centro de Búzios',
       ],
     },
@@ -494,25 +545,25 @@ export const PASSEIOS: Passeio[] = [
     roteiro: {
       pt: [
         'Busca no hotel ou pousada',
-        'Mirantes e praias da península',
+        'Mirantes e praias da península (Geribá, Ferradura e João Fernandes)',
+        'Passeio de escuna com paradas para banho',
         'Orla Bardot e Praia dos Ossos',
-        'Parada para banho de mar',
         'Tempo livre para almoço na Rua das Pedras',
         'Retorno ao hotel no fim da tarde',
       ],
       en: [
         'Pick-up at your hotel',
-        'Viewpoints and beaches of the peninsula',
+        'Viewpoints and beaches of the peninsula (Geribá, Ferradura and João Fernandes)',
+        'Schooner trip with swim stops',
         'Orla Bardot and Ossos beach',
-        'Swim stop',
         'Free time for lunch on Rua das Pedras',
         'Return to your hotel in the late afternoon',
       ],
       es: [
         'Búsqueda en el hotel o posada',
-        'Miradores y playas de la península',
+        'Miradores y playas de la península (Geribá, Ferradura y João Fernandes)',
+        'Paseo en goleta con paradas para nadar',
         'Orla Bardot y playa dos Ossos',
-        'Parada para bañarse en el mar',
         'Tiempo libre para almorzar en la Rua das Pedras',
         'Regreso al hotel al final de la tarde',
       ],
@@ -521,13 +572,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'trolley-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
     precoParceiro: 100,
     unidade: 'pessoa',
-    duracao: { pt: '2h30', en: '2h30', es: '2h30' },
+    duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [],
-    ilustracao: 'trolley',
+    icone: 'trolley',
+    criancas: { gratisAte: 5 },
     nome: { pt: 'Passeio de Trolley em Búzios', en: 'Trolley Tour in Búzios', es: 'Paseo en Trolley por Búzios' },
     resumo: {
       pt: 'Um veículo aberto e divertido que passa por várias praias e mirantes de Búzios.',
@@ -575,50 +628,67 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'lancha-buzios',
+    // Lista do parceiro: "Aluguel de Lancha R$ 400" — interpretado como valor por hora
+    // (2 h = R$ 800, 4 h = R$ 1.600). Confirme com o parceiro.
+    origemPreco: 'parceiro',
     cidade: 'buzios',
-    categoria: 'barco',
-    precoParceiro: 400,
-    unidade: 'pessoa', // CONFIRA: por pessoa, por hora ou por embarcação?
-    duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
-    fotos: [],
-    ilustracao: 'lancha',
-    nome: { pt: 'Aluguel de Lancha em Búzios', en: 'Speedboat Rental in Búzios', es: 'Alquiler de Lancha en Búzios' },
+    categoria: 'lancha',
+    precoParceiro: 800,
+    opcoes: [
+      { id: '2h', nome: { pt: '2 horas', en: '2 hours', es: '2 horas' }, precoParceiro: 800 },
+      { id: '4h', nome: { pt: '4 horas', en: '4 hours', es: '4 horas' }, precoParceiro: 1600 },
+    ],
+    unidade: 'embarcacao',
+    capacidadePorUnidade: 6,
+    duracao: { pt: '2 ou 4 horas', en: '2 or 4 hours', es: '2 o 4 horas' },
+    destaque: true,
+    fotos: ['/fotos/buzios/lancha.jpg'],
+    icone: 'lancha',
+    criancas: { gratisAte: null },
+    nome: { pt: 'Lancha Privativa em Búzios', en: 'Private Speedboat in Búzios', es: 'Lancha Privada en Búzios' },
     resumo: {
-      pt: 'Mais velocidade e liberdade para curtir as praias de Búzios pelo mar.',
-      en: 'More speed and freedom to enjoy the Búzios beaches by sea.',
-      es: 'Más velocidad y libertad para disfrutar las playas de Búzios por mar.',
+      pt: 'A lancha só para o seu grupo, com marinheiro, para até 6 pessoas. Escolha 2 ou 4 horas.',
+      en: 'A speedboat just for your group, with a skipper, for up to 6 people. Choose 2 or 4 hours.',
+      es: 'La lancha solo para tu grupo, con marinero, para hasta 6 personas. Elegí 2 o 4 horas.',
     },
     descricao: {
-      pt: 'A lancha é mais rápida que a escuna e permite um passeio mais exclusivo, com roteiro combinado com o marinheiro conforme o mar do dia. Ótima para casais, famílias e grupos de amigos.\n\nAs paradas para banho podem ser mais longas, nos pontos de água mais calma e transparente.',
-      en: 'A speedboat is faster than a schooner and offers a more exclusive trip, with the route agreed with the skipper according to the day’s sea. Great for couples, families and groups of friends.\n\nSwim stops can be longer, at spots with the calmest and clearest water.',
-      es: 'La lancha es más rápida que la goleta y permite un paseo más exclusivo, con el recorrido acordado con el marinero según el mar del día. Ideal para parejas, familias y grupos de amigos.\n\nLas paradas para nadar pueden ser más largas, en los puntos de agua más calma y transparente.',
+      pt: 'Na lancha privativa o roteiro é do seu grupo: você combina com o marinheiro as praias e ilhas que quer conhecer e quanto tempo fica em cada parada, conforme o mar do dia. É o jeito mais confortável e rápido de ver Búzios pelo mar, ideal para casais, famílias e amigos.\n\nO preço é pela lancha, para até 6 pessoas contando as crianças. Com 4 horas dá para incluir mais praias e fazer paradas mais longas para banho.',
+      en: 'On a private speedboat the route belongs to your group: you agree with the skipper which beaches and islands to visit and how long to stay at each stop, depending on the day’s sea. It is the most comfortable and fastest way to see Búzios from the water, ideal for couples, families and friends.\n\nThe price is per boat, for up to 6 people including children. With 4 hours you can add more beaches and enjoy longer swim stops.',
+      es: 'En la lancha privada el recorrido es de tu grupo: acordás con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
     },
     inclui: {
-      pt: ['Lancha com marinheiro habilitado', 'Paradas para banho', 'Coletes salva-vidas', 'Combustível do roteiro combinado'],
-      en: ['Speedboat with licensed skipper', 'Swim stops', 'Life jackets', 'Fuel for the agreed route'],
-      es: ['Lancha con marinero habilitado', 'Paradas para nadar', 'Chalecos salvavidas', 'Combustible del recorrido acordado'],
+      pt: [
+        'Lancha privativa com marinheiro habilitado',
+        'Combustível para o roteiro combinado',
+        'Coletes salva-vidas para todos',
+        'Paradas para banho',
+      ],
+      en: ['Private speedboat with a licensed skipper', 'Fuel for the agreed route', 'Life jackets for everyone', 'Swim stops'],
+      es: [
+        'Lancha privada con marinero habilitado',
+        'Combustible para el recorrido acordado',
+        'Chalecos salvavidas para todos',
+        'Paradas para nadar',
+      ],
     },
     naoInclui: NAO_INCLUI_TRANSPORTE,
     roteiro: {
       pt: [
-        'Embarque no centro de Búzios',
-        'Costa norte da península',
-        'Ilhas próximas',
-        'Paradas para banho em praias calmas',
+        'Embarque no píer do centro de Búzios',
+        'Praias e ilhas escolhidas com o marinheiro (ex.: João Fernandes, Azeda e Ilha Feia)',
+        'Paradas para banho em águas calmas',
         'Retorno ao píer',
       ],
       en: [
-        'Boarding in downtown Búzios',
-        'Northern coast of the peninsula',
-        'Nearby islands',
-        'Swim stops at calm beaches',
+        'Boarding at the pier in downtown Búzios',
+        'Beaches and islands chosen with the skipper (e.g. João Fernandes, Azeda and Ilha Feia)',
+        'Swim stops in calm water',
         'Return to the pier',
       ],
       es: [
-        'Embarque en el centro de Búzios',
-        'Costa norte de la península',
-        'Islas cercanas',
-        'Paradas para nadar en playas tranquilas',
+        'Embarque en el muelle del centro de Búzios',
+        'Playas e islas elegidas con el marinero (ej.: João Fernandes, Azeda e Isla Feia)',
+        'Paradas para nadar en aguas calmas',
         'Regreso al muelle',
       ],
     },
@@ -626,24 +696,32 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'jet-ski-buzios',
+    // Lista do parceiro: "Jet Ski R$ 700" — interpretado como 1 hora. A opção de 30 minutos
+    // usa o preço médio de mercado (pesquisa). Confirme com o parceiro.
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'aventura',
-    precoParceiro: 700,
-    unidade: 'embarcacao', // CONFIRA: por jet ski e por quanto tempo
+    precoParceiro: 400,
+    opcoes: [
+      { id: '30min', nome: { pt: '30 minutos', en: '30 minutes', es: '30 minutos' }, precoParceiro: 400, origemPreco: 'pesquisa' },
+      { id: '1h', nome: { pt: '1 hora', en: '1 hour', es: '1 hora' }, precoParceiro: 700 },
+    ],
+    unidade: 'embarcacao',
     capacidadePorUnidade: 2,
-    duracao: { pt: '1 hora', en: '1 hour', es: '1 hora' },
+    duracao: { pt: '30 minutos ou 1 hora', en: '30 minutes or 1 hour', es: '30 minutos o 1 hora' },
     fotos: [],
-    ilustracao: 'jetski',
+    icone: 'jetski',
+    criancas: { gratisAte: null },
     nome: { pt: 'Passeio de Jet Ski em Búzios', en: 'Jet Ski Tour in Búzios', es: 'Paseo en Moto de Agua por Búzios' },
     resumo: {
-      pt: 'Adrenalina no mar de Búzios, com instrutor acompanhando o passeio.',
-      en: 'Adrenaline on the Búzios sea, with an instructor alongside.',
-      es: 'Adrenalina en el mar de Búzios, con instructor acompañando el paseo.',
+      pt: 'Adrenalina no mar de Búzios, com instrutor acompanhando. Até 2 pessoas por jet ski.',
+      en: 'Adrenaline on the Búzios sea, with an instructor alongside. Up to 2 people per jet ski.',
+      es: 'Adrenalina en el mar de Búzios, con instructor acompañando. Hasta 2 personas por moto de agua.',
     },
     descricao: {
-      pt: 'Um passeio de jet ski acompanhado por instrutor, contornando praias e costões de Búzios. Antes de sair você recebe orientação sobre pilotagem e segurança.\n\nCada jet ski leva até duas pessoas. A rota e o tempo no mar dependem das condições do dia e das regras da Marinha.',
-      en: 'A jet ski ride with an instructor, cruising past beaches and rocky shores of Búzios. Before starting you get a riding and safety briefing.\n\nEach jet ski carries up to two people. The route and time at sea depend on the day’s conditions and Navy rules.',
-      es: 'Un paseo en moto de agua acompañado por un instructor, recorriendo playas y costas rocosas de Búzios. Antes de salir recibís instrucciones de manejo y seguridad.\n\nCada moto de agua lleva hasta dos personas. La ruta y el tiempo en el mar dependen de las condiciones del día y de las reglas de la Marina.',
+      pt: 'Um passeio de jet ski acompanhado por instrutor, contornando praias e costões de Búzios. Antes de sair você recebe orientação sobre pilotagem e segurança, sem precisar de experiência.\n\nO preço é por jet ski, que leva até duas pessoas. Escolha 30 minutos ou 1 hora. A rota depende das condições do dia e das regras da Marinha.',
+      en: 'A jet ski ride with an instructor, cruising past the beaches and rocky shores of Búzios. Before starting you get a riding and safety briefing, no experience needed.\n\nThe price is per jet ski, which carries up to two people. Choose 30 minutes or 1 hour. The route depends on the day’s conditions and Navy rules.',
+      es: 'Un paseo en moto de agua acompañado por un instructor, recorriendo playas y costas rocosas de Búzios. Antes de salir recibís instrucciones de manejo y seguridad, sin necesidad de experiencia.\n\nEl precio es por moto de agua, que lleva hasta dos personas. Elegí 30 minutos o 1 hora. La ruta depende de las condiciones del día y de las reglas de la Marina.',
     },
     inclui: {
       pt: ['Jet ski para até 2 pessoas', 'Instrutor acompanhando', 'Colete salva-vidas', 'Orientação de segurança'],
@@ -665,13 +743,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'helicoptero-buzios',
+    origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'aventura',
     precoParceiro: 450,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 10 minutos de voo', en: 'About 10 minutes of flight', es: 'Unos 10 minutos de vuelo' },
     fotos: [],
-    ilustracao: 'helicoptero',
+    icone: 'helicoptero',
+    criancas: { gratisAte: null },
     nome: { pt: 'Voo de Helicóptero em Búzios', en: 'Helicopter Flight over Búzios', es: 'Vuelo en Helicóptero sobre Búzios' },
     resumo: {
       pt: 'A península inteira vista do alto, com suas dezenas de praias e ilhas.',
@@ -713,14 +793,16 @@ export const PASSEIOS: Passeio[] = [
   /* ========================== ARRAIAL DO CABO ========================== */
   {
     slug: 'barco-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'barco',
     precoParceiro: 90,
     unidade: 'pessoa',
-    duracao: { pt: '3h30', en: '3h30', es: '3h30' },
+    duracao: { pt: '4 horas', en: '4 hours', es: '4 horas' },
     destaque: true,
-    fotos: [],
-    ilustracao: 'barco',
+    fotos: ['/fotos/arraial/barco-toboga.jpg', '/fotos/arraial/barco-gruta.jpg'],
+    icone: 'barco',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'Passeio de Barco em Arraial do Cabo', en: 'Boat Tour in Arraial do Cabo', es: 'Paseo en Barco por Arraial do Cabo' },
     resumo: {
       pt: 'O mar mais azul do Rio: Prainhas do Pontal do Atalaia, Praia do Farol e Gruta Azul.',
@@ -728,9 +810,9 @@ export const PASSEIOS: Passeio[] = [
       es: 'El mar más azul de Río: Prainhas do Pontal do Atalaia, playa do Farol y la Gruta Azul.',
     },
     descricao: {
-      pt: 'Arraial do Cabo é conhecido como o Caribe brasileiro, e o passeio de barco é a melhor forma de ver por quê. Saindo da Praia dos Anjos, o barco segue para os pontos mais famosos, de água azul-turquesa e areia branquinha.\n\nHá paradas para banho em praias que só se alcançam pelo mar, como a Praia do Farol, onde o tempo de permanência é controlado para preservar a ilha.',
-      en: 'Arraial do Cabo is known as the Brazilian Caribbean, and the boat tour is the best way to see why. Leaving from Praia dos Anjos, the boat heads to the most famous spots, with turquoise water and white sand.\n\nThere are swim stops at beaches reachable only by sea, such as Farol beach, where time on land is limited to protect the island.',
-      es: 'Arraial do Cabo es conocido como el Caribe brasileño, y el paseo en barco es la mejor forma de ver por qué. Saliendo de la Praia dos Anjos, el barco va a los puntos más famosos, de agua turquesa y arena blanca.\n\nHay paradas para nadar en playas a las que solo se llega por mar, como la playa do Farol, donde el tiempo de permanencia es controlado para preservar la isla.',
+      pt: 'Arraial do Cabo é conhecido como o Caribe brasileiro, e o passeio de barco é a melhor forma de ver por quê. Saindo da Praia dos Anjos, o barco segue para os pontos mais famosos, de água azul-turquesa e areia branquinha.\n\nHá paradas para banho em praias que só se alcançam pelo mar, como a Praia do Farol, onde o tempo de permanência é controlado para preservar a ilha. Alguns barcos têm tobogã e música a bordo; o modelo da embarcação depende da disponibilidade do dia.',
+      en: 'Arraial do Cabo is known as the Brazilian Caribbean, and the boat tour is the best way to see why. Leaving from Praia dos Anjos, the boat heads to the most famous spots, with turquoise water and white sand.\n\nThere are swim stops at beaches reachable only by sea, such as Farol beach, where time on land is limited to protect the island. Some boats have a water slide and music on board; the boat model depends on the day’s availability.',
+      es: 'Arraial do Cabo es conocido como el Caribe brasileño, y el paseo en barco es la mejor forma de ver por qué. Saliendo de la Praia dos Anjos, el barco va a los puntos más famosos, de agua turquesa y arena blanca.\n\nHay paradas para nadar en playas a las que solo se llega por mar, como la playa do Farol, donde el tiempo de permanencia es controlado para preservar la isla. Algunos barcos tienen tobogán y música a bordo; el modelo de embarcación depende de la disponibilidad del día.',
     },
     inclui: {
       pt: ['Passeio de barco com tripulação', 'Paradas para banho', 'Coletes salva-vidas'],
@@ -768,14 +850,16 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'full-day-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'city-tour',
     precoParceiro: 265,
     unidade: 'pessoa',
-    duracao: { pt: 'Dia inteiro (cerca de 9 horas)', en: 'Full day (about 9 hours)', es: 'Día completo (unas 9 horas)' },
+    duracao: { pt: 'Dia inteiro (cerca de 10 horas)', en: 'Full day (about 10 hours)', es: 'Día completo (unas 10 horas)' },
     destaque: true,
-    fotos: [],
-    ilustracao: 'barco',
+    fotos: ['/fotos/arraial/barco-gruta.jpg', '/fotos/arraial/barco-toboga.jpg'],
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'Full Day Arraial do Cabo', en: 'Arraial do Cabo Full Day', es: 'Full Day Arraial do Cabo' },
     resumo: {
       pt: 'Saindo do seu hotel: mirantes, praias e passeio de barco pelo Caribe brasileiro.',
@@ -838,13 +922,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'city-tour-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'city-tour',
     precoParceiro: 240,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 7 horas', en: 'About 7 hours', es: 'Unas 7 horas' },
     fotos: [],
-    ilustracao: 'cidade',
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'City Tour em Arraial do Cabo', en: 'Arraial do Cabo City Tour', es: 'City Tour en Arraial do Cabo' },
     resumo: {
       pt: 'Os mirantes e praias de Arraial por terra, com transporte desde o seu hotel.',
@@ -900,14 +986,20 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'mergulho-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
-    categoria: 'aventura',
+    categoria: 'mergulho',
     precoParceiro: 250,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 4 horas', en: 'About 4 hours', es: 'Unas 4 horas' },
-    fotos: [],
-    ilustracao: 'mergulho',
-    nome: { pt: 'Mergulho em Arraial do Cabo', en: 'Scuba Diving in Arraial do Cabo', es: 'Buceo en Arraial do Cabo' },
+    fotos: ['/fotos/arraial/mergulho.jpg'],
+    icone: 'mergulho',
+    criancas: { gratisAte: null, idadeMinima: 10 },
+    nome: {
+      pt: 'Mergulho de Batismo em Arraial do Cabo',
+      en: 'Discover Scuba Diving in Arraial do Cabo',
+      es: 'Bautismo de Buceo en Arraial do Cabo',
+    },
     resumo: {
       pt: 'Mergulho de batismo na capital do mergulho, com instrutor e equipamento completo.',
       en: 'Discover scuba in Brazil’s diving capital, with an instructor and full gear.',
@@ -964,13 +1056,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'buggy-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 150,
-    unidade: 'pessoa', // CONFIRA: por pessoa ou por buggy?
-    duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
+    unidade: 'pessoa',
+    duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [],
-    ilustracao: 'buggy',
+    icone: 'buggy',
+    criancas: { gratisAte: 5 },
     nome: { pt: 'Passeio de Buggy em Arraial do Cabo', en: 'Buggy Tour in Arraial do Cabo', es: 'Paseo en Buggy por Arraial do Cabo' },
     resumo: {
       pt: 'Dunas, lagoas e praias de Arraial em um passeio de buggy cheio de paisagens.',
@@ -1011,14 +1105,16 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'quadriciclo-arraial-do-cabo',
+    origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 250,
-    unidade: 'veiculo', // CONFIRA: quantas pessoas por quadriciclo
+    unidade: 'veiculo',
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [],
-    ilustracao: 'quadriciclo',
+    icone: 'quadriciclo',
+    criancas: { gratisAte: null },
     nome: {
       pt: 'Passeio de Quadriciclo em Arraial do Cabo',
       en: 'Quad Bike Tour in Arraial do Cabo',
@@ -1066,9 +1162,166 @@ export const PASSEIOS: Passeio[] = [
     levar: LEVAR_OFFROAD,
   },
 
+  {
+    slug: 'lancha-privativa-arraial-do-cabo',
+    // Preço médio de mercado (anúncios de lanchas para até 10 pessoas, dia inteiro). Confirme.
+    origemPreco: 'pesquisa',
+    cidade: 'arraial-do-cabo',
+    categoria: 'lancha',
+    precoParceiro: 2200,
+    unidade: 'embarcacao',
+    capacidadePorUnidade: 10,
+    duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
+    fotos: [],
+    icone: 'lancha',
+    criancas: { gratisAte: null },
+    nome: {
+      pt: 'Lancha Privativa em Arraial do Cabo',
+      en: 'Private Speedboat in Arraial do Cabo',
+      es: 'Lancha Privada en Arraial do Cabo',
+    },
+    resumo: {
+      pt: 'O Caribe brasileiro só para o seu grupo: lancha com marinheiro para até 10 pessoas.',
+      en: 'The Brazilian Caribbean just for your group: a speedboat with a skipper for up to 10 people.',
+      es: 'El Caribe brasileño solo para tu grupo: lancha con marinero para hasta 10 personas.',
+    },
+    descricao: {
+      pt: 'Fuja dos barcos lotados e conheça as praias de água azul-turquesa de Arraial do Cabo no ritmo do seu grupo. A lancha sai da Praia dos Anjos e o marinheiro monta o roteiro com vocês, conforme o mar e as regras de visitação do dia.\n\nO preço é pela lancha, para até 10 pessoas contando as crianças. As paradas costumam ser mais longas e em horários diferentes dos barcos de passeio, com mais espaço na areia.',
+      en: 'Skip the crowded boats and explore the turquoise beaches of Arraial do Cabo at your group’s own pace. The speedboat leaves from Praia dos Anjos and the skipper plans the route with you, according to the sea and the day’s visiting rules.\n\nThe price is per boat, for up to 10 people including children. Stops tend to be longer and at different times from the tour boats, with more room on the sand.',
+      es: 'Escapá de los barcos llenos y conocé las playas de agua turquesa de Arraial do Cabo al ritmo de tu grupo. La lancha sale de la Praia dos Anjos y el marinero arma el recorrido con ustedes, según el mar y las reglas de visita del día.\n\nEl precio es por lancha, para hasta 10 personas contando a los niños. Las paradas suelen ser más largas y en horarios distintos a los de los barcos de paseo, con más espacio en la arena.',
+    },
+    inclui: {
+      pt: [
+        'Lancha privativa com marinheiro habilitado',
+        'Combustível para o roteiro combinado',
+        'Coletes salva-vidas para todos',
+        'Paradas para banho',
+      ],
+      en: ['Private speedboat with a licensed skipper', 'Fuel for the agreed route', 'Life jackets for everyone', 'Swim stops'],
+      es: [
+        'Lancha privada con marinero habilitado',
+        'Combustible para el recorrido acordado',
+        'Chalecos salvavidas para todos',
+        'Paradas para nadar',
+      ],
+    },
+    naoInclui: NAO_INCLUI_TRANSPORTE,
+    roteiro: {
+      pt: [
+        'Embarque na Praia dos Anjos',
+        'Prainhas do Pontal do Atalaia',
+        'Praia do Farol (sujeita à liberação do dia)',
+        'Gruta Azul vista da lancha',
+        'Paradas para banho',
+        'Retorno à Praia dos Anjos',
+      ],
+      en: [
+        'Boarding at Praia dos Anjos',
+        'Prainhas do Pontal do Atalaia',
+        'Farol beach (subject to the day’s authorisation)',
+        'Blue Grotto seen from the boat',
+        'Swim stops',
+        'Return to Praia dos Anjos',
+      ],
+      es: [
+        'Embarque en la Praia dos Anjos',
+        'Prainhas do Pontal do Atalaia',
+        'Playa do Farol (sujeta a la autorización del día)',
+        'Gruta Azul vista desde la lancha',
+        'Paradas para nadar',
+        'Regreso a la Praia dos Anjos',
+      ],
+    },
+    levar: LEVAR_PRAIA,
+  },
+  {
+    slug: 'mergulho-credenciado-arraial-do-cabo',
+    // Preço médio de mercado para credenciados com aluguel de equipamento. Confirme.
+    origemPreco: 'pesquisa',
+    cidade: 'arraial-do-cabo',
+    categoria: 'mergulho',
+    precoParceiro: 265,
+    unidade: 'pessoa',
+    duracao: { pt: 'Cerca de 4 horas (2 mergulhos)', en: 'About 4 hours (2 dives)', es: 'Unas 4 horas (2 inmersiones)' },
+    fotos: ['/fotos/arraial/mergulho.jpg'],
+    icone: 'mergulho',
+    criancas: { gratisAte: null, idadeMinima: 10 },
+    nome: {
+      pt: 'Mergulho para Credenciados em Arraial do Cabo',
+      en: 'Fun Dives for Certified Divers in Arraial do Cabo',
+      es: 'Buceo para Certificados en Arraial do Cabo',
+    },
+    resumo: {
+      pt: 'Dois mergulhos guiados nos pontos mais famosos de Arraial, com equipamento incluso.',
+      en: 'Two guided dives at Arraial’s most famous sites, gear included.',
+      es: 'Dos inmersiones guiadas en los puntos más famosos de Arraial, con equipo incluido.',
+    },
+    descricao: {
+      pt: 'Para quem já tem certificação de mergulho (Open Water ou equivalente). A saída de barco leva aos pontos mais conhecidos de Arraial do Cabo, onde o fenômeno da ressurgência deixa a água fria e cheia de vida: cardumes, tartarugas, moreias e, com sorte, cavalos-marinhos.\n\nSão dois mergulhos com guia, com o equipamento completo incluído. Leve sua carteira de certificação. Depois de mergulhar, aguarde pelo menos 24 horas para viajar de avião.',
+      en: 'For divers who already hold a certification (Open Water or equivalent). The boat takes you to the best-known sites in Arraial do Cabo, where upwelling keeps the water cold and full of life: schools of fish, turtles, moray eels and, with luck, seahorses.\n\nThere are two guided dives, with full gear included. Bring your certification card. After diving, wait at least 24 hours before flying.',
+      es: 'Para quienes ya tienen certificación de buceo (Open Water o equivalente). La salida en barco lleva a los puntos más conocidos de Arraial do Cabo, donde la surgencia deja el agua fría y llena de vida: cardúmenes, tortugas, morenas y, con suerte, caballitos de mar.\n\nSon dos inmersiones guiadas, con el equipo completo incluido. Llevá tu credencial de buceo. Después de bucear, esperá al menos 24 horas para viajar en avión.',
+    },
+    inclui: {
+      pt: [
+        '2 mergulhos com guia de mergulho',
+        'Equipamento completo (roupa, colete, regulador, cilindros e lastro)',
+        'Saída de barco até os pontos de mergulho',
+        'Briefing antes de cada mergulho',
+      ],
+      en: [
+        '2 guided dives',
+        'Full gear (wetsuit, BCD, regulator, tanks and weights)',
+        'Boat trip to the dive sites',
+        'Briefing before each dive',
+      ],
+      es: [
+        '2 inmersiones con guía de buceo',
+        'Equipo completo (traje, chaleco, regulador, tanques y lastre)',
+        'Salida en barco hasta los puntos de buceo',
+        'Briefing antes de cada inmersión',
+      ],
+    },
+    naoInclui: NAO_INCLUI_TRANSPORTE,
+    roteiro: {
+      pt: [
+        'Apresentação na operadora e conferência da certificação',
+        'Montagem do equipamento',
+        'Saída de barco',
+        'Primeiro mergulho',
+        'Intervalo de superfície',
+        'Segundo mergulho',
+        'Retorno ao cais',
+      ],
+      en: [
+        'Check-in at the dive centre and certification check',
+        'Gear set-up',
+        'Boat departure',
+        'First dive',
+        'Surface interval',
+        'Second dive',
+        'Return to the pier',
+      ],
+      es: [
+        'Presentación en la operadora y control de la certificación',
+        'Armado del equipo',
+        'Salida en barco',
+        'Primera inmersión',
+        'Intervalo de superficie',
+        'Segunda inmersión',
+        'Regreso al muelle',
+      ],
+    },
+    levar: {
+      pt: ['Carteira de certificação de mergulho', 'Roupa de banho e toalha', 'Protetor solar', 'Lanche leve', 'Documento com foto'],
+      en: ['Diving certification card', 'Swimwear and a towel', 'Sunscreen', 'A light snack', 'Photo ID'],
+      es: ['Credencial de buceo', 'Traje de baño y toalla', 'Protector solar', 'Algo liviano para comer', 'Documento con foto'],
+    },
+  },
+
   /* ============================= CABO FRIO ============================= */
   {
     slug: 'catamara-cabo-frio',
+    origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'barco',
     precoParceiro: 100,
@@ -1076,7 +1329,8 @@ export const PASSEIOS: Passeio[] = [
     duracao: { pt: '2h30', en: '2h30', es: '2h30' },
     destaque: true,
     fotos: [],
-    ilustracao: 'catamara',
+    icone: 'barco',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'Passeio de Catamarã em Cabo Frio', en: 'Catamaran Tour in Cabo Frio', es: 'Paseo en Catamarán por Cabo Frio' },
     resumo: {
       pt: 'Do Canal do Itajuru ao mar aberto, com vista do Forte São Mateus e parada na Ilha do Japonês.',
@@ -1109,13 +1363,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'city-tour-cabo-frio',
+    origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'city-tour',
     precoParceiro: 230,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 7 horas', en: 'About 7 hours', es: 'Unas 7 horas' },
     fotos: [],
-    ilustracao: 'cidade',
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'City Tour em Cabo Frio', en: 'Cabo Frio City Tour', es: 'City Tour en Cabo Frio' },
     resumo: {
       pt: 'Forte São Mateus, Praia do Forte, Dunas do Peró e a famosa Rua dos Biquínis.',
@@ -1174,13 +1430,15 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'buggy-cabo-frio',
+    origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 150,
-    unidade: 'pessoa', // CONFIRA: por pessoa ou por buggy?
+    unidade: 'pessoa',
     duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     fotos: [],
-    ilustracao: 'buggy',
+    icone: 'buggy',
+    criancas: { gratisAte: 5 },
     nome: { pt: 'Passeio de Buggy em Cabo Frio', en: 'Buggy Tour in Cabo Frio', es: 'Paseo en Buggy por Cabo Frio' },
     resumo: {
       pt: 'As Dunas do Peró e as praias de Cabo Frio a bordo de um buggy.',
@@ -1214,6 +1472,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'quadriciclo-cabo-frio',
+    origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'buggy-quadriciclo',
     precoParceiro: 270,
@@ -1221,7 +1480,8 @@ export const PASSEIOS: Passeio[] = [
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [],
-    ilustracao: 'quadriciclo',
+    icone: 'quadriciclo',
+    criancas: { gratisAte: null },
     nome: { pt: 'Passeio de Quadriciclo em Cabo Frio', en: 'Quad Bike Tour in Cabo Frio', es: 'Paseo en Cuatriciclo por Cabo Frio' },
     resumo: {
       pt: 'Pilote um quadriciclo pelas trilhas e dunas de Cabo Frio.',
@@ -1253,16 +1513,230 @@ export const PASSEIOS: Passeio[] = [
     levar: LEVAR_OFFROAD,
   },
 
+  {
+    slug: 'escuna-cabo-frio',
+    // Preço médio de mercado (navegação com traslado em Cabo Frio). Confirme.
+    origemPreco: 'pesquisa',
+    cidade: 'cabo-frio',
+    categoria: 'barco',
+    precoParceiro: 145,
+    unidade: 'pessoa',
+    duracao: { pt: 'Cerca de 3h30 (com traslado)', en: 'About 3.5 hours (with transfer)', es: 'Unas 3 h 30 (con traslado)' },
+    fotos: [],
+    icone: 'barco',
+    criancas: { gratisAte: 5, meiaAte: 10 },
+    nome: {
+      pt: 'Passeio de Escuna em Cabo Frio com Traslado',
+      en: 'Cabo Frio Schooner Tour with Transfer',
+      es: 'Paseo en Goleta por Cabo Frio con Traslado',
+    },
+    resumo: {
+      pt: 'Busca no hotel, navegação pelo Canal do Itajuru e parada para banho na Ilha do Japonês.',
+      en: 'Hotel pick-up, a cruise along the Itajuru Canal and a swim stop at Japonês Island.',
+      es: 'Búsqueda en el hotel, navegación por el Canal do Itajuru y parada para nadar en la Isla do Japonês.',
+    },
+    descricao: {
+      pt: 'Para não se preocupar com nada: a van busca você no hotel em Cabo Frio e leva até o cais do Canal do Itajuru, de onde a escuna sai rumo ao mar. O passeio passa pelo Forte São Mateus e pela Praia do Forte e para na Ilha do Japonês, de águas calmas e rasas, ótimas para crianças.\n\nNo fim, o traslado leva você de volta ao hotel. Hospedado em Búzios ou Arraial do Cabo? Fale com a gente pelo WhatsApp para combinar a busca.',
+      en: 'Nothing to worry about: the van picks you up at your hotel in Cabo Frio and takes you to the Itajuru Canal pier, where the schooner sets out to sea. The trip passes São Mateus Fort and Praia do Forte and stops at Japonês Island, with calm, shallow water that is great for children.\n\nAt the end, the transfer takes you back to your hotel. Staying in Búzios or Arraial do Cabo? Message us on WhatsApp to arrange the pick-up.',
+      es: 'Para no preocuparte por nada: la van te busca en el hotel en Cabo Frio y te lleva al muelle del Canal do Itajuru, desde donde la goleta sale hacia el mar. El paseo pasa por el Fuerte São Mateus y la Praia do Forte y para en la Isla do Japonês, de aguas calmas y bajas, ideales para los chicos.\n\nAl final, el traslado te lleva de vuelta al hotel. ¿Te alojás en Búzios o Arraial do Cabo? Escribinos por WhatsApp para coordinar la búsqueda.',
+    },
+    inclui: {
+      pt: [
+        'Traslado de ida e volta a partir do hotel/pousada em Cabo Frio',
+        'Passeio de escuna com tripulação',
+        'Parada para banho na Ilha do Japonês',
+        'Coletes salva-vidas',
+      ],
+      en: ['Round-trip transfer from your hotel in Cabo Frio', 'Schooner trip with crew', 'Swim stop at Japonês Island', 'Life jackets'],
+      es: [
+        'Traslado de ida y vuelta desde el hotel/posada en Cabo Frio',
+        'Paseo en goleta con tripulación',
+        'Parada para nadar en la Isla do Japonês',
+        'Chalecos salvavidas',
+      ],
+    },
+    naoInclui: NAO_INCLUI_BASE,
+    roteiro: {
+      pt: [
+        'Busca no hotel ou pousada',
+        'Embarque no Canal do Itajuru',
+        'Forte São Mateus e Praia do Forte vistos do mar',
+        'Ilha do Japonês (parada para banho)',
+        'Retorno ao cais e ao hotel',
+      ],
+      en: [
+        'Pick-up at your hotel',
+        'Boarding at the Itajuru Canal',
+        'São Mateus Fort and Praia do Forte seen from the sea',
+        'Japonês Island (swim stop)',
+        'Return to the pier and your hotel',
+      ],
+      es: [
+        'Búsqueda en el hotel o posada',
+        'Embarque en el Canal do Itajuru',
+        'Fuerte São Mateus y Praia do Forte vistos desde el mar',
+        'Isla do Japonês (parada para nadar)',
+        'Regreso al muelle y al hotel',
+      ],
+    },
+    levar: LEVAR_PRAIA,
+  },
+  {
+    slug: 'lancha-privativa-cabo-frio',
+    // Preço médio de mercado (anúncios de lanchas para até 10 pessoas, dia inteiro). Confirme.
+    origemPreco: 'pesquisa',
+    cidade: 'cabo-frio',
+    categoria: 'lancha',
+    precoParceiro: 2200,
+    unidade: 'embarcacao',
+    capacidadePorUnidade: 10,
+    duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
+    fotos: [],
+    icone: 'lancha',
+    criancas: { gratisAte: null },
+    nome: { pt: 'Lancha Privativa em Cabo Frio', en: 'Private Speedboat in Cabo Frio', es: 'Lancha Privada en Cabo Frio' },
+    resumo: {
+      pt: 'Canal do Itajuru, Ilha do Japonês e praias de Cabo Frio em lancha exclusiva para até 10 pessoas.',
+      en: 'The Itajuru Canal, Japonês Island and the Cabo Frio beaches on a private speedboat for up to 10 people.',
+      es: 'Canal do Itajuru, Isla do Japonês y playas de Cabo Frio en lancha exclusiva para hasta 10 personas.',
+    },
+    descricao: {
+      pt: 'A lancha sai do Canal do Itajuru, passa pelo Forte São Mateus e segue para as praias e ilhas de Cabo Frio com o roteiro que o seu grupo combinar com o marinheiro. Dá para parar na Ilha do Japonês, de águas calmas e rasas, e esticar até as praias mais bonitas da costa quando o mar permite.\n\nO preço é pela lancha, para até 10 pessoas contando as crianças. Boa opção para comemorar aniversários e reunir a família ou os amigos.',
+      en: 'The speedboat leaves from the Itajuru Canal, passes São Mateus Fort and heads to the Cabo Frio beaches and islands on the route your group agrees with the skipper. You can stop at Japonês Island, with calm, shallow water, and go further along the coast’s most beautiful beaches when the sea allows.\n\nThe price is per boat, for up to 10 people including children. A great way to celebrate birthdays and bring family or friends together.',
+      es: 'La lancha sale del Canal do Itajuru, pasa por el Fuerte São Mateus y sigue hacia las playas e islas de Cabo Frio con el recorrido que tu grupo acuerde con el marinero. Se puede parar en la Isla do Japonês, de aguas calmas y bajas, y llegar hasta las playas más lindas de la costa cuando el mar lo permite.\n\nEl precio es por lancha, para hasta 10 personas contando a los niños. Una buena opción para festejar cumpleaños y reunir a la familia o a los amigos.',
+    },
+    inclui: {
+      pt: [
+        'Lancha privativa com marinheiro habilitado',
+        'Combustível para o roteiro combinado',
+        'Coletes salva-vidas para todos',
+        'Paradas para banho',
+      ],
+      en: ['Private speedboat with a licensed skipper', 'Fuel for the agreed route', 'Life jackets for everyone', 'Swim stops'],
+      es: [
+        'Lancha privada con marinero habilitado',
+        'Combustible para el recorrido acordado',
+        'Chalecos salvavidas para todos',
+        'Paradas para nadar',
+      ],
+    },
+    naoInclui: NAO_INCLUI_TRANSPORTE,
+    roteiro: {
+      pt: [
+        'Embarque no Canal do Itajuru',
+        'Forte São Mateus e Praia do Forte',
+        'Ilha do Japonês',
+        'Praias e ilhas escolhidas com o marinheiro',
+        'Paradas para banho',
+        'Retorno ao canal',
+      ],
+      en: [
+        'Boarding at the Itajuru Canal',
+        'São Mateus Fort and Praia do Forte',
+        'Japonês Island',
+        'Beaches and islands chosen with the skipper',
+        'Swim stops',
+        'Return to the canal',
+      ],
+      es: [
+        'Embarque en el Canal do Itajuru',
+        'Fuerte São Mateus y Praia do Forte',
+        'Isla do Japonês',
+        'Playas e islas elegidas con el marinero',
+        'Paradas para nadar',
+        'Regreso al canal',
+      ],
+    },
+    levar: LEVAR_PRAIA,
+  },
+  {
+    slug: 'full-day-cabo-frio',
+    // Preço médio de mercado (full day saindo de Búzios, adulto). Confirme.
+    origemPreco: 'pesquisa',
+    cidade: 'cabo-frio',
+    categoria: 'city-tour',
+    precoParceiro: 310,
+    unidade: 'pessoa',
+    duracao: { pt: 'Dia inteiro (cerca de 9 horas)', en: 'Full day (about 9 hours)', es: 'Día completo (unas 9 horas)' },
+    fotos: [],
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
+    nome: { pt: 'Full Day Cabo Frio', en: 'Cabo Frio Full Day', es: 'Full Day Cabo Frio' },
+    resumo: {
+      pt: 'Saindo de Búzios ou Arraial: barco até a Ilha do Japonês, Forte São Mateus, dunas e Rua dos Biquínis.',
+      en: 'From Búzios or Arraial: a boat to Japonês Island, São Mateus Fort, the dunes and Bikini Street.',
+      es: 'Desde Búzios o Arraial: barco a la Isla do Japonês, Fuerte São Mateus, médanos y la Calle de los Bikinis.',
+    },
+    descricao: {
+      pt: 'Um dia completo em Cabo Frio para quem está hospedado em Búzios ou Arraial do Cabo. A van busca você no hotel e o dia começa com um passeio de barco pelo Canal do Itajuru até a Ilha do Japonês, com parada para banho.\n\nDepois o roteiro segue por terra: Forte São Mateus, Praia do Forte, Dunas do Peró e a Rua dos Biquínis, com tempo livre para almoço e compras. Se o mar não permitir a navegação, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
+      en: 'A full day in Cabo Frio for travellers staying in Búzios or Arraial do Cabo. The van picks you up at your hotel and the day starts with a boat trip along the Itajuru Canal to Japonês Island, with a swim stop.\n\nThen the tour continues by land: São Mateus Fort, Praia do Forte, the Peró Dunes and Bikini Street, with free time for lunch and shopping. If the sea does not allow sailing, you choose between a new date or a refund, as our cancellation policy provides.',
+      es: 'Un día completo en Cabo Frio para quienes se alojan en Búzios o Arraial do Cabo. La van te busca en el hotel y el día empieza con un paseo en barco por el Canal do Itajuru hasta la Isla do Japonês, con parada para nadar.\n\nDespués el recorrido sigue por tierra: Fuerte São Mateus, Praia do Forte, Médanos do Peró y la Calle de los Bikinis, con tiempo libre para almorzar y hacer compras. Si el mar no permite navegar, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+    },
+    inclui: {
+      pt: [
+        'Transporte de ida e volta a partir do hotel/pousada em Búzios ou Arraial do Cabo',
+        'Passeio de barco até a Ilha do Japonês',
+        'Guia ou condutor local',
+        'Paradas no Forte São Mateus, na Praia do Forte e nas Dunas do Peró',
+        'Tempo livre na Rua dos Biquínis',
+      ],
+      en: [
+        'Round-trip transport from your hotel in Búzios or Arraial do Cabo',
+        'Boat trip to Japonês Island',
+        'Local guide or driver',
+        'Stops at São Mateus Fort, Praia do Forte and the Peró Dunes',
+        'Free time on Bikini Street',
+      ],
+      es: [
+        'Traslado de ida y vuelta desde el hotel/posada en Búzios o Arraial do Cabo',
+        'Paseo en barco hasta la Isla do Japonês',
+        'Guía o conductor local',
+        'Paradas en el Fuerte São Mateus, la Praia do Forte y los Médanos do Peró',
+        'Tiempo libre en la Calle de los Bikinis',
+      ],
+    },
+    naoInclui: NAO_INCLUI_BASE,
+    roteiro: {
+      pt: [
+        'Busca no hotel ou pousada',
+        'Passeio de barco pelo Canal do Itajuru até a Ilha do Japonês',
+        'Forte São Mateus e Praia do Forte',
+        'Dunas do Peró',
+        'Tempo livre para almoço e compras na Rua dos Biquínis',
+        'Retorno ao hotel no fim da tarde',
+      ],
+      en: [
+        'Pick-up at your hotel',
+        'Boat trip along the Itajuru Canal to Japonês Island',
+        'São Mateus Fort and Praia do Forte',
+        'Peró Dunes',
+        'Free time for lunch and shopping on Bikini Street',
+        'Return to your hotel in the late afternoon',
+      ],
+      es: [
+        'Búsqueda en el hotel o posada',
+        'Paseo en barco por el Canal do Itajuru hasta la Isla do Japonês',
+        'Fuerte São Mateus y Praia do Forte',
+        'Médanos do Peró',
+        'Tiempo libre para almorzar y hacer compras en la Calle de los Bikinis',
+        'Regreso al hotel al final de la tarde',
+      ],
+    },
+    levar: LEVAR_PRAIA,
+  },
+
   /* ========================== SAINDO DA REGIÃO ========================== */
   {
     slug: 'city-tour-rio-de-janeiro',
+    origemPreco: 'parceiro',
     cidade: 'rio-de-janeiro',
     categoria: 'city-tour',
     precoParceiro: 380,
     unidade: 'pessoa',
     duracao: { pt: 'Dia inteiro (cerca de 14 horas)', en: 'Full day (about 14 hours)', es: 'Día completo (unas 14 horas)' },
     fotos: [],
-    ilustracao: 'rio',
+    icone: 'van',
+    criancas: { gratisAte: 5, meiaAte: 10 },
     nome: { pt: 'City Tour no Rio de Janeiro', en: 'Rio de Janeiro City Tour', es: 'City Tour en Río de Janeiro' },
     resumo: {
       pt: 'Saindo da Região dos Lagos para um dia nos cartões-postais do Rio.',

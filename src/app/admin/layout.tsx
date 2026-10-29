@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { Albert_Sans } from 'next/font/google';
+import { TikTok_Sans } from 'next/font/google';
 import '../globals.css';
 
-const albert = Albert_Sans({ subsets: ['latin', 'latin-ext'], variable: '--font-albert', display: 'swap' });
+const tiktok = TikTok_Sans({ subsets: ['latin', 'latin-ext'], axes: ['wdth', 'opsz'], variable: '--font-tiktok', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Admin — Agência Victor Hugo',
@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 export default function LayoutAdmin({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={albert.variable}>
-      <body className="min-h-dvh bg-[#f4f6f8]">{children}</body>
+    <html lang="pt-BR" className={tiktok.variable}>
+      <body className="tom-claro min-h-dvh">{children}</body>
     </html>
   );
 }

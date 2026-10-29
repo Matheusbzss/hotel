@@ -1,10 +1,10 @@
 'use client';
 
-export function RedefinirCookies({ rotulo }: { rotulo: string }) {
+export function RedefinirCookies({ rotulo, className = 'botao' }: { rotulo: string; className?: string }) {
   return (
     <button
       type="button"
-      className="botao botao-tinta"
+      className={className}
       onClick={() => {
         try {
           localStorage.removeItem('vh_consentimento_cookies');

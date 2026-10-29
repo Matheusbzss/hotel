@@ -1,6 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 import { obterPasseio } from '@/data/passeios';
+import { dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
+import { semFaixas } from './passeio-view';
+import { textoPessoas } from './pessoas';
 import type { Reserva, StatusReserva } from './reservas';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
 
@@ -13,6 +16,10 @@ export interface ReservaPublica {
   data: string;
   adultos: number;
   criancas: number;
+  /** "2 adultos + 1 criança (meia)", no idioma da página. */
+  pessoasTexto: string;
+  /** Opção escolhida (ex.: "2 horas"), quando o passeio tem opções. */
+  opcaoNome?: string;
   unidades: number;
   totalCentavos: number;
   nome: string;
@@ -33,6 +40,7 @@ export function tokenConfere(reserva: Reserva, token: string | undefined | null)
 
 export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const p = obterPasseio(r.passeio.slug);
+  const opcao = r.passeio.opcao ? p?.opcoes?.find((o) => o.id === r.passeio.opcao?.id) : undefined;
   return {
     codigo: r.codigo,
     status: r.status,
@@ -41,6 +49,8 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     data: r.data,
     adultos: r.adultos,
     criancas: r.criancas,
+    pessoasTexto: textoPessoas(r, dicionario(idioma).comum.rotulos, p ? semFaixas(p) : false),
+    opcaoNome: opcao?.nome[idioma] ?? r.passeio.opcao?.nome,
     unidades: r.unidades,
     totalCentavos: r.totalCentavos,
     nome: r.cliente.nome,

@@ -2,6 +2,10 @@ import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { pagarmeConfigurado } from '@/lib/pagarme';
+import { obterPasseio } from '@/data/passeios';
+import { dicionario } from '@/i18n';
+import { semFaixas } from '@/lib/passeio-view';
+import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import { bancoConfigurado, listarReservas, type Reserva, type StatusReserva } from '@/lib/reservas';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from '@/lib/validacao';
@@ -19,14 +23,16 @@ const ROTULO: Record<StatusReserva, string> = {
 };
 
 const COR: Record<StatusReserva, string> = {
-  pendente: 'bg-sol-claro text-tinta',
+  pendente: 'bg-sol text-mar',
   pago: 'bg-[#d8f5e4] text-[#0f5132]',
-  recusado: 'bg-coral-claro text-[#7a1f12]',
-  cancelado: 'bg-[#e5e9ee] text-tinta',
-  expirado: 'bg-[#e5e9ee] text-tinta',
-  aguardando_whatsapp: 'bg-turquesa-clara text-tinta',
-  reembolsado: 'bg-[#e5e9ee] text-tinta',
+  recusado: 'bg-erro-claro text-[#7a1f12]',
+  cancelado: 'bg-[#e5e9ee] text-mar',
+  expirado: 'bg-[#e5e9ee] text-mar',
+  aguardando_whatsapp: 'bg-turquesa text-mar',
+  reembolsado: 'bg-[#e5e9ee] text-mar',
 };
+
+const ROTULOS_PESSOAS = dicionario('pt').comum.rotulos;
 
 const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[] }[] = [
   { valor: '', rotulo: 'Todas' },
@@ -45,9 +51,9 @@ function Login({ erro }: { erro?: string }) {
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo/agencia-victor-hugo-horizontal.svg" alt={EMPRESA.marca} width={344} height={100} className="h-14 w-auto self-start" />
-      <h1 className="mt-8 text-2xl font-bold text-tinta">Área administrativa</h1>
+      <h1 className="mt-8 text-2xl font-bold text-mar">Área administrativa</h1>
       {!adminConfigurado() && (
-        <p className="mt-4 bg-sol-claro px-4 py-3 text-small">
+        <p className="mt-4 bg-sol px-4 py-3 text-small">
           Defina a variável de ambiente <strong>ADMIN_PASSWORD</strong> na Vercel para liberar o acesso.
         </p>
       )}
@@ -63,7 +69,7 @@ function Login({ erro }: { erro?: string }) {
             Senha incorreta.
           </p>
         )}
-        <button type="submit" className="botao botao-tinta w-full">
+        <button type="submit" className="botao w-full">
           Entrar
         </button>
       </form>
@@ -84,7 +90,7 @@ function Acoes({ r, filtro }: { r: Reserva; filtro: string }) {
         <form key={a.acao} method="post" action={`/api/admin/reservas/${r.codigo}`}>
           <input type="hidden" name="acao" value={a.acao} />
           <input type="hidden" name="filtro" value={filtro} />
-          <button type="submit" className="min-h-10 rounded-full bg-white px-4 text-small font-semibold text-tinta hover:bg-areia">
+          <button type="submit" className="min-h-10 bg-white px-4 text-small font-semibold text-mar hover:bg-areia-2">
             {a.rotulo}
           </button>
         </form>
@@ -123,7 +129,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   const custo = pagas.reduce((s, r) => s + (r.custoParceiroCentavos ?? 0), 0);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-tinta md:px-8">
+    <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -137,7 +143,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           </div>
         </div>
         <form method="post" action="/api/admin/logout">
-          <button type="submit" className="min-h-10 rounded-full bg-white px-4 font-semibold">
+          <button type="submit" className="min-h-10 bg-white px-4 font-semibold">
             Sair
           </button>
         </form>
@@ -165,7 +171,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
               key={f.valor}
               href={f.valor ? `/admin?status=${f.valor}` : '/admin'}
               aria-current={f.valor === filtro.valor ? 'page' : undefined}
-              className={`chip ${f.valor === filtro.valor ? '!bg-tinta !text-white' : '!bg-white'}`}
+              className={`filtro ${f.valor === filtro.valor ? '!bg-mar !text-sol' : '!bg-white'}`}
             >
               {f.rotulo}
             </a>
@@ -177,13 +183,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
             Buscar
           </label>
           <input id="q" name="q" defaultValue={busca} placeholder="Buscar voucher, nome, hotel…" className="campo min-h-11 w-64 py-2" />
-          <button type="submit" className="min-h-11 rounded-full bg-tinta px-5 font-semibold text-white">
+          <button type="submit" className="min-h-11 bg-mar px-5 font-semibold text-white">
             Buscar
           </button>
         </div>
       </form>
 
-      {erroBanco && <p className="mt-6 bg-coral-claro px-4 py-3 font-semibold">Erro ao ler o banco: {erroBanco}</p>}
+      {erroBanco && <p className="mt-6 bg-erro-claro px-4 py-3 font-semibold">Erro ao ler o banco: {erroBanco}</p>}
 
       <p className="mt-6 text-small text-tinta-suave">
         {reservas.length} reserva{reservas.length === 1 ? '' : 's'}
@@ -195,17 +201,25 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
             <li key={r.codigo} className="grid gap-4 bg-white p-5 lg:grid-cols-12">
               <div className="lg:col-span-3">
                 <p className="text-xl font-bold tracking-tight">{r.codigo}</p>
-                <span className={`mt-1 inline-block rounded-full px-3 py-1 text-small font-semibold ${COR[r.status]}`}>
-                  {ROTULO[r.status]}
-                </span>
+                <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[r.status]}`}>{ROTULO[r.status]}</span>
                 <p className="mt-2 text-small text-tinta-suave">Criada {dataHora(r.criadaEm)}</p>
                 {r.pagamento.pagoEm && <p className="text-small text-tinta-suave">Paga {dataHora(r.pagamento.pagoEm)}</p>}
               </div>
               <div className="lg:col-span-4">
-                <p className="font-bold">{r.passeio.nome}</p>
+                <p className="font-bold">
+                  {r.passeio.nome}
+                  {r.passeio.opcao ? ` — ${r.passeio.opcao.nome}` : ''}
+                </p>
                 <p>
-                  {formatarDataIso(r.data, 'pt-BR')} · {r.adultos} adulto{r.adultos === 1 ? '' : 's'}
-                  {r.criancas ? ` + ${r.criancas} criança${r.criancas === 1 ? '' : 's'}` : ''}
+                  {formatarDataIso(r.data, 'pt-BR')} ·{' '}
+                  {textoPessoas(
+                    r,
+                    ROTULOS_PESSOAS,
+                    (() => {
+                      const p = obterPasseio(r.passeio.slug);
+                      return p ? semFaixas(p) : false;
+                    })(),
+                  )}
                   {r.passeio.unidade !== 'pessoa'
                     ? ` · ${r.unidades} ${r.passeio.unidade === 'veiculo' ? 'veículo(s)' : 'embarcação(ões)'}`
                     : ''}

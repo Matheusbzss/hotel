@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { EMPRESA } from '@/config/empresa';
@@ -25,72 +26,77 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
   const d = dicionario(locale);
   const c = d.contato;
 
-  return (
-    <div className="moldura pb-24 pt-10 md:pb-40 md:pt-16">
-      <div className="grid gap-6 md:grid-cols-12">
-        <h1 className="titulo-display text-head md:col-span-7">{c.titulo}</h1>
-        <p className="max-w-[40ch] self-end text-lead md:col-span-5">{c.texto}</p>
-      </div>
+  const linhas = [
+    { rotulo: c.whatsapp, valor: EMPRESA.telefoneExibicao, href: linkWhatsApp(c.msg), externo: true },
+    { rotulo: c.instagram, valor: EMPRESA.instagramUsuario, href: EMPRESA.instagramUrl, externo: true },
+    { rotulo: c.email, valor: EMPRESA.email, href: `mailto:${EMPRESA.email}`, externo: false },
+  ];
 
-      <div className="mt-12 grid gap-4 md:mt-16 md:grid-cols-12">
-        <a
-          href={linkWhatsApp(c.msg)}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-evento="Contact"
-          className="group flex min-h-[260px] flex-col justify-between bg-whats p-6 text-white transition-colors hover:bg-[#178a43] md:col-span-7 md:p-10"
-        >
-          <IconeWhatsApp className="size-14" />
-          <span>
-            <span className="block text-lead font-semibold">{c.whatsapp}</span>
-            <span className="mt-1 block text-[clamp(1.75rem,1.2rem+2.4vw,3rem)] font-bold leading-tight">{EMPRESA.telefoneExibicao}</span>
-          </span>
-        </a>
-        <div className="grid gap-4 md:col-span-5">
+  return (
+    <main id="conteudo" className="tom-mar">
+      <div className="moldura grid gap-12 pb-24 pt-8 md:grid-cols-12 md:pb-40 md:pt-14">
+        <div className="chegar md:col-span-6">
+          <h1 className="largo text-head text-sol">{c.titulo}</h1>
+          <p className="mt-5 max-w-[40ch] text-lead">{c.texto}</p>
           <a
-            href={`mailto:${EMPRESA.email}`}
-            className="flex flex-col justify-between gap-6 bg-turquesa-clara p-6 transition-colors hover:bg-turquesa md:p-8"
-          >
-            <span className="text-lead font-semibold">{c.email}</span>
-            <span className="break-all text-[1.25rem] font-bold">{EMPRESA.email}</span>
-          </a>
-          <a
-            href={EMPRESA.instagramUrl}
+            href={linkWhatsApp(c.msg)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-col justify-between gap-6 bg-coral-claro p-6 transition-colors hover:bg-coral md:p-8"
+            className="botao botao-whats mt-8 w-full sm:w-auto"
+            data-evento="Contact"
           >
-            <span className="text-lead font-semibold">{c.instagram}</span>
-            <span className="text-[1.25rem] font-bold">{EMPRESA.instagramUsuario}</span>
+            <IconeWhatsApp className="size-5" />
+            {d.comum.whatsapp}
           </a>
+
+          <ul className="mt-14">
+            {linhas.map((l) => (
+              <li key={l.rotulo}>
+                <a
+                  href={l.href}
+                  {...(l.externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="group -mx-3 flex flex-col gap-1 px-3 py-4 transition-colors hover:bg-mar-2 sm:flex-row sm:items-baseline sm:justify-between"
+                  data-evento={l.rotulo === c.whatsapp ? 'Contact' : undefined}
+                >
+                  <span className="text-(--tinta-suave)">{l.rotulo}</span>
+                  <span className="break-all text-lead font-semibold transition-transform group-hover:translate-x-1">{l.valor}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <section className="mt-12 grid gap-8 sm:grid-cols-2" aria-label={c.empresa}>
+            <div>
+              <h2 className="font-bold text-sol">{c.base}</h2>
+              <p className="mt-2">{c.baseTexto}</p>
+            </div>
+            <div>
+              <h2 className="font-bold text-sol">{c.empresa}</h2>
+              <dl className="mt-2 space-y-1">
+                <div>
+                  <dt className="text-small text-(--tinta-suave)">{c.razao}</dt>
+                  <dd>
+                    {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa})
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-small text-(--tinta-suave)">{c.cnpj}</dt>
+                  <dd className="numeros">{EMPRESA.cnpj}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+        </div>
+        <div className="relative aspect-[4/5] md:col-span-5 md:col-start-8 md:aspect-auto md:min-h-[36rem]">
+          <Image
+            src="/fotos/buzios/escuna-no-pier.jpg"
+            alt={d.home.fotosLegendas[0]}
+            fill
+            sizes="(min-width: 768px) 40vw, 100vw"
+            className="object-cover"
+          />
         </div>
       </div>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <section className="bg-areia-clara p-6 md:p-8" aria-labelledby="base">
-          <h2 id="base" className="text-lead font-bold">
-            {c.base}
-          </h2>
-          <p className="mt-3">{c.baseTexto}</p>
-        </section>
-        <section className="bg-areia-clara p-6 md:p-8" aria-labelledby="empresa">
-          <h2 id="empresa" className="text-lead font-bold">
-            {c.empresa}
-          </h2>
-          <dl className="mt-3 space-y-2">
-            <div>
-              <dt className="text-small">{c.razao}</dt>
-              <dd className="font-semibold">
-                {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa})
-              </dd>
-            </div>
-            <div>
-              <dt className="text-small">{c.cnpj}</dt>
-              <dd className="font-semibold">{EMPRESA.cnpj}</dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-    </div>
+    </main>
   );
 }

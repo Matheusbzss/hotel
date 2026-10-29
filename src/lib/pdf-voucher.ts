@@ -4,18 +4,18 @@ import { EMPRESA } from '@/config/empresa';
 import { obterPasseio } from '@/data/passeios';
 import { LOCALE_INTL } from '@/i18n/config';
 import { dicionario } from '@/i18n';
+import { semFaixas } from './passeio-view';
+import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
 import type { Reserva } from './reservas';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
 import { LOGO_VOUCHER_PNG_BASE64 } from './logo-voucher';
 
 const COR = {
-  tinta: rgb(11 / 255, 59 / 255, 92 / 255),
-  coral: rgb(1, 107 / 255, 87 / 255),
-  sol: rgb(1, 200 / 255, 61 / 255),
-  turquesa: rgb(20 / 255, 184 / 255, 198 / 255),
-  papel: rgb(253 / 255, 248 / 255, 238 / 255),
-  cinza: rgb(70 / 255, 90 / 255, 110 / 255),
+  tinta: rgb(8 / 255, 47 / 255, 63 / 255),
+  sol: rgb(1, 213 / 255, 74 / 255),
+  mar2: rgb(13 / 255, 58 / 255, 77 / 255),
+  cinza: rgb(79 / 255, 102 / 255, 112 / 255),
   branco: rgb(1, 1, 1),
 };
 
@@ -78,7 +78,9 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   const d = dicionario(idioma);
   const locale = LOCALE_INTL[idioma];
   const passeio = obterPasseio(reserva.passeio.slug);
-  const nomePasseio = passeio?.nome[idioma] ?? reserva.passeio.nome;
+  const opcao = reserva.passeio.opcao ? passeio?.opcoes?.find((o) => o.id === reserva.passeio.opcao?.id) : undefined;
+  const nomeOpcao = opcao?.nome[idioma] ?? reserva.passeio.opcao?.nome;
+  const nomePasseio = `${passeio?.nome[idioma] ?? reserva.passeio.nome}${nomeOpcao ? ` (${nomeOpcao})` : ''}`;
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Voucher ${reserva.codigo} — ${EMPRESA.marca}`);
@@ -89,11 +91,9 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   const negrito = await pdf.embedFont(StandardFonts.HelveticaBold);
   const M = 48;
 
-  // faixa listrada de guarda-sol no topo
-  const faixa = 18;
-  for (let x = 0, i = 0; x < width; x += 24, i++) {
-    page.drawRectangle({ x, y: height - faixa, width: 24, height: faixa, color: i % 2 ? COR.branco : COR.coral });
-  }
+  // faixa do mar no topo
+  const faixa = 14;
+  page.drawRectangle({ x: 0, y: height - faixa, width, height: faixa, color: COR.tinta });
 
   const logo = await pdf.embedPng(Buffer.from(LOGO_VOUCHER_PNG_BASE64, 'base64'));
   const lw = 210;
@@ -105,21 +105,15 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   });
 
   // código do voucher
-  texto(page, d.reserva.voucher.toUpperCase(), width - M - 200, height - 70, negrito, 11, COR.coral);
+  texto(page, d.reserva.voucher.toUpperCase(), width - M - 200, height - 70, negrito, 11, COR.cinza);
   texto(page, reserva.codigo, width - M - 200, height - 102, negrito, 30);
 
   // cartão com os dados
   const topoCartao = height - 170;
   const alturaCartao = 330;
-  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.papel });
-  page.drawRectangle({ x: M, y: topoCartao - 8, width: width - 2 * M, height: 8, color: COR.turquesa });
+  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.sol });
 
-  const pessoas = [
-    `${reserva.adultos} ${reserva.adultos === 1 ? d.comum.adulto : d.comum.adultos.toLowerCase()}`,
-    reserva.criancas ? `${reserva.criancas} ${reserva.criancas === 1 ? d.comum.crianca : d.comum.criancas.toLowerCase()}` : '',
-  ]
-    .filter(Boolean)
-    .join(' + ');
+  const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
 
   const campos: [string, string][] = [
     [d.reserva.passeio, nomePasseio],
@@ -140,15 +134,10 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   }
 
   // QR code com o link da reserva
-  const qr = await QRCode.toBuffer(urlReserva, { margin: 1, width: 300, color: { dark: '#0B3B5C', light: '#FDF8EE' } });
+  const qr = await QRCode.toBuffer(urlReserva, { margin: 1, width: 300, color: { dark: '#082F3F', light: '#FFD54A' } });
   const qrImg = await pdf.embedPng(qr);
   page.drawImage(qrImg, { x: width - M - 24 - 130, y: topoCartao - 44 - 130, width: 130, height: 130 });
-  texto(page, (d.status.pago || 'Pago').toUpperCase(), width - M - 24 - 130, topoCartao - 44 - 150, negrito, 12, COR.turquesa);
-
-  // picote
-  for (let x = M + 6; x < width - M; x += 12) {
-    page.drawCircle({ x, y: topoCartao - alturaCartao - 14, size: 2.2, color: COR.turquesa });
-  }
+  texto(page, (d.status.pago || 'Pago').toUpperCase(), width - M - 24 - 130, topoCartao - 44 - 150, negrito, 12, COR.tinta);
 
   // avisos
   let ya = topoCartao - alturaCartao - 50;
@@ -170,7 +159,7 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
     `${EMPRESA.cidade} – ${EMPRESA.uf}`,
   ];
   rodape.forEach((l, i) => texto(page, l, M, 92 - i * 15, i === 0 ? negrito : regular, 10, i === 0 ? COR.tinta : COR.cinza));
-  page.drawRectangle({ x: 0, y: 0, width, height: 10, color: COR.sol });
+  page.drawRectangle({ x: 0, y: 0, width, height: 10, color: COR.tinta });
 
   return pdf.save();
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
-import { Ilustracao } from '@/components/Ilustracao';
 import { PACOTES } from '@/data/pacotes';
 import { CIDADES, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
@@ -22,8 +22,6 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeio-
   };
 }
 
-const FUNDOS = ['bg-turquesa-clara', 'bg-sol-claro', 'bg-coral-claro', 'bg-areia-clara'];
-
 export default async function PasseioEHospedagem({ params }: PageProps<'/[locale]/passeio-e-hospedagem'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
@@ -31,43 +29,37 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
   const t = d.hospedagemPagina;
 
   return (
-    <div className="pb-24 md:pb-40">
-      <div className="moldura pt-10 md:pt-16">
-        <div className="grid gap-6 md:grid-cols-12">
-          <h1 className="titulo-display text-head md:col-span-7">{t.titulo}</h1>
-          <p className="max-w-[46ch] self-end text-lead md:col-span-5">{t.texto}</p>
-        </div>
+    <main id="conteudo" className="tom-mar pb-24 md:pb-40">
+      <div className="moldura grid gap-6 pt-8 md:grid-cols-12 md:pt-14">
+        <h1 className="chegar largo text-head text-sol md:col-span-7">
+          <span>{t.titulo}</span>
+        </h1>
+        <p className="max-w-[46ch] self-end text-lead md:col-span-5">{t.texto}</p>
       </div>
 
-      <div className="moldura mt-12 space-y-6 md:mt-16 md:space-y-10">
+      <div className="mt-14 md:mt-24">
         {PACOTES.map((pacote, i) => (
-          <article key={pacote.slug} className={`grid ${FUNDOS[i % FUNDOS.length]} md:grid-cols-12`}>
-            <div className={`relative aspect-[4/3] md:col-span-5 md:aspect-auto md:min-h-[420px] ${i % 2 ? 'md:order-2' : ''}`}>
-              <Ilustracao
-                cena={pacote.ilustracao}
-                cidade={pacote.cidadeBase}
-                titulo={pacote.nome[locale]}
-                className="absolute inset-0 size-full"
-              />
+          <article key={pacote.slug} className={`grid md:grid-cols-12 ${i % 2 ? 'bg-mar-2' : ''}`}>
+            <div className={`relative aspect-[4/3] md:col-span-6 md:aspect-auto md:min-h-[34rem] ${i % 2 ? 'md:order-2' : ''}`}>
+              {pacote.foto && (
+                <Image src={pacote.foto} alt={pacote.nome[locale]} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+              )}
             </div>
-            <div className="flex flex-col justify-between gap-8 px-6 py-8 md:col-span-7 md:px-12 md:py-12">
+            <div className="entrar flex flex-col justify-between gap-10 px-(--margem) py-10 md:col-span-6 md:px-14 md:py-14">
               <div>
-                <p className="font-semibold">
+                <p className="text-small text-(--tinta-suave)">
                   {CIDADES[pacote.cidadeBase].nome[locale]} · {pacote.noites[locale]}
                 </p>
-                <h2 className="mt-2 text-[clamp(1.75rem,1.3rem+1.6vw,2.5rem)] font-bold leading-tight">{pacote.nome[locale]}</h2>
-                <p className="mt-4 max-w-[52ch] text-[1.125rem]">{pacote.descricao[locale]}</p>
-                <h3 className="mt-6 font-bold">{t.incluiPasseios}</h3>
-                <ul className="mt-3 flex flex-wrap gap-2">
+                <h2 className="mt-2 text-head font-bold text-sol">{pacote.nome[locale]}</h2>
+                <p className="mt-5 max-w-[48ch] text-lead">{pacote.descricao[locale]}</p>
+                <h3 className="mt-8 font-semibold">{t.incluiPasseios}</h3>
+                <ul className="mt-3 flex flex-wrap gap-1.5">
                   {pacote.passeios.map((slug) => {
                     const p = obterPasseio(slug);
                     if (!p) return null;
                     return (
                       <li key={slug}>
-                        <Link
-                          href={rota(locale, `/passeios/${slug}`)}
-                          className="inline-flex min-h-11 items-center bg-white px-4 py-2 font-semibold transition-colors hover:bg-sol"
-                        >
+                        <Link href={rota(locale, `/passeios/${slug}`)} className="filtro">
                           {p.nome[locale]}
                         </Link>
                       </li>
@@ -76,7 +68,7 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
                 </ul>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="font-bold">{t.sobConsulta}</p>
+                <p className="font-semibold">{t.sobConsulta}</p>
                 <a
                   href={linkWhatsApp(fmt(t.msg, { pacote: pacote.nome[locale] }))}
                   target="_blank"
@@ -91,24 +83,28 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
             </div>
           </article>
         ))}
+      </div>
 
-        <section className="bg-tinta px-6 py-12 text-white md:px-12 md:py-16" aria-labelledby="sob-medida">
-          <h2 id="sob-medida" className="text-[clamp(1.75rem,1.3rem+1.6vw,2.5rem)] font-bold">
+      <section className="moldura mt-24 md:mt-40" aria-labelledby="sob-medida">
+        <div className="tom-sol grid gap-6 px-6 py-12 md:grid-cols-12 md:px-12 md:py-16">
+          <h2 id="sob-medida" className="largo text-head md:col-span-7">
             {t.sobMedidaTitulo}
           </h2>
-          <p className="mt-4 max-w-[48ch] text-[1.125rem]">{t.sobMedidaTexto}</p>
-          <a
-            href={linkWhatsApp(t.sobMedidaMsg)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="botao botao-whats mt-8"
-            data-evento="Contact"
-          >
-            <IconeWhatsApp className="size-5" />
-            {t.pedir}
-          </a>
-        </section>
-      </div>
-    </div>
+          <div className="md:col-span-5">
+            <p className="text-lead">{t.sobMedidaTexto}</p>
+            <a
+              href={linkWhatsApp(t.sobMedidaMsg)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="botao mt-8 w-full sm:w-auto"
+              data-evento="Contact"
+            >
+              <IconeWhatsApp className="size-5" />
+              {t.pedir}
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

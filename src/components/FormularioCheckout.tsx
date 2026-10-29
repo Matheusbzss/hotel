@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { calcular, formatarCentavos, type TabelaPreco } from '@/lib/orcamento';
+import { calcular, formatarCentavos, normalizarPessoas, type Pessoas } from '@/lib/orcamento';
+import type { FaixaContador } from '@/lib/passeio-view';
+import { textoPessoas, type RotulosPessoas } from '@/lib/pessoas';
 import { rastrear } from '@/lib/pixel';
 import {
   CIDADES_HOSPEDAGEM,
@@ -22,8 +24,9 @@ import {
   validadeCartaoValida,
   type CidadeHospedagem,
 } from '@/lib/validacao';
-import { Contador } from './Contador';
+import { Contador } from './grupo/Contador';
 import { IconeWhatsApp } from './IconeWhatsApp';
+import type { OpcaoWidget } from './WidgetReserva';
 
 type Textos = {
   seusDados: string;
@@ -42,9 +45,6 @@ type Textos = {
   hotel: string;
   passeio: string;
   data: string;
-  adultos: string;
-  criancas: string;
-  criancasAjuda: string;
   observacoes: string;
   observacoesAjuda: string;
   aceitePre: string;
@@ -78,12 +78,11 @@ type Textos = {
   finalizarWhatsapp: string;
   diminuir: string;
   aumentar: string;
-  pessoa: string;
-  pessoas: string;
-  adulto: string;
-  crianca: string;
+  opcao: string;
+  quantas: string;
   unidadeSingular: string;
   unidadePlural: string;
+  rotulos: RotulosPessoas;
   erros: {
     obrigatorio: string;
     email: string;
@@ -145,7 +144,11 @@ export function FormularioCheckout({
   idioma,
   locale,
   passeio,
-  tabela,
+  opcoes,
+  mostrarOpcoes,
+  contadores,
+  regras,
+  semFaixas,
   inicial,
   pagamentoOnline,
   chavePublica,
@@ -155,8 +158,12 @@ export function FormularioCheckout({
   idioma: 'pt' | 'en' | 'es';
   locale: string;
   passeio: { slug: string; nome: string; cidade: string; duracao: string };
-  tabela: TabelaPreco;
-  inicial: { data: string; adultos: number; criancas: number };
+  opcoes: OpcaoWidget[];
+  mostrarOpcoes: boolean;
+  contadores: FaixaContador[];
+  regras: string[];
+  semFaixas: boolean;
+  inicial: { data: string; opcao: string; pessoas: Partial<Pessoas> };
   pagamentoOnline: boolean;
   chavePublica?: string;
   textos: Textos;
@@ -165,8 +172,12 @@ export function FormularioCheckout({
   const router = useRouter();
   const [hoje, setHoje] = useState('');
   const [data, setData] = useState(inicial.data);
-  const [adultos, setAdultos] = useState(Math.max(1, inicial.adultos));
-  const [criancas, setCriancas] = useState(Math.max(0, inicial.criancas));
+  const [opcaoId, setOpcaoId] = useState(opcoes.some((o) => o.id === inicial.opcao) ? inicial.opcao : opcoes[0].id);
+  const opcao = opcoes.find((o) => o.id === opcaoId) ?? opcoes[0];
+  const [pessoas, setPessoas] = useState<Pessoas>(() => {
+    const p = normalizarPessoas(opcoes[0].tabela, inicial.pessoas);
+    return { ...p, adultos: Math.max(1, p.adultos) };
+  });
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [ddi, setDdi] = useState(idioma === 'es' ? '54' : idioma === 'en' ? '1' : '55');
@@ -198,7 +209,7 @@ export function FormularioCheckout({
     setHoje(hojeEmBuzios());
   }, []);
 
-  const orc = useMemo(() => calcular(tabela, adultos, criancas), [tabela, adultos, criancas]);
+  const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
   const brl = (c: number) => formatarCentavos(c, locale);
 
   useEffect(() => {
@@ -226,7 +237,7 @@ export function FormularioCheckout({
     const e: Erros = {};
     const E = textos.erros;
     if (!dataPasseioValida(data)) e.data = E.data;
-    if (adultos < 1) e.adultos = E.pessoas;
+    if (pessoas.adultos < 1) e.adultos = E.pessoas;
     if (nome.trim().length < 3) e.nome = E.obrigatorio;
     if (!emailValido(email)) e.email = E.email;
     if (!telefoneValido(ddi, telefone)) e.telefone = E.telefone;
@@ -310,8 +321,10 @@ export function FormularioCheckout({
           idioma,
           slug: passeio.slug,
           data,
-          adultos,
-          criancas,
+          ...(mostrarOpcoes ? { opcao: opcao.id } : {}),
+          adultos: pessoas.adultos,
+          criancasMeia: pessoas.criancasMeia,
+          criancasGratis: pessoas.criancasGratis,
           cliente: { nome: nome.trim(), email: email.trim(), ddi, telefone, documentoTipo: docTipo, documento: documento.trim() },
           hospedagem: { cidade: cidadeHosp, hotel: hotel.trim() },
           observacoes: observacoes.trim(),
@@ -333,13 +346,16 @@ export function FormularioCheckout({
   }
 
   const T = textos;
-  const pessoasTexto = `${orc.pessoas} ${orc.pessoas === 1 ? T.pessoa : T.pessoas}`;
+  const pessoasTexto = textoPessoas(pessoas, T.rotulos, semFaixas);
+  const R = T.rotulos;
   const rotuloLinha = (tipo: string, q: number) =>
     tipo === 'adulto'
-      ? `${q} × ${T.adulto}`
-      : tipo === 'crianca'
-        ? `${q} × ${T.crianca}`
-        : `${q} × ${q === 1 ? T.unidadeSingular : T.unidadePlural}`;
+      ? `${q} × ${semFaixas ? (q === 1 ? R.pessoa : R.pessoas) : q === 1 ? R.adulto : R.adultos}`
+      : tipo === 'meia'
+        ? `${q} × ${q === 1 ? R.criancaMeia : R.criancasMeia}`
+        : tipo === 'gratis'
+          ? `${q} × ${q === 1 ? R.criancaGratis : R.criancasGratis}`
+          : `${q} × ${q === 1 ? T.unidadeSingular : T.unidadePlural}`;
 
   return (
     <form
@@ -354,7 +370,7 @@ export function FormularioCheckout({
       <div className="space-y-12 lg:col-span-7">
         {/* PASSEIO */}
         <fieldset className="min-w-0">
-          <legend className="text-[1.5rem] font-bold">{T.passeio}</legend>
+          <legend className="text-lead font-bold">{T.passeio}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="data" rotulo={T.data} erro={erros.data} className="sm:col-span-2">
               <input
@@ -370,16 +386,48 @@ export function FormularioCheckout({
                 required
               />
             </Campo>
-            <div className="space-y-4 bg-areia-clara px-5 py-4 sm:col-span-2">
-              <Contador rotulo={T.adultos} valor={adultos} min={1} max={30} aoMudar={setAdultos} textos={T} />
-              <Contador rotulo={T.criancas} ajuda={T.criancasAjuda} valor={criancas} min={0} max={30} aoMudar={setCriancas} textos={T} />
-            </div>
+            {mostrarOpcoes && (
+              <fieldset className="min-w-0 sm:col-span-2">
+                <legend className="rotulo">{T.opcao}</legend>
+                <div className="grid grid-cols-2 gap-1.5" role="radiogroup">
+                  {opcoes.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={o.id === opcao.id}
+                      onClick={() => setOpcaoId(o.id)}
+                      className="filtro flex-col items-start !gap-0 py-2.5 text-left"
+                    >
+                      <span>{o.nome}</span>
+                      <span className="numeros text-small font-normal">{brl(o.tabela.precoCentavos)}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            <fieldset className="min-w-0 space-y-4 bg-papel p-5 sm:col-span-2">
+              <legend className="sr-only">{T.quantas}</legend>
+              {contadores.map((c) => (
+                <Contador
+                  key={c.campo}
+                  rotulo={c.rotulo}
+                  ajuda={c.ajuda}
+                  valor={pessoas[c.campo]}
+                  min={c.campo === 'adultos' ? 1 : 0}
+                  max={30}
+                  aoMudar={(v) => setPessoas((p) => ({ ...p, [c.campo]: v }))}
+                  textos={T}
+                />
+              ))}
+              {regras.length > 0 && <p className="text-small text-(--tinta-suave)">{regras.join(' ')}</p>}
+            </fieldset>
           </div>
         </fieldset>
 
         {/* DADOS */}
         <fieldset className="min-w-0">
-          <legend className="text-[1.5rem] font-bold">{T.seusDados}</legend>
+          <legend className="text-lead font-bold">{T.seusDados}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="nome" rotulo={T.nome} erro={erros.nome} className="sm:col-span-2">
               <input
@@ -459,7 +507,11 @@ export function FormularioCheckout({
               <legend className="rotulo">{T.documento}</legend>
               <div className="flex flex-wrap gap-2">
                 {(['cpf', 'passaporte'] as const).map((t) => (
-                  <label key={t} className={`chip cursor-pointer ${docTipo === t ? '!bg-tinta !text-white' : ''}`}>
+                  <label
+                    key={t}
+                    className="filtro cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa"
+                    data-ativo={docTipo === t}
+                  >
                     <input
                       type="radio"
                       name="docTipo"
@@ -492,7 +544,7 @@ export function FormularioCheckout({
 
         {/* HOSPEDAGEM */}
         <fieldset className="min-w-0">
-          <legend className="text-[1.5rem] font-bold">{T.hospedagem}</legend>
+          <legend className="text-lead font-bold">{T.hospedagem}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="cidadeHosp" rotulo={T.cidadeHospedagem} erro={erros.cidadeHosp}>
               <select
@@ -545,19 +597,23 @@ export function FormularioCheckout({
 
         {/* PAGAMENTO */}
         <fieldset className="min-w-0">
-          <legend className="text-[1.5rem] font-bold">{T.pagamento}</legend>
+          <legend className="text-lead font-bold">{T.pagamento}</legend>
           {pagamentoOnline ? (
             <>
               <div className="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label={T.pagamento}>
                 {(['pix', 'cartao'] as const).map((m) => (
-                  <label key={m} className={`chip cursor-pointer px-6 text-[1.0625rem] ${metodo === m ? '!bg-tinta !text-white' : ''}`}>
+                  <label
+                    key={m}
+                    className="filtro cursor-pointer px-6 has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa"
+                    data-ativo={metodo === m}
+                  >
                     <input type="radio" name="metodo" value={m} checked={metodo === m} onChange={() => setMetodo(m)} className="sr-only" />
                     {m === 'pix' ? T.pix : T.cartao}
                   </label>
                 ))}
               </div>
               {metodo === 'pix' ? (
-                <p className="mt-5 bg-turquesa-clara px-5 py-4">{T.pixTexto}</p>
+                <p className="mt-5 bg-papel px-5 py-4">{T.pixTexto}</p>
               ) : (
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
                   <Campo id="cartaoNumero" rotulo={T.cartaoNumero} erro={erros.cartaoNumero} className="sm:col-span-2">
@@ -687,7 +743,7 @@ export function FormularioCheckout({
               )}
             </>
           ) : (
-            <div className="mt-5 bg-sol-claro px-5 py-5">
+            <div className="tom-sol mt-5 px-5 py-5">
               <p className="font-bold">{T.indisponivelTitulo}</p>
               <p className="mt-2">{T.indisponivelTexto}</p>
             </div>
@@ -701,17 +757,17 @@ export function FormularioCheckout({
               type="checkbox"
               checked={aceite}
               onChange={(e) => setAceite(e.target.checked)}
-              className="mt-1 size-6 shrink-0 accent-[var(--color-tinta)]"
+              className="mt-1 size-6 shrink-0 accent-[var(--color-mar)]"
               aria-invalid={Boolean(erros.aceite)}
               aria-describedby={erros.aceite ? 'aceite-erro' : undefined}
             />
             <span>
               {T.aceitePre}{' '}
-              <Link href={links.termos} target="_blank" className="font-semibold underline underline-offset-4">
+              <Link href={links.termos} target="_blank" className="link font-semibold">
                 {T.aceiteTermos}
               </Link>{' '}
               {T.aceiteMeio}{' '}
-              <Link href={links.politica} target="_blank" className="font-semibold underline underline-offset-4">
+              <Link href={links.politica} target="_blank" className="link font-semibold">
                 {T.aceitePolitica}
               </Link>
               .
@@ -728,13 +784,12 @@ export function FormularioCheckout({
       {/* RESUMO EM FORMA DE BILHETE */}
       <aside className="lg:col-span-5">
         <div className="lg:sticky lg:top-6">
-          <div className="bilhete bg-areia-clara" style={{ ['--corte' as string]: 'calc(100% - 92px)' }}>
-            <div className="faixa-guarda-sol h-3" aria-hidden="true" />
-            <div className="px-6 pb-6 pt-5">
+          <div className="tom-mar">
+            <div className="px-6 pb-6 pt-6">
               <h2 className="text-lead font-bold">{T.resumo}</h2>
-              <p className="mt-4 text-[1.25rem] font-bold leading-tight">{passeio.nome}</p>
-              <p className="mt-1 text-small">
-                {passeio.cidade} · {passeio.duracao}
+              <p className="mt-4 text-lead font-bold leading-tight text-sol">{passeio.nome}</p>
+              <p className="mt-1 text-small text-(--tinta-suave)">
+                {passeio.cidade} · {mostrarOpcoes ? opcao.nome : passeio.duracao}
               </p>
               <dl className="mt-5 space-y-2">
                 <div className="flex justify-between gap-4">
@@ -742,21 +797,20 @@ export function FormularioCheckout({
                   <dd className="text-right font-semibold">{dataPasseioValida(data) ? formatarDataIso(data, locale) : '—'}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
-                  <dt>{T.pessoas.charAt(0).toUpperCase() + T.pessoas.slice(1)}</dt>
+                  <dt>{T.quantas}</dt>
                   <dd className="text-right font-semibold">{pessoasTexto}</dd>
                 </div>
                 {orc.linhas.map((l) => (
                   <div key={l.tipo} className="flex justify-between gap-4">
                     <dt>{rotuloLinha(l.tipo, l.quantidade)}</dt>
-                    <dd className="text-right font-semibold">{brl(l.subtotalCentavos)}</dd>
+                    <dd className="numeros text-right font-semibold">{brl(l.subtotalCentavos)}</dd>
                   </div>
                 ))}
               </dl>
             </div>
-            <div className="picote-areia mx-4" aria-hidden="true" />
-            <div className="flex h-[88px] items-center justify-between gap-4 bg-coral px-6">
+            <div className="flex items-center justify-between gap-4 bg-mar-2 px-6 py-5">
               <span className="font-semibold">{T.total}</span>
-              <span className="text-[2rem] font-bold leading-none" aria-live="polite">
+              <span className="numeros text-head font-bold leading-none text-sol" aria-live="polite">
                 {brl(orc.totalCentavos)}
               </span>
             </div>
@@ -764,16 +818,16 @@ export function FormularioCheckout({
 
           <div className="mt-5 space-y-3">
             {(erroGeral || (tentou && temErros)) && (
-              <p className="bg-coral-claro px-4 py-3 font-semibold" role="alert">
+              <p className="bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
                 {erroGeral || textos.erros.revise}
               </p>
             )}
             {pagamentoOnline ? (
-              <button type="submit" className="botao botao-tinta w-full text-[1.125rem]" disabled={enviando} aria-busy={enviando}>
+              <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando}>
                 {enviando ? T.processando : (metodo === 'pix' ? T.pagarPix : T.pagarCartao).replace('{valor}', brl(orc.totalCentavos))}
               </button>
             ) : (
-              <button type="submit" className="botao botao-whats w-full text-[1.125rem]" disabled={enviando} aria-busy={enviando}>
+              <button type="submit" className="botao botao-whats w-full" disabled={enviando} aria-busy={enviando}>
                 <IconeWhatsApp className="size-5" />
                 {enviando ? T.processando : T.finalizarWhatsapp}
               </button>

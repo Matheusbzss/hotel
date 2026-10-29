@@ -1,7 +1,7 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { BlobPreconditionFailedError, get, head, list, put } from '@vercel/blob';
+import { BlobPreconditionFailedError, del, get, head, list, put } from '@vercel/blob';
 import type { Idioma } from '@/i18n/config';
 import type { CidadeHospedagem } from './validacao';
 
@@ -242,5 +242,65 @@ export async function listarReservas(): Promise<Reserva[]> {
 
 export function registrar(r: Reserva, evento: string): Reserva {
   r.historico = [...(r.historico ?? []), { em: new Date().toISOString(), evento }];
+  return r;
+}
+
+/**
+ * Autoteste do banco (usado por /api/saude): confere no armazenamento real as mesmas regras
+ * das reservas — gravação privada, código que não pode ser sobrescrito e atualização condicional.
+ */
+export async function testarBanco(): Promise<Record<string, boolean | string>> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return { modo: process.env.VERCEL ? 'sem-banco' : 'arquivo-local' };
+  const caminho = `saude/teste-${gerarToken()}.json`;
+  const r: Record<string, boolean | string> = { modo: 'vercel-blob' };
+  try {
+    await put(caminho, JSON.stringify({ n: 1 }), {
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: false,
+      contentType: 'application/json',
+    });
+    r.grava = true;
+    try {
+      await put(caminho, JSON.stringify({ n: 2 }), {
+        access: 'private',
+        addRandomSuffix: false,
+        allowOverwrite: false,
+        contentType: 'application/json',
+      });
+      r.naoSobrescreve = false;
+    } catch {
+      r.naoSobrescreve = true;
+    }
+    const lido = await get(caminho, { access: 'private', useCache: false });
+    const texto = lido?.stream ? await new Response(lido.stream).text() : '';
+    r.le = texto.includes('"n":1');
+    const etag = lido?.blob.etag ?? '';
+    await put(caminho, JSON.stringify({ n: 3 }), {
+      access: 'private',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: 'application/json',
+      ifMatch: etag,
+    });
+    r.atualizaComVersao = true;
+    try {
+      await put(caminho, JSON.stringify({ n: 4 }), {
+        access: 'private',
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        contentType: 'application/json',
+        ifMatch: etag,
+      });
+      r.bloqueiaVersaoAntiga = false;
+    } catch (e) {
+      r.bloqueiaVersaoAntiga = e instanceof BlobPreconditionFailedError;
+    }
+    r.existe = Boolean(await head(caminho).catch(() => null));
+  } catch (e) {
+    r.erro = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  } finally {
+    await del(caminho).catch(() => null);
+  }
   return r;
 }

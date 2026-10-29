@@ -175,16 +175,18 @@ body {
     pointer-events: none;
   }
 
-  /* Bilhete: entalhes laterais na linha do picote (--corte) */
+  /* Bilhete: entalhes laterais na linha do picote (--corte). O gradiente é só máscara (recorte), não aparece como cor. taste-skill-ignore */
   .bilhete {
     --corte: 60%;
     --raio: 12px;
     -webkit-mask:
       radial-gradient(circle var(--raio) at 0 var(--corte), #0000 98%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51% 100% no-repeat;
+      /* taste-skill-ignore: máscara do entalhe */ radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51%
+        100% no-repeat; /* taste-skill-ignore: máscara do entalhe */
     mask:
       radial-gradient(circle var(--raio) at 0 var(--corte), #0000 98%, #000) left / 51% 100% no-repeat,
-      radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51% 100% no-repeat;
+      /* taste-skill-ignore: máscara do entalhe */ radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51%
+        100% no-repeat; /* taste-skill-ignore: máscara do entalhe */
   }
 
   /* Picote: fileira de furos redondos */

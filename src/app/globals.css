@@ -1,0 +1,321 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ */
+/* Tokens da marca                                                     */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-tinta: #0b3b5c;
+  --color-tinta-suave: #3c5f79;
+  --color-oceano: #0a5c8a;
+  --color-oceano-medio: #0e86ae;
+  --color-turquesa: #14b8c6;
+  --color-turquesa-clara: #d3f4f6;
+  --color-sol: #ffc83d;
+  --color-sol-claro: #fff1c7;
+  --color-coral: #ff7a66;
+  --color-coral-claro: #ffe1da;
+  --color-coral-forte: #db4f3a;
+  --color-areia: #f3e3c3;
+  --color-areia-clara: #fbf4e6;
+  --color-papel: #fffcf5;
+  --color-whats: #1faa53;
+
+  --font-display: var(--font-imbue), 'Times New Roman', serif;
+  --font-script: var(--font-yellowtail), cursive;
+  --font-sans: var(--font-albert), ui-sans-serif, system-ui, sans-serif;
+
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.45;
+  --text-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --text-body--line-height: 1.55;
+  --text-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --text-lead--line-height: 1.3;
+  --text-head: clamp(2.25rem, 1.4rem + 3.4vw, 4.25rem);
+  --text-head--line-height: 0.95;
+  --text-mega: clamp(7.25rem, 3rem + 13vw, 14rem);
+  --text-mega--line-height: 0.85;
+}
+
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:root {
+  --margem: clamp(1rem, 0.6rem + 1.8vw, 2rem);
+  --barra-inferior: 0px;
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-sol);
+  color: var(--color-tinta);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-oceano-medio);
+  outline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Peças                                                               */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .moldura {
+    width: 100%;
+    max-width: 84rem;
+    margin-inline: auto;
+    padding-inline: var(--margem);
+  }
+
+  .titulo-display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+
+  .script {
+    font-family: var(--font-script);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* Faixa listrada de guarda-sol */
+  .faixa-guarda-sol {
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='8'%3E%3Crect width='28' height='8' fill='%23FF7A66'/%3E%3C/svg%3E");
+    background-size: 56px 100%;
+    background-repeat: repeat-x;
+  }
+  .faixa-guarda-sol-turquesa {
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='8'%3E%3Crect width='28' height='8' fill='%2314B8C6'/%3E%3C/svg%3E");
+    background-size: 56px 100%;
+    background-repeat: repeat-x;
+  }
+
+  /* Botões: cápsula, cor chapada */
+  .botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3.25rem;
+    padding: 0.8rem 1.6rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 1.0625rem;
+    line-height: 1.2;
+    text-align: center;
+    transition:
+      transform 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .botao:active {
+    transform: scale(0.97);
+  }
+  .botao-coral {
+    background: var(--color-coral);
+    color: var(--color-tinta);
+  }
+  .botao-coral:hover {
+    background: var(--color-sol);
+  }
+  .botao-tinta {
+    background: var(--color-tinta);
+    color: #fff;
+  }
+  .botao-tinta:hover {
+    background: var(--color-oceano);
+  }
+  .botao-branco {
+    background: #fff;
+    color: var(--color-tinta);
+  }
+  .botao-branco:hover {
+    background: var(--color-sol-claro);
+  }
+  .botao-whats {
+    background: var(--color-whats);
+    color: #fff;
+  }
+  .botao-whats:hover {
+    background: #178a43;
+  }
+  .botao[aria-disabled='true'],
+  .botao:disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* Bilhete: entalhes laterais na linha do picote (--corte) */
+  .bilhete {
+    --corte: 60%;
+    --raio: 12px;
+    -webkit-mask:
+      radial-gradient(circle var(--raio) at 0 var(--corte), #0000 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--raio) at 0 var(--corte), #0000 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--raio) at 100% var(--corte), #0000 98%, #000) right / 51% 100% no-repeat;
+  }
+
+  /* Picote: fileira de furos redondos */
+  .picote {
+    height: 8px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Ccircle cx='7' cy='4' r='3' fill='%23FFFFFF'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: center;
+  }
+  .picote-areia {
+    height: 8px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Ccircle cx='7' cy='4' r='3' fill='%23E7CF9F'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: center;
+  }
+
+  /* Borda recortada (verso do cartão-postal no rodapé) */
+  .recorte-topo {
+    height: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='28'%3E%3Cpath d='M0 28 A28 28 0 0 1 56 28Z' fill='%23FFFCF5'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: center bottom;
+    background-size: 56px 28px;
+  }
+
+  .campo {
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.75rem 0.95rem;
+    border-radius: 0.5rem;
+    border: 2px solid #cfd9e0;
+    background: #fff;
+    color: var(--color-tinta);
+    font-size: 1.0625rem;
+    transition: border-color 0.15s ease;
+  }
+  .campo:hover {
+    border-color: #9fb3c2;
+  }
+  .campo:focus {
+    outline: none;
+    border-color: var(--color-oceano-medio);
+  }
+  .campo[aria-invalid='true'] {
+    border-color: #c8322a;
+  }
+  .rotulo {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .ajuda {
+    display: block;
+    font-size: var(--text-small);
+    color: var(--color-tinta-suave);
+    margin-top: 0.35rem;
+  }
+  .erro-campo {
+    display: block;
+    font-size: var(--text-small);
+    color: #b0261f;
+    font-weight: 600;
+    margin-top: 0.35rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    background: var(--color-areia-clara);
+    color: var(--color-tinta);
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      transform 0.15s ease;
+  }
+  .chip:hover {
+    background: var(--color-areia);
+  }
+  .chip[aria-pressed='true'] {
+    background: var(--color-tinta);
+    color: #fff;
+  }
+  .chip:active {
+    transform: scale(0.96);
+  }
+
+  .texto-corrido p + p {
+    margin-top: 1em;
+  }
+}
+
+/* Entrada das seções conforme rolam na tela (sem JavaScript) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .entrar > * {
+      animation: subir linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+    .entrar > *:nth-child(2) {
+      animation-range: entry 8% entry 63%;
+    }
+    .entrar > *:nth-child(3) {
+      animation-range: entry 16% entry 71%;
+    }
+    .entrar > *:nth-child(4) {
+      animation-range: entry 24% entry 79%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}
+.sem-barra {
+  scrollbar-width: none;
+}

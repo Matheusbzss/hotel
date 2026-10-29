@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Agência Victor Hugo">
+  <title>Agência Victor Hugo</title>
+  <defs><clipPath id="e"><circle cx="50" cy="50" r="50"/></clipPath></defs>
+  <g clip-path="url(#e)">
+    <rect width="100" height="100" fill="#FF6B57"/>
+    <circle cx="62" cy="55" r="21" fill="#FFC83D"/>
+    <path d="M0 58 Q12.5 53 25 58 T50 58 T75 58 T100 58 V100 H0Z" fill="#14B8C6"/>
+    <path d="M0 70 Q12.5 65 25 70 T50 70 T75 70 T100 70 V100 H0Z" fill="#0E86AE"/>
+    <path d="M0 82 Q12.5 77 25 82 T50 82 T75 82 T100 82 V100 H0Z" fill="#0A5C8A"/>
+    <path d="M0 86 Q26 78 58 100 H0Z" fill="#F3E3C3"/>
+    <g fill="#0B3B5C">
+      <path d="M25 95 C27 76 30 52 37 33 L41 34 C35 53 33 76 32 95Z"/>
+      <path d="M39 32 C50 24 62 27 70 38 C60 32 50 31 40 34Z"/>
+      <path d="M39 32 C46 18 58 13 68 17 C57 18 47 24 40 33Z"/>
+      <path d="M39 32 C29 26 17 29 11 40 C21 33 30 31 39 34Z"/>
+      <path d="M39 32 C32 18 21 13 12 17 C23 18 32 24 39 33Z"/>
+      <path d="M39 32 C39 21 43 12 50 7 C45 14 42 22 40 32Z"/>
+    </g>
+    <circle cx="38" cy="35.5" r="2.3" fill="#0B3B5C"/>
+    <circle cx="42" cy="35" r="2.3" fill="#0B3B5C"/>
+  </g>
+</svg>

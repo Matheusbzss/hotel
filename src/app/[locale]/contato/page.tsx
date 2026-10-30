@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { IconeWhatsApp } from '@/components/IconeWhatsApp';
+import { IconeEmail } from '@/components/IconeEmail';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
+import { linkEmail } from '@/lib/email';
 import { alternates } from '@/lib/site';
-import { linkWhatsApp } from '@/lib/whatsapp';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/contato'>): Promise<Metadata> {
   const { locale } = await params;
@@ -26,11 +26,7 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
   const d = dicionario(locale);
   const c = d.contato;
 
-  const linhas = [
-    { rotulo: c.whatsapp, valor: EMPRESA.telefoneExibicao, href: linkWhatsApp(c.msg), externo: true },
-    { rotulo: c.instagram, valor: EMPRESA.instagramUsuario, href: EMPRESA.instagramUrl, externo: true },
-    { rotulo: c.email, valor: EMPRESA.email, href: `mailto:${EMPRESA.email}`, externo: false },
-  ];
+  const email = linkEmail(c.assunto, c.msg);
 
   return (
     <main id="conteudo" className="tom-mar">
@@ -38,32 +34,19 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
         <div className="chegar md:col-span-6">
           <h1 className="largo text-head text-sol">{c.titulo}</h1>
           <p className="mt-5 max-w-[40ch] text-lead">{c.texto}</p>
-          <a
-            href={linkWhatsApp(c.msg)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="botao botao-whats mt-8 w-full sm:w-auto"
-            data-evento="Contact"
-          >
-            <IconeWhatsApp className="size-5" />
-            {d.comum.whatsapp}
+          <a href={email} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
+            <IconeEmail className="size-5" />
+            {c.botao}
           </a>
 
-          <ul className="mt-14">
-            {linhas.map((l) => (
-              <li key={l.rotulo}>
-                <a
-                  href={l.href}
-                  {...(l.externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  className="group -mx-3 flex flex-col gap-1 px-3 py-4 transition-colors hover:bg-mar-2 sm:flex-row sm:items-baseline sm:justify-between"
-                  data-evento={l.rotulo === c.whatsapp ? 'Contact' : undefined}
-                >
-                  <span className="text-(--tinta-suave)">{l.rotulo}</span>
-                  <span className="break-all text-lead font-semibold transition-transform group-hover:translate-x-1">{l.valor}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
+          <a
+            href={email}
+            className="group -mx-3 mt-14 flex flex-col gap-1 px-3 py-4 transition-colors hover:bg-mar-2 sm:flex-row sm:items-baseline sm:justify-between"
+            data-evento="Contact"
+          >
+            <span className="text-(--tinta-suave)">{c.email}</span>
+            <span className="break-all text-lead font-semibold transition-transform group-hover:translate-x-1">{EMPRESA.email}</span>
+          </a>
 
           <section className="mt-12 grid gap-8 sm:grid-cols-2" aria-label={c.empresa}>
             <div>
@@ -73,12 +56,6 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
             <div>
               <h2 className="font-bold text-sol">{c.empresa}</h2>
               <dl className="mt-2 space-y-1">
-                <div>
-                  <dt className="text-small text-(--tinta-suave)">{c.razao}</dt>
-                  <dd>
-                    {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa})
-                  </dd>
-                </div>
                 <div>
                   <dt className="text-small text-(--tinta-suave)">{c.cnpj}</dt>
                   <dd className="numeros">{EMPRESA.cnpj}</dd>

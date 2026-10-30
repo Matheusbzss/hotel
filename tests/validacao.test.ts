@@ -49,13 +49,17 @@ test('cartão (Luhn) e validade', () => {
   assert.equal(validadeCartaoValida(13, 30, agora), false);
 });
 
-test('código do voucher: formato VH-XXXXXX e sem repetição na amostra', () => {
+test('código do voucher: formato ON-XXXXXX e sem repetição na amostra', () => {
   const vistos = new Set<string>();
   for (let i = 0; i < 20000; i++) {
     const c = gerarCodigo();
+    assert.ok(c.startsWith('ON-'), c);
     assert.ok(codigoValido(c), c);
     assert.ok(!/[01IO]/.test(c.slice(3)), c);
     vistos.add(c);
   }
   assert.ok(vistos.size > 19990);
+  // reservas feitas antes da troca de marca continuam abrindo
+  assert.ok(codigoValido('VH-7K3P9Q'));
+  assert.ok(!codigoValido('XX-7K3P9Q'));
 });

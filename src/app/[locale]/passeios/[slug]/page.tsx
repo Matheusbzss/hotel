@@ -13,7 +13,6 @@ import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { contadoresPessoas, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { formatarPreco, opcoesPasseio, precoAPartirCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { alternates, urlDoSite } from '@/lib/site';
-import { linkWhatsApp } from '@/lib/whatsapp';
 
 export const dynamicParams = false;
 
@@ -224,13 +223,11 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 regras={regras}
                 locale={LOCALE_INTL[locale]}
                 checkoutHref={rota(locale, `/checkout/${p.slug}`)}
-                whatsappHref={linkWhatsApp(fmt(d.passeio.msgDuvida, { passeio: p.nome[locale] }))}
                 textos={{
                   titulo: d.passeio.reservarTitulo,
                   data: d.passeio.data,
                   total: d.passeio.total,
                   reservar: d.passeio.reservar,
-                  duvidas: d.passeio.duvidas,
                   politica: d.passeio.politica,
                   escolhaData: d.passeio.escolhaData,
                   escolhaOpcao: d.passeio.escolhaOpcao,

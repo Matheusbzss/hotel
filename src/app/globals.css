@@ -40,7 +40,6 @@
 
 :root {
   --margem: clamp(1rem, 0.6rem + 1.8vw, 2rem);
-  --barra-inferior: 0px;
   color-scheme: dark;
   /* papéis de cor: mudam conforme o fundo da página ou da seção */
   --fundo: var(--color-mar);
@@ -308,11 +307,6 @@ img {
   }
   .filtro:active {
     transform: scale(0.96);
-  }
-
-  /* O botão do WhatsApp flutua de verdade sobre o conteúdo: só ele tem sombra */
-  .flutuante {
-    box-shadow: 0 10px 30px rgb(4 24 33 / 0.35); /* taste-skill-ignore */
   }
 
   /* Foto que aproxima de leve ao passar o mouse */

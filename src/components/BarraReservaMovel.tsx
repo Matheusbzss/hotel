@@ -24,14 +24,6 @@ export function BarraReservaMovel({ rotuloPreco, preco, rotuloBotao }: { rotuloP
     return () => io.disconnect();
   }, []);
 
-  useEffect(() => {
-    // o botão flutuante do WhatsApp sobe junto com a barra
-    document.documentElement.style.setProperty('--barra-inferior', oculta ? '0px' : '76px');
-    return () => {
-      document.documentElement.style.removeProperty('--barra-inferior');
-    };
-  }, [oculta]);
-
   return (
     <div
       className={`tom-sol fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 lg:hidden ${oculta ? 'translate-y-full' : ''}`}

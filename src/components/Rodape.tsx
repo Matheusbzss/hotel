@@ -2,10 +2,9 @@ import Link from 'next/link';
 import { EMPRESA, enderecoCurto } from '@/config/empresa';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
-import { linkWhatsApp } from '@/lib/whatsapp';
 import { RedefinirCookies } from './RedefinirCookies';
 
-/** Fecho do site: o convite, os contatos, os dados legais e o nome da agência cortado pela borda. */
+/** Fecho do site: o convite, o e-mail, os dados legais e o nome da agência cortado pela borda. */
 export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const ano = new Date().getFullYear();
   const R = d.rodape;
@@ -33,22 +32,6 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
               </li>
             ))}
             <li>
-              <a
-                href={linkWhatsApp(d.contato.msg)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link font-semibold"
-                data-evento="Contact"
-              >
-                WhatsApp {EMPRESA.telefoneExibicao}
-              </a>
-            </li>
-            <li>
-              <a href={EMPRESA.instagramUrl} target="_blank" rel="noopener noreferrer" className="link font-semibold">
-                Instagram
-              </a>
-            </li>
-            <li>
               <a href={`mailto:${EMPRESA.email}`} className="link break-all font-semibold">
                 {EMPRESA.email}
               </a>
@@ -59,7 +42,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
 
       <div className="moldura mt-20 flex flex-col gap-4 text-small md:flex-row md:items-end md:justify-between">
         <p className="max-w-[60ch]">
-          {R.razao}: {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa}) · {R.cnpj} {EMPRESA.cnpj} · {enderecoCurto} · {R.pagamentos}
+          {R.cnpj} {EMPRESA.cnpj} · {enderecoCurto} · {R.pagamentos}
           <br />
           {fmt(R.direitos, { ano, marca: EMPRESA.marca })}
         </p>
@@ -87,9 +70,9 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
 
       {/* o nome da agência fecha a página, cortado pela borda de baixo */}
       <p aria-hidden="true" className="largo mt-10 -mb-[0.22em] whitespace-nowrap px-(--margem) text-[15.5vw] leading-[0.82]">
-        Victor
+        Orla
         <br />
-        Hugo
+        Nativa
       </p>
     </footer>
   );

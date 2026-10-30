@@ -50,7 +50,7 @@ function Login({ erro }: { erro?: string }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo/agencia-victor-hugo-horizontal.svg" alt={EMPRESA.marca} width={344} height={100} className="h-14 w-auto self-start" />
+      <img src="/logo/orla-nativa-horizontal.svg" alt={EMPRESA.marca} width={313} height={100} className="h-14 w-auto self-start" />
       <h1 className="mt-8 text-2xl font-bold text-mar">Área administrativa</h1>
       {!adminConfigurado() && (
         <p className="mt-4 bg-sol px-4 py-3 text-small">
@@ -133,7 +133,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo/agencia-victor-hugo-emblema.svg" alt="" width={48} height={48} className="size-12" />
+          <img src="/logo/orla-nativa-emblema.svg" alt="" width={48} height={48} className="size-12" />
           <div>
             <h1 className="text-2xl font-bold">Reservas</h1>
             <p className="text-small text-tinta-suave">

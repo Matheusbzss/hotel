@@ -3,18 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { IconeWhatsApp } from './IconeWhatsApp';
 
 export function MenuMovel({
   links,
   rotuloAbrir,
   rotuloFechar,
-  whatsapp,
 }: {
   links: { href: string; texto: string }[];
   rotuloAbrir: string;
   rotuloFechar: string;
-  whatsapp: { href: string; texto: string };
 }) {
   const [aberto, setAberto] = useState(false);
   const caminho = usePathname();
@@ -55,10 +52,6 @@ export function MenuMovel({
               </li>
             ))}
           </ul>
-          <a href={whatsapp.href} target="_blank" rel="noopener noreferrer" className="botao botao-whats mt-6 w-full" data-evento="Contact">
-            <IconeWhatsApp className="size-5" />
-            {whatsapp.texto}
-          </a>
         </div>
       )}
     </div>

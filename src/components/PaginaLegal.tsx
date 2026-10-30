@@ -19,7 +19,7 @@ export function PaginaLegal({ doc, idioma, d, extra }: { doc: DocumentoLegal; id
             <p className="mt-4 text-small text-(--tinta-suave)">{fmt(d.legal.atualizado, { data })}</p>
             <p className="tom-sol mt-6 px-5 py-5 font-semibold">{doc.resumo}</p>
             <p className="mt-6 text-small">
-              {EMPRESA.razaoSocial} ({EMPRESA.tipoEmpresa}) · CNPJ {EMPRESA.cnpj}
+              {EMPRESA.marca} · CNPJ {EMPRESA.cnpj}
             </p>
           </div>
         </div>

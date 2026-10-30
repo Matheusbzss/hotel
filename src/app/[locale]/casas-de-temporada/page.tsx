@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { IconeWhatsApp } from '@/components/IconeWhatsApp';
+import { IconeEmail } from '@/components/IconeEmail';
 import { CASAS_ATIVO, casasAtivas } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
+import { linkEmail } from '@/lib/email';
 import { formatarPreco } from '@/lib/precos';
 import { alternates } from '@/lib/site';
-import { linkWhatsApp } from '@/lib/whatsapp';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de-temporada'>): Promise<Metadata> {
   const { locale } = await params;
@@ -75,13 +75,11 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
                   )}
                 </p>
                 <a
-                  href={linkWhatsApp(fmt(t.msgCasa, { casa: c.nome[locale] }))}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="botao botao-whats mt-5 w-full"
+                  href={linkEmail(fmt(t.assuntoCasa, { casa: c.nome[locale] }), fmt(t.msgCasa, { casa: c.nome[locale] }))}
+                  className="botao mt-5 w-full"
                   data-evento="Contact"
                 >
-                  <IconeWhatsApp className="size-5" />
+                  <IconeEmail className="size-5" />
                   {t.consultar}
                 </a>
               </article>
@@ -101,14 +99,8 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
                 </h2>
                 <p className="mt-5 max-w-[42ch] text-lead">{t.emBreveTexto}</p>
               </div>
-              <a
-                href={linkWhatsApp(t.msg)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="botao w-full sm:w-auto"
-                data-evento="Contact"
-              >
-                <IconeWhatsApp className="size-5" />
+              <a href={linkEmail(t.assunto, t.msg)} className="botao w-full sm:w-auto" data-evento="Contact">
+                <IconeEmail className="size-5" />
                 {t.pedir}
               </a>
             </div>
@@ -122,14 +114,8 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
         </h2>
         <div className="md:col-span-5 md:col-start-8">
           <p className="text-lead">{t.proprietarioTexto}</p>
-          <a
-            href={linkWhatsApp(t.proprietarioMsg)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="botao botao-whats mt-8 w-full sm:w-auto"
-            data-evento="Contact"
-          >
-            <IconeWhatsApp className="size-5" />
+          <a href={linkEmail(t.proprietarioAssunto, t.proprietarioMsg)} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
+            <IconeEmail className="size-5" />
             {t.proprietarioBotao}
           </a>
         </div>

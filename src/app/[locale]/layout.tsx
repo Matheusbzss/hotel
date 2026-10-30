@@ -6,7 +6,6 @@ import { GrupoProvider } from '@/components/grupo/GrupoContexto';
 import { Rastreamento } from '@/components/Rastreamento';
 import { Revelar } from '@/components/Revelar';
 import { Rodape } from '@/components/Rodape';
-import { WhatsAppFlutuante } from '@/components/WhatsAppFlutuante';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
@@ -56,13 +55,10 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     '@context': 'https://schema.org',
     '@type': 'TravelAgency',
     name: EMPRESA.marca,
-    legalName: EMPRESA.razaoSocial,
     taxID: EMPRESA.cnpj,
     url: urlDoSite(),
     email: EMPRESA.email,
-    telephone: EMPRESA.telefoneExibicao,
-    logo: `${urlDoSite()}/logo/agencia-victor-hugo-emblema-512.png`,
-    sameAs: [EMPRESA.instagramUrl],
+    logo: `${urlDoSite()}/logo/orla-nativa-emblema-512.png`,
     address: { '@type': 'PostalAddress', addressLocality: EMPRESA.cidade, addressRegion: EMPRESA.uf, addressCountry: 'BR' },
     areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo'],
     availableLanguage: ['pt-BR', 'en', 'es'],
@@ -80,7 +76,6 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
         <Cabecalho idioma={locale} d={d} />
         <GrupoProvider>{children}</GrupoProvider>
         <Rodape idioma={locale} d={d} />
-        <WhatsAppFlutuante rotulo={d.comum.whatsapp} mensagem={d.contato.msg} />
         <Revelar />
         <Rastreamento
           pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}

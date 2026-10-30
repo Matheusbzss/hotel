@@ -1,25 +1,23 @@
 /**
- * DADOS DA EMPRESA — único lugar para trocar razão social, CNPJ, e-mail e telefone.
+ * DADOS DA EMPRESA — único lugar para trocar nome, CNPJ, e-mail e telefone.
  *
- * Quando migrar de MEI para LTDA, altere só este arquivo: rodapé, políticas,
- * termos, voucher em PDF e checkout leem tudo daqui.
+ * Rodapé, políticas, termos, voucher em PDF e checkout leem tudo daqui.
  */
 export const EMPRESA = {
-  marca: 'Agência Victor Hugo',
+  marca: 'Orla Nativa',
   slogan: 'Viagens & Passeios',
 
   // Dados legais
-  razaoSocial: 'VICTOR HUGO ALVES DE VASCONCELOS FREIRES',
-  tipoEmpresa: 'MEI',
   cnpj: '69.664.651/0001-82',
 
   // Contato
-  email: 'victorhugo@orlanativa.com.br',
+  email: 'suporte@orlanativa.com.br',
   telefoneExibicao: '+55 21 99050-2377',
-  /** Só números, com DDI e DDD — usado nos links do WhatsApp. */
+  /**
+   * Só números, com DDI e DDD. O WhatsApp aparece só no fim da reserva
+   * (finalizar o pagamento e falar sobre o voucher), nunca antes.
+   */
   whatsapp: '5521990502377',
-  instagramUrl: 'https://instagram.com/agencia_victor_hugo',
-  instagramUsuario: '@agencia_victor_hugo',
 
   // Localização
   cidade: 'Armação dos Búzios',
@@ -27,11 +25,14 @@ export const EMPRESA = {
   regiao: 'Região dos Lagos',
 
   // Site
-  dominio: 'agenciavictorhugo.online',
-  url: 'https://agenciavictorhugo.online',
+  /**
+   * Domínio mostrado no voucher, nas políticas e nas prévias: o do endereço oficial
+   * (NEXT_PUBLIC_SITE_URL na Vercel), para nunca mostrar um endereço que ainda não abre.
+   */
+  dominio: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL).host : 'orlanativa.com.br',
 
   /** Nome que aparece na fatura do cartão (até 13 caracteres, sem acento). */
-  descricaoFatura: 'AGVICTORHUGO',
+  descricaoFatura: 'ORLANATIVA',
 } as const;
 
 export const enderecoCurto = `${EMPRESA.cidade} – ${EMPRESA.uf}`;

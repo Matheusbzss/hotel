@@ -12,8 +12,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quem é o controlador dos dados',
         paragrafos: [
-          `${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, nome fantasia ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
-          `Canal do titular de dados (encarregado): ${E.email} ou WhatsApp ${E.telefoneExibicao}.`,
+          `${E.marca}, CNPJ ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
+          `Canal do titular de dados (encarregado): ${E.email}.`,
         ],
       },
       {
@@ -111,8 +111,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Data controller',
         paragrafos: [
-          `${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, trading as ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
-          `Data subject contact (data protection officer): ${E.email} or WhatsApp ${E.telefoneExibicao}.`,
+          `${E.marca}, CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `Data subject contact (data protection officer): ${E.email}.`,
         ],
       },
       {
@@ -210,8 +210,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Responsable de los datos',
         paragrafos: [
-          `${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, nombre comercial ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
-          `Canal del titular de datos (encargado): ${E.email} o WhatsApp ${E.telefoneExibicao}.`,
+          `${E.marca}, CNPJ ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `Canal del titular de datos (encargado): ${E.email}.`,
         ],
       },
       {

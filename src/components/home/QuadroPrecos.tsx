@@ -39,7 +39,7 @@ export function QuadroPrecos({ grupos, textos: T, locale }: { grupos: GrupoQuadr
         <span>{T.colPasseio}</span>
         <span>{T.colDuracao}</span>
         <span>{T.colPreco}</span>
-        <span className="pr-16 text-right">{T.colTotal}</span>
+        <span className="text-right">{T.colTotal}</span>
       </div>
       {grupos.map((g) => (
         <section key={g.id} aria-labelledby={`quadro-${g.id}`} className="pb-14 last:pb-0">
@@ -76,7 +76,7 @@ export function QuadroPrecos({ grupos, textos: T, locale }: { grupos: GrupoQuadr
                         {p.tabela.unidade === 'pessoa' ? T.porPessoaCurto : p.unidadeCurta}
                       </span>
                     </span>
-                    <span className="numeros mt-1 block font-bold lg:mt-0 lg:pr-16 lg:text-right lg:text-lead">
+                    <span className="numeros mt-1 block font-bold lg:mt-0 lg:text-right lg:text-lead">
                       <span className="font-normal text-(--tinta-suave) lg:hidden">{T.colTotal} </span>
                       {p.temOpcoes && <span className="text-small font-normal text-(--tinta-suave)">{T.aPartirDe} </span>}
                       {brl(orc.totalCentavos)}

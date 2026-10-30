@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { EMPRESA } from '@/config/empresa';
 import { CIDADES, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
@@ -8,7 +9,7 @@ import { formatarPreco, precoAPartirCentavos } from '@/lib/precos';
 
 export const size = TAMANHO_OG;
 export const contentType = 'image/png';
-export const alt = 'Passeio — Agência Victor Hugo';
+export const alt = `Passeio — ${EMPRESA.marca}`;
 
 const FUNDO_CIDADE: Record<string, string> = {
   buzios: '#134960',
@@ -91,7 +92,7 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 30 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={emblema} width={44} height={44} alt="" />
-          <span style={{ fontFamily: 'TikTok Sans', fontWeight: 700, fontSize: 24 }}>Agência Victor Hugo</span>
+          <span style={{ fontFamily: 'TikTok Sans', fontWeight: 700, fontSize: 24 }}>{EMPRESA.marca}</span>
         </div>
       </div>
     </div>,

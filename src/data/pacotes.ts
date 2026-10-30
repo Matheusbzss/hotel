@@ -2,7 +2,7 @@ import type { Cidade, Icone, Texto } from './passeios';
 
 /**
  * PACOTES PASSEIO + HOSPEDAGEM — sob consulta, sem checkout.
- * O botão de cada pacote abre o WhatsApp com uma mensagem pronta pedindo orçamento.
+ * O botão de cada pacote abre um e-mail com a mensagem pronta pedindo orçamento.
  */
 export interface Pacote {
   slug: string;

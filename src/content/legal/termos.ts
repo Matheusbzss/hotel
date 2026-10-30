@@ -11,8 +11,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quem somos',
         paragrafos: [
-          `O site ${E.dominio} é operado por ${E.razaoSocial} (${E.tipoEmpresa}), inscrita no CNPJ sob o nº ${E.cnpj}, com nome fantasia ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
-          `Contatos: WhatsApp ${E.telefoneExibicao} e e-mail ${E.email}.`,
+          `O site ${E.dominio} é operado por ${E.marca}, inscrita no CNPJ sob o nº ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
+          `Contato: e-mail ${E.email}. Depois da reserva, o atendimento também é feito pelo WhatsApp.`,
         ],
       },
       {
@@ -62,7 +62,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Pacotes de passeio + hospedagem',
         paragrafos: [
-          'Os pacotes com hospedagem são vendidos sob consulta, pelo WhatsApp. Preço, condições e regras de cancelamento são enviados por escrito no orçamento, antes de qualquer pagamento.',
+          'Os pacotes com hospedagem são vendidos sob consulta, por e-mail. Preço, condições e regras de cancelamento são enviados por escrito no orçamento, antes de qualquer pagamento.',
         ],
       },
       {
@@ -97,8 +97,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Who we are',
         paragrafos: [
-          `${E.dominio} is operated by ${E.razaoSocial} (${E.tipoEmpresa}), registered under CNPJ ${E.cnpj}, trading as ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
-          `Contact: WhatsApp ${E.telefoneExibicao} and email ${E.email}.`,
+          `${E.dominio} is operated by ${E.marca}, registered under CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `Contact: email ${E.email}. After booking, we also assist you on WhatsApp.`,
         ],
       },
       {
@@ -148,7 +148,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Tour + stay packages',
         paragrafos: [
-          'Packages with accommodation are sold on request via WhatsApp. Price, conditions and cancellation rules are sent in writing in the quote, before any payment.',
+          'Packages with accommodation are sold on request by email. Price, conditions and cancellation rules are sent in writing in the quote, before any payment.',
         ],
       },
       {
@@ -185,8 +185,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quiénes somos',
         paragrafos: [
-          `El sitio ${E.dominio} es operado por ${E.razaoSocial} (${E.tipoEmpresa}), inscripta en el CNPJ con el nº ${E.cnpj}, con nombre comercial ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
-          `Contacto: WhatsApp ${E.telefoneExibicao} y e-mail ${E.email}.`,
+          `El sitio ${E.dominio} es operado por ${E.marca}, inscripta en el CNPJ con el nº ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `Contacto: e-mail ${E.email}. Después de la reserva, también te atendemos por WhatsApp.`,
         ],
       },
       {
@@ -236,7 +236,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Paquetes de paseo + alojamiento',
         paragrafos: [
-          'Los paquetes con alojamiento se venden a consulta, por WhatsApp. Precio, condiciones y reglas de cancelación se envían por escrito en el presupuesto, antes de cualquier pago.',
+          'Los paquetes con alojamiento se venden a consulta, por e-mail. Precio, condiciones y reglas de cancelación se envían por escrito en el presupuesto, antes de cualquier pago.',
         ],
       },
       {

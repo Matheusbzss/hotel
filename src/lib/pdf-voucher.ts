@@ -154,7 +154,7 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   // rodapé com dados da empresa
   const rodape = [
     `${EMPRESA.marca} — ${EMPRESA.slogan}`,
-    `${EMPRESA.razaoSocial} · CNPJ ${EMPRESA.cnpj}`,
+    `CNPJ ${EMPRESA.cnpj}`,
     `WhatsApp ${EMPRESA.telefoneExibicao} · ${EMPRESA.email} · ${EMPRESA.dominio}`,
     `${EMPRESA.cidade} – ${EMPRESA.uf}`,
   ];

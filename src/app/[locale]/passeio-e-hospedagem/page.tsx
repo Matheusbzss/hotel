@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { IconeWhatsApp } from '@/components/IconeWhatsApp';
+import { IconeEmail } from '@/components/IconeEmail';
 import { PACOTES } from '@/data/pacotes';
 import { CIDADES, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
+import { linkEmail } from '@/lib/email';
 import { alternates } from '@/lib/site';
-import { linkWhatsApp } from '@/lib/whatsapp';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/passeio-e-hospedagem'>): Promise<Metadata> {
   const { locale } = await params;
@@ -70,13 +70,11 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-semibold">{t.sobConsulta}</p>
                 <a
-                  href={linkWhatsApp(fmt(t.msg, { pacote: pacote.nome[locale] }))}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="botao botao-whats"
+                  href={linkEmail(fmt(t.assunto, { pacote: pacote.nome[locale] }), fmt(t.msg, { pacote: pacote.nome[locale] }))}
+                  className="botao"
                   data-evento="Contact"
                 >
-                  <IconeWhatsApp className="size-5" />
+                  <IconeEmail className="size-5" />
                   {t.pedir}
                 </a>
               </div>
@@ -92,14 +90,8 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
           </h2>
           <div className="md:col-span-5">
             <p className="text-lead">{t.sobMedidaTexto}</p>
-            <a
-              href={linkWhatsApp(t.sobMedidaMsg)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="botao mt-8 w-full sm:w-auto"
-              data-evento="Contact"
-            >
-              <IconeWhatsApp className="size-5" />
+            <a href={linkEmail(t.sobMedidaAssunto, t.sobMedidaMsg)} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
+              <IconeEmail className="size-5" />
               {t.pedir}
             </a>
           </div>

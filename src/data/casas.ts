@@ -9,7 +9,7 @@ import type { Cidade, Lista, Texto } from './passeios';
  * Com CASAS_ATIVO = false, a página /casas-de-temporada mostra "Em breve" com o convite para
  * proprietários, fica fora do menu e do sitemap e não aparece no Google.
  *
- * A reserva das casas é sempre pelo WhatsApp (consulta de datas), sem checkout.
+ * A reserva das casas é sempre por consulta de datas (e-mail), sem checkout.
  */
 export const CASAS_ATIVO = false;
 

@@ -3,12 +3,10 @@ import { EMPRESA } from '@/config/empresa';
 import { CASAS_ATIVO } from '@/data/casas';
 import { rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
-import { linkWhatsApp } from '@/lib/whatsapp';
-import { IconeWhatsApp } from './IconeWhatsApp';
 import { MenuMovel } from './MenuMovel';
 import { SeletorIdioma } from './SeletorIdioma';
 
-/** Barra simples: marca, poucos links, idioma e uma ação. Sobre a foto na home; na cor da página nas outras. */
+/** Barra simples: marca, poucos links e idioma. Sobre a foto na home; na cor da página nas outras. */
 export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
@@ -17,25 +15,24 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
     ...(CASAS_ATIVO ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
     { href: rota(idioma, '/contato'), texto: d.nav.contato },
   ];
-  const whats = { href: linkWhatsApp(d.contato.msg), texto: d.comum.whatsapp };
   return (
     <header className="cabecalho relative z-30 text-(--tinta)">
       <div className="moldura flex h-[72px] items-center justify-between gap-3 md:h-[88px]">
         <Link href={rota(idioma, '/')} className="shrink-0" aria-label={`${EMPRESA.marca} — ${d.nav.inicio}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo/agencia-victor-hugo-horizontal-fundo-escuro.svg"
+            src="/logo/orla-nativa-horizontal-fundo-escuro.svg"
             alt={`${EMPRESA.marca} — ${EMPRESA.slogan}`}
-            width={344}
+            width={313}
             height={100}
             className="logo-escuro h-[40px] w-auto md:h-[52px]"
             fetchPriority="high"
           />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo/agencia-victor-hugo-horizontal.svg"
+            src="/logo/orla-nativa-horizontal.svg"
             alt={`${EMPRESA.marca} — ${EMPRESA.slogan}`}
-            width={344}
+            width={313}
             height={100}
             className="logo-claro hidden h-[40px] w-auto md:h-[52px]"
           />
@@ -49,17 +46,7 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         </nav>
         <div className="flex items-center gap-1 md:gap-3">
           <SeletorIdioma atual={idioma} rotulo={d.nav.idioma} />
-          <a
-            href={whats.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="botao botao-whats hidden min-h-12 xl:inline-flex"
-            data-evento="Contact"
-          >
-            <IconeWhatsApp className="size-5" />
-            {whats.texto}
-          </a>
-          <MenuMovel links={links} rotuloAbrir={d.nav.menu} rotuloFechar={d.nav.fechar} whatsapp={whats} />
+          <MenuMovel links={links} rotuloAbrir={d.nav.menu} rotuloFechar={d.nav.fechar} />
         </div>
       </div>
     </header>

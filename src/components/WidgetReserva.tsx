@@ -8,7 +8,6 @@ import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
-import { IconeWhatsApp } from './IconeWhatsApp';
 
 export interface OpcaoWidget {
   id: string;
@@ -21,7 +20,6 @@ export interface TextosWidget {
   data: string;
   total: string;
   reservar: string;
-  duvidas: string;
   politica: string;
   escolhaData: string;
   escolhaOpcao: string;
@@ -47,7 +45,6 @@ export function WidgetReserva({
   regras,
   locale,
   checkoutHref,
-  whatsappHref,
   textos: T,
 }: {
   slug: string;
@@ -58,7 +55,6 @@ export function WidgetReserva({
   regras: string[];
   locale: string;
   checkoutHref: string;
-  whatsappHref: string;
   textos: TextosWidget;
 }) {
   const router = useRouter();
@@ -200,10 +196,6 @@ export function WidgetReserva({
         </button>
       </div>
       <div className="space-y-3 pt-4">
-        <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="botao botao-whats w-full" data-evento="Contact">
-          <IconeWhatsApp className="size-5" />
-          {T.duvidas}
-        </a>
         <p className="text-small">{T.politica}</p>
         <p className="text-small text-(--tinta-suave)">{T.revisao}</p>
       </div>

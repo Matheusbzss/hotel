@@ -2,8 +2,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { EMPRESA } from '@/config/empresa';
 import type { Dicionario } from '@/i18n';
-import { linkWhatsApp } from '@/lib/whatsapp';
-import { IconeWhatsApp } from '../IconeWhatsApp';
+import { linkEmail } from '@/lib/email';
+import { IconeEmail } from '../IconeEmail';
 
 const FOTOS_VERBOS = ['/fotos/arraial/mergulho.jpg', '/fotos/buzios/escuna-no-pier.jpg', '/fotos/buzios/escuna-proa.jpg'];
 
@@ -133,18 +133,6 @@ export function CartaoContato({ d }: { d: Dicionario }) {
           </p>
           <dl className="mt-5 space-y-2">
             <div className="flex justify-between gap-4">
-              <dt>{d.contato.whatsapp}</dt>
-              <dd className="numeros text-right font-semibold">{EMPRESA.telefoneExibicao}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt>{d.contato.instagram}</dt>
-              <dd className="text-right font-semibold">
-                <a href={EMPRESA.instagramUrl} target="_blank" rel="noopener noreferrer" className="link">
-                  {EMPRESA.instagramUsuario}
-                </a>
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
               <dt>{d.contato.email}</dt>
               <dd className="min-w-0 text-right font-semibold">
                 <a href={`mailto:${EMPRESA.email}`} className="link break-all">
@@ -157,14 +145,8 @@ export function CartaoContato({ d }: { d: Dicionario }) {
               <dd className="text-right font-semibold">{H.contatoIdiomas}</dd>
             </div>
           </dl>
-          <a
-            href={linkWhatsApp(d.contato.msg)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="botao botao-whats mt-7 w-full"
-            data-evento="Contact"
-          >
-            <IconeWhatsApp className="size-5" />
+          <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="botao mt-7 w-full" data-evento="Contact">
+            <IconeEmail className="size-5" />
             {H.contatoBotao}
           </a>
         </div>

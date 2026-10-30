@@ -1,11 +1,12 @@
 import { ImageResponse } from 'next/og';
+import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
 import { COR_OG, TAMANHO_OG, emblemaDataUri, fontesOg, fotoDataUri } from '@/lib/og';
 
 export const size = TAMANHO_OG;
 export const contentType = 'image/png';
-export const alt = 'Agência Victor Hugo — Viagens & Passeios';
+export const alt = `${EMPRESA.marca} — ${EMPRESA.slogan}`;
 
 /** Prévia do site: a foto do mar e o cartão amarelo da agência, como na primeira tela. */
 export default async function Imagem({ params }: { params: Promise<{ locale: string }> }) {
@@ -46,7 +47,7 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 'auto' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={emblema} width={56} height={56} alt="" />
-          <span style={{ fontFamily: 'TikTok Sans', fontWeight: 700, fontSize: 28 }}>agenciavictorhugo.online</span>
+          <span style={{ fontFamily: 'TikTok Sans', fontWeight: 700, fontSize: 28 }}>{EMPRESA.dominio}</span>
         </div>
       </div>
     </div>,

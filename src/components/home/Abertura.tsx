@@ -1,8 +1,6 @@
 import Image from 'next/image';
 import type { Dicionario } from '@/i18n';
-import { linkWhatsApp } from '@/lib/whatsapp';
 import { SeletorGrupo } from '../grupo/SeletorGrupo';
-import { IconeWhatsApp } from '../IconeWhatsApp';
 
 /** Primeira tela: a foto do mar escurecida e, por cima, o cartão da agência com a reserva. */
 export function Abertura({ d }: { d: Dicionario }) {
@@ -34,21 +32,11 @@ export function Abertura({ d }: { d: Dicionario }) {
             className="mt-6"
             textos={{ ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos }}
           />
-          <div className="mt-6 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
-            <a href="#precos" className="botao order-first w-full sm:order-none sm:w-auto sm:px-10">
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row-reverse sm:items-center sm:justify-between">
+            <a href="#precos" className="botao w-full sm:w-auto sm:px-10">
               {H.heroBotao}
             </a>
-            <span className="text-small text-(--tinta-suave) sm:order-first">{H.heroFoto}</span>
-            <a
-              href={linkWhatsApp(d.contato.msg)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="link inline-flex items-center gap-2 font-semibold sm:justify-self-end"
-              data-evento="Contact"
-            >
-              <IconeWhatsApp className="size-5" />
-              WhatsApp
-            </a>
+            <span className="text-small text-(--tinta-suave)">{H.heroFoto}</span>
           </div>
         </div>
       </div>

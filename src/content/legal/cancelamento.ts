@@ -12,7 +12,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. A quem se aplica',
         paragrafos: [
-          `Esta política vale para todos os passeios comprados no site ${E.dominio}, operado por ${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, com nome fantasia ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
+          `Esta política vale para todos os passeios comprados no site ${E.dominio}, operado por ${E.marca}, CNPJ ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
           'Ela segue o Código de Defesa do Consumidor (Lei nº 8.078/1990) e o Decreto nº 7.962/2013, que trata do comércio eletrônico. Nada nesta política reduz os direitos que a lei garante a você.',
         ],
       },
@@ -60,8 +60,8 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       },
       {
         titulo: '8. Como pedir o cancelamento ou a remarcação',
-        paragrafos: ['Envie o número do seu voucher (ex.: VH-7K3P9Q) por um destes canais:'],
-        lista: [`WhatsApp: ${E.telefoneExibicao}`, `E-mail: ${E.email}`],
+        paragrafos: ['Envie o número do seu voucher (ex.: ON-7K3P9Q) por um destes canais:'],
+        lista: ['WhatsApp: pelo botão na página da sua reserva', `E-mail: ${E.email}`],
         depois: [
           'Confirmamos o recebimento do pedido pelo mesmo canal. O horário da sua mensagem é o que vale para contar a antecedência.',
         ],
@@ -93,7 +93,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Scope',
         paragrafos: [
-          `This policy applies to all tours purchased on ${E.dominio}, operated by ${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, trading as ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `This policy applies to all tours purchased on ${E.dominio}, operated by ${E.marca}, CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
           'It follows the Brazilian Consumer Protection Code (Law 8,078/1990) and Decree 7,962/2013 on e-commerce. Nothing in this policy limits the rights the law gives you.',
         ],
       },
@@ -141,8 +141,8 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       },
       {
         titulo: '8. How to cancel or change your booking',
-        paragrafos: ['Send us your voucher number (e.g. VH-7K3P9Q) through one of these channels:'],
-        lista: [`WhatsApp: ${E.telefoneExibicao}`, `Email: ${E.email}`],
+        paragrafos: ['Send us your voucher number (e.g. ON-7K3P9Q) through one of these channels:'],
+        lista: ['WhatsApp: use the button on your booking page', `Email: ${E.email}`],
         depois: [
           'We confirm receipt of your request through the same channel. The time of your message is what counts for the notice period.',
         ],
@@ -174,7 +174,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Alcance',
         paragrafos: [
-          `Esta política se aplica a todos los paseos comprados en el sitio ${E.dominio}, operado por ${E.razaoSocial} (${E.tipoEmpresa}), CNPJ ${E.cnpj}, con nombre comercial ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `Esta política se aplica a todos los paseos comprados en el sitio ${E.dominio}, operado por ${E.marca}, CNPJ ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
           'Sigue el Código de Defensa del Consumidor de Brasil (Ley 8.078/1990) y el Decreto 7.962/2013 sobre comercio electrónico. Nada en esta política reduce los derechos que la ley te garantiza.',
         ],
       },
@@ -222,8 +222,8 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       },
       {
         titulo: '8. Cómo pedir la cancelación o el cambio de fecha',
-        paragrafos: ['Envianos el número de tu voucher (ej.: VH-7K3P9Q) por uno de estos canales:'],
-        lista: [`WhatsApp: ${E.telefoneExibicao}`, `E-mail: ${E.email}`],
+        paragrafos: ['Envianos el número de tu voucher (ej.: ON-7K3P9Q) por uno de estos canales:'],
+        lista: ['WhatsApp: con el botón de la página de tu reserva', `E-mail: ${E.email}`],
         depois: ['Confirmamos la recepción del pedido por el mismo canal. La hora de tu mensaje es la que cuenta para la anticipación.'],
       },
       {

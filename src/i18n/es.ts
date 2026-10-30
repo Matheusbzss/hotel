@@ -2,7 +2,7 @@ import type { Dicionario } from './pt';
 
 const es: Dicionario = {
   meta: {
-    titulo: 'Agência Victor Hugo — Paseos en Búzios, Cabo Frio y Arraial do Cabo',
+    titulo: 'Orla Nativa — Paseos en Búzios, Cabo Frio y Arraial do Cabo',
     descricao:
       'Paseos en barco, buggy, cuatriciclo y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reservá online, pagá con Pix o tarjeta y recibí el voucher al instante.',
   },
@@ -101,7 +101,7 @@ const es: Dicionario = {
     semData: 'fecha a elegir',
   },
   home: {
-    heroTitulo: ['Agência', 'Victor', 'Hugo'],
+    heroTitulo: ['Orla', 'Nativa'],
     heroFatos: ['Barco, lancha y buggy', 'Búzios · Arraial · Cabo\u00a0Frio', 'Voucher al instante'],
     heroTexto: 'Elegí la fecha y quiénes van: el precio final de cada paseo aparece al instante.',
     heroBotao: 'Ver precios',
@@ -132,7 +132,7 @@ const es: Dicionario = {
       },
       {
         verbo: 'Pagá',
-        texto: 'Pix o tarjeta de crédito, el valor total, en un entorno seguro. Si preferís, terminá con nosotros por WhatsApp.',
+        texto: 'Pix o tarjeta de crédito, el valor total, en un entorno seguro.',
       },
       { verbo: 'Embarcá', texto: 'El voucher sale al instante, con número único. El día del paseo, solo mostralo en el celular.' },
     ],
@@ -149,28 +149,29 @@ const es: Dicionario = {
       },
       {
         titulo: 'Voucher en el celular',
-        texto: 'Pagaste, lo recibiste: número único, PDF y envío por WhatsApp. Confirmamos con vos el horario y el punto de encuentro.',
+        texto:
+          'Pagaste, lo recibiste: número único y PDF para mostrar en el celular. Confirmamos con vos el horario y el punto de encuentro.',
       },
       {
         titulo: 'Hablamos tu idioma',
-        texto: 'Atención 100% online por WhatsApp, rápida y directa con la agencia, en español, portugués e inglés.',
+        texto: 'Atención 100% online, rápida y directa con la agencia, en español, portugués e inglés.',
       },
     ],
     hospedagemTitulo: '¿Necesitás alojamiento?',
     hospedagemTexto:
-      'Armamos el paquete con alojamiento y los paseos que elijas en Búzios, Cabo Frio o Arraial do Cabo. Presupuesto sin compromiso por WhatsApp.',
+      'Armamos el paquete con alojamiento y los paseos que elijas en Búzios, Cabo Frio o Arraial do Cabo. Presupuesto sin compromiso.',
     hospedagemBotao: 'Ver paquetes',
     faqTitulo: 'Preguntas frecuentes',
     contatoTitulo: 'Hablemos',
     contatoBase: 'Base en Armação dos Búzios, Río de Janeiro',
     contatoOnline: 'Atención 100% online',
     contatoIdiomas: 'Español · Português · English',
-    contatoBotao: 'Escribinos por WhatsApp',
+    contatoBotao: 'Enviar e-mail',
   },
   faq: [
     {
       p: '¿Cómo recibo mi voucher?',
-      r: 'Apenas se confirma el pago, el voucher aparece en la pantalla con un número único (por ejemplo, VH-7K3P9Q). Podés descargarlo en PDF o enviarlo por WhatsApp. El día del paseo, solo mostralo en el celular.',
+      r: 'Apenas se confirma el pago, el voucher aparece en la pantalla con un número único (por ejemplo, ON-7K3P9Q). Podés descargarlo en PDF o enviarlo por WhatsApp. El día del paseo, solo mostralo en el celular.',
     },
     {
       p: '¿Cuáles son las formas de pago?',
@@ -228,8 +229,6 @@ const es: Dicionario = {
     data: 'Fecha del paseo',
     total: 'Total',
     reservar: 'Reservar y pagar',
-    duvidas: 'Consultar por WhatsApp',
-    msgDuvida: '¡Hola! Tengo una consulta sobre el paseo "{passeio}".',
     unidadesAviso: '{pessoas} → {n} {unidade}',
     politica: 'Cancelación gratis hasta 24 h antes. ¿Llovió o el mar cerró? Reembolso o nueva fecha.',
     escolhaData: 'Elegí la fecha',
@@ -309,7 +308,7 @@ const es: Dicionario = {
       aceite: 'Tenés que aceptar los términos y la política de cancelación.',
       cartao: 'Revisá los datos de la tarjeta.',
       recusado: 'El pago no fue aprobado. Revisá los datos o probá con otra tarjeta.',
-      generico: 'No pudimos completarlo ahora. Probá de nuevo o escribinos por WhatsApp.',
+      generico: 'No pudimos completarlo ahora. Probá de nuevo en unos minutos.',
       revise: 'Revisá los campos marcados.',
     },
   },
@@ -356,9 +355,11 @@ const es: Dicionario = {
   hospedagemPagina: {
     titulo: 'Paseo + alojamiento',
     texto:
-      'Paquetes a medida con alojamiento y paseos en Búzios, Cabo Frio y Arraial do Cabo. Contanos las fechas y cuántas personas van: te respondemos con un presupuesto por WhatsApp.',
+      'Paquetes a medida con alojamiento y paseos en Búzios, Cabo Frio y Arraial do Cabo. Contanos las fechas y cuántas personas van: te respondemos con un presupuesto por e-mail.',
     incluiPasseios: 'Paseos del paquete',
-    pedir: 'Pedir presupuesto por WhatsApp',
+    pedir: 'Pedir presupuesto por e-mail',
+    assunto: 'Presupuesto: {pacote}',
+    sobMedidaAssunto: 'Paquete a medida',
     msg: '¡Hola! Quiero un presupuesto del paquete "{pacote}" (paseo + alojamiento). Fechas: ___. Personas: ___.',
     sobMedidaTitulo: '¿Querés armarlo a tu manera?',
     sobMedidaTexto: 'Elegí la ciudad, el tipo de alojamiento y los paseos. Nosotros lo armamos y te mandamos el precio.',
@@ -371,29 +372,31 @@ const es: Dicionario = {
     emBreveTitulo: 'Muy pronto',
     emBreveTexto:
       'Estamos eligiendo las primeras casas asociadas. Mientras tanto, escribinos: te ayudamos a encontrar alojamiento para tus fechas.',
-    pedir: 'Pedir recomendación por WhatsApp',
+    pedir: 'Pedir recomendación por e-mail',
+    assunto: 'Casa de temporada',
     msg: '¡Hola! Busco una casa de temporada en la Región de los Lagos. Ciudad: ___. Fechas: ___. Personas: ___.',
     proprietarioTitulo: '¿Tenés una casa en la región?',
     proprietarioTexto:
       'Si alquilás una casa o departamento por temporada en Búzios, Cabo Frio o Arraial do Cabo, hablemos de una asociación.',
     proprietarioBotao: 'Quiero asociarme',
     proprietarioMsg: '¡Hola! Tengo una propiedad de temporada y quiero saber sobre la asociación con la agencia.',
+    proprietarioAssunto: 'Asociación: casa de temporada',
     quartos: '{n} dormitorios',
     hospedes: 'hasta {n} huéspedes',
     diaria: 'noche desde',
     consultar: 'Consultar fechas',
     msgCasa: '¡Hola! Quiero consultar fechas de la casa "{casa}". Fechas: ___. Personas: ___.',
+    assuntoCasa: 'Casa: {casa}',
   },
   contato: {
     titulo: 'Hablemos',
-    texto: 'Atención 100% online, en español, portugués e inglés. La forma más rápida es WhatsApp.',
-    whatsapp: 'WhatsApp',
+    texto: 'Atención 100% online, en español, portugués e inglés. Mandanos un e-mail y te respondemos.',
     email: 'E-mail',
-    instagram: 'Instagram',
+    botao: 'Enviar e-mail',
+    assunto: 'Consulta desde el sitio',
     base: 'Base',
     baseTexto: 'Armação dos Búzios – RJ, Brasil. Trabajamos en Búzios, Cabo Frio y Arraial do Cabo.',
     empresa: 'Datos de la empresa',
-    razao: 'Razón social',
     cnpj: 'CNPJ (registro de empresa en Brasil)',
     msg: '¡Hola! Llegué por el sitio y quería hacer una consulta.',
     idiomas: 'Idiomas',
@@ -407,7 +410,6 @@ const es: Dicionario = {
     termos: 'Términos de uso',
     privacidade: 'Privacidad',
     pagamentos: 'Pix y tarjeta de crédito',
-    razao: 'Razón social',
     cnpj: 'CNPJ',
     direitos: '© {ano} {marca}',
   },

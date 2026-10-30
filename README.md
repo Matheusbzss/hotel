@@ -1,4 +1,4 @@
-# Agência Victor Hugo — Viagens & Passeios
+# Orla Nativa — Viagens & Passeios
 
 Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento por Pix ou cartão (Pagar.me API v5), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês e espanhol.
 
@@ -6,7 +6,7 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 
 | O que                                                                                                               | Arquivo                                       |
 | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Razão social, CNPJ, e-mail, telefone/WhatsApp, Instagram, domínio                                                   | `src/config/empresa.ts`                       |
+| Nome, CNPJ, e-mail, WhatsApp (só no fim da reserva), domínio                                                        | `src/config/empresa.ts`                       |
 | Passeios (nome, cidade, categoria, preço do parceiro, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                        |
 | Margem sobre o preço do parceiro (hoje 10%)                                                                         | `MARGEM_PERCENTUAL` em `src/data/passeios.ts` |
 | Regra padrão de crianças (até 5 anos grátis)                                                                        | `CRIANCAS_PADRAO` em `src/data/passeios.ts`   |
@@ -14,7 +14,7 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 | Casas de temporada (desligada até as parcerias)                                                                     | `src/data/casas.ts`                           |
 | Textos do site nos 3 idiomas (home, FAQ, checkout…)                                                                 | `src/i18n/pt.ts`, `en.ts`, `es.ts`            |
 | Política de Cancelamento, Termos de Uso, Política de Privacidade                                                    | `src/content/legal/`                          |
-| Logos (horizontal, fundo escuro, vertical, emblema)                                                                 | `public/logo/`                                |
+| Logos (horizontal, fundo escuro, emblema)                                                                           | `public/logo/`                                |
 
 ### Preço
 
@@ -50,7 +50,7 @@ A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next
 
 ## Casas de temporada
 
-Área separada em `/casas-de-temporada`, **desligada** (`CASAS_ATIVO = false` em `src/data/casas.ts`): mostra "Em breve", um convite para proprietários, fica fora do menu, do sitemap e do Google. Para ativar, cadastre as casas na lista `CASAS` (há um exemplo comentado no arquivo) e mude `CASAS_ATIVO` para `true`. A consulta de datas é sempre pelo WhatsApp.
+Área separada em `/casas-de-temporada`, **desligada** (`CASAS_ATIVO = false` em `src/data/casas.ts`): mostra "Em breve", um convite para proprietários, fica fora do menu, do sitemap e do Google. Para ativar, cadastre as casas na lista `CASAS` (há um exemplo comentado no arquivo) e mude `CASAS_ATIVO` para `true`. A consulta de datas é sempre por e-mail.
 
 ## Variáveis de ambiente
 
@@ -64,6 +64,9 @@ Veja `.env.example`. Resumo:
 | `ADMIN_PASSWORD`                 | Senha do `/admin`                                               |
 | `NEXT_PUBLIC_META_PIXEL_ID`      | ID do Pixel da Meta                                             |
 | `BLOB_READ_WRITE_TOKEN`          | Criada pela Vercel ao conectar o Blob Store (banco de reservas) |
+| `NEXT_PUBLIC_SITE_URL`           | Endereço oficial (sitemap, prévias, link do voucher)            |
+
+**Trocar o domínio** (ex.: para `orlanativa.com.br`): adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável; depois, redirecione o domínio antigo para o novo.
 
 Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e registra a reserva para finalizar pelo WhatsApp. Com chaves de teste (`sk_test_…`/`pk_test_…`), o fluxo completo funciona em modo de teste.
 
@@ -72,7 +75,7 @@ Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e regis
 1. O cliente escolhe data e pessoas; o total é recalculado no servidor (o navegador nunca define o preço).
 2. **Pix**: o servidor cria o pedido na Pagar.me e mostra QR Code + copia e cola. A página consulta o status a cada 4 s e o webhook confirma o pagamento.
 3. **Cartão**: o número é tokenizado no navegador com a chave pública (`/core/v5/tokens`), e só o token vai para o servidor.
-4. Pago → voucher com número único (ex.: `VH-7K3P9Q`), PDF e botão para enviar pelo WhatsApp.
+4. Pago → voucher com número único (ex.: `ON-7K3P9Q`), PDF e botão para enviar pelo WhatsApp. Reservas antigas com `VH-` continuam valendo.
 
 O webhook nunca confia no corpo do evento: ele consulta o pedido na API da Pagar.me antes de mudar o status.
 

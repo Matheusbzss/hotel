@@ -400,6 +400,7 @@ const en: Dicionario = {
     cnpj: 'CNPJ (Brazilian company ID)',
     msg: 'Hi! I found you on the website and have a question.',
     idiomas: 'Languages',
+    lugares: 'Búzios, Arraial do Cabo and Cabo Frio',
   },
   rodape: {
     descricao: 'Boat, speedboat and buggy tours in Búzios, Arraial do Cabo and Cabo Frio.',

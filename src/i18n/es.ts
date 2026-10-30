@@ -398,6 +398,7 @@ const es: Dicionario = {
     cnpj: 'CNPJ (registro de empresa en Brasil)',
     msg: '¡Hola! Llegué por el sitio y quería hacer una consulta.',
     idiomas: 'Idiomas',
+    lugares: 'Búzios, Arraial do Cabo y Cabo Frio',
   },
   rodape: {
     descricao: 'Paseos en barco, lancha y buggy en Búzios, Arraial do Cabo y Cabo Frio.',

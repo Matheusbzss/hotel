@@ -808,7 +808,7 @@ export function FormularioCheckout({
                 ))}
               </dl>
             </div>
-            <div className="flex items-center justify-between gap-4 bg-superficie px-6 py-5">
+            <div className="flex items-center justify-between gap-4 bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
               <span className="font-semibold">{T.total}</span>
               <span className="numeros titulo leading-none" aria-live="polite">
                 {brl(orc.totalCentavos)}

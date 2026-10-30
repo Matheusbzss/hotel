@@ -396,6 +396,7 @@ const pt = {
     cnpj: 'CNPJ',
     msg: 'Olá! Vim pelo site e queria uma informação.',
     idiomas: 'Idiomas',
+    lugares: 'Búzios, Arraial do Cabo e Cabo Frio',
   },
   rodape: {
     descricao: 'Passeios de barco, lancha e buggy em Búzios, Arraial do Cabo e Cabo Frio.',

@@ -22,75 +22,102 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeio-
   };
 }
 
+/** Passeio + hospedagem: a foto do mar abre a página; cada pacote é uma foto e o seu texto, lado a lado. */
 export default async function PasseioEHospedagem({ params }: PageProps<'/[locale]/passeio-e-hospedagem'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
   const t = d.hospedagemPagina;
+  const sobMedida = linkEmail(t.sobMedidaAssunto, t.sobMedidaMsg);
 
   return (
-    <main id="conteudo" className="tom-fundo pb-24 md:pb-40">
-      <div className="moldura grid gap-6 pt-8 md:grid-cols-12 md:pt-14">
-        <h1 className="chegar display text-head md:col-span-7">
-          <span>{t.titulo}</span>
-        </h1>
-        <p className="max-w-[46ch] self-end text-lead md:col-span-5">{t.texto}</p>
-      </div>
+    <main id="conteudo" className="tom-fundo">
+      <section
+        className="abertura relative isolate flex min-h-[78svh] flex-col justify-end overflow-hidden text-white [--acao-tinta:var(--color-tinta)] [--acao:#ffffff] [--foco:#ffffff]"
+        aria-labelledby="pacotes-titulo"
+      >
+        <Image
+          src="/fotos/arraial/barco-toboga.jpg"
+          alt={d.home.legendas.barcoToboga}
+          fill
+          priority
+          sizes="100vw"
+          className="respira -z-20 object-cover"
+        />
+        <div className="veu-cima absolute inset-x-0 top-0 -z-10 h-40" aria-hidden="true" />
+        <div className="veu-baixo absolute inset-x-0 bottom-0 -z-10 h-[70%]" aria-hidden="true" />
+        <div className="moldura chegar grid gap-6 pb-10 md:pb-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <h1 id="pacotes-titulo" className="display text-[clamp(3rem,9vw,8rem)] leading-[0.92]">
+              {t.titulo}
+            </h1>
+            <p className="relative z-10 mt-5 max-w-[46ch] text-lead">{t.texto}</p>
+          </div>
+          <a href={sobMedida} className="botao relative z-10 justify-self-start" data-evento="Contact">
+            <IconeEmail className="size-5" />
+            {t.pedir}
+          </a>
+        </div>
+      </section>
 
-      <div className="mt-14 md:mt-24">
-        {PACOTES.map((pacote, i) => (
-          <article key={pacote.slug} className={`grid md:grid-cols-12 ${i % 2 ? 'bg-superficie' : ''}`}>
-            <div className={`relative aspect-[4/3] md:col-span-6 md:aspect-auto md:min-h-[34rem] ${i % 2 ? 'md:order-2' : ''}`}>
-              {pacote.foto && (
-                <Image src={pacote.foto} alt={pacote.nome[locale]} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-              )}
+      {PACOTES.map((pacote, i) => (
+        <article
+          key={pacote.slug}
+          className={`grid lg:grid-cols-12 ${i % 2 ? 'tom-superficie' : ''}`}
+          aria-labelledby={`pacote-${pacote.slug}`}
+        >
+          <div className={`relative aspect-[4/3] lg:col-span-6 lg:aspect-auto lg:min-h-[36rem] ${i % 2 ? 'lg:order-2' : ''}`}>
+            {pacote.foto && (
+              <Image src={pacote.foto} alt={pacote.nome[locale]} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+            )}
+          </div>
+          <div className="entrar flex flex-col justify-between gap-10 px-(--margem) py-12 lg:col-span-6 lg:px-16 lg:py-16">
+            <div>
+              <h2 id={`pacote-${pacote.slug}`} className="titulo max-w-[16ch]">
+                {pacote.nome[locale]}
+              </h2>
+              <p className="mt-3 font-semibold">
+                {CIDADES[pacote.cidadeBase].nome[locale]} · {pacote.noites[locale]}
+              </p>
+              <p className="mt-6 max-w-[52ch]">{pacote.descricao[locale]}</p>
+              <h3 className="mt-8 font-semibold">{t.incluiPasseios}</h3>
+              <ul className="mt-3 space-y-1.5">
+                {pacote.passeios.map((slug) => {
+                  const p = obterPasseio(slug);
+                  if (!p) return null;
+                  return (
+                    <li key={slug}>
+                      <Link href={rota(locale, `/passeios/${slug}`)} className="link">
+                        {p.nome[locale]}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            <div className="entrar flex flex-col justify-between gap-10 px-(--margem) py-10 md:col-span-6 md:px-14 md:py-14">
-              <div>
-                <p className="text-small text-(--tinta-suave)">
-                  {CIDADES[pacote.cidadeBase].nome[locale]} · {pacote.noites[locale]}
-                </p>
-                <h2 className="mt-2 titulo">{pacote.nome[locale]}</h2>
-                <p className="mt-5 max-w-[48ch] text-lead">{pacote.descricao[locale]}</p>
-                <h3 className="mt-8 font-semibold">{t.incluiPasseios}</h3>
-                <ul className="mt-3 flex flex-wrap gap-1.5">
-                  {pacote.passeios.map((slug) => {
-                    const p = obterPasseio(slug);
-                    if (!p) return null;
-                    return (
-                      <li key={slug}>
-                        <Link href={rota(locale, `/passeios/${slug}`)} className="filtro">
-                          {p.nome[locale]}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="font-semibold">{t.sobConsulta}</p>
-                <a
-                  href={linkEmail(fmt(t.assunto, { pacote: pacote.nome[locale] }), fmt(t.msg, { pacote: pacote.nome[locale] }))}
-                  className="botao"
-                  data-evento="Contact"
-                >
-                  <IconeEmail className="size-5" />
-                  {t.pedir}
-                </a>
-              </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-semibold">{t.sobConsulta}</p>
+              <a
+                href={linkEmail(fmt(t.assunto, { pacote: pacote.nome[locale] }), fmt(t.msg, { pacote: pacote.nome[locale] }))}
+                className="botao"
+                data-evento="Contact"
+              >
+                <IconeEmail className="size-5" />
+                {t.pedir}
+              </a>
             </div>
-          </article>
-        ))}
-      </div>
+          </div>
+        </article>
+      ))}
 
-      <section className="moldura mt-24 md:mt-40" aria-labelledby="sob-medida">
-        <div className="tom-campo grid gap-6 px-6 py-12 md:grid-cols-12 md:px-12 md:py-16">
-          <h2 id="sob-medida" className="display text-head md:col-span-7">
+      <section className="tom-campo" aria-labelledby="sob-medida">
+        <div className="moldura entrar grid gap-6 py-20 md:grid-cols-12 md:py-28">
+          <h2 id="sob-medida" className="titulo md:col-span-6">
             {t.sobMedidaTitulo}
           </h2>
-          <div className="md:col-span-5">
+          <div className="md:col-span-5 md:col-start-8">
             <p className="text-lead">{t.sobMedidaTexto}</p>
-            <a href={linkEmail(t.sobMedidaAssunto, t.sobMedidaMsg)} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
+            <a href={sobMedida} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
               <IconeEmail className="size-5" />
               {t.pedir}
             </a>

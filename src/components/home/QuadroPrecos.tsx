@@ -30,7 +30,8 @@ export function QuadroPrecos({ grupos, textos: T, locale }: { grupos: GrupoQuadr
   const { grupo } = useGrupo();
   const brl = (c: number) => formatarCentavos(c, locale);
   const temCriancas = grupo.criancas6a10 + grupo.criancas0a5 > 0;
-  const colunas = 'md:grid md:grid-cols-[minmax(0,5fr)_minmax(0,2fr)_minmax(0,2.6fr)_minmax(0,1.8fr)] md:gap-x-6';
+  // no computador: quatro colunas; no celular: nome, detalhes e total um embaixo do outro
+  const colunas = 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,2fr)_minmax(0,2.6fr)_minmax(0,2fr)] lg:gap-x-6';
 
   return (
     <div>
@@ -38,7 +39,7 @@ export function QuadroPrecos({ grupos, textos: T, locale }: { grupos: GrupoQuadr
         <span>{T.colPasseio}</span>
         <span>{T.colDuracao}</span>
         <span>{T.colPreco}</span>
-        <span className="text-right">{T.colTotal}</span>
+        <span className="pr-16 text-right">{T.colTotal}</span>
       </div>
       {grupos.map((g) => (
         <section key={g.id} aria-labelledby={`quadro-${g.id}`} className="pb-14 last:pb-0">
@@ -57,30 +58,29 @@ export function QuadroPrecos({ grupos, textos: T, locale }: { grupos: GrupoQuadr
                 <li key={p.slug}>
                   <Link
                     href={p.href}
-                    className={`group -mx-3 block px-3 py-3 transition-colors hover:bg-[color-mix(in_oklab,var(--tinta)_9%,var(--fundo))] md:py-2 ${colunas} md:items-baseline`}
+                    className={`group -mx-3 block px-3 py-3 transition-colors hover:bg-[color-mix(in_oklab,var(--tinta)_9%,var(--fundo))] lg:py-2 ${colunas} lg:items-baseline`}
                   >
                     <span className="block text-lead leading-tight transition-transform duration-300 group-hover:translate-x-1.5">
                       {p.nome}
                     </span>
-                    <span className="mt-1 flex items-baseline justify-between gap-4 md:contents">
-                      <span className="text-small text-(--tinta-suave) md:text-lead md:text-(--tinta)">
-                        <span className="md:hidden">
-                          {p.duracao} · {p.temOpcoes ? `${T.aPartirDe} ` : ''}
-                          {brl(unitario)} {p.unidadeCurta}
-                        </span>
-                        <span className="hidden md:inline">{p.duracao}</span>
+                    <span className="mt-1 block text-small text-(--tinta-suave) lg:mt-0 lg:text-lead lg:text-(--tinta)">
+                      <span className="lg:hidden">
+                        {p.duracao} · {p.temOpcoes ? `${T.aPartirDe} ` : ''}
+                        {brl(unitario)} {p.unidadeCurta}
                       </span>
-                      <span className="hidden text-lead md:inline">
-                        <span className="numeros">{brl(unitario)}</span>{' '}
-                        <span className="text-small text-(--tinta-suave)">
-                          {p.tabela.unidade === 'pessoa' ? T.porPessoaCurto : p.unidadeCurta}
-                        </span>
+                      <span className="hidden lg:inline">{p.duracao}</span>
+                    </span>
+                    <span className="hidden text-lead lg:inline">
+                      <span className="numeros">{brl(unitario)}</span>{' '}
+                      <span className="text-small text-(--tinta-suave)">
+                        {p.tabela.unidade === 'pessoa' ? T.porPessoaCurto : p.unidadeCurta}
                       </span>
-                      <span className="numeros shrink-0 text-right text-lead font-bold">
-                        {p.temOpcoes && <span className="text-small font-normal text-(--tinta-suave)">{T.aPartirDe} </span>}
-                        {brl(orc.totalCentavos)}
-                        {aviso && <span className="block text-small font-normal text-(--tinta-suave)">{aviso}</span>}
-                      </span>
+                    </span>
+                    <span className="numeros mt-1 block font-bold lg:mt-0 lg:pr-16 lg:text-right lg:text-lead">
+                      <span className="font-normal text-(--tinta-suave) lg:hidden">{T.colTotal} </span>
+                      {p.temOpcoes && <span className="text-small font-normal text-(--tinta-suave)">{T.aPartirDe} </span>}
+                      {brl(orc.totalCentavos)}
+                      {aviso && <span className="block text-small font-normal text-(--tinta-suave)">{aviso}</span>}
                     </span>
                   </Link>
                 </li>

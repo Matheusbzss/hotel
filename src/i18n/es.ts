@@ -102,7 +102,7 @@ const es: Dicionario = {
   },
   home: {
     heroTitulo: ['Agência', 'Victor', 'Hugo'],
-    heroFatos: ['Barco, lancha y buggy', 'Búzios · Arraial · Cabo Frio', 'Voucher al instante'],
+    heroFatos: ['Barco, lancha y buggy', 'Búzios · Arraial · Cabo\u00a0Frio', 'Voucher al instante'],
     heroTexto: 'Elegí la fecha y quiénes van: el precio final de cada paseo aparece al instante.',
     heroBotao: 'Ver precios',
     heroFoto: 'Goleta en el mar de Búzios',

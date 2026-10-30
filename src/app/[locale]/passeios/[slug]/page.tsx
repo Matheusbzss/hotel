@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CardPasseio } from '@/components/CardPasseio';
 import { GaleriaPasseio } from '@/components/GaleriaPasseio';
+import { BarraReservaMovel } from '@/components/BarraReservaMovel';
 import { MidiaPasseio } from '@/components/MidiaPasseio';
 import { WidgetReserva } from '@/components/WidgetReserva';
 import { EMPRESA } from '@/config/empresa';
@@ -70,9 +71,11 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const d = dicionario(locale);
   const aPartir = precoAPartirCentavos(p);
   const opcoes = opcoesPasseio(p);
+  // outros passeios da cidade, primeiro os que têm foto
   const outros = passeiosAtivos()
     .filter((o) => o.cidade === p.cidade && o.slug !== p.slug)
-    .slice(0, 3);
+    .sort((a, b) => Number(b.fotos.length > 0) - Number(a.fotos.length > 0))
+    .slice(0, 4);
   const unidadeSingular = p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao;
   const unidadePlural = p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes;
   const regras = regrasCriancas(p, d);
@@ -98,32 +101,11 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   return (
     <main id="conteudo" className="tom-mar">
       {/* barra fixa no celular com o preço e o atalho para a reserva */}
-      <style>{`@media (max-width: 1023px){:root{--barra-inferior:76px}}`}</style>
-      <div className="tom-sol fixed inset-x-0 bottom-0 z-30 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="moldura flex h-[76px] items-center justify-between gap-4">
-          <p className="leading-tight">
-            <span className="block text-small">{d.comum.aPartirDe}</span>
-            <span className="numeros block text-lead font-bold">{formatarPreco(aPartir, locale)}</span>
-          </p>
-          <a href="#reservar" className="botao">
-            {d.passeio.reservar}
-          </a>
-        </div>
-      </div>
+      <BarraReservaMovel rotuloPreco={d.comum.aPartirDe} preco={formatarPreco(aPartir, locale)} rotuloBotao={d.passeio.reservar} />
 
       <div className="moldura pb-24 pt-4 md:pt-8">
-        <Link href={rota(locale, '/passeios')} className="link inline-flex min-h-11 items-center gap-2 font-semibold">
-          <span aria-hidden="true">←</span> {d.nav.passeios}
-        </Link>
-
-        <div className="chegar mt-4">
-          <p className="text-small text-(--tinta-suave)">
-            <Link href={`${rota(locale, '/passeios')}?cidade=${p.cidade}`} className="link">
-              {CIDADES[p.cidade].nome[locale]}
-            </Link>{' '}
-            · {nomeCategoria(p, locale)}
-          </p>
-          <h1 className="mt-2 max-w-[22ch] text-head font-bold text-sol">{p.nome[locale]}</h1>
+        <div className="chegar">
+          <h1 className="max-w-[22ch] text-head font-bold text-sol">{p.nome[locale]}</h1>
         </div>
 
         <div className="mt-8">
@@ -153,15 +135,25 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
 
         <div className="mt-10 grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <p className="max-w-[52ch] text-lead">{p.resumo[locale]}</p>
-            <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+            <p className="chegar max-w-[52ch] text-lead">
+              <span>{p.resumo[locale]}</span>
+            </p>
+            <dl className="entrar mt-8 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
               <div>
                 <dt className="text-small text-(--tinta-suave)">{d.comum.duracaoAprox}</dt>
                 <dd className="mt-0.5 font-semibold">{p.duracao[locale]}</dd>
               </div>
               <div>
                 <dt className="text-small text-(--tinta-suave)">{d.comum.cidade}</dt>
-                <dd className="mt-0.5 font-semibold">{nomeCidade(p, locale)}</dd>
+                <dd className="mt-0.5 font-semibold">
+                  <Link href={`${rota(locale, '/passeios')}?cidade=${p.cidade}`} className="link">
+                    {CIDADES[p.cidade].nome[locale]}
+                  </Link>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-small text-(--tinta-suave)">{d.comum.tipo}</dt>
+                <dd className="mt-0.5 font-semibold">{nomeCategoria(p, locale)}</dd>
               </div>
               <div>
                 <dt className="text-small text-(--tinta-suave)">{d.comum.aPartirDe}</dt>
@@ -169,13 +161,13 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   <span className="numeros">{formatarPreco(aPartir, locale)}</span> {rotuloUnidade(p, d)}
                 </dd>
               </div>
-              <div className="col-span-2 sm:col-span-3">
+              <div className="col-span-2">
                 <dt className="text-small text-(--tinta-suave)">{d.comum.regras.titulo}</dt>
                 <dd className="mt-0.5 font-semibold">{regras.join(' ')}</dd>
               </div>
             </dl>
 
-            <section className="mt-14" aria-labelledby="sobre">
+            <section className="entrar mt-14" aria-labelledby="sobre">
               <h2 id="sobre" className="text-lead font-bold text-sol">
                 {d.passeio.sobre}
               </h2>
@@ -186,12 +178,12 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
               </div>
             </section>
 
-            <div className="mt-14 grid gap-10 md:grid-cols-2">
+            <div className="entrar mt-14 grid gap-10 md:grid-cols-2">
               <Lista titulo={d.passeio.inclui} id="inclui" itens={p.inclui[locale]} marca="sim" />
               <Lista titulo={d.passeio.naoInclui} id="nao-inclui" itens={p.naoInclui[locale]} marca="nao" />
             </div>
 
-            <section className="mt-14" aria-labelledby="roteiro">
+            <section className="entrar mt-14" aria-labelledby="roteiro">
               <h2 id="roteiro" className="text-lead font-bold text-sol">
                 {d.passeio.roteiro}
               </h2>
@@ -207,7 +199,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
               </ol>
             </section>
 
-            <section className="mt-14" aria-labelledby="levar">
+            <section className="entrar mt-14" aria-labelledby="levar">
               <h2 id="levar" className="text-lead font-bold text-sol">
                 {d.passeio.levar}
               </h2>
@@ -259,13 +251,13 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
         </div>
 
         {outros.length > 0 && (
-          <section className="mt-24 md:mt-40" aria-labelledby="outros">
-            <h2 id="outros" className="largo titulo text-sol">
-              {fmt(d.passeio.outros, { cidade: nomeCidade(p, locale) })}
+          <section id="outros-passeios" className="mt-24 md:mt-40" aria-labelledby="outros">
+            <h2 id="outros" className="titulo entrar font-bold text-sol">
+              <span>{fmt(d.passeio.outros, { cidade: nomeCidade(p, locale) })}</span>
             </h2>
-            <ul className="mt-10 grid gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-12 lg:grid-cols-3">
+            <ul className="mt-10 grid gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-12 lg:grid-cols-4">
               {outros.map((o) => (
-                <li key={o.slug}>
+                <li key={o.slug} className="entrar">
                   <CardPasseio passeio={o} idioma={locale} d={d} />
                 </li>
               ))}

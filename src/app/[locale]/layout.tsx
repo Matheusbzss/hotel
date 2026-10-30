@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Cabecalho } from '@/components/Cabecalho';
 import { GrupoProvider } from '@/components/grupo/GrupoContexto';
 import { Rastreamento } from '@/components/Rastreamento';
+import { Revelar } from '@/components/Revelar';
 import { Rodape } from '@/components/Rodape';
 import { WhatsAppFlutuante } from '@/components/WhatsAppFlutuante';
 import { EMPRESA } from '@/config/empresa';
@@ -80,6 +81,7 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
         <GrupoProvider>{children}</GrupoProvider>
         <Rodape idioma={locale} d={d} />
         <WhatsAppFlutuante rotulo={d.comum.whatsapp} mensagem={d.contato.msg} />
+        <Revelar />
         <Rastreamento
           pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}
           textos={d.cookies}

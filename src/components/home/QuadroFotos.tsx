@@ -40,6 +40,7 @@ export function QuadroFotos({ fotos, rotuloProxima }: { fotos: { src: string; le
             sizes="(min-width: 768px) 30rem, 72vw"
             className={`object-cover transition-opacity duration-700 ${i === atual ? 'opacity-100' : 'opacity-0'}`}
             aria-hidden={i !== atual}
+            loading={i === 0 ? 'eager' : 'lazy'}
           />
         ))}
       </button>

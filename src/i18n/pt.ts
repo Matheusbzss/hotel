@@ -100,7 +100,7 @@ const pt = {
   },
   home: {
     heroTitulo: ['Agência', 'Victor', 'Hugo'],
-    heroFatos: ['Barco, lancha e buggy', 'Búzios · Arraial · Cabo Frio', 'Voucher na hora'],
+    heroFatos: ['Barco, lancha e buggy', 'Búzios · Arraial · Cabo\u00a0Frio', 'Voucher na hora'],
     heroTexto: 'Escolha a data e quem vai: o preço final de cada passeio aparece na hora.',
     heroBotao: 'Ver preços',
     heroFoto: 'Escuna no mar de Búzios',

@@ -180,14 +180,6 @@ export function WidgetReserva({
           ))}
         </div>
         {regras.length > 0 && <p className="mt-4 text-small">{regras.join(' ')}</p>}
-        {opcao.tabela.unidade !== 'pessoa' && (
-          <p className="mt-2 text-small font-semibold" aria-live="polite">
-            {T.unidadesAviso
-              .replace('{pessoas}', `${totalPessoas} ${totalPessoas === 1 ? T.pessoa : T.pessoas}`)
-              .replace('{n}', String(orc.unidades))
-              .replace('{unidade}', orc.unidades === 1 ? T.unidadeSingular : T.unidadePlural)}
-          </p>
-        )}
 
         <div className="mt-6 flex items-baseline justify-between gap-4 pt-1">
           <span className="font-semibold">{T.total}</span>
@@ -195,6 +187,14 @@ export function WidgetReserva({
             {brl(orc.totalCentavos)}
           </span>
         </div>
+        {opcao.tabela.unidade !== 'pessoa' && (
+          <p className="mt-2 text-right text-small font-semibold" aria-live="polite">
+            {T.unidadesAviso
+              .replace('{pessoas}', `${totalPessoas} ${totalPessoas === 1 ? T.pessoa : T.pessoas}`)
+              .replace('{n}', String(orc.unidades))
+              .replace('{unidade}', orc.unidades === 1 ? T.unidadeSingular : T.unidadePlural)}
+          </p>
+        )}
         <button type="button" onClick={reservar} className="botao mt-5 w-full">
           {T.reservar}
         </button>

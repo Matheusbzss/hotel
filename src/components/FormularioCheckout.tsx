@@ -589,8 +589,8 @@ export function FormularioCheckout({
           </div>
         </fieldset>
 
-        {/* campo-isca para robôs: escondido de pessoas */}
-        <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        {/* campo-isca para robôs: escondido de pessoas (taste-skill-ignore) */}
+        <div aria-hidden="true" className="absolute -left-[9999px] size-0 overflow-hidden">
           <label htmlFor="site">Site</label>
           <input id="site" tabIndex={-1} autoComplete="off" value={isca} onChange={(e) => setIsca(e.target.value)} />
         </div>

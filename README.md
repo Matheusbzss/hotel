@@ -4,15 +4,17 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 
 ## Onde mudar cada coisa
 
-| O que | Arquivo |
-| --- | --- |
-| Razão social, CNPJ, e-mail, telefone/WhatsApp, Instagram, domínio | `src/config/empresa.ts` |
-| Passeios (nome, cidade, categoria, preço do parceiro, unidade, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts` |
-| Margem sobre o preço do parceiro (hoje 10%) | `MARGEM_PERCENTUAL` em `src/data/passeios.ts` |
-| Pacotes Passeio + Hospedagem (sob consulta) | `src/data/pacotes.ts` |
-| Textos do site nos 3 idiomas (home, FAQ, checkout…) | `src/i18n/pt.ts`, `en.ts`, `es.ts` |
-| Política de Cancelamento, Termos de Uso, Política de Privacidade | `src/content/legal/` |
-| Logos (horizontal, fundo escuro, vertical, emblema) | `public/logo/` |
+| O que                                                                                                               | Arquivo                                       |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Razão social, CNPJ, e-mail, telefone/WhatsApp, Instagram, domínio                                                   | `src/config/empresa.ts`                       |
+| Passeios (nome, cidade, categoria, preço do parceiro, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                        |
+| Margem sobre o preço do parceiro (hoje 10%)                                                                         | `MARGEM_PERCENTUAL` em `src/data/passeios.ts` |
+| Regra padrão de crianças (até 5 anos grátis)                                                                        | `CRIANCAS_PADRAO` em `src/data/passeios.ts`   |
+| Pacotes Passeio + Hospedagem (sob consulta)                                                                         | `src/data/pacotes.ts`                         |
+| Casas de temporada (desligada até as parcerias)                                                                     | `src/data/casas.ts`                           |
+| Textos do site nos 3 idiomas (home, FAQ, checkout…)                                                                 | `src/i18n/pt.ts`, `en.ts`, `es.ts`            |
+| Política de Cancelamento, Termos de Uso, Política de Privacidade                                                    | `src/content/legal/`                          |
+| Logos (horizontal, fundo escuro, vertical, emblema)                                                                 | `public/logo/`                                |
 
 ### Preço
 
@@ -21,28 +23,47 @@ R$ 100 → R$ 110,00 · R$ 265 → R$ 291,50. Para mudar a margem de todos os pa
 
 Unidades de preço: `'pessoa'`, `'veiculo'` ou `'embarcacao'` (com `capacidadePorUnidade`). Ex.: quadriciclo para até 2 pessoas, reserva de 3 pessoas = 2 quadriciclos.
 
+`origemPreco` marca de onde veio o valor: `'parceiro'` (lista do parceiro) ou `'pesquisa'` (preço médio de mercado — confirme com o parceiro antes de vender).
+
+**Opções**: passeios com mais de um formato usam `opcoes`, cada uma com o próprio `precoParceiro` (ex.: lancha 2 h ou 4 h, jet ski 30 min ou 1 h). O "a partir de" usa a mais barata.
+
+**Crianças** (`criancas` em cada passeio):
+
+| Regra                                  | Significa                                               |
+| -------------------------------------- | ------------------------------------------------------- |
+| `{ gratisAte: 5 }`                     | até 5 anos não paga; a partir de 6, inteira (padrão)    |
+| `{ gratisAte: 5, meiaAte: 10 }`        | até 5 grátis; 6 a 10 meia (50%); 11+ inteira            |
+| `{ gratisAte: null }`                  | todos pagam (lancha, quadriciclo, jet ski, helicóptero) |
+| `{ gratisAte: null, idadeMinima: 10 }` | todos pagam, idade mínima 10 anos (mergulho)            |
+
+Nos passeios por veículo/embarcação o preço não muda com a idade, mas todos contam na lotação.
+
 ### Fotos
 
-Coloque as fotos em `public/fotos/passeios/<slug-do-passeio>/` e liste os caminhos no campo `fotos` do passeio:
+Coloque as fotos em `public/fotos/` (hoje: `buzios/` e `arraial/`) e liste os caminhos no campo `fotos` do passeio:
 
 ```ts
-fotos: ['/fotos/passeios/escuna-buzios/1.jpg', '/fotos/passeios/escuna-buzios/2.jpg'],
+fotos: ['/fotos/buzios/escuna-no-mar.jpg', '/fotos/buzios/escuna-proa.jpg'],
 ```
 
-A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next.js otimiza tudo (AVIF/WebP, tamanhos certos para o celular). Enquanto um passeio não tem fotos, o site mostra uma ilustração do tipo de passeio.
+A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next.js otimiza tudo (AVIF/WebP, tamanhos certos para o celular). Enquanto um passeio não tem fotos, o site mostra uma capa desenhada (sol, mar e o nome do passeio nas cores da cidade). Use fotos com pelo menos 1.200 px de largura.
+
+## Casas de temporada
+
+Área separada em `/casas-de-temporada`, **desligada** (`CASAS_ATIVO = false` em `src/data/casas.ts`): mostra "Em breve", um convite para proprietários, fica fora do menu, do sitemap e do Google. Para ativar, cadastre as casas na lista `CASAS` (há um exemplo comentado no arquivo) e mude `CASAS_ATIVO` para `true`. A consulta de datas é sempre pelo WhatsApp.
 
 ## Variáveis de ambiente
 
 Veja `.env.example`. Resumo:
 
-| Variável | Para quê |
-| --- | --- |
-| `PAGARME_SECRET_KEY` | Chave secreta da Pagar.me (só servidor) |
-| `NEXT_PUBLIC_PAGARME_PUBLIC_KEY` | Chave pública (tokeniza o cartão no navegador) |
-| `PAGARME_WEBHOOK_TOKEN` | Senha que protege o webhook |
-| `ADMIN_PASSWORD` | Senha do `/admin` |
-| `NEXT_PUBLIC_META_PIXEL_ID` | ID do Pixel da Meta |
-| `BLOB_READ_WRITE_TOKEN` | Criada pela Vercel ao conectar o Blob Store (banco de reservas) |
+| Variável                         | Para quê                                                        |
+| -------------------------------- | --------------------------------------------------------------- |
+| `PAGARME_SECRET_KEY`             | Chave secreta da Pagar.me (só servidor)                         |
+| `NEXT_PUBLIC_PAGARME_PUBLIC_KEY` | Chave pública (tokeniza o cartão no navegador)                  |
+| `PAGARME_WEBHOOK_TOKEN`          | Senha que protege o webhook                                     |
+| `ADMIN_PASSWORD`                 | Senha do `/admin`                                               |
+| `NEXT_PUBLIC_META_PIXEL_ID`      | ID do Pixel da Meta                                             |
+| `BLOB_READ_WRITE_TOKEN`          | Criada pela Vercel ao conectar o Blob Store (banco de reservas) |
 
 Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e registra a reserva para finalizar pelo WhatsApp. Com chaves de teste (`sk_test_…`/`pk_test_…`), o fluxo completo funciona em modo de teste.
 

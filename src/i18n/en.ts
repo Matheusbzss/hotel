@@ -102,7 +102,7 @@ const en: Dicionario = {
   },
   home: {
     heroTitulo: ['Agência', 'Victor', 'Hugo'],
-    heroFatos: ['Boat, speedboat and buggy', 'Búzios · Arraial · Cabo Frio', 'Instant voucher'],
+    heroFatos: ['Boat, speedboat and buggy', 'Búzios · Arraial · Cabo\u00a0Frio', 'Instant voucher'],
     heroTexto: 'Choose the date and who’s going: the final price of every tour shows up right away.',
     heroBotao: 'See prices',
     heroFoto: 'Schooner on the Búzios sea',

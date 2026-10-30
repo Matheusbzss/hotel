@@ -77,7 +77,7 @@ export function ExploradorPasseios({
   const linha = (titulo: string, todos: string, opcoes: Opcao[], valor: string, escolher: (v: string) => void) => (
     <fieldset className="min-w-0">
       <legend className="mb-2 text-small font-semibold">{titulo}</legend>
-      <div className="sem-barra -mx-(--margem) flex gap-1.5 overflow-x-auto px-(--margem) md:mx-0 md:flex-wrap md:px-0">
+      <div className="flex flex-wrap gap-1.5">
         <button type="button" className="filtro" aria-pressed={valor === ''} onClick={() => escolher('')}>
           {todos}
         </button>

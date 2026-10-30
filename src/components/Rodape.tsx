@@ -16,14 +16,14 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   ];
   return (
     <footer className="tom-sol relative overflow-hidden">
-      <div className="moldura grid gap-12 pt-20 md:grid-cols-12 md:pt-28">
-        <div className="md:col-span-7">
-          <h2 className="largo text-[clamp(2.25rem,1rem+4.6vw,5.25rem)]">{R.convite}</h2>
+      <div className="moldura grid gap-12 pt-20 md:pt-28 lg:grid-cols-12">
+        <div className="lg:col-span-7">
+          <h2 className="largo text-head">{R.convite}</h2>
           <Link href={rota(idioma, '/passeios')} className="botao mt-8 w-full sm:w-auto">
             {R.botao}
           </Link>
         </div>
-        <nav aria-label={R.contato} className="md:col-span-3 md:col-start-10">
+        <nav aria-label={R.contato} className="lg:col-span-4 lg:col-start-9">
           <ul className="space-y-2 text-lead">
             {links.map((l) => (
               <li key={l.href}>
@@ -85,8 +85,11 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         </ul>
       </div>
 
-      <p aria-hidden="true" className="largo mt-6 -mb-[0.2em] whitespace-nowrap pl-[calc(var(--margem)-0.06em)] text-[27vw] leading-[0.8]">
-        Victor Hugo
+      {/* o nome da agência fecha a página, cortado pela borda de baixo */}
+      <p aria-hidden="true" className="largo mt-10 -mb-[0.22em] whitespace-nowrap px-(--margem) text-[15.5vw] leading-[0.82]">
+        Victor
+        <br />
+        Hugo
       </p>
     </footer>
   );

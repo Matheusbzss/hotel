@@ -11,9 +11,10 @@
   --color-sol-2: #ffe27f;
   --color-brilho: #ffe07a;
   --color-brilho-suave: #b9b28a;
-  --color-areia: #f4ead6;
-  --color-areia-2: #ebdec4;
+  --color-areia: #e9eef0;
+  --color-areia-2: #dde5e8;
   --color-turquesa: #26b3c1;
+  --color-agua: #63d0d9;
   --color-papel: #ffffff;
   --color-tinta-suave: #4f6670;
   --color-campo: #c9d3d6;
@@ -31,7 +32,7 @@
   --text-lead--line-height: 1.3;
   --text-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
   --text-head--line-height: 1;
-  --text-display: clamp(3rem, 12.4vw, 15rem);
+  --text-display: clamp(3rem, 11vw, 15rem);
   --text-display--line-height: 0.92;
 
   --ease-saida: cubic-bezier(0.16, 1, 0.3, 1);
@@ -75,7 +76,7 @@
   color-scheme: light;
 }
 .tom-turquesa {
-  --fundo: var(--color-turquesa);
+  --fundo: var(--color-agua);
   --tinta: var(--color-mar);
   --tinta-suave: #123f4a;
   --acao: var(--color-mar);
@@ -212,13 +213,13 @@ img {
   .botao-whats:hover {
     background: #3fe07c;
   }
+  /* ação secundária: um degrau de tom, sem contorno */
   .botao-vazado {
-    background: transparent;
+    background: color-mix(in oklab, var(--tinta) 14%, var(--fundo));
     color: var(--tinta);
-    box-shadow: inset 0 0 0 2px currentColor;
   }
   .botao-vazado:hover {
-    background: color-mix(in oklab, var(--tinta) 12%, transparent);
+    background: color-mix(in oklab, var(--tinta) 22%, var(--fundo));
   }
   .botao[aria-disabled='true'],
   .botao:disabled {
@@ -246,7 +247,7 @@ img {
     border: 2px solid var(--color-campo);
     background: var(--color-papel);
     color: var(--color-mar);
-    font-size: 1.0625rem;
+    font-size: var(--text-body);
     border-radius: 0;
     transition: border-color 0.15s ease;
   }
@@ -263,7 +264,7 @@ img {
   .rotulo {
     display: block;
     font-weight: 600;
-    font-size: 0.9375rem;
+    font-size: var(--text-small);
     margin-bottom: 0.4rem;
   }
   .ajuda {
@@ -309,6 +310,11 @@ img {
     transform: scale(0.96);
   }
 
+  /* O botão do WhatsApp flutua de verdade sobre o conteúdo: só ele tem sombra */
+  .flutuante {
+    box-shadow: 0 10px 30px rgb(4 24 33 / 0.35); /* taste-skill-ignore */
+  }
+
   /* Foto que aproxima de leve ao passar o mouse */
   .zoom img {
     transition: transform 0.7s var(--ease-saida);
@@ -349,23 +355,24 @@ img {
   }
 }
 
-/* Entrada das partes de cada seção conforme ela aparece (sem JavaScript) */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .entrar > * {
-      animation: subir linear both;
-      animation-timeline: view();
-      animation-range: entry 5% entry 55%;
-    }
-    .entrar > *:nth-child(2) {
-      animation-range: entry 10% entry 62%;
-    }
-    .entrar > *:nth-child(3) {
-      animation-range: entry 15% entry 70%;
-    }
-    .entrar > *:nth-child(n + 4) {
-      animation-range: entry 20% entry 76%;
-    }
+/* Entrada das partes de cada seção quando ela aparece (componente Revelar).
+   Sem JavaScript, nada fica escondido: a classe .js só existe com o script rodando. */
+@media (prefers-reduced-motion: no-preference) {
+  /* só sobe: o texto nunca fica invisível, nem se a entrada não disparar */
+  .js .entrar:not(.dentro) > * {
+    transform: translateY(32px);
+  }
+  .js .entrar > * {
+    transition: transform 0.9s var(--ease-saida);
+  }
+  .js .entrar > *:nth-child(2) {
+    transition-delay: 0.08s;
+  }
+  .js .entrar > *:nth-child(3) {
+    transition-delay: 0.16s;
+  }
+  .js .entrar > *:nth-child(n + 4) {
+    transition-delay: 0.24s;
   }
 }
 

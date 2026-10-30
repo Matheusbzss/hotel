@@ -28,10 +28,10 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
   return (
     <main id="conteudo" className="tom-claro">
       <div className="moldura pb-24 pt-4 md:pb-32 md:pt-8">
-        <Link href={rota(locale, `/passeios/${p.slug}`)} className="link inline-flex min-h-11 items-center gap-2 font-semibold">
+        <h1 className="largo text-head">{d.checkout.titulo}</h1>
+        <Link href={rota(locale, `/passeios/${p.slug}`)} className="link mt-3 inline-flex min-h-11 items-center gap-2 font-semibold">
           <span aria-hidden="true">←</span> {p.nome[locale]}
         </Link>
-        <h1 className="largo mt-4 text-head">{d.checkout.titulo}</h1>
         <div className="mt-10">
           <FormularioCheckout
             idioma={locale}

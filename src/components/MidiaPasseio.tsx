@@ -25,7 +25,7 @@ const CORES: Record<Passeio['cidade'], { fundo: string; sol: string; onda1: stri
   buzios: { fundo: '#134960', sol: '#ffd54a', onda1: '#0d3a4d', onda2: '#082f3f', tinta: '#ffe07a' },
   'arraial-do-cabo': { fundo: '#26b3c1', sol: '#ffd54a', onda1: '#1b97a4', onda2: '#0f6570', tinta: '#082f3f' },
   'cabo-frio': { fundo: '#ffd54a', sol: '#ffffff', onda1: '#26b3c1', onda2: '#134960', tinta: '#082f3f' },
-  'rio-de-janeiro': { fundo: '#f4ead6', sol: '#ffd54a', onda1: '#26b3c1', onda2: '#134960', tinta: '#082f3f' },
+  'rio-de-janeiro': { fundo: '#e9eef0', sol: '#ffd54a', onda1: '#26b3c1', onda2: '#134960', tinta: '#082f3f' },
 };
 
 function palavraDaCapa(p: Passeio, idioma: Idioma): string {
@@ -37,10 +37,10 @@ function palavraDaCapa(p: Passeio, idioma: Idioma): string {
 export function CapaPasseio({ passeio, idioma, className = '' }: { passeio: Passeio; idioma: Idioma; className?: string }) {
   const c = CORES[passeio.cidade];
   const palavra = palavraDaCapa(passeio, idioma).toUpperCase();
-  // a palavra ocupa a largura: letra larga ≈ 0,95 em por caractere
-  const tamanho = Math.min(118, Math.round(372 / (palavra.length * 0.93)));
+  // a palavra ocupa a largura sem encostar na borda: letra larga ≈ 1 em por caractere
+  const tamanho = Math.min(112, Math.round(352 / palavra.length));
   return (
-    <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMid slice" className={className} role="img" aria-label={passeio.nome[idioma]}>
+    <svg viewBox="0 0 400 500" preserveAspectRatio="xMidYMax slice" className={className} role="img" aria-label={passeio.nome[idioma]}>
       <rect width="400" height="500" fill={c.fundo} />
       <circle cx="300" cy="150" r="92" fill={c.sol} />
       <path d="M0 300 Q50 286 100 300 T200 300 T300 300 T400 300 V500 H0Z" fill={c.onda1} />

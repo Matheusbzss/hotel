@@ -18,11 +18,8 @@ export function Abertura({ d }: { d: Dicionario }) {
         className="respira -z-10 object-cover brightness-[0.62]"
       />
       <div className="moldura pb-10 pt-28 md:pb-16 md:pt-32">
-        <div className="tom-sol chegar mx-auto w-full max-w-[54rem] p-5 sm:p-8">
-          <h1
-            id="titulo-agencia"
-            className="largo flex flex-wrap justify-between gap-x-[0.35em] text-[clamp(1.75rem,0.9rem+3.6vw,3.25rem)]"
-          >
+        <div className="tom-sol chegar mx-auto w-full max-w-[62rem] p-5 sm:p-8">
+          <h1 id="titulo-agencia" className="largo flex flex-wrap justify-between gap-x-[0.35em] text-[clamp(1.75rem,0.9rem+3.4vw,3rem)]">
             {H.heroTitulo.map((p) => (
               <span key={p}>{p}</span>
             ))}

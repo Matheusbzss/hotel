@@ -19,9 +19,9 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
     { href: rota(idioma, '/politica-de-privacidade'), texto: R.privacidade },
   ];
   return (
-    <footer id="rodape" className="tom-acao flex min-h-[64svh] flex-col lg:min-h-[90svh]">
+    <footer id="rodape" className="tom-acao flex min-h-[64svh] flex-col lg:min-h-[72svh]">
       <div className="moldura flex items-start justify-between gap-8 pt-10">
-        <div className="max-w-[46ch] space-y-1 text-small">
+        <div className="max-w-[46ch] space-y-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo/orla-nativa-horizontal-fundo-escuro.svg"

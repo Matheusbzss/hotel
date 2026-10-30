@@ -23,5 +23,14 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
-  return <PaginaLegal doc={PRIVACIDADE[locale]} idioma={locale} d={d} extra={<RedefinirCookies rotulo={d.cookies.gerenciar} />} />;
+  return (
+    <PaginaLegal
+      doc={PRIVACIDADE[locale]}
+      idioma={locale}
+      d={d}
+      titulo={d.rodape.privacidade}
+      acao={d.legal.acoes.privacidade}
+      extra={<RedefinirCookies rotulo={d.cookies.gerenciar} />}
+    />
+  );
 }

@@ -23,5 +23,5 @@ export default async function Pagina({ params }: PageProps<'/[locale]/termos-de-
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
-  return <PaginaLegal doc={TERMOS[locale]} idioma={locale} d={d} />;
+  return <PaginaLegal doc={TERMOS[locale]} idioma={locale} d={d} titulo={d.rodape.termos} acao={d.legal.acoes.termos} />;
 }

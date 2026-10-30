@@ -84,10 +84,46 @@ export function ComoFunciona({ d }: { d: Dicionario }) {
   );
 }
 
-/** Sem letra miúda: a política de cancelamento numa tabela sem linhas, uma situação por fila. */
-export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
+/** A política de cancelamento numa tabela sem linhas, uma situação por fila. No celular, cada fila vira um bloco. */
+export function TabelaGarantias({ d, className = '' }: { d: Dicionario; className?: string }) {
   const H = d.home;
   const [se, recebe, prazo] = H.garantiasColunas;
+  return (
+    <table className={`w-full border-collapse text-left ${className}`}>
+      <thead className="sr-only md:not-sr-only">
+        <tr className="text-small text-(--tinta-suave)">
+          <th scope="col" className="pb-3 pr-6 font-normal md:w-[42%]">
+            {se}
+          </th>
+          <th scope="col" className="pb-3 pr-6 font-normal">
+            {recebe}
+          </th>
+          <th scope="col" className="pb-3 text-right font-normal">
+            {prazo}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {H.garantias.map((g, i) => (
+          <tr key={g.se} className={`block px-4 py-4 md:table-row md:px-0 md:py-0 ${i % 2 === 0 ? 'bg-(--color-fundo)' : ''}`}>
+            <th scope="row" className="block font-semibold md:table-cell md:py-4 md:pl-4 md:pr-6 md:font-normal">
+              {g.se}
+            </th>
+            <td className="block text-(--tinta-suave) md:table-cell md:py-4 md:pr-6 md:text-(--tinta)">
+              {g.recebe}
+              {g.prazo !== '—' && <span className="md:hidden"> · {g.prazo}</span>}
+            </td>
+            <td className="numeros hidden text-right md:table-cell md:py-4 md:pr-4">{g.prazo}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Sem letra miúda: a política de cancelamento numa tabela, com o link para o texto completo. */
+export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
+  const H = d.home;
   return (
     <section className="tom-superficie py-24 md:py-40" aria-labelledby="garantias-titulo">
       <div className="moldura entrar">
@@ -95,35 +131,7 @@ export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: st
           <span className="block">{H.garantiasTitulo[0]}</span>
           <span className="block md:pl-[16.6%]">{H.garantiasTitulo[1]}</span>
         </h2>
-        <table className="mt-12 w-full border-collapse text-left md:mt-[72px]">
-          <thead className="sr-only md:not-sr-only">
-            <tr className="text-small text-(--tinta-suave)">
-              <th scope="col" className="pb-3 pr-6 font-normal md:w-[42%]">
-                {se}
-              </th>
-              <th scope="col" className="pb-3 pr-6 font-normal">
-                {recebe}
-              </th>
-              <th scope="col" className="pb-3 text-right font-normal">
-                {prazo}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {H.garantias.map((g, i) => (
-              <tr key={g.se} className={`block px-4 py-4 md:table-row md:px-0 md:py-0 ${i % 2 === 0 ? 'bg-(--color-fundo)' : ''}`}>
-                <th scope="row" className="block font-semibold md:table-cell md:py-4 md:pl-4 md:pr-6 md:font-normal">
-                  {g.se}
-                </th>
-                <td className="block text-(--tinta-suave) md:table-cell md:py-4 md:pr-6 md:text-(--tinta)">
-                  {g.recebe}
-                  {g.prazo !== '—' && <span className="md:hidden"> · {g.prazo}</span>}
-                </td>
-                <td className="numeros hidden text-right md:table-cell md:py-4 md:pr-4">{g.prazo}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <TabelaGarantias d={d} className="mt-12 md:mt-[72px]" />
         <p className="mt-8 max-w-[60ch]">
           {H.garantiasNota}{' '}
           <Link href={hrefPolitica} className="link font-semibold">

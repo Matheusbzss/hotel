@@ -433,11 +433,27 @@ const en: Dicionario = {
   },
   legal: {
     atualizado: 'Last updated: {data}',
+    indice: 'On this page',
+    resumo: 'At a glance',
+    acoes: {
+      cancelamento: {
+        botao: 'Request a cancellation',
+        assunto: 'Cancellation request',
+        msg: 'Hello! I would like to cancel booking number: ',
+      },
+      privacidade: {
+        botao: 'Request my data',
+        assunto: 'Request about my personal data',
+        msg: 'Hello! I would like to know what personal data you keep about me.',
+      },
+      termos: { botao: 'Ask a question', assunto: 'Question about the terms of use', msg: '' },
+    },
   },
   erro404: {
     titulo: 'This page went out with the tide',
     texto: 'We couldn’t find the address you were looking for.',
     voltar: 'Back to home',
+    atalhos: 'Or pick where to start',
   },
 };
 

@@ -92,7 +92,7 @@ export function SeletorGrupo({ textos: T, className = '' }: { textos: TextosSele
         </button>
       </div>
       {aberto && (
-        <div id={idPainel} className="tom-papel space-y-4 p-4 sm:col-span-2">
+        <div id={idPainel} className="tom-papel col-span-full space-y-4 p-4">
           <Contador
             rotulo={T.adultos}
             ajuda={T.adultosAjuda}

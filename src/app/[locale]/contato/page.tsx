@@ -54,7 +54,11 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
               {c.titulo}
             </h1>
             <p className="mt-4">{c.texto}</p>
-            <dl className="mt-7 space-y-4">
+            <a href={email} className="botao mt-6 w-full" data-evento="Contact">
+              <IconeEmail className="size-5" />
+              {c.botao}
+            </a>
+            <dl className="mt-8 space-y-4">
               <div>
                 <dt className="text-small text-(--tinta-suave)">{c.email}</dt>
                 <dd>
@@ -76,10 +80,6 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
                 <dd className="numeros">{EMPRESA.cnpj}</dd>
               </div>
             </dl>
-            <a href={email} className="botao mt-8 w-full" data-evento="Contact">
-              <IconeEmail className="size-5" />
-              {c.botao}
-            </a>
           </div>
         </div>
       </section>

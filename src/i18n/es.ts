@@ -387,7 +387,7 @@ const es: Dicionario = {
     assuntoCasa: 'Casa: {casa}',
   },
   contato: {
-    titulo: 'Hablemos',
+    titulo: 'Contactanos',
     texto: 'Atención 100% online, en español, portugués e inglés. Mandanos un e-mail y te respondemos.',
     email: 'E-mail',
     botao: 'Enviar e-mail',
@@ -431,11 +431,27 @@ const es: Dicionario = {
   },
   legal: {
     atualizado: 'Última actualización: {data}',
+    indice: 'En esta página',
+    resumo: 'En resumen',
+    acoes: {
+      cancelamento: {
+        botao: 'Pedir la cancelación',
+        assunto: 'Pedido de cancelación',
+        msg: '¡Hola! Quiero cancelar la reserva número: ',
+      },
+      privacidade: {
+        botao: 'Pedir mis datos',
+        assunto: 'Pedido sobre mis datos personales',
+        msg: '¡Hola! Quiero saber qué datos personales míos guardan.',
+      },
+      termos: { botao: 'Hacer una consulta', assunto: 'Consulta sobre los términos de uso', msg: '' },
+    },
   },
   erro404: {
     titulo: 'Esta página se fue con la marea',
     texto: 'No encontramos la dirección que buscabas.',
     voltar: 'Volver al inicio',
+    atalhos: 'O elegí por dónde empezar',
   },
 };
 

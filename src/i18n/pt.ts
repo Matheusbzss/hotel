@@ -429,11 +429,27 @@ const pt = {
   },
   legal: {
     atualizado: 'Última atualização: {data}',
+    indice: 'Nesta página',
+    resumo: 'Em resumo',
+    acoes: {
+      cancelamento: {
+        botao: 'Pedir cancelamento',
+        assunto: 'Pedido de cancelamento',
+        msg: 'Olá! Quero cancelar a reserva de número: ',
+      },
+      privacidade: {
+        botao: 'Pedir meus dados',
+        assunto: 'Pedido sobre os meus dados pessoais',
+        msg: 'Olá! Quero saber quais dados pessoais meus vocês guardam.',
+      },
+      termos: { botao: 'Tirar uma dúvida', assunto: 'Dúvida sobre os termos de uso', msg: '' },
+    },
   },
   erro404: {
     titulo: 'Essa página foi com a maré',
     texto: 'Não encontramos o endereço que você procurou.',
     voltar: 'Voltar ao início',
+    atalhos: 'Ou escolha por onde começar',
   },
 };
 

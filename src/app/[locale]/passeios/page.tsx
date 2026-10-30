@@ -31,18 +31,27 @@ export default async function Passeios({ params }: PageProps<'/[locale]/passeios
   return (
     <main id="conteudo" className="tom-fundo">
       <div className="moldura pb-24 pt-8 md:pb-40 md:pt-14">
-        <div className="grid gap-8 md:grid-cols-12">
+        <div className="grid gap-6 md:grid-cols-12 md:gap-8">
           <div className="chegar md:col-span-6">
             <h1 className="display text-head">{d.passeios.titulo}</h1>
-            <p className="mt-5 max-w-[42ch] text-lead">{fmt(d.passeios.texto, { n: passeios.length })}</p>
-            <ResumoGrupo textos={{ ...d.grupo, rotulos: d.comum.rotulos }} locale={LOCALE_INTL[locale]} className="mt-4 font-semibold" />
+            <p className="mt-4 max-w-[42ch] text-lead md:mt-5">{fmt(d.passeios.texto, { n: passeios.length })}</p>
           </div>
-          <div className="md:col-span-5 md:col-start-8 md:self-end">
-            <SeletorGrupo textos={{ ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos }} />
+          <div className="chegar md:col-span-5 md:col-start-8 md:self-end">
+            <SeletorGrupo
+              className="grid-cols-2"
+              textos={{ ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos }}
+            />
           </div>
         </div>
-        <div className="mt-12">
+        <div className="mt-6 sm:mt-10">
           <ExploradorPasseios
+            resumo={
+              <ResumoGrupo
+                textos={{ ...d.grupo, rotulos: d.comum.rotulos }}
+                locale={LOCALE_INTL[locale]}
+                className="text-(--tinta-suave)"
+              />
+            }
             itens={passeios.map((p) => ({
               slug: p.slug,
               cidade: p.cidade,

@@ -11,12 +11,12 @@ import type { Reserva } from './reservas';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
 import { LOGO_VOUCHER_PNG_BASE64 } from './logo-voucher';
 
+/** As cores do site: a tinta azul-noite, a superfície do cartão, o verde-água das ações e o cinza das notas. */
 const COR = {
-  tinta: rgb(8 / 255, 47 / 255, 63 / 255),
-  sol: rgb(1, 213 / 255, 74 / 255),
-  mar2: rgb(13 / 255, 58 / 255, 77 / 255),
-  cinza: rgb(79 / 255, 102 / 255, 112 / 255),
-  branco: rgb(1, 1, 1),
+  tinta: rgb(11 / 255, 37 / 255, 48 / 255),
+  superficie: rgb(225 / 255, 232 / 255, 230 / 255),
+  acao: rgb(10 / 255, 107 / 255, 116 / 255),
+  cinza: rgb(66 / 255, 85 / 255, 92 / 255),
 };
 
 const AVISOS = {
@@ -105,13 +105,13 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   });
 
   // código do voucher
-  texto(page, d.reserva.voucher.toUpperCase(), width - M - 200, height - 70, negrito, 11, COR.cinza);
+  texto(page, d.reserva.voucher, width - M - 200, height - 70, regular, 12, COR.cinza);
   texto(page, reserva.codigo, width - M - 200, height - 102, negrito, 30);
 
   // cartão com os dados
   const topoCartao = height - 170;
   const alturaCartao = 330;
-  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.sol });
+  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.superficie });
 
   const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
 
@@ -134,10 +134,10 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   }
 
   // QR code com o link da reserva
-  const qr = await QRCode.toBuffer(urlReserva, { margin: 1, width: 300, color: { dark: '#082F3F', light: '#FFD54A' } });
+  const qr = await QRCode.toBuffer(urlReserva, { margin: 2, width: 300, color: { dark: '#0B2530', light: '#FFFFFF' } });
   const qrImg = await pdf.embedPng(qr);
   page.drawImage(qrImg, { x: width - M - 24 - 130, y: topoCartao - 44 - 130, width: 130, height: 130 });
-  texto(page, (d.status.pago || 'Pago').toUpperCase(), width - M - 24 - 130, topoCartao - 44 - 150, negrito, 12, COR.tinta);
+  texto(page, d.status.pago || 'Pago', width - M - 24 - 130, topoCartao - 44 - 152, negrito, 14, COR.acao);
 
   // avisos
   let ya = topoCartao - alturaCartao - 50;

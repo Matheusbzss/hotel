@@ -17,16 +17,20 @@ interface Opcao {
 /**
  * Filtros por cidade e tipo de passeio. Os cards chegam prontos do servidor;
  * aqui só se decide quais aparecem. Os filtros ficam na URL (?cidade=…&tipo=…).
+ * No celular os filtros são duas listas lado a lado, para os passeios já aparecerem na primeira tela.
  */
 export function ExploradorPasseios({
   itens,
   cidades,
   categorias,
+  resumo,
   textos,
 }: {
   itens: ItemExplorador[];
   cidades: Opcao[];
   categorias: Opcao[];
+  /** "Total para 2 adultos · data a escolher", ao lado da contagem */
+  resumo?: ReactNode;
   textos: {
     cidade: string;
     tipo: string;
@@ -90,16 +94,37 @@ export function ExploradorPasseios({
     </fieldset>
   );
 
+  const lista = (titulo: string, todos: string, opcoes: Opcao[], valor: string, escolher: (v: string) => void) => (
+    <label className="block min-w-0">
+      <span className="rotulo">{titulo}</span>
+      <select className="campo" value={valor} onChange={(e) => escolher(e.target.value)}>
+        <option value="">{todos}</option>
+        {opcoes.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.rotulo}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <div>
-      <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-2 sm:hidden">
+        {lista(textos.cidade, textos.todas, cidades, cidade, escolherCidade)}
+        {lista(textos.tipo, textos.todos, categorias, tipo, escolherTipo)}
+      </div>
+      <div className="hidden space-y-5 sm:block">
         {linha(textos.cidade, textos.todas, cidades, cidade, escolherCidade)}
         {linha(textos.tipo, textos.todos, categorias, tipo, escolherTipo)}
       </div>
 
-      <p className="mt-8 text-small font-semibold" aria-live="polite">
-        {contagem}
-      </p>
+      <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-small sm:mt-8">
+        <p className="font-semibold" aria-live="polite">
+          {contagem}
+        </p>
+        {resumo}
+      </div>
 
       {visiveis.length > 0 ? (
         <ul className="mt-5 grid gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-12 lg:grid-cols-3">

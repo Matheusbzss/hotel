@@ -26,9 +26,9 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
   const dataQ = primeiro(q.data);
 
   return (
-    <main id="conteudo" className="tom-claro">
+    <main id="conteudo" className="tom-fundo">
       <div className="moldura pb-24 pt-4 md:pb-32 md:pt-8">
-        <h1 className="largo text-head">{d.checkout.titulo}</h1>
+        <h1 className="display text-head">{d.checkout.titulo}</h1>
         <Link href={rota(locale, `/passeios/${p.slug}`)} className="link mt-3 inline-flex min-h-11 items-center gap-2 font-semibold">
           <span aria-hidden="true">←</span> {p.nome[locale]}
         </Link>

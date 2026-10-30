@@ -370,7 +370,7 @@ export function FormularioCheckout({
       <div className="space-y-12 lg:col-span-7">
         {/* PASSEIO */}
         <fieldset className="min-w-0">
-          <legend className="text-lead font-bold">{T.passeio}</legend>
+          <legend className="text-lead font-semibold">{T.passeio}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="data" rotulo={T.data} erro={erros.data} className="sm:col-span-2">
               <input
@@ -427,7 +427,7 @@ export function FormularioCheckout({
 
         {/* DADOS */}
         <fieldset className="min-w-0">
-          <legend className="text-lead font-bold">{T.seusDados}</legend>
+          <legend className="text-lead font-semibold">{T.seusDados}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="nome" rotulo={T.nome} erro={erros.nome} className="sm:col-span-2">
               <input
@@ -544,7 +544,7 @@ export function FormularioCheckout({
 
         {/* HOSPEDAGEM */}
         <fieldset className="min-w-0">
-          <legend className="text-lead font-bold">{T.hospedagem}</legend>
+          <legend className="text-lead font-semibold">{T.hospedagem}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="cidadeHosp" rotulo={T.cidadeHospedagem} erro={erros.cidadeHosp}>
               <select
@@ -597,7 +597,7 @@ export function FormularioCheckout({
 
         {/* PAGAMENTO */}
         <fieldset className="min-w-0">
-          <legend className="text-lead font-bold">{T.pagamento}</legend>
+          <legend className="text-lead font-semibold">{T.pagamento}</legend>
           {pagamentoOnline ? (
             <>
               <div className="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label={T.pagamento}>
@@ -743,7 +743,7 @@ export function FormularioCheckout({
               )}
             </>
           ) : (
-            <div className="tom-sol mt-5 px-5 py-5">
+            <div className="tom-superficie mt-5 px-5 py-5">
               <p className="font-bold">{T.indisponivelTitulo}</p>
               <p className="mt-2">{T.indisponivelTexto}</p>
             </div>
@@ -784,10 +784,10 @@ export function FormularioCheckout({
       {/* RESUMO EM FORMA DE BILHETE */}
       <aside className="lg:col-span-5">
         <div className="lg:sticky lg:top-6">
-          <div className="tom-mar">
+          <div className="tom-campo">
             <div className="px-6 pb-6 pt-6">
-              <h2 className="text-lead font-bold">{T.resumo}</h2>
-              <p className="mt-4 text-lead font-bold leading-tight text-sol">{passeio.nome}</p>
+              <h2 className="text-lead font-semibold">{T.resumo}</h2>
+              <p className="mt-4 text-lead font-semibold leading-tight">{passeio.nome}</p>
               <p className="mt-1 text-small text-(--tinta-suave)">
                 {passeio.cidade} · {mostrarOpcoes ? opcao.nome : passeio.duracao}
               </p>
@@ -808,9 +808,9 @@ export function FormularioCheckout({
                 ))}
               </dl>
             </div>
-            <div className="flex items-center justify-between gap-4 bg-mar-2 px-6 py-5">
+            <div className="flex items-center justify-between gap-4 bg-superficie px-6 py-5">
               <span className="font-semibold">{T.total}</span>
-              <span className="numeros text-head font-bold leading-none text-sol" aria-live="polite">
+              <span className="numeros titulo leading-none" aria-live="polite">
                 {brl(orc.totalCentavos)}
               </span>
             </div>

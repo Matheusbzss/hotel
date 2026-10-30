@@ -22,7 +22,7 @@ export function CardPasseio({ passeio: p, idioma, d }: { passeio: Passeio; idiom
         <p className="text-small text-(--tinta-suave)">
           {nomeCidade(p, idioma)} · {p.duracao[idioma]}
         </p>
-        <h3 className="mt-1 text-lead font-bold leading-tight underline-offset-[0.2em] group-hover:underline">{p.nome[idioma]}</h3>
+        <h3 className="mt-1 text-lead font-semibold leading-tight underline-offset-[0.2em] group-hover:underline">{p.nome[idioma]}</h3>
         <p className="mt-2">
           {preco.temOpcoes && <span className="text-small">{d.comum.aPartirDe} </span>}
           <strong className="numeros text-lead">{formatarPreco(preco.tabela.precoCentavos, idioma)}</strong>{' '}

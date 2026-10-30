@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
 function Lista({ titulo, id, itens, marca }: { titulo: string; id: string; itens: string[]; marca: 'sim' | 'nao' }) {
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="text-lead font-bold text-sol">
+      <h2 id={id} className="text-lead font-semibold">
         {titulo}
       </h2>
       <ul className="mt-4 space-y-2.5">
@@ -98,38 +98,51 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   };
 
   return (
-    <main id="conteudo" className="tom-mar">
+    <main id="conteudo" className="tom-fundo">
       {/* barra fixa no celular com o preço e o atalho para a reserva */}
       <BarraReservaMovel rotuloPreco={d.comum.aPartirDe} preco={formatarPreco(aPartir, locale)} rotuloBotao={d.passeio.reservar} />
 
       <div className="moldura pb-24 pt-4 md:pt-8">
-        <div className="chegar">
-          <h1 className="max-w-[22ch] text-head font-bold text-sol">{p.nome[locale]}</h1>
-        </div>
-
-        <div className="mt-8">
-          {p.fotos.length > 0 ? (
-            <GaleriaPasseio
-              fotos={p.fotos}
-              alt={p.nome[locale]}
-              textos={{
-                galeria: d.passeio.galeria,
-                verFotos: d.passeio.verFotos,
-                anterior: d.passeio.fotoAnterior,
-                proxima: d.passeio.proximaFoto,
-                fechar: d.comum.fechar,
-                fotoDe: d.passeio.fotoDe,
-              }}
-            />
-          ) : (
-            <MidiaPasseio
-              passeio={p}
-              idioma={locale}
-              sizes="(min-width: 768px) 70vw, 100vw"
-              prioridade
-              className="-mx-(--margem) aspect-[4/5] md:mx-0 md:aspect-[16/7]"
-            />
-          )}
+        {/* no celular as fotos vêm primeiro, como nos apps de reserva; no computador, o título */}
+        <div className="flex flex-col">
+          <div className="-mt-4 md:mt-8">
+            {p.fotos.length > 0 ? (
+              <GaleriaPasseio
+                fotos={p.fotos}
+                alt={p.nome[locale]}
+                textos={{
+                  galeria: d.passeio.galeria,
+                  verFotos: d.passeio.verFotos,
+                  anterior: d.passeio.fotoAnterior,
+                  proxima: d.passeio.proximaFoto,
+                  fechar: d.comum.fechar,
+                  fotoDe: d.passeio.fotoDe,
+                }}
+              />
+            ) : (
+              <MidiaPasseio
+                passeio={p}
+                idioma={locale}
+                sizes="(min-width: 768px) 70vw, 100vw"
+                prioridade
+                className="-mx-(--margem) aspect-[4/5] md:mx-0 md:aspect-[16/7]"
+              />
+            )}
+          </div>
+          <div className="chegar mt-6 md:order-first md:mt-0 lg:flex lg:items-end lg:justify-between lg:gap-10">
+            <h1 className="titulo max-w-[22ch]">{p.nome[locale]}</h1>
+            {/* no computador, a reserva já aparece na primeira tela; no celular, a barra de baixo faz isso */}
+            <div className="hidden shrink-0 items-center gap-6 md:mt-5 md:flex lg:mt-0">
+              <p className="text-right leading-tight">
+                <span className="block text-small text-(--tinta-suave)">{d.comum.aPartirDe}</span>
+                <span className="numeros text-lead font-semibold">{formatarPreco(aPartir, locale)}</span>{' '}
+                <span className="text-small text-(--tinta-suave)">{rotuloUnidade(p, d)}</span>
+              </p>
+              <a href="#reservar" className="botao">
+                {d.passeio.reservar}
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="mt-10 grid gap-12 lg:grid-cols-12 lg:gap-16">
@@ -167,7 +180,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
             </dl>
 
             <section className="entrar mt-14" aria-labelledby="sobre">
-              <h2 id="sobre" className="text-lead font-bold text-sol">
+              <h2 id="sobre" className="text-lead font-semibold">
                 {d.passeio.sobre}
               </h2>
               <div className="texto-corrido mt-4 max-w-[62ch]">
@@ -183,13 +196,13 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
             </div>
 
             <section className="entrar mt-14" aria-labelledby="roteiro">
-              <h2 id="roteiro" className="text-lead font-bold text-sol">
+              <h2 id="roteiro" className="text-lead font-semibold">
                 {d.passeio.roteiro}
               </h2>
               <ol className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2">
                 {p.roteiro[locale].map((parada, i) => (
                   <li key={parada} className="flex gap-4">
-                    <span className="numeros w-6 shrink-0 font-bold text-sol" aria-hidden="true">
+                    <span className="numeros w-6 shrink-0 font-semibold text-(--color-acao)" aria-hidden="true">
                       {i + 1}
                     </span>
                     <span>{parada}</span>
@@ -199,12 +212,12 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
             </section>
 
             <section className="entrar mt-14" aria-labelledby="levar">
-              <h2 id="levar" className="text-lead font-bold text-sol">
+              <h2 id="levar" className="text-lead font-semibold">
                 {d.passeio.levar}
               </h2>
               <ul className="mt-4 flex flex-wrap gap-1.5">
                 {p.levar[locale].map((i) => (
-                  <li key={i} className="bg-mar-2 px-3.5 py-2">
+                  <li key={i} className="rounded-full bg-superficie px-4 py-2">
                     {i}
                   </li>
                 ))}
@@ -249,7 +262,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
 
         {outros.length > 0 && (
           <section id="outros-passeios" className="mt-24 md:mt-40" aria-labelledby="outros">
-            <h2 id="outros" className="titulo entrar font-bold text-sol">
+            <h2 id="outros" className="titulo entrar">
               <span>{fmt(d.passeio.outros, { cidade: nomeCidade(p, locale) })}</span>
             </h2>
             <ul className="mt-10 grid gap-x-6 gap-y-8 sm:grid-cols-2 sm:gap-y-12 lg:grid-cols-4">

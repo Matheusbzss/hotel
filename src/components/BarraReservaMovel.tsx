@@ -26,14 +26,14 @@ export function BarraReservaMovel({ rotuloPreco, preco, rotuloBotao }: { rotuloP
 
   return (
     <div
-      className={`tom-sol fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 lg:hidden ${oculta ? 'translate-y-full' : ''}`}
+      className={`tom-campo fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 lg:hidden ${oculta ? 'translate-y-full' : ''}`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-hidden={oculta}
     >
       <div className="moldura flex h-[76px] items-center justify-between gap-4">
         <p className="leading-tight">
           <span className="block text-small">{rotuloPreco}</span>
-          <span className="numeros block text-lead font-bold">{preco}</span>
+          <span className="numeros block text-lead font-semibold">{preco}</span>
         </p>
         <a href="#reservar" className="botao" tabIndex={oculta ? -1 : undefined}>
           {rotuloBotao}

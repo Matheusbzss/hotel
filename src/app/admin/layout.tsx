@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { TikTok_Sans } from 'next/font/google';
+import { Archivo } from 'next/font/google';
 import { EMPRESA } from '@/config/empresa';
 import '../globals.css';
 
-const tiktok = TikTok_Sans({ subsets: ['latin', 'latin-ext'], axes: ['wdth', 'opsz'], variable: '--font-tiktok', display: 'swap' });
+const archivo = Archivo({ subsets: ['latin', 'latin-ext'], variable: '--font-archivo', display: 'swap' });
 
 export const metadata: Metadata = {
   title: `Admin — ${EMPRESA.marca}`,
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 export default function LayoutAdmin({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={tiktok.variable}>
-      <body className="tom-claro min-h-dvh">{children}</body>
+    <html lang="pt-BR" className={archivo.variable}>
+      <body className="tom-fundo min-h-dvh">{children}</body>
     </html>
   );
 }

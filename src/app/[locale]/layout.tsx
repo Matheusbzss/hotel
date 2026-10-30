@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { TikTok_Sans } from 'next/font/google';
+import { Archivo } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { Cabecalho } from '@/components/Cabecalho';
 import { GrupoProvider } from '@/components/grupo/GrupoContexto';
@@ -12,8 +12,8 @@ import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
 import { urlDoSite } from '@/lib/site';
 import '../globals.css';
 
-/** Uma família só: larga e pesada nos títulos, largura normal no texto. */
-const tiktok = TikTok_Sans({ subsets: ['latin', 'latin-ext'], axes: ['wdth', 'opsz'], variable: '--font-tiktok', display: 'swap' });
+/** Uma família só: Archivo, em peso normal nos títulos e no texto. */
+const archivo = Archivo({ subsets: ['latin', 'latin-ext'], variable: '--font-archivo', display: 'swap' });
 
 export const dynamicParams = false;
 
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Pr
 }
 
 export const viewport: Viewport = {
-  themeColor: '#082f3f',
+  themeColor: '#eef2f1',
   width: 'device-width',
   initialScale: 1,
 };
@@ -65,11 +65,11 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
   };
 
   return (
-    <html lang={HREFLANG[locale]} className={tiktok.variable}>
+    <html lang={HREFLANG[locale]} className={archivo.variable}>
       <body className="min-h-dvh">
         <a
           href="#conteudo"
-          className="sr-only z-50 bg-sol px-4 py-3 font-semibold text-mar focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          className="sr-only z-50 rounded-full bg-(--color-acao) px-5 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
         >
           {d.nav.pularConteudo}
         </a>

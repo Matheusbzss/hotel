@@ -34,5 +34,12 @@ export function Revelar() {
     alvos.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [caminho]);
+
+  // a troca de fotos do topo para quando a aba fica escondida
+  useEffect(() => {
+    const marcar = () => document.documentElement.toggleAttribute('data-oculta', document.hidden);
+    document.addEventListener('visibilitychange', marcar);
+    return () => document.removeEventListener('visibilitychange', marcar);
+  }, []);
   return null;
 }

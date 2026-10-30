@@ -22,10 +22,10 @@ const PALAVRA: Record<string, Record<Idioma, string>> = {
 /** Cores da capa por cidade: o mar de Búzios, a água de Arraial, o sol de Cabo Frio, a areia do Rio.
  * A palavra fica sempre sobre a faixa escura do mar, em amarelo. */
 const CORES: Record<Passeio['cidade'], { fundo: string; sol: string; onda1: string; onda2: string; tinta: string }> = {
-  buzios: { fundo: '#134960', sol: '#ffd54a', onda1: '#0d3a4d', onda2: '#082f3f', tinta: '#ffe07a' },
-  'arraial-do-cabo': { fundo: '#26b3c1', sol: '#ffd54a', onda1: '#1b97a4', onda2: '#0f6570', tinta: '#082f3f' },
-  'cabo-frio': { fundo: '#ffd54a', sol: '#ffffff', onda1: '#26b3c1', onda2: '#134960', tinta: '#082f3f' },
-  'rio-de-janeiro': { fundo: '#e9eef0', sol: '#ffd54a', onda1: '#26b3c1', onda2: '#134960', tinta: '#082f3f' },
+  buzios: { fundo: '#0b2530', sol: '#ffc83d', onda1: '#0e5f68', onda2: '#0a6b74', tinta: '#ffffff' },
+  'arraial-do-cabo': { fundo: '#14b8c6', sol: '#ffc83d', onda1: '#0e86ae', onda2: '#0a5c8a', tinta: '#0b2530' },
+  'cabo-frio': { fundo: '#ff6b57', sol: '#ffc83d', onda1: '#14b8c6', onda2: '#0a5c8a', tinta: '#0b2530' },
+  'rio-de-janeiro': { fundo: '#e1e8e6', sol: '#ffc83d', onda1: '#14b8c6', onda2: '#0b2530', tinta: '#0b2530' },
 };
 
 function palavraDaCapa(p: Passeio, idioma: Idioma): string {
@@ -48,7 +48,7 @@ export function CapaPasseio({ passeio, idioma, className = '' }: { passeio: Pass
       <text x="24" y="52" fill={c.tinta} style={{ fontSize: 22, fontWeight: 600 }}>
         {nomeCidade(passeio, idioma)}
       </text>
-      <text x="20" y="470" fill="#ffe07a" style={{ fontSize: tamanho, fontWeight: 800, fontStretch: '150%', letterSpacing: '-0.01em' }}>
+      <text x="20" y="470" fill="#ffffff" style={{ fontSize: tamanho, fontWeight: 600, letterSpacing: '-0.02em' }}>
         {palavra}
       </text>
     </svg>
@@ -73,7 +73,7 @@ export function MidiaPasseio({
 }) {
   const foto = passeio.fotos[indice];
   return (
-    <div className={`zoom relative overflow-hidden bg-mar-2 ${className}`}>
+    <div className={`zoom relative overflow-hidden bg-superficie ${className}`}>
       {foto ? (
         <Image src={foto} alt={passeio.nome[idioma]} fill sizes={sizes} priority={prioridade} quality={80} className="object-cover" />
       ) : (

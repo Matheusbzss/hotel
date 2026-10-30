@@ -117,14 +117,14 @@ export function StatusReserva({
   const wa = (m: string) => `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(m)}`;
 
   const Voucher = (
-    <div className="tom-sol">
+    <div className="tom-papel">
       <div className="px-6 pb-6 pt-6 md:px-8">
         <p className="text-small font-semibold">{r.status === 'pago' ? textos.voucher : textos.codigoReserva}</p>
-        <p className="largo numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
+        <p className="display numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
         <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <dt className="text-small">{textos.passeio}</dt>
-            <dd className="text-lead font-bold leading-tight">{nomePasseio}</dd>
+            <dd className="text-lead font-semibold leading-tight">{nomePasseio}</dd>
           </div>
           <div>
             <dt className="text-small">{textos.data}</dt>
@@ -146,9 +146,9 @@ export function StatusReserva({
           </div>
         </dl>
       </div>
-      <div className="tom-mar flex items-center justify-between gap-4 px-6 py-5 md:px-8">
+      <div className="tom-campo flex items-center justify-between gap-4 px-6 py-5 md:px-8">
         <span className="font-semibold">{statusTextos[r.status]}</span>
-        <span className="numeros text-lead font-bold text-sol">{brl}</span>
+        <span className="numeros text-lead font-semibold">{brl}</span>
       </div>
     </div>
   );
@@ -157,7 +157,7 @@ export function StatusReserva({
     return (
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
-          <h1 className="largo text-head text-sol">{textos.confirmadoTitulo}</h1>
+          <h1 className="display text-head">{textos.confirmadoTitulo}</h1>
           <p className="mt-4 max-w-[46ch] text-lead">{textos.confirmadoTexto}</p>
           <div className="mt-8">{Voucher}</div>
         </div>
@@ -169,7 +169,7 @@ export function StatusReserva({
             <IconeWhatsApp className="size-5" />
             {textos.enviarWhatsapp}
           </a>
-          <div className="mt-6 bg-mar-2 px-5 py-5">
+          <div className="mt-6 bg-superficie px-5 py-5">
             <h2 className="font-bold">{textos.proximos}</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>{textos.proximo1}</li>
@@ -186,7 +186,7 @@ export function StatusReserva({
     return (
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-6">
-          <h1 className="largo text-head text-sol">{textos.aguardandoPix}</h1>
+          <h1 className="display text-head">{textos.aguardandoPix}</h1>
           <p className="mt-4 max-w-[44ch] text-lead">{textos.pixInstrucoes}</p>
           <div className="mt-8 flex flex-col gap-6">
             <div className="order-2 lg:order-1">
@@ -230,7 +230,7 @@ export function StatusReserva({
               </button>
             </div>
           </div>
-          <p className="mt-6 bg-mar-2 px-5 py-4">{textos.atualizaSozinho}</p>
+          <p className="mt-6 bg-superficie px-5 py-4">{textos.atualizaSozinho}</p>
         </div>
         <div className="lg:col-span-6">{Voucher}</div>
       </div>
@@ -250,7 +250,7 @@ export function StatusReserva({
   return (
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-6">
-        <h1 className="largo text-head text-sol">{m.titulo}</h1>
+        <h1 className="display text-head">{m.titulo}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{m.texto}</p>
         <div className="mt-8 space-y-3">
           {r.status === 'aguardando_whatsapp' ? (

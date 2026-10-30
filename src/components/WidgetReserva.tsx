@@ -108,8 +108,8 @@ export function WidgetReserva({
 
   return (
     <div id="reservar" className="scroll-mt-6">
-      <div className="tom-sol p-5 sm:p-7">
-        <h2 className="text-lead font-bold">{T.titulo}</h2>
+      <div className="tom-papel p-5 sm:p-7">
+        <h2 className="text-lead font-semibold">{T.titulo}</h2>
         <p className="mt-1">
           {mostrarOpcoes && `${T.aPartirDe} `}
           <strong className="numeros text-lead">{brl(Math.min(...opcoes.map((o) => o.tabela.precoCentavos)))}</strong> {T.rotuloUnidade}
@@ -179,7 +179,7 @@ export function WidgetReserva({
 
         <div className="mt-6 flex items-baseline justify-between gap-4 pt-1">
           <span className="font-semibold">{T.total}</span>
-          <span className="numeros text-head font-bold leading-none" aria-live="polite">
+          <span className="numeros text-head font-semibold leading-none" aria-live="polite">
             {brl(orc.totalCentavos)}
           </span>
         </div>

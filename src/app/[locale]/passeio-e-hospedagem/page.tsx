@@ -29,9 +29,9 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
   const t = d.hospedagemPagina;
 
   return (
-    <main id="conteudo" className="tom-mar pb-24 md:pb-40">
+    <main id="conteudo" className="tom-fundo pb-24 md:pb-40">
       <div className="moldura grid gap-6 pt-8 md:grid-cols-12 md:pt-14">
-        <h1 className="chegar largo text-head text-sol md:col-span-7">
+        <h1 className="chegar display text-head md:col-span-7">
           <span>{t.titulo}</span>
         </h1>
         <p className="max-w-[46ch] self-end text-lead md:col-span-5">{t.texto}</p>
@@ -39,7 +39,7 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
 
       <div className="mt-14 md:mt-24">
         {PACOTES.map((pacote, i) => (
-          <article key={pacote.slug} className={`grid md:grid-cols-12 ${i % 2 ? 'bg-mar-2' : ''}`}>
+          <article key={pacote.slug} className={`grid md:grid-cols-12 ${i % 2 ? 'bg-superficie' : ''}`}>
             <div className={`relative aspect-[4/3] md:col-span-6 md:aspect-auto md:min-h-[34rem] ${i % 2 ? 'md:order-2' : ''}`}>
               {pacote.foto && (
                 <Image src={pacote.foto} alt={pacote.nome[locale]} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
@@ -50,7 +50,7 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
                 <p className="text-small text-(--tinta-suave)">
                   {CIDADES[pacote.cidadeBase].nome[locale]} · {pacote.noites[locale]}
                 </p>
-                <h2 className="mt-2 text-head font-bold text-sol">{pacote.nome[locale]}</h2>
+                <h2 className="mt-2 titulo">{pacote.nome[locale]}</h2>
                 <p className="mt-5 max-w-[48ch] text-lead">{pacote.descricao[locale]}</p>
                 <h3 className="mt-8 font-semibold">{t.incluiPasseios}</h3>
                 <ul className="mt-3 flex flex-wrap gap-1.5">
@@ -84,8 +84,8 @@ export default async function PasseioEHospedagem({ params }: PageProps<'/[locale
       </div>
 
       <section className="moldura mt-24 md:mt-40" aria-labelledby="sob-medida">
-        <div className="tom-sol grid gap-6 px-6 py-12 md:grid-cols-12 md:px-12 md:py-16">
-          <h2 id="sob-medida" className="largo text-head md:col-span-7">
+        <div className="tom-campo grid gap-6 px-6 py-12 md:grid-cols-12 md:px-12 md:py-16">
+          <h2 id="sob-medida" className="display text-head md:col-span-7">
             {t.sobMedidaTitulo}
           </h2>
           <div className="md:col-span-5">

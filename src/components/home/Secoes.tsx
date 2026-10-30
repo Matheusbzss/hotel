@@ -1,154 +1,223 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { EMPRESA } from '@/config/empresa';
 import type { Dicionario } from '@/i18n';
 import { linkEmail } from '@/lib/email';
-import { IconeEmail } from '../IconeEmail';
 
-const FOTOS_VERBOS = ['/fotos/arraial/mergulho.jpg', '/fotos/buzios/escuna-no-pier.jpg', '/fotos/buzios/escuna-proa.jpg'];
+type Legenda = keyof Dicionario['home']['legendas'];
 
-/** Como funciona: um verbo por tela, preso no meio enquanto a foto passa por trás. */
-export function Verbos({ d }: { d: Dicionario }) {
+function Foto({
+  src,
+  legenda,
+  d,
+  sizes,
+  posicao,
+  prioridade,
+}: {
+  src: string;
+  legenda: Legenda;
+  d: Dicionario;
+  sizes: string;
+  posicao?: string;
+  prioridade?: boolean;
+}) {
   return (
-    <div>
-      {d.home.verbos.map((v, i) => (
-        <section key={v.verbo} className="relative isolate flex h-[100svh] flex-col bg-mar-3" aria-labelledby={`verbo-${i}`}>
-          <Image src={FOTOS_VERBOS[i]} alt="" fill sizes="100vw" className="-z-10 object-cover brightness-[0.55]" />
-          {/* o verbo fica preso no meio da tela, mas só até o texto do rodapé do painel */}
-          <div className="flex-1 px-(--margem) pt-[12svh]">
-            <h2 id={`verbo-${i}`} className="largo sticky top-[calc(50svh-0.46em)] text-center text-display text-sol">
-              {v.verbo}
-            </h2>
-          </div>
-          <div className="px-(--margem) pb-(--margem) pt-6">
-            <p className="tom-mar max-w-[34rem] p-5 text-lead">{v.texto}</p>
-          </div>
-        </section>
-      ))}
-    </div>
+    <Image
+      src={src}
+      alt={d.home.legendas[legenda]}
+      fill
+      sizes={sizes}
+      quality={78}
+      priority={prioridade}
+      className="object-cover"
+      style={posicao ? { objectPosition: posicao } : undefined}
+    />
   );
 }
 
-const FOTOS_GARANTIAS = [
-  '/fotos/buzios/escuna-mastros.jpg',
-  '/fotos/buzios/vista-da-escuna.jpg',
-  '/fotos/arraial/barco-gruta.jpg',
-  '/fotos/buzios/buggy-orla.jpg',
-];
-const TONS = ['tom-turquesa', 'tom-claro', 'tom-sol', 'tom-papel'];
-
-/** Garantias em folhas de cor que se empilham ao rolar, deixando à mostra a aba de cada uma. */
-export function Garantias({ d }: { d: Dicionario }) {
+/** Como funciona: três fotos em diagonal, cada etapa ao lado da sua. No celular e no tablet, uma embaixo da outra. */
+export function ComoFunciona({ d }: { d: Dicionario }) {
+  const H = d.home;
+  const [e1, e2, e3] = H.etapas;
   return (
-    <section
-      className="moldura py-24 md:py-40"
-      aria-labelledby="garantias-titulo"
-      style={{ ['--aba' as string]: 'clamp(4rem, 3rem + 2.8vw, 6rem)' }}
-    >
-      <h2 id="garantias-titulo" className="largo titulo entrar text-sol">
-        <span>{d.home.garantiasTitulo}</span>
+    <section className="moldura entrar grid grid-cols-1 py-24 lg:grid-cols-12 lg:gap-x-8 lg:py-40" aria-labelledby="como-titulo">
+      <h2 id="como-titulo" className="titulo lg:col-span-4 lg:col-start-9 lg:row-start-1">
+        {H.comoTitulo}
       </h2>
-      <div className="mt-12">
-        {d.home.garantias.map((g, i) => (
-          <article
-            key={g.titulo}
-            className={`${TONS[i % TONS.length]} sticky grid min-h-[70svh] grid-cols-[minmax(0,1fr)] md:h-[72svh] md:grid-cols-12 md:grid-rows-[var(--aba)_minmax(0,1fr)]`}
-            style={{ top: `calc(${i} * var(--aba))` }}
-          >
-            <h3 className="flex h-(--aba) items-center px-5 text-lead font-bold md:col-span-12 md:px-8 md:text-head">{g.titulo}</h3>
-            <div className="relative aspect-[4/3] md:order-last md:col-span-6 md:aspect-auto md:h-full">
-              <Image src={FOTOS_GARANTIAS[i]} alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-            </div>
-            <p className="max-w-[40ch] self-end p-5 md:col-span-6 md:p-8">{g.texto}</p>
-          </article>
-        ))}
+
+      <figure className="relative mt-10 aspect-[3/4] md:w-[62%] lg:col-span-4 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:w-auto">
+        <Foto
+          src="/fotos/buzios/buggy-orla.jpg"
+          legenda="buggyOrla"
+          d={d}
+          sizes="(min-width: 1024px) 33vw, (min-width: 768px) 62vw, 100vw"
+        />
+      </figure>
+      <p className="mt-5 max-w-[36ch] lg:col-span-3 lg:col-start-5 lg:row-start-1 lg:mt-0">
+        <strong className="font-semibold">{e1.inicio}</strong> {e1.texto}
+      </p>
+
+      <figure className="relative ml-auto mt-14 aspect-square w-[62%] md:w-[44%] lg:col-span-3 lg:col-start-6 lg:row-start-2 lg:ml-0 lg:mt-14 lg:w-auto">
+        <Foto
+          src="/fotos/buzios/escuna-proa.jpg"
+          legenda="escunaProa"
+          d={d}
+          sizes="(min-width: 1024px) 25vw, (min-width: 768px) 44vw, 62vw"
+        />
+      </figure>
+      <p className="ml-auto mt-5 w-[62%] max-w-[36ch] md:w-[44%] lg:col-span-3 lg:col-start-9 lg:row-start-2 lg:ml-0 lg:mt-14 lg:w-auto">
+        <strong className="font-semibold">{e2.inicio}</strong> {e2.texto}
+      </p>
+
+      <figure className="relative mt-14 aspect-[16/10] w-[78%] md:w-[66%] lg:col-span-5 lg:col-start-8 lg:row-start-3 lg:mt-24 lg:w-auto">
+        <Foto
+          src="/fotos/arraial/barco-gruta.jpg"
+          legenda="barcoGruta"
+          d={d}
+          sizes="(min-width: 1024px) 42vw, (min-width: 768px) 66vw, 78vw"
+          posicao="50% 78%"
+        />
+      </figure>
+      <p className="mt-5 w-[78%] max-w-[36ch] md:w-[66%] lg:col-span-4 lg:col-start-3 lg:row-start-3 lg:mt-24 lg:w-auto">
+        <strong className="font-semibold">{e3.inicio}</strong> {e3.texto}
+      </p>
+    </section>
+  );
+}
+
+/** Sem letra miúda: a política de cancelamento numa tabela sem linhas, uma situação por fila. */
+export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
+  const H = d.home;
+  const [se, recebe, prazo] = H.garantiasColunas;
+  return (
+    <section className="tom-superficie py-24 md:py-40" aria-labelledby="garantias-titulo">
+      <div className="moldura entrar">
+        <h2 id="garantias-titulo" className="titulo md:text-[clamp(3rem,5vw,4.5rem)]">
+          <span className="block">{H.garantiasTitulo[0]}</span>
+          <span className="block md:pl-[16.6%]">{H.garantiasTitulo[1]}</span>
+        </h2>
+        <table className="mt-12 w-full border-collapse text-left md:mt-[72px]">
+          <thead className="sr-only md:not-sr-only">
+            <tr className="text-small text-(--tinta-suave)">
+              <th scope="col" className="pb-3 pr-6 font-normal md:w-[42%]">
+                {se}
+              </th>
+              <th scope="col" className="pb-3 pr-6 font-normal">
+                {recebe}
+              </th>
+              <th scope="col" className="pb-3 text-right font-normal">
+                {prazo}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {H.garantias.map((g, i) => (
+              <tr key={g.se} className={`block px-4 py-4 md:table-row md:px-0 md:py-0 ${i % 2 === 0 ? 'bg-(--color-fundo)' : ''}`}>
+                <th scope="row" className="block font-semibold md:table-cell md:py-4 md:pl-4 md:pr-6 md:font-normal">
+                  {g.se}
+                </th>
+                <td className="block text-(--tinta-suave) md:table-cell md:py-4 md:pr-6 md:text-(--tinta)">
+                  {g.recebe}
+                  {g.prazo !== '—' && <span className="md:hidden"> · {g.prazo}</span>}
+                </td>
+                <td className="numeros hidden text-right md:table-cell md:py-4 md:pr-4">{g.prazo}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-8 max-w-[60ch]">
+          {H.garantiasNota}{' '}
+          <Link href={hrefPolitica} className="link font-semibold">
+            {H.garantiasLink}
+          </Link>
+        </p>
       </div>
     </section>
   );
 }
 
-/** Passeio + hospedagem: a última foto grande, com o texto na metade calma. */
-export function ChamadaHospedagem({ d, href }: { d: Dicionario; href: string }) {
+/** Pacotes: três fotos de ponta a ponta e, embaixo, a faixa do mar fundo com o convite. */
+export function ChamadaPacotes({ d, href }: { d: Dicionario; href: string }) {
+  const H = d.home;
   return (
-    <section className="relative isolate md:h-[90svh]" aria-labelledby="hospedagem-titulo">
-      <div className="relative h-[70svh] md:absolute md:inset-0 md:h-auto">
-        <Image
-          src="/fotos/arraial/barco-toboga.jpg"
-          alt=""
-          fill
-          sizes="100vw"
-          className="-z-10 object-cover object-left brightness-[0.7]"
-        />
+    <section aria-labelledby="pacotes-titulo">
+      <div className="grid grid-cols-2 md:grid-cols-3">
+        <figure className="relative col-span-2 aspect-[4/3] md:col-span-1 md:aspect-auto md:h-[40svh]">
+          <Foto src="/fotos/buzios/buggy-comboio.jpg" legenda="buggyComboio" d={d} sizes="(min-width: 768px) 33vw, 100vw" />
+        </figure>
+        <figure className="relative aspect-[4/3] md:aspect-auto md:h-[40svh]">
+          <Foto src="/fotos/arraial/mergulho.jpg" legenda="mergulho" d={d} sizes="(min-width: 768px) 33vw, 50vw" />
+        </figure>
+        <figure className="relative aspect-[4/3] md:aspect-auto md:h-[40svh]">
+          <Foto src="/fotos/buzios/escuna-mastros.jpg" legenda="escunaMastros" d={d} sizes="(min-width: 768px) 33vw, 50vw" />
+        </figure>
       </div>
-      <div className="moldura md:grid md:h-full md:grid-cols-12 md:items-end md:pb-20">
-        <div className="entrar py-10 md:col-span-5 md:col-start-8 md:py-0">
-          <h2 id="hospedagem-titulo" className="titulo font-bold text-sol">
-            {d.home.hospedagemTitulo}
+      <div className="tom-campo">
+        <div className="moldura entrar grid gap-6 py-16 md:min-h-[44svh] md:grid-cols-12 md:content-center md:py-20">
+          <h2 id="pacotes-titulo" className="titulo md:col-span-7">
+            {H.pacotesTitulo}
           </h2>
-          <p className="mt-5 max-w-[42ch] text-lead">{d.home.hospedagemTexto}</p>
-          <Link href={href} className="botao mt-8 w-full sm:w-auto">
-            {d.home.hospedagemBotao}
-          </Link>
+          <p className="text-lead md:col-span-7">
+            <Link href={href} className="underline decoration-4 underline-offset-[6px] hover:decoration-(--color-campo-suave)">
+              {H.pacotesLink}
+            </Link>
+            {H.pacotesTexto}
+          </p>
+          <p className="text-(--tinta-suave) md:col-span-7">
+            {H.pacotesNotas[0]}
+            <br />
+            {H.pacotesNotas[1]}
+          </p>
         </div>
       </div>
     </section>
   );
 }
 
-/** Perguntas e respostas como texto corrido em duas colunas. */
-export function Perguntas({ d }: { d: Dicionario }) {
-  return (
-    <section className="moldura grid gap-8 py-24 md:grid-cols-12 md:py-40" aria-labelledby="faq-titulo">
-      <h2 id="faq-titulo" className="text-head font-bold text-sol md:col-span-4">
-        {d.home.faqTitulo}
-      </h2>
-      <div className="gap-14 md:col-span-8 md:col-start-5 lg:columns-2">
-        {d.faq.map((f) => (
-          <p key={f.p} className="mb-5 break-inside-avoid">
-            <strong className="font-semibold text-sol">{f.p}</strong> {f.r}
-          </p>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/** Contato: um cartão sólido sobre a foto do mar. */
-export function CartaoContato({ d }: { d: Dicionario }) {
+/** Antes de reservar: os fatos práticos e as perguntas, ao lado de uma foto alta. */
+export function Perguntas({ d, hrefPasseios }: { d: Dicionario; hrefPasseios: string }) {
   const H = d.home;
   return (
-    <section className="relative isolate md:h-[100svh]" aria-labelledby="contato-titulo">
-      <div className="relative h-[70svh] md:absolute md:inset-0 md:h-auto">
-        <Image src="/fotos/buzios/escuna-no-mar.jpg" alt="" fill sizes="100vw" className="-z-10 object-cover" />
-      </div>
-      <div className="moldura relative -mt-20 pb-16 md:mt-0 md:flex md:h-full md:justify-end md:pt-16">
-        <div className="tom-claro w-full p-7 md:sticky md:top-16 md:h-fit md:w-[24rem]">
-          <h2 id="contato-titulo" className="text-lead font-bold">
-            {H.contatoTitulo}
+    <section className="tom-superficie pb-24 md:pb-32" aria-labelledby="faq-titulo">
+      <div className="moldura grid gap-12 md:grid-cols-12 md:gap-x-8">
+        <div className="relative -mx-(--margem) md:col-span-6 md:col-start-7 md:row-start-1 md:mx-0 md:-mt-16 md:mb-20">
+          <figure className="relative aspect-[4/5] md:aspect-[3/4]">
+            <Foto src="/fotos/buzios/vista-da-escuna.jpg" legenda="vistaDaEscuna" d={d} sizes="(min-width: 768px) 50vw, 100vw" />
+          </figure>
+          <figure className="absolute -bottom-10 right-(--margem) aspect-square w-[38%] md:-left-10 md:right-auto md:w-1/3">
+            <Foto src="/fotos/buzios/buggy-mirante.jpg" legenda="buggyMirante" d={d} sizes="(min-width: 768px) 17vw, 38vw" />
+          </figure>
+        </div>
+
+        <div className="entrar pt-14 md:col-span-5 md:row-start-1 md:pt-24">
+          <h2 id="faq-titulo" className="titulo">
+            {H.faqTitulo}
           </h2>
-          <p className="mt-3">
-            {H.contatoBase}
-            <br />
-            {H.contatoOnline}
-          </p>
-          <dl className="mt-5 space-y-2">
-            <div className="flex justify-between gap-4">
-              <dt>{d.contato.email}</dt>
-              <dd className="min-w-0 text-right font-semibold">
-                <a href={`mailto:${EMPRESA.email}`} className="link break-all">
-                  {EMPRESA.email}
-                </a>
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt>{d.contato.idiomas}</dt>
-              <dd className="text-right font-semibold">{H.contatoIdiomas}</dd>
-            </div>
-          </dl>
-          <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="botao mt-7 w-full" data-evento="Contact">
-            <IconeEmail className="size-5" />
-            {H.contatoBotao}
-          </a>
+          <ul className="mt-6 space-y-1 text-lead">
+            {H.faqFatos.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <div className="mt-10 space-y-7">
+            {d.faq.map((f) => (
+              <details key={f.p} className="group">
+                <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-4 text-lead font-semibold [&::-webkit-details-marker]:hidden">
+                  {f.p}
+                  <svg viewBox="0 0 24 24" className="mt-1.5 size-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </summary>
+                <p className="mt-3 text-(--tinta-suave)">{f.r}</p>
+              </details>
+            ))}
+          </div>
+          <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
+            <Link href={hrefPasseios} className="botao w-full sm:w-auto">
+              {H.faqBotao}
+            </Link>
+            <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="link font-semibold" data-evento="Contact">
+              {H.faqLink}
+            </a>
+          </div>
         </div>
       </div>
     </section>

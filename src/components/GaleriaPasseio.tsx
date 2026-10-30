@@ -71,7 +71,7 @@ export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt
           ))}
         </div>
         {fotos.length > 1 && (
-          <p className="numeros absolute bottom-3 right-0 bg-mar px-3 py-1.5 text-small" aria-hidden="true">
+          <p className="numeros absolute right-3 top-3 rounded-full bg-mar px-3 py-1.5 text-small text-white" aria-hidden="true">
             {atual + 1}/{fotos.length}
           </p>
         )}

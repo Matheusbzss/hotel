@@ -19,7 +19,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
           lang={i}
           aria-current={i === atual ? 'true' : undefined}
           title={NOMES[i]}
-          className={`flex size-11 items-center justify-center transition-colors ${
+          className={`flex size-11 items-center justify-center rounded-full transition-colors ${
             i === atual
               ? 'bg-[color-mix(in_oklab,var(--tinta)_16%,transparent)]'
               : 'hover:bg-[color-mix(in_oklab,var(--tinta)_8%,transparent)]'

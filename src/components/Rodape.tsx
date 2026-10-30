@@ -1,79 +1,75 @@
 import Link from 'next/link';
-import { EMPRESA, enderecoCurto } from '@/config/empresa';
+import { EMPRESA } from '@/config/empresa';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { linkEmail } from '@/lib/email';
 import { RedefinirCookies } from './RedefinirCookies';
 
-/** Fecho do site: o convite, o e-mail, os dados legais e o nome da agência cortado pela borda. */
+/** Fecho do site: o jeito de falar com a gente é o próprio título, o e-mail em letra grande. */
 export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const ano = new Date().getFullYear();
   const R = d.rodape;
+  const [usuario, dominio] = EMPRESA.email.split('@');
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
     { href: rota(idioma, '/passeio-e-hospedagem'), texto: d.nav.hospedagem },
     { href: rota(idioma, '/contato'), texto: d.nav.contato },
+    { href: rota(idioma, '/politica-de-cancelamento'), texto: R.cancelamento },
+    { href: rota(idioma, '/termos-de-uso'), texto: R.termos },
+    { href: rota(idioma, '/politica-de-privacidade'), texto: R.privacidade },
   ];
   return (
-    <footer className="tom-sol relative overflow-hidden">
-      <div className="moldura grid gap-12 pt-20 md:pt-28 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <h2 className="largo text-head">{R.convite}</h2>
-          <Link href={rota(idioma, '/passeios')} className="botao mt-8 w-full sm:w-auto">
-            {R.botao}
-          </Link>
+    <footer id="rodape" className="tom-acao flex min-h-[64svh] flex-col lg:min-h-[90svh]">
+      <div className="moldura flex items-start justify-between gap-8 pt-10">
+        <div className="max-w-[46ch] space-y-1 text-small">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo/orla-nativa-horizontal-fundo-escuro.svg"
+            alt={EMPRESA.marca}
+            width={313}
+            height={100}
+            className="mb-4 h-10 w-auto"
+          />
+          <p>{R.descricao}</p>
+          <p>{R.base}</p>
+          <p className="numeros">
+            {R.cnpj} {EMPRESA.cnpj}
+          </p>
         </div>
-        <nav aria-label={R.contato} className="lg:col-span-4 lg:col-start-9">
-          <ul className="space-y-2 text-lead">
+        <a href="#conteudo" className="link shrink-0 text-small font-semibold">
+          {R.topo}
+        </a>
+      </div>
+
+      <div className="moldura mt-auto pb-8 pt-16 lg:pt-24">
+        <h2 className="sr-only">{R.escreva}</h2>
+        <a
+          href={linkEmail(d.contato.assunto, d.contato.msg)}
+          className="display block text-[10.4vw] leading-[0.95] tracking-[-0.03em] underline-offset-[0.12em] hover:underline md:text-[7.2vw]"
+          data-evento="Contact"
+        >
+          <span className="block md:inline">{usuario}</span>
+          <span className="block md:inline">@{dominio}</span>
+        </a>
+        <div className="mt-12 grid gap-3 text-small md:grid-cols-3 md:items-end">
+          <ul className="flex flex-wrap gap-x-5 gap-y-1">
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="link font-semibold">
+                <Link href={l.href} className="link">
                   {l.texto}
                 </Link>
               </li>
             ))}
             <li>
-              <a href={`mailto:${EMPRESA.email}`} className="link break-all font-semibold">
-                {EMPRESA.email}
-              </a>
+              <RedefinirCookies rotulo={d.cookies.gerenciar} className="link text-left" />
             </li>
           </ul>
-        </nav>
+          <p className="md:text-center">{R.idiomas}</p>
+          <p className="md:text-right">
+            {EMPRESA.cidade} – {EMPRESA.uf} · {fmt(R.direitos, { ano, marca: EMPRESA.marca })}
+          </p>
+        </div>
       </div>
-
-      <div className="moldura mt-20 flex flex-col gap-4 text-small md:flex-row md:items-end md:justify-between">
-        <p className="max-w-[60ch]">
-          {R.cnpj} {EMPRESA.cnpj} · {enderecoCurto} · {R.pagamentos}
-          <br />
-          {fmt(R.direitos, { ano, marca: EMPRESA.marca })}
-        </p>
-        <ul className="flex flex-wrap gap-x-5 gap-y-1">
-          <li>
-            <Link href={rota(idioma, '/politica-de-cancelamento')} className="link">
-              {R.cancelamento}
-            </Link>
-          </li>
-          <li>
-            <Link href={rota(idioma, '/termos-de-uso')} className="link">
-              {R.termos}
-            </Link>
-          </li>
-          <li>
-            <Link href={rota(idioma, '/politica-de-privacidade')} className="link">
-              {R.privacidade}
-            </Link>
-          </li>
-          <li>
-            <RedefinirCookies rotulo={d.cookies.gerenciar} className="link text-left" />
-          </li>
-        </ul>
-      </div>
-
-      {/* o nome da agência fecha a página, cortado pela borda de baixo */}
-      <p aria-hidden="true" className="largo mt-10 -mb-[0.22em] whitespace-nowrap px-(--margem) text-[15.5vw] leading-[0.82]">
-        Orla
-        <br />
-        Nativa
-      </p>
     </footer>
   );
 }

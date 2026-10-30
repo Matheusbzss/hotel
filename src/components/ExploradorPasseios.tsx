@@ -108,7 +108,7 @@ export function ExploradorPasseios({
           ))}
         </ul>
       ) : (
-        <div className="tom-claro mt-5 px-6 py-10">
+        <div className="tom-superficie mt-5 px-6 py-10">
           <p className="text-lead font-semibold">{textos.nenhum}</p>
           <button
             type="button"

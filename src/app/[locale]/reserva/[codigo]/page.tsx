@@ -23,8 +23,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
   let reserva = await obterReserva(codigo).catch(() => null);
   if (!reserva || !tokenConfere(reserva, token)) {
     return (
-      <main id="conteudo" className="tom-mar moldura pb-32 pt-16">
-        <h1 className="largo text-head text-sol">{d.reserva.naoEncontrada}</h1>
+      <main id="conteudo" className="tom-fundo moldura pb-32 pt-16">
+        <h1 className="display text-head">{d.reserva.naoEncontrada}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{d.reserva.naoEncontradaTexto}</p>
         <a href={linkWhatsApp(d.contato.msg)} target="_blank" rel="noopener noreferrer" className="botao botao-whats mt-8">
           {d.comum.whatsapp}
@@ -41,7 +41,7 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
     : undefined;
 
   return (
-    <main id="conteudo" className="tom-mar moldura pb-24 pt-8 md:pb-32 md:pt-12">
+    <main id="conteudo" className="tom-fundo moldura pb-24 pt-8 md:pb-32 md:pt-12">
       <StatusReserva
         inicial={publica}
         token={token}

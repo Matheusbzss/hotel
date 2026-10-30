@@ -1,44 +1,54 @@
 import Image from 'next/image';
 import type { Dicionario } from '@/i18n';
-import { SeletorGrupo } from '../grupo/SeletorGrupo';
 
-/** Primeira tela: a foto do mar escurecida e, por cima, o cartão da agência com a reserva. */
+/** Três fotos do mar com o mesmo enquadramento, que se revezam devagar. */
+const FOTOS = [
+  { src: '/fotos/buzios/escuna-no-mar.jpg', legenda: 'escunaNoMar', posicao: '58% 50%' },
+  { src: '/fotos/arraial/barco-toboga.jpg', legenda: 'barcoToboga', posicao: '50% 50%' },
+  { src: '/fotos/buzios/escuna-no-pier.jpg', legenda: 'escunaNoPier', posicao: '40% 50%' },
+] as const;
+
+/** Primeira tela: a foto do mar ocupa tudo e o nome fica na borda de baixo, como título de filme. */
 export function Abertura({ d }: { d: Dicionario }) {
   const H = d.home;
   return (
-    <section className="abertura relative isolate flex min-h-[100svh] items-center overflow-hidden" aria-labelledby="titulo-agencia">
-      <Image
-        src="/fotos/buzios/escuna-no-mar.jpg"
-        alt={H.heroFoto}
-        fill
-        priority
-        sizes="100vw"
-        className="respira -z-10 object-cover brightness-[0.62]"
-      />
-      <div className="moldura pb-10 pt-28 md:pb-16 md:pt-32">
-        <div className="tom-sol chegar mx-auto w-full max-w-[62rem] p-5 sm:p-8">
-          <h1 id="titulo-agencia" className="largo flex flex-wrap justify-between gap-x-[0.35em] text-[clamp(1.75rem,0.9rem+3.4vw,3rem)]">
-            {H.heroTitulo.map((p) => (
-              <span key={p}>{p}</span>
-            ))}
-          </h1>
-          <ul className="meio-largo mt-6 space-y-1.5 text-lead uppercase leading-none">
-            {H.heroFatos.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
-          </ul>
-          <p className="mt-5 max-w-[36ch] text-lead font-medium">{H.heroTexto}</p>
-          <SeletorGrupo
-            className="mt-6"
-            textos={{ ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos }}
-          />
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row-reverse sm:items-center sm:justify-between">
-            <a href="#precos" className="botao w-full sm:w-auto sm:px-10">
-              {H.heroBotao}
-            </a>
-            <span className="text-small text-(--tinta-suave)">{H.heroFoto}</span>
+    <section
+      className="abertura relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden text-white [--acao-tinta:var(--color-tinta)] [--acao:#ffffff] [--foco:#ffffff]"
+      aria-labelledby="titulo-agencia"
+    >
+      <div className="troca absolute inset-0 -z-20">
+        {FOTOS.map((f, i) => (
+          <div key={f.src} className="absolute inset-0">
+            <Image
+              src={f.src}
+              alt={H.legendas[f.legenda]}
+              fill
+              priority={i === 0}
+              sizes="100vw"
+              quality={80}
+              className="object-cover"
+              style={{ objectPosition: f.posicao }}
+            />
           </div>
-        </div>
+        ))}
+      </div>
+      <div className="veu-cima absolute inset-x-0 top-0 -z-10 h-40" aria-hidden="true" />
+      <div className="veu-baixo absolute inset-x-0 bottom-0 -z-10 h-[60%]" aria-hidden="true" />
+      {/* no computador: frase e botão acima das pontas do nome; no celular, o botão fecha a tela embaixo do nome */}
+      <div className="moldura chegar grid pb-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:pb-5">
+        <p className="relative z-10 max-w-[32ch] text-lead font-medium lg:col-start-1 lg:row-start-1 lg:self-end">{H.heroTexto}</p>
+        <h1
+          id="titulo-agencia"
+          className="display mt-5 text-[33vw] leading-[0.84] md:whitespace-nowrap md:text-display lg:col-span-2 lg:row-start-2 lg:mt-10"
+        >
+          <span className="block md:inline">{H.heroTitulo[0]}</span> <span className="block md:inline">{H.heroTitulo[1]}</span>
+        </h1>
+        <a
+          href="#passeios"
+          className="botao relative z-10 mt-6 justify-self-start lg:col-start-2 lg:row-start-1 lg:mt-0 lg:self-end lg:justify-self-end"
+        >
+          {H.heroBotao}
+        </a>
       </div>
     </section>
   );

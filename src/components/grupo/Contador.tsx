@@ -22,7 +22,7 @@ export function Contador({
 }) {
   const id = useId();
   const botao =
-    'flex size-11 shrink-0 items-center justify-center bg-(--acao) text-(--acao-tinta) text-2xl font-bold leading-none transition-transform active:scale-90 disabled:opacity-30';
+    'flex size-11 shrink-0 items-center justify-center bg-(--acao) text-(--acao-tinta) text-2xl font-bold leading-none transition-transform active:scale-90 disabled:opacity-30 rounded-full';
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
@@ -41,7 +41,7 @@ export function Contador({
         >
           −
         </button>
-        <output className="numeros w-9 text-center text-lead font-bold" aria-live="polite">
+        <output className="numeros w-9 text-center text-lead font-semibold" aria-live="polite">
           {valor}
         </output>
         <button

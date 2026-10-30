@@ -31,7 +31,7 @@ export function MenuMovel({
         aria-controls="menu-movel"
         aria-label={aberto ? rotuloFechar : rotuloAbrir}
         onClick={() => setAberto((v) => !v)}
-        className="flex size-12 items-center justify-center bg-(--acao) text-(--acao-tinta) transition-transform active:scale-95"
+        className="flex size-12 items-center justify-center rounded-full bg-(--acao) text-(--acao-tinta) transition-transform active:scale-95"
       >
         <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" fill="currentColor">
           {aberto ? (
@@ -42,11 +42,16 @@ export function MenuMovel({
         </svg>
       </button>
       {aberto && (
-        <div id="menu-movel" className="tom-mar absolute inset-x-0 top-full z-50 px-(--margem) pb-8 pt-2">
+        <div
+          id="menu-movel"
+          className={
+            'tom-papel absolute inset-x-0 top-full z-50 px-(--margem) pb-8 pt-2 shadow-[0_18px_40px_rgb(11_37_48/0.18)]' /* taste-skill-ignore: o menu flutua sobre a página */
+          }
+        >
           <ul className="flex flex-col">
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="meio-largo block py-3 text-lead">
+                <Link href={l.href} className="block py-3 text-lead font-semibold">
                   {l.texto}
                 </Link>
               </li>

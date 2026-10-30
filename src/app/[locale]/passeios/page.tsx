@@ -29,17 +29,13 @@ export default async function Passeios({ params }: PageProps<'/[locale]/passeios
   const passeios = passeiosAtivos();
 
   return (
-    <main id="conteudo" className="tom-mar">
+    <main id="conteudo" className="tom-fundo">
       <div className="moldura pb-24 pt-8 md:pb-40 md:pt-14">
         <div className="grid gap-8 md:grid-cols-12">
           <div className="chegar md:col-span-6">
-            <h1 className="largo text-head text-sol">{d.passeios.titulo}</h1>
+            <h1 className="display text-head">{d.passeios.titulo}</h1>
             <p className="mt-5 max-w-[42ch] text-lead">{fmt(d.passeios.texto, { n: passeios.length })}</p>
-            <ResumoGrupo
-              textos={{ ...d.grupo, rotulos: d.comum.rotulos }}
-              locale={LOCALE_INTL[locale]}
-              className="mt-4 font-semibold text-sol"
-            />
+            <ResumoGrupo textos={{ ...d.grupo, rotulos: d.comum.rotulos }} locale={LOCALE_INTL[locale]} className="mt-4 font-semibold" />
           </div>
           <div className="md:col-span-5 md:col-start-8 md:self-end">
             <SeletorGrupo textos={{ ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos }} />

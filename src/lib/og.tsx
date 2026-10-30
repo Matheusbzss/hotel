@@ -3,19 +3,18 @@ import { join } from 'node:path';
 
 export const TAMANHO_OG = { width: 1200, height: 630 };
 
-export const COR_OG = { mar: '#082F3F', mar2: '#0D3A4D', sol: '#FFD54A', brilho: '#FFE07A', turquesa: '#26B3C1', areia: '#F4EAD6' };
+/** As cores do site: o azul-noite da tinta, o verde-água das ações, o cinza-azulado das notas e o coral do sol. */
+export const COR_OG = { tinta: '#0B2530', acao: '#0A6B74', suave: '#A9C3C8', coral: '#FF6B57' };
 
-/** Fontes da marca para as imagens de prévia (WhatsApp, Instagram, Facebook). */
+/** Archivo, a mesma letra do site, para as imagens de prévia (WhatsApp, Facebook). */
 export async function fontesOg() {
-  const [largo, t500, t700] = await Promise.all([
-    readFile(join(process.cwd(), 'assets/fonts/tiktok-largo-800.ttf')),
-    readFile(join(process.cwd(), 'assets/fonts/tiktok-500.ttf')),
-    readFile(join(process.cwd(), 'assets/fonts/tiktok-700.ttf')),
+  const [a500, a600] = await Promise.all([
+    readFile(join(process.cwd(), 'assets/fonts/archivo-500.woff')),
+    readFile(join(process.cwd(), 'assets/fonts/archivo-600.woff')),
   ]);
   return [
-    { name: 'Largo', data: largo, weight: 800 as const, style: 'normal' as const },
-    { name: 'TikTok Sans', data: t500, weight: 500 as const, style: 'normal' as const },
-    { name: 'TikTok Sans', data: t700, weight: 700 as const, style: 'normal' as const },
+    { name: 'Archivo', data: a500, weight: 500 as const, style: 'normal' as const },
+    { name: 'Archivo', data: a600, weight: 600 as const, style: 'normal' as const },
   ];
 }
 

@@ -21,12 +21,12 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
       <div className="moldura flex h-[72px] items-center justify-between gap-3 md:h-[88px]">
         <Link href={rota(idioma, '/')} className="shrink-0" aria-label={`${EMPRESA.marca} — ${d.nav.inicio}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo/orla-nativa-horizontal.svg" alt={alt} width={313} height={100} className="logo-claro h-10 w-auto md:h-12" />
+          <img src="/logo/orla-nativa-horizontal.svg" alt={alt} width={342} height={100} className="logo-claro h-10 w-auto md:h-12" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo/orla-nativa-horizontal-fundo-escuro.svg"
             alt={alt}
-            width={313}
+            width={342}
             height={100}
             className="logo-escuro h-10 w-auto md:h-12"
             fetchPriority="high"

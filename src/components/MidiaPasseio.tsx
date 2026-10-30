@@ -51,7 +51,9 @@ function ondas(y: number, alto: number, passo: number) {
 /** Passeios por terra ficam sobre a areia e a estrada; os outros, sobre o mar. */
 const POR_TERRA: Icone[] = ['buggy', 'quadriciclo', 'van', 'trolley'];
 
-function Roda({ x, y, r }: { x: number; y: number; r: number }) {
+/* O desenho é feito de funções que devolvem só elementos do SVG (sem componentes dentro do <svg>),
+   para a mesma capa servir na página e na imagem de prévia do link. */
+function roda(x: number, y: number, r: number) {
   return (
     <g>
       <circle cx={x} cy={y} r={r} fill={NOITE} />
@@ -61,7 +63,7 @@ function Roda({ x, y, r }: { x: number; y: number; r: number }) {
 }
 
 /** O objeto do passeio em formas chapadas: o barco, a lancha, o buggy, a van… */
-function Objeto({ icone, c }: { icone: Icone; c: Cores }) {
+function objeto(icone: Icone, c: Cores) {
   const o = c.objeto;
   const d = c.detalhe;
   switch (icone) {
@@ -133,8 +135,8 @@ function Objeto({ icone, c }: { icone: Icone; c: Cores }) {
           <rect x="168" y="220" width="70" height="8" fill={d} />
           <path d="M232 224 L252 266 L244 268 L226 227 Z" fill={d} />
           <path d="M92 318 L108 276 L170 264 L252 264 L304 282 L320 318 Z" fill={o} />
-          <Roda x={132} y={322} r={30} />
-          <Roda x={280} y={322} r={30} />
+          {roda(132, 322, 30)}
+          {roda(280, 322, 30)}
         </g>
       );
     case 'quadriciclo':
@@ -144,8 +146,8 @@ function Objeto({ icone, c }: { icone: Icone; c: Cores }) {
           <rect x="256" y="238" width="36" height="7" fill={o} />
           <path d="M176 272 L232 272 L226 258 L182 258 Z" fill={d} />
           <path d="M118 316 L136 282 L196 272 L262 280 L292 316 Z" fill={o} />
-          <Roda x={138} y={322} r={32} />
-          <Roda x={276} y={322} r={32} />
+          {roda(138, 322, 32)}
+          {roda(276, 322, 32)}
         </g>
       );
     case 'van':
@@ -156,8 +158,8 @@ function Objeto({ icone, c }: { icone: Icone; c: Cores }) {
             <rect key={x} x={x} y="264" width="48" height="26" fill={d} />
           ))}
           <path d="M270 264 L294 264 L308 290 L270 290 Z" fill={d} />
-          <Roda x={126} y={328} r={22} />
-          <Roda x={282} y={328} r={22} />
+          {roda(126, 328, 22)}
+          {roda(282, 328, 22)}
         </g>
       );
     case 'trolley':
@@ -169,8 +171,8 @@ function Objeto({ icone, c }: { icone: Icone; c: Cores }) {
           ))}
           <rect x="66" y="300" width="268" height="26" fill={o} />
           <rect x="66" y="308" width="268" height="5" fill={d} />
-          <Roda x={118} y={330} r={20} />
-          <Roda x={286} y={330} r={20} />
+          {roda(118, 330, 20)}
+          {roda(286, 330, 20)}
         </g>
       );
   }
@@ -184,8 +186,25 @@ function palavraDaCapa(p: Passeio, idioma: Idioma): string {
 /**
  * Capa desenhada para passeio ainda sem foto: o objeto do passeio sobre o mar ou a estrada, nas cores da cidade.
  * O desenho fica inteiro em qualquer formato: o céu, o mar e a estrada continuam além das bordas.
+ * Na imagem de prévia do link, que escreve o nome ao lado, a capa vai sem letras e cortada para preencher o quadro.
  */
-export function CapaPasseio({ passeio, idioma, className = '' }: { passeio: Passeio; idioma: Idioma; className?: string }) {
+export function CapaPasseio({
+  passeio,
+  idioma,
+  className,
+  texto = true,
+  ajuste = 'meet',
+  largura,
+  altura,
+}: {
+  passeio: Passeio;
+  idioma: Idioma;
+  className?: string;
+  texto?: boolean;
+  ajuste?: 'meet' | 'slice';
+  largura?: number;
+  altura?: number;
+}) {
   const c = CORES[passeio.cidade];
   const palavra = palavraDaCapa(passeio, idioma).toUpperCase();
   const tamanho = Math.min(112, Math.round(352 / palavra.length));
@@ -193,8 +212,10 @@ export function CapaPasseio({ passeio, idioma, className = '' }: { passeio: Pass
   return (
     <svg
       viewBox="0 0 400 500"
-      preserveAspectRatio="xMidYMid meet"
+      preserveAspectRatio={`xMidYMid ${ajuste}`}
       overflow="visible"
+      width={largura}
+      height={altura}
       className={className}
       role="img"
       aria-label={passeio.nome[idioma]}
@@ -212,13 +233,17 @@ export function CapaPasseio({ passeio, idioma, className = '' }: { passeio: Pass
           <path d={ondas(350, 14, 100)} fill={c.onda2} />
         </>
       )}
-      <Objeto icone={passeio.icone} c={c} />
-      <text x="24" y="52" fill={c.tinta} style={{ fontSize: 22, fontWeight: 600 }}>
-        {nomeCidade(passeio, idioma)}
-      </text>
-      <text x="20" y="470" fill="#ffffff" style={{ fontSize: tamanho, fontWeight: 600, letterSpacing: '-0.02em' }}>
-        {palavra}
-      </text>
+      {objeto(passeio.icone, c)}
+      {texto && (
+        <>
+          <text x="24" y="52" fill={c.tinta} style={{ fontSize: 22, fontWeight: 600 }}>
+            {nomeCidade(passeio, idioma)}
+          </text>
+          <text x="20" y="470" fill="#ffffff" style={{ fontSize: tamanho, fontWeight: 600, letterSpacing: '-0.02em' }}>
+            {palavra}
+          </text>
+        </>
+      )}
     </svg>
   );
 }

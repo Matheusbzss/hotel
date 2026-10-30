@@ -26,7 +26,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
           <img
             src="/logo/orla-nativa-horizontal-fundo-escuro.svg"
             alt={EMPRESA.marca}
-            width={313}
+            width={342}
             height={100}
             className="mb-4 h-10 w-auto"
           />

@@ -50,7 +50,7 @@ function Login({ erro }: { erro?: string }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo/orla-nativa-horizontal.svg" alt={EMPRESA.marca} width={313} height={100} className="h-14 w-auto self-start" />
+      <img src="/logo/orla-nativa-horizontal.svg" alt={EMPRESA.marca} width={342} height={100} className="h-14 w-auto self-start" />
       <h1 className="mt-8 text-2xl font-bold text-mar">Área administrativa</h1>
       {!adminConfigurado() && (
         <p className="mt-4 bg-sol px-4 py-3 text-small">

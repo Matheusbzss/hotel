@@ -111,6 +111,10 @@ const en: Dicionario = {
     cidades: 'Towns',
     idadeMin: 'from age {n}',
     saindoDaRegiao: 'Leaving the region',
+    destinosTitulo: 'Pick your town',
+    destinosTexto: 'Búzios, Arraial do Cabo and Cabo Frio are close to each other: stay in one and tour all three.',
+    destinosQtd: '{n} tours',
+    destinosUm: '1 tour',
     comoTitulo: 'How it works',
     etapas: [
       { inicio: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },

@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { CIDADES, type Cidade } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
+import { fmt, rota, type Idioma } from '@/i18n/config';
 import { linkEmail } from '@/lib/email';
 
 type Legenda = keyof Dicionario['home']['legendas'];
@@ -31,6 +33,57 @@ function Foto({
       className="object-cover"
       style={posicao ? { objectPosition: posicao } : undefined}
     />
+  );
+}
+
+/** A foto de cada cidade, que abre a lista de passeios já filtrada. */
+const DESTINOS: { cidade: Cidade; foto: string; posicao: string }[] = [
+  { cidade: 'buzios', foto: '/fotos/buzios/estatua-brigitte-bardot.jpg', posicao: '50% 72%' },
+  { cidade: 'arraial-do-cabo', foto: '/fotos/arraial/pontal-do-atalaia-vista.jpg', posicao: '50% 50%' },
+  { cidade: 'cabo-frio', foto: '/fotos/cabo-frio/praia-do-forte-agua-azul.jpg', posicao: '50% 50%' },
+  { cidade: 'rio-de-janeiro', foto: '/fotos/rio/bondinho-pao-de-acucar.jpg', posicao: '50% 50%' },
+];
+
+/** Destinos: as quatro cidades lado a lado, cada uma com a sua foto e quantos passeios tem. */
+export function Destinos({ d, idioma, contagem }: { d: Dicionario; idioma: Idioma; contagem: Partial<Record<Cidade, number>> }) {
+  const H = d.home;
+  return (
+    <section className="moldura py-24 md:py-40" aria-labelledby="destinos-titulo">
+      <div className="entrar grid gap-4 md:grid-cols-12 md:gap-x-8">
+        <h2 id="destinos-titulo" className="titulo md:col-span-6">
+          {H.destinosTitulo}
+        </h2>
+        <p className="max-w-[44ch] text-lead md:col-span-5 md:col-start-8 md:self-end">{H.destinosTexto}</p>
+      </div>
+      <ul className="entrar mt-10 grid grid-cols-2 gap-x-2 gap-y-8 md:mt-14 lg:grid-cols-4">
+        {DESTINOS.filter((x) => contagem[x.cidade]).map((x) => {
+          const n = contagem[x.cidade] ?? 0;
+          // um texto só: espaços soltos entre pedaços somem no que o leitor de tela fala
+          const qtd = `${n === 1 ? H.destinosUm : fmt(H.destinosQtd, { n })}${x.cidade === 'rio-de-janeiro' ? ` · ${H.saindoDaRegiao.toLowerCase()}` : ''}`;
+          return (
+            <li key={x.cidade}>
+              <Link href={`${rota(idioma, '/passeios')}?cidade=${x.cidade}`} className="group block">
+                <span className="zoom relative block aspect-[3/4] overflow-hidden bg-superficie">
+                  <Image
+                    src={x.foto}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 25vw, 50vw"
+                    quality={70}
+                    className="object-cover"
+                    style={{ objectPosition: x.posicao }}
+                  />
+                </span>
+                <span className="mt-3 block text-lead font-semibold leading-tight underline-offset-4 group-hover:underline">
+                  {CIDADES[x.cidade].nome[idioma]}
+                </span>
+                <span className="mt-1 block text-small text-(--tinta-suave)">{qtd}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

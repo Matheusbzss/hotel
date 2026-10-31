@@ -63,7 +63,7 @@ export const PACOTES: Pacote[] = [
   {
     slug: 'casal-em-buzios',
     cidadeBase: 'buzios',
-    foto: '/fotos/buzios/lancha.jpg',
+    foto: '/fotos/lancha/lancha-entardecer.jpg',
     icone: 'lancha',
     passeios: ['lancha-buzios', 'helicoptero-buzios'],
     noites: { pt: 'Sugestão: 2 a 3 noites', en: 'Suggested: 2 to 3 nights', es: 'Sugerencia: 2 a 3 noches' },

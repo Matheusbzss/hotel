@@ -109,6 +109,10 @@ const pt = {
     cidades: 'Cidades',
     idadeMin: 'a partir de {n} anos',
     saindoDaRegiao: 'Saindo da região',
+    destinosTitulo: 'Escolha a cidade',
+    destinosTexto: 'Búzios, Arraial do Cabo e Cabo Frio ficam pertinho uma da outra: dá para se hospedar numa e passear nas três.',
+    destinosQtd: '{n} passeios',
+    destinosUm: '1 passeio',
     comoTitulo: 'Como funciona',
     etapas: [
       { inicio: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },

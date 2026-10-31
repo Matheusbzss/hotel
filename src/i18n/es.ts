@@ -111,6 +111,10 @@ const es: Dicionario = {
     cidades: 'Ciudades',
     idadeMin: 'desde {n} años',
     saindoDaRegiao: 'Saliendo de la región',
+    destinosTitulo: 'Elegí la ciudad',
+    destinosTexto: 'Búzios, Arraial do Cabo y Cabo Frio están cerca una de otra: te alojás en una y paseás por las tres.',
+    destinosQtd: '{n} paseos',
+    destinosUm: '1 paseo',
     comoTitulo: 'Cómo funciona',
     etapas: [
       { inicio: 'Elegí el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Abertura } from '@/components/home/Abertura';
 import { FolhaPrecos, type GrupoFolha } from '@/components/home/FolhaPrecos';
-import { ChamadaPacotes, ComoFunciona, Garantias, Perguntas } from '@/components/home/Secoes';
+import { ChamadaPacotes, ComoFunciona, Destinos, Garantias, Perguntas } from '@/components/home/Secoes';
 import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
@@ -53,6 +53,11 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
           rotulos: d.comum.rotulos,
           grupo: { ...d.grupo, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar, rotulos: d.comum.rotulos },
         }}
+      />
+      <Destinos
+        d={d}
+        idioma={locale}
+        contagem={Object.fromEntries((Object.keys(CIDADES) as Cidade[]).map((c) => [c, passeios.filter((p) => p.cidade === c).length]))}
       />
       <ComoFunciona d={d} />
       <Garantias d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />

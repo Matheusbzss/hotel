@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { fmt } from '@/i18n/config';
 import { calcular, formatarCentavos } from '@/lib/orcamento';
 import type { PrecoPasseio } from '@/lib/passeio-view';
@@ -39,9 +39,22 @@ export function FolhaPrecos({ grupos, textos: T, locale }: { grupos: GrupoFolha[
   // sem JavaScript, a folha mostra todas as cidades; com ele, uma por vez
   const [pronto, setPronto] = useState(false);
   useEffect(() => setPronto(true), []);
+  const abas = useRef<(HTMLButtonElement | null)[]>([]);
   const brl = (c: number) => formatarCentavos(c, locale);
   const temCriancas = grupo.criancas6a10 + grupo.criancas0a5 > 0;
   const total = grupos.reduce((s, g) => s + g.itens.length, 0);
+
+  // setas, Home e End trocam de cidade; só a aba ativa entra na ordem do Tab
+  function teclas(e: KeyboardEvent, i: number) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // Alt+← continua sendo "voltar" no navegador
+    const n = grupos.length;
+    const destino = { ArrowRight: i + 1, ArrowLeft: i - 1 + n, Home: 0, End: n - 1 }[e.key];
+    if (destino === undefined) return;
+    e.preventDefault();
+    const j = destino % n;
+    setAtivo(grupos[j].id);
+    abas.current[j]?.focus();
+  }
 
   return (
     <section id="passeios" className="tom-campo scroll-mt-0 px-2.5 py-16 md:px-(--margem) md:py-32" aria-labelledby="passeios-titulo">
@@ -53,16 +66,21 @@ export function FolhaPrecos({ grupos, textos: T, locale }: { grupos: GrupoFolha[
         <SeletorGrupo className="mt-8" textos={T.grupo} />
 
         <div role="tablist" aria-label={T.cidades} className="mt-8 flex flex-wrap justify-center gap-2">
-          {grupos.map((g) => (
+          {grupos.map((g, i) => (
             <button
               key={g.id}
+              ref={(el) => {
+                abas.current[i] = el;
+              }}
               type="button"
               role="tab"
               id={`aba-${g.id}`}
               aria-selected={g.id === ativo}
               aria-controls={`cidade-${g.id}`}
+              tabIndex={g.id === ativo ? 0 : -1}
               className="filtro shrink-0"
               onClick={() => setAtivo(g.id)}
+              onKeyDown={(e) => teclas(e, i)}
             >
               {g.titulo}
             </button>
@@ -93,9 +111,9 @@ export function FolhaPrecos({ grupos, textos: T, locale }: { grupos: GrupoFolha[
                     <Link href={p.href} className="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4">
                       <span className="min-w-0">
                         <span className="block font-semibold underline-offset-[0.2em] group-hover:underline">{p.nome}</span>
+                        {/* um texto só: espaços soltos entre pedaços somem no que o leitor de tela fala */}
                         <span className="mt-0.5 block text-small text-(--tinta-suave)">
-                          {p.duracao} · {p.temOpcoes ? `${T.aPartirDe} ` : ''}
-                          {brl(p.tabela.precoCentavos)} {p.unidadeCurta}
+                          {`${p.duracao} · ${p.temOpcoes ? `${T.aPartirDe} ` : ''}${brl(p.tabela.precoCentavos)} ${p.unidadeCurta}`}
                         </span>
                       </span>
                       <span className="numeros text-right font-semibold">

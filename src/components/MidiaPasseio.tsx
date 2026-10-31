@@ -196,11 +196,14 @@ export function CapaPasseio({
   ajuste = 'meet',
   largura,
   altura,
+  decorativa = false,
 }: {
   passeio: Passeio;
   idioma: Idioma;
   className?: string;
   texto?: boolean;
+  /** dentro de um link que já diz o nome do passeio: o leitor de tela pula a capa */
+  decorativa?: boolean;
   ajuste?: 'meet' | 'slice';
   largura?: number;
   altura?: number;
@@ -217,8 +220,7 @@ export function CapaPasseio({
       width={largura}
       height={altura}
       className={className}
-      role="img"
-      aria-label={passeio.nome[idioma]}
+      {...(decorativa ? { 'aria-hidden': true } : { role: 'img', 'aria-label': passeio.nome[idioma] })}
     >
       <rect x="-2000" y="-2000" width="4400" height="4500" fill={c.fundo} />
       <circle cx="330" cy="96" r="54" fill={c.sol} />
@@ -256,6 +258,7 @@ export function MidiaPasseio({
   prioridade = false,
   indice = 0,
   className = '',
+  decorativa = false,
 }: {
   passeio: Passeio;
   idioma: Idioma;
@@ -263,14 +266,24 @@ export function MidiaPasseio({
   prioridade?: boolean;
   indice?: number;
   className?: string;
+  /** dentro de um link que já diz o nome do passeio: a foto não repete o nome para o leitor de tela */
+  decorativa?: boolean;
 }) {
   const foto = passeio.fotos[indice];
   return (
     <div className={`zoom relative overflow-hidden bg-superficie ${className}`}>
       {foto ? (
-        <Image src={foto} alt={passeio.nome[idioma]} fill sizes={sizes} priority={prioridade} quality={80} className="object-cover" />
+        <Image
+          src={foto}
+          alt={decorativa ? '' : passeio.nome[idioma]}
+          fill
+          sizes={sizes}
+          priority={prioridade}
+          quality={80}
+          className="object-cover"
+        />
       ) : (
-        <CapaPasseio passeio={passeio} idioma={idioma} className="absolute inset-0 size-full" />
+        <CapaPasseio passeio={passeio} idioma={idioma} decorativa={decorativa} className="absolute inset-0 size-full" />
       )}
     </div>
   );

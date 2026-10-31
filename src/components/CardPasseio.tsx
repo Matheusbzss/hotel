@@ -15,6 +15,7 @@ export function CardPasseio({ passeio: p, idioma, d }: { passeio: Passeio; idiom
       <MidiaPasseio
         passeio={p}
         idioma={idioma}
+        decorativa
         sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 7.5rem"
         className="aspect-square sm:aspect-[4/5]"
       />
@@ -24,7 +25,7 @@ export function CardPasseio({ passeio: p, idioma, d }: { passeio: Passeio; idiom
         </p>
         <h3 className="mt-1 text-lead font-semibold leading-tight underline-offset-[0.2em] group-hover:underline">{p.nome[idioma]}</h3>
         <p className="mt-2">
-          {preco.temOpcoes && <span className="text-small">{d.comum.aPartirDe} </span>}
+          {preco.temOpcoes && <span className="text-small">{`${d.comum.aPartirDe} `}</span>}
           <strong className="numeros text-lead">{formatarPreco(preco.tabela.precoCentavos, idioma)}</strong>{' '}
           <span className="text-small text-(--tinta-suave)">{preco.unidadeCurta}</span>
         </p>

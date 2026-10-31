@@ -110,7 +110,8 @@ export function ExploradorPasseios({
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 sm:hidden">
+      {/* uma lista por linha: lado a lado, "Arraial do Cabo" e os tipos mais longos ficavam cortados */}
+      <div className="grid gap-4 sm:hidden">
         {lista(textos.cidade, textos.todas, cidades, cidade, escolherCidade)}
         {lista(textos.tipo, textos.todos, categorias, tipo, escolherTipo)}
       </div>

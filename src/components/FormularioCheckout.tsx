@@ -761,12 +761,13 @@ export function FormularioCheckout({
               aria-invalid={Boolean(erros.aceite)}
               aria-describedby={erros.aceite ? 'aceite-erro' : undefined}
             />
+            {/* espaços dentro do texto: soltos entre pedaços, somem no que o leitor de tela fala */}
             <span>
-              {T.aceitePre}{' '}
+              {`${T.aceitePre} `}
               <Link href={links.termos} target="_blank" className="link font-semibold">
                 {T.aceiteTermos}
-              </Link>{' '}
-              {T.aceiteMeio}{' '}
+              </Link>
+              {` ${T.aceiteMeio} `}
               <Link href={links.politica} target="_blank" className="link font-semibold">
                 {T.aceitePolitica}
               </Link>

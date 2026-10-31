@@ -5,11 +5,11 @@ import { CATEGORIAS, type Categoria } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
 
-/** Três jeitos de começar, cada um com a sua foto, que abrem a lista já filtrada. */
-const ATALHOS: { tipo: Categoria; foto: string; legenda: 'escunaMastros' | 'buggyComboio' | 'mergulho' }[] = [
-  { tipo: 'barco', foto: '/fotos/buzios/escuna-mastros.jpg', legenda: 'escunaMastros' },
-  { tipo: 'buggy-quadriciclo', foto: '/fotos/buzios/buggy-comboio.jpg', legenda: 'buggyComboio' },
-  { tipo: 'mergulho', foto: '/fotos/arraial/mergulho.jpg', legenda: 'mergulho' },
+/** Três jeitos de começar, cada um com a sua foto (enfeite: o nome do tipo já diz aonde o link leva), que abrem a lista já filtrada. */
+const ATALHOS: { tipo: Categoria; foto: string }[] = [
+  { tipo: 'barco', foto: '/fotos/buzios/escuna-mastros.jpg' },
+  { tipo: 'buggy-quadriciclo', foto: '/fotos/buzios/buggy-comboio.jpg' },
+  { tipo: 'mergulho', foto: '/fotos/arraial/mergulho.jpg' },
 ];
 
 /** A página que "foi com a maré": o recado de um lado, o mar do outro. */
@@ -58,13 +58,7 @@ export default async function NaoEncontrado() {
             <li key={a.tipo}>
               <Link href={`${rota(idioma, '/passeios')}?tipo=${a.tipo}`} className="group block">
                 <span className="zoom relative block aspect-[4/3] overflow-hidden">
-                  <Image
-                    src={a.foto}
-                    alt={d.home.legendas[a.legenda]}
-                    fill
-                    sizes="(min-width: 640px) 33vw, 100vw"
-                    className="object-cover"
-                  />
+                  <Image src={a.foto} alt="" fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
                 </span>
                 <span className="mt-3 block text-lead font-semibold underline-offset-4 group-hover:underline">
                   {CATEGORIAS[a.tipo].nome[idioma]}

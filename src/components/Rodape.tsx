@@ -46,6 +46,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         <a
           href={linkEmail(d.contato.assunto, d.contato.msg)}
           className="display block text-[10.4vw] leading-[0.95] tracking-[-0.03em] underline-offset-[0.12em] hover:underline md:text-[7.2vw]"
+          aria-label={EMPRESA.email}
           data-evento="Contact"
         >
           <span className="block md:inline">{usuario}</span>

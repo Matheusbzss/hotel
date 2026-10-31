@@ -115,5 +115,6 @@ export function calcular(t: TabelaPreco, entrada: Partial<Pessoas>): Orcamento {
 }
 
 export function formatarCentavos(centavos: number, locale: string): string {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(centavos / 100);
+  // narrowSymbol: "R$" em todos os idiomas (o espanhol da Argentina escreveria "BRL")
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL', currencyDisplay: 'narrowSymbol' }).format(centavos / 100);
 }

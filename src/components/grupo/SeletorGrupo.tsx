@@ -55,7 +55,7 @@ export function SeletorGrupo({ textos: T, className = '' }: { textos: TextosSele
   const resumo = textoPessoas({ adultos: grupo.adultos, criancas: grupo.criancas6a10 + grupo.criancas0a5 }, T.rotulos);
 
   return (
-    <div ref={raiz} className={`grid gap-2 sm:grid-cols-2 ${className}`}>
+    <div ref={raiz} className={`grid grid-cols-2 gap-2 ${className}`}>
       <div>
         <label htmlFor={idData} className="rotulo">
           {T.data}
@@ -86,13 +86,13 @@ export function SeletorGrupo({ textos: T, className = '' }: { textos: TextosSele
           <span id={`${idPainel}-valor`} className="truncate">
             {resumo}
           </span>
-          <svg viewBox="0 0 24 24" className={`size-5 shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} aria-hidden="true">
-            <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.5" />
+          <svg viewBox="0 0 24 24" className={`size-5 shrink-0 transition-transform duration-200 ${aberto ? 'rotate-180' : ''}`} aria-hidden="true">
+            <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.75" />
           </svg>
         </button>
       </div>
       {aberto && (
-        <div id={idPainel} className="tom-papel col-span-full space-y-4 p-4">
+        <div id={idPainel} className="celula col-span-full space-y-4 p-4">
           <Contador
             rotulo={T.adultos}
             ajuda={T.adultosAjuda}

@@ -22,7 +22,7 @@ export function Contador({
 }) {
   const id = useId();
   const botao =
-    'flex size-11 shrink-0 items-center justify-center bg-(--acao) text-(--acao-tinta) text-2xl font-bold leading-none transition-transform active:scale-90 disabled:opacity-30 rounded-full';
+    'flex size-12 shrink-0 items-center justify-center rounded-[4px] bg-(--color-papel) text-(--color-tinta) shadow-[inset_0_0_0_1px_var(--color-borda-campo)] text-2xl leading-none transition-transform duration-[120ms] active:scale-[0.97] hover:shadow-[inset_0_0_0_1px_var(--color-tinta)] disabled:cursor-not-allowed disabled:bg-(--color-superficie) disabled:text-(--color-borda-campo) disabled:shadow-none';
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
@@ -41,7 +41,7 @@ export function Contador({
         >
           −
         </button>
-        <output className="numeros w-9 text-center text-lead font-semibold" aria-live="polite">
+        <output className="cifra w-10 text-center text-figure" aria-live="polite">
           {valor}
         </output>
         <button

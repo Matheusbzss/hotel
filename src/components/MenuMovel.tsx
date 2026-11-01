@@ -31,27 +31,21 @@ export function MenuMovel({
         aria-controls="menu-movel"
         aria-label={aberto ? rotuloFechar : rotuloAbrir}
         onClick={() => setAberto((v) => !v)}
-        className="flex size-12 items-center justify-center rounded-full bg-(--acao) text-(--acao-tinta) transition-transform active:scale-95"
+        className="flex size-12 items-center justify-center rounded-[4px] shadow-[inset_0_0_0_1px_currentColor] transition-transform duration-[120ms] active:scale-[0.97]"
       >
-        <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" fill="currentColor">
-          {aberto ? (
-            <path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6Z" />
-          ) : (
-            <path d="M3 6h18v2.2H3zm0 4.9h18v2.2H3zm0 4.9h18V18H3z" />
-          )}
+        <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
+          {aberto ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
         </svg>
       </button>
       {aberto && (
-        <div
-          id="menu-movel"
-          className={
-            'tom-papel absolute inset-x-0 top-full z-50 px-(--margem) pb-8 pt-2 shadow-[0_18px_40px_rgb(11_37_48/0.18)]' /* taste-skill-ignore: o menu flutua sobre a página */
-          }
-        >
-          <ul className="flex flex-col">
+        <div id="menu-movel" className="tom-campo absolute inset-x-0 top-full z-50 border-t border-white/20 px-(--margem) pb-6 pt-2">
+          <ul className="flex flex-col gap-[3px]">
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="block py-3 text-lead font-semibold">
+                <Link
+                  href={l.href}
+                  className="celula flex min-h-14 items-center px-4 font-[family-name:var(--font-semi)] text-[1.25rem] font-semibold"
+                >
                   {l.texto}
                 </Link>
               </li>

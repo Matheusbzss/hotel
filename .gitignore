@@ -8,3 +8,10 @@ out
 .taste-skill
 *.tsbuildinfo
 next-env.d.ts
+
+# trabalho local das skills (prints, prévias, dados brutos)
+.impeccable/review/
+.impeccable/previa/
+.impeccable/osm/
+.impeccable/dna/
+.impeccable/mocks/

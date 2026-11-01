@@ -3,10 +3,11 @@ import { EMPRESA } from '@/config/empresa';
 import { CASAS_ATIVO } from '@/data/casas';
 import { rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { Logo } from './Logo';
 import { MenuMovel } from './MenuMovel';
 import { SeletorIdioma } from './SeletorIdioma';
 
-/** Barra simples: marca, poucos links e idioma. Branca sobre a foto da home; na cor da página nas outras. */
+/** Barra de 56 px: logo, poucos links e idioma. Transparente sobre o mar da página inicial; no chão claro nas outras. */
 export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
@@ -15,31 +16,25 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
     ...(CASAS_ATIVO ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
     { href: rota(idioma, '/contato'), texto: d.nav.contato },
   ];
-  const alt = `${EMPRESA.marca} — ${EMPRESA.slogan}`;
   return (
     <header className="cabecalho relative z-30 text-(--tinta)">
-      <div className="moldura flex h-[72px] items-center justify-between gap-3 md:h-[88px]">
-        <Link href={rota(idioma, '/')} className="shrink-0" aria-label={`${EMPRESA.marca} — ${d.nav.inicio}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo/orla-nativa-horizontal.svg" alt={alt} width={342} height={100} className="logo-claro h-10 w-auto md:h-12" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo/orla-nativa-horizontal-fundo-escuro.svg"
-            alt={alt}
-            width={342}
-            height={100}
-            className="logo-escuro h-10 w-auto md:h-12"
-            fetchPriority="high"
-          />
+      <div className="moldura flex h-16 items-center justify-between gap-3 md:h-20">
+        <Link href={rota(idioma, '/')} className="shrink-0 rounded-[4px]" aria-label={`${EMPRESA.marca}, ${d.nav.inicio}`}>
+          <Logo fundo="claro" className="logo-claro" />
+          <Logo fundo="ceu" className="logo-escuro" />
         </Link>
         <nav aria-label={d.nav.principal} className="hidden items-center gap-1 lg:flex">
           {links.map((l) => (
-            <Link key={l.href} href={l.href} className="rounded-full px-4 py-3 font-semibold underline-offset-[0.3em] hover:underline">
+            <Link
+              key={l.href}
+              href={l.href}
+              className="rounded-[4px] px-3 py-2.5 font-[family-name:var(--font-semi)] text-[1.0625rem] font-semibold underline-offset-[0.3em] hover:underline"
+            >
               {l.texto}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-1 md:gap-3">
+        <div className="flex items-center gap-2">
           <SeletorIdioma atual={idioma} rotulo={d.nav.idioma} />
           <MenuMovel links={links} rotuloAbrir={d.nav.menu} rotuloFechar={d.nav.fechar} />
         </div>

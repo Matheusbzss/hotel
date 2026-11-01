@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Archivo } from 'next/font/google';
+import { Barlow, Barlow_Condensed, Barlow_Semi_Condensed } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { Cabecalho } from '@/components/Cabecalho';
 import { GrupoProvider } from '@/components/grupo/GrupoContexto';
@@ -12,8 +12,19 @@ import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
 import { urlDoSite } from '@/lib/site';
 import '../globals.css';
 
-/** Uma família só: Archivo, em peso normal nos títulos e no texto. */
-const archivo = Archivo({ subsets: ['latin', 'latin-ext'], variable: '--font-archivo', display: 'swap' });
+/**
+ * Barlow em três larguras, como um sistema de placas (design-dna.json > typography):
+ * Regular no texto, Semi Condensed nos títulos e números, Condensed no gancho.
+ * Servida pelo próprio site: o navegador do cliente não chama o Google.
+ */
+const barlow = Barlow({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
+const barlowSemi = Barlow_Semi_Condensed({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['500', '600', '700'],
+  variable: '--font-barlow-semi',
+  display: 'swap',
+});
+const barlowCond = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
 
 export const dynamicParams = false;
 
@@ -41,9 +52,10 @@ export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Pr
 }
 
 export const viewport: Viewport = {
-  themeColor: '#eef2f1',
+  themeColor: '#063643',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default async function LayoutIdioma({ children, params }: LayoutProps<'/[locale]'>) {
@@ -65,11 +77,11 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
   };
 
   return (
-    <html lang={HREFLANG[locale]} className={archivo.variable}>
+    <html lang={HREFLANG[locale]} className={`${barlow.variable} ${barlowSemi.variable} ${barlowCond.variable}`}>
       <body className="min-h-dvh">
         <a
           href="#conteudo"
-          className="sr-only z-50 rounded-full bg-(--color-acao) px-5 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          className="sr-only z-50 rounded-[4px] bg-(--color-acao) px-5 py-3 font-semibold text-(--color-tinta) focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
         >
           {d.nav.pularConteudo}
         </a>

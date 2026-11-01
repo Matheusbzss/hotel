@@ -3,15 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { IDIOMAS, rota, semIdioma, type Idioma } from '@/i18n/config';
-import { Bandeira } from './Bandeira';
 
 const NOMES: Record<Idioma, string> = { pt: 'Português', en: 'English', es: 'Español' };
+/** Espanhol primeiro: é o idioma de quem chega pelos anúncios. */
+const ORDEM: Idioma[] = ['es', 'pt', 'en'];
 
+/** Três células com o código do idioma; a atual em traço cheio. Mantém a mesma página ao trocar. */
 export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string }) {
   const caminho = semIdioma(usePathname() || '/');
   return (
-    <nav aria-label={rotulo} className="flex items-center">
-      {IDIOMAS.map((i) => (
+    <nav aria-label={rotulo} className="flex items-center gap-[3px]">
+      {ORDEM.filter((i) => IDIOMAS.includes(i)).map((i) => (
         <Link
           key={i}
           href={rota(i, caminho)}
@@ -19,13 +21,11 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
           lang={i}
           aria-current={i === atual ? 'true' : undefined}
           title={NOMES[i]}
-          className={`flex size-11 items-center justify-center rounded-full transition-colors ${
-            i === atual
-              ? 'bg-[color-mix(in_oklab,var(--tinta)_16%,transparent)]'
-              : 'hover:bg-[color-mix(in_oklab,var(--tinta)_8%,transparent)]'
+          className={`flex h-11 min-w-11 items-center justify-center rounded-[4px] px-2 font-[family-name:var(--font-semi)] text-[0.9375rem] font-semibold uppercase tracking-[0.06em] transition-[box-shadow,background-color] duration-200 ${
+            i === atual ? 'shadow-[inset_0_0_0_2px_currentColor]' : 'hover:shadow-[inset_0_0_0_1px_currentColor]'
           }`}
         >
-          <Bandeira idioma={i} className="h-[15px] w-[22px]" />
+          <span aria-hidden="true">{i}</span>
           <span className="sr-only">{NOMES[i]}</span>
         </Link>
       ))}

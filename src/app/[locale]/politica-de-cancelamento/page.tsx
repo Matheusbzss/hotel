@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { TabelaGarantias } from '@/components/home/Secoes';
+import { TabelaGarantias } from '@/components/home/BlocosHome';
 import { PaginaLegal } from '@/components/PaginaLegal';
 
 import { CANCELAMENTO } from '@/content/legal/cancelamento';

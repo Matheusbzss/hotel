@@ -1,101 +1,57 @@
 @import 'tailwindcss';
+@import './tokens.css';
 
 /* ------------------------------------------------------------------ */
-/* Tokens: as cores do lugar. Chão claro como a névoa da orla, tinta  */
-/* no azul do mar fundo e a água de Arraial só no botão.              */
+/* Boletim do mar. Os valores vêm de design-dna.json (tokens.css).     */
+/* Partes de decisão: chão branco frio e tinta mar-fundo.              */
+/* Partes de sonho: o mar 3D e o mar fundo, com texto branco.          */
 /* ------------------------------------------------------------------ */
-@theme {
-  --color-fundo: #eef2f1;
-  --color-superficie: #e1e8e6;
-  --color-papel: #ffffff;
-  --color-tinta: #0b2530;
-  --color-tinta-suave: #42555c;
-  --color-acao: #0a6b74;
-  --color-campo: #0b2530;
-  --color-campo-suave: #a9c3c8;
-  --color-borda: #b7c4c3;
-  --color-whats: #25d366;
-  --color-erro: #b3261e;
-  --color-erro-claro: #ffd9d4;
-  /* nomes antigos, ainda usados no painel /admin e na galeria em tela cheia */
-  --color-mar: #0b2530;
-  --color-brilho: #ffffff;
-  --color-sol: #ffd54a;
-  --color-turquesa: #26b3c1;
-
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
-
-  --text-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
-  --text-small--line-height: 1.45;
-  --text-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-  --text-body--line-height: 1.55;
-  --text-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
-  --text-lead--line-height: 1.3;
-  --text-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
-  --text-head--line-height: 1;
-  --text-display: clamp(5rem, 19.5vw, 18rem);
-  --text-display--line-height: 0.86;
-
-  --ease-saida: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 :root {
-  --margem: clamp(1rem, 0.6rem + 1.8vw, 2rem);
   color-scheme: light;
-  /* papéis de cor: mudam conforme o chão da página ou da seção */
   --fundo: var(--color-fundo);
   --tinta: var(--color-tinta);
   --tinta-suave: var(--color-tinta-suave);
   --acao: var(--color-acao);
-  --acao-tinta: #ffffff;
-  --foco: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-tinta);
+  --linha: var(--color-borda);
+  --linha-campo: var(--color-borda-campo);
 }
 
-.tom-fundo {
-  --fundo: var(--color-fundo);
+/* papéis de cor por faixa da página */
+.tom-fundo,
+.tom-superficie,
+.tom-papel {
   --tinta: var(--color-tinta);
   --tinta-suave: var(--color-tinta-suave);
   --acao: var(--color-acao);
-  --acao-tinta: #ffffff;
-  --foco: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-tinta);
+  --linha: var(--color-borda);
+  --linha-campo: var(--color-borda-campo);
   color-scheme: light;
+}
+.tom-fundo {
+  --fundo: var(--color-fundo);
 }
 .tom-superficie {
   --fundo: var(--color-superficie);
-  --tinta: var(--color-tinta);
-  --tinta-suave: var(--color-tinta-suave);
-  --acao: var(--color-acao);
-  --acao-tinta: #ffffff;
-  --foco: var(--color-acao);
-  color-scheme: light;
 }
 .tom-papel {
   --fundo: var(--color-papel);
-  --tinta: var(--color-tinta);
-  --tinta-suave: #4a5d64;
-  --acao: var(--color-acao);
-  --acao-tinta: #ffffff;
-  --foco: var(--color-acao);
-  color-scheme: light;
 }
-/* Faixa escura: o mar fundo */
-.tom-campo {
-  --fundo: var(--color-campo);
-  --tinta: #ffffff;
-  --tinta-suave: var(--color-campo-suave);
-  --acao: #ffffff;
-  --acao-tinta: var(--color-tinta);
-  --foco: #ffffff;
-  color-scheme: dark;
-}
-/* Faixa da água de Arraial: só o rodapé */
+/* o mar fundo: texto branco, foco dourado */
+.tom-campo,
 .tom-acao {
-  --fundo: var(--color-acao);
+  --fundo: var(--color-mar);
   --tinta: #ffffff;
-  --tinta-suave: #d3ebec;
-  --acao: #ffffff;
-  --acao-tinta: var(--color-acao);
-  --foco: #ffffff;
+  --tinta-suave: var(--color-d1);
+  --acao: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-acao);
+  --linha: rgb(255 255 255 / 0.22);
+  --linha-campo: rgb(255 255 255 / 0.55);
   color-scheme: dark;
 }
 .tom-fundo,
@@ -111,6 +67,7 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   background: var(--color-fundo);
+  scrollbar-color: var(--color-borda-campo) var(--color-fundo);
 }
 
 body {
@@ -118,23 +75,37 @@ body {
   color: var(--tinta);
   font-family: var(--font-sans);
   font-size: var(--text-body);
-  line-height: 1.55;
+  line-height: 1.5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  caret-color: var(--color-turquesa-texto);
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::selection {
-  background: var(--color-acao);
-  color: #ffffff;
+  background: var(--color-sol);
+  color: var(--color-tinta);
 }
 
 :focus-visible {
-  outline: 3px solid var(--foco);
-  outline-offset: 3px;
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
 }
 
 img {
   max-width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p,
+li,
+dd {
+  text-wrap: pretty;
 }
 
 /* ------------------------------------------------------------------ */
@@ -143,190 +114,253 @@ img {
 @layer components {
   .moldura {
     width: 100%;
-    max-width: 90rem;
+    max-width: calc(var(--largura-max) + 2 * var(--margem));
     margin-inline: auto;
     padding-inline: var(--margem);
   }
 
-  /* Títulos: a mesma letra do texto, em peso normal e bem junta */
+  /* Gancho e números grandes: Barlow Condensed */
   .display {
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 0.98;
   }
 
+  /* Títulos: Barlow Semi Condensed */
   .titulo {
+    font-family: var(--font-semi);
     font-size: var(--text-head);
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1;
+    font-weight: 600;
+    line-height: 1.02;
+  }
+  .subtitulo {
+    font-family: var(--font-semi);
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: 1.1;
   }
 
   .texto-corrido p + p {
     margin-top: 1em;
   }
 
-  /* Botão: pílula de uma cor só. Controles são redondos; fotos e folhas, retas. */
+  /* Cabeçalho curto de coluna do boletim (só em tabelas) */
+  .coluna {
+    font-family: var(--font-semi);
+    font-size: var(--text-overline);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+  }
+
+  /* Número de preço, hora ou total */
+  .cifra {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  /* Célula: a unidade de tudo. Cantos de 4 px, borda fina, sem sombra. */
+  .celula {
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-celula);
+  }
+  .tom-campo .celula,
+  .tom-acao .celula {
+    background: rgb(255 255 255 / 0.06);
+    color: #ffffff;
+    border-color: rgb(255 255 255 / 0.22);
+  }
+
+  /* Botão principal: o sol, com texto mar-fundo */
   .botao {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
     min-height: 3.25rem;
-    padding: 0.85rem 1.6rem;
-    border-radius: 999px;
+    padding: 0.75rem 1.4rem;
+    border-radius: var(--radius-celula);
     background: var(--acao);
     color: var(--acao-tinta);
+    font-family: var(--font-semi);
     font-weight: 600;
-    font-size: var(--text-body);
+    font-size: 1.125rem;
     line-height: 1.15;
     text-align: center;
     transition:
-      transform 0.18s var(--ease-saida),
-      background-color 0.18s ease,
-      color 0.18s ease;
-    -webkit-tap-highlight-color: transparent;
+      transform var(--dur-toque) var(--ease-padrao),
+      background-color var(--dur-estado) var(--ease-padrao);
   }
   .botao:hover {
-    background: color-mix(in oklab, var(--acao) 84%, var(--tinta));
+    background: color-mix(in oklab, var(--acao) 88%, var(--color-tinta));
   }
   .botao:active {
     transform: scale(0.97);
+  }
+  @media (min-width: 1024px) {
+    .botao {
+      min-height: 3rem;
+    }
   }
   .botao-whats {
     background: var(--color-whats);
     color: var(--color-tinta);
   }
   .botao-whats:hover {
-    background: #3fe07c;
+    background: color-mix(in oklab, var(--color-whats) 85%, var(--color-tinta));
   }
-  /* ação secundária: um degrau de tom, sem contorno */
+  /* secundário: contorno de 1 px */
   .botao-vazado {
-    background: color-mix(in oklab, var(--tinta) 9%, var(--fundo));
+    background: transparent;
     color: var(--tinta);
+    box-shadow: inset 0 0 0 1px var(--tinta);
   }
   .botao-vazado:hover {
-    background: color-mix(in oklab, var(--tinta) 16%, var(--fundo));
+    background: color-mix(in oklab, var(--tinta) 8%, transparent);
   }
   .botao[aria-disabled='true'],
   .botao:disabled {
-    opacity: 0.55;
-    pointer-events: none;
+    background: var(--color-superficie);
+    color: var(--color-borda-campo);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
   }
 
-  /* Link de texto com sublinhado que cresce */
+  /* Link de texto */
   .link {
     text-decoration: underline;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 0.22em;
-    transition: text-underline-offset 0.18s ease;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: text-decoration-thickness var(--dur-toque) var(--ease-padrao);
   }
   .link:hover {
-    text-underline-offset: 0.34em;
+    text-decoration-thickness: 2px;
+  }
+  .tom-fundo .link,
+  .tom-superficie .link,
+  .tom-papel .link {
+    color: var(--color-turquesa-texto);
   }
 
-  /* Formulários */
+  /* Campos */
   .campo {
     display: block;
     width: 100%;
     min-height: 3.25rem;
-    padding: 0.75rem 1.15rem;
-    border: 2px solid var(--color-borda);
-    border-radius: 999px;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--color-borda-campo);
+    border-radius: var(--radius-celula);
     background: var(--color-papel);
     color: var(--color-tinta);
     font-size: var(--text-body);
-    transition: border-color 0.15s ease;
+    transition: border-color var(--dur-estado) var(--ease-padrao);
   }
   textarea.campo {
-    border-radius: 1.25rem;
+    min-height: 6rem;
   }
   .campo:hover {
-    border-color: #8fa3a3;
+    border-color: var(--color-tinta);
   }
   .campo:focus {
-    outline: none;
-    border-color: var(--color-acao);
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 0;
+    border-color: var(--color-tinta);
   }
   .campo[aria-invalid='true'] {
     border-color: var(--color-erro);
   }
+  .campo:disabled {
+    background: var(--color-superficie);
+    color: var(--color-borda-campo);
+    border-color: var(--color-borda);
+  }
+  .campo::placeholder {
+    color: var(--color-tinta-suave);
+    opacity: 1;
+  }
   .rotulo {
     display: block;
-    font-weight: 600;
+    font-weight: 500;
     font-size: var(--text-small);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.3rem;
   }
   .ajuda {
     display: block;
-    font-size: var(--text-small);
+    font-size: var(--text-caption);
     color: var(--tinta-suave);
-    margin-top: 0.35rem;
+    margin-top: 0.3rem;
   }
   .erro-campo {
     display: block;
-    font-size: var(--text-small);
+    font-size: var(--text-caption);
     color: var(--color-erro);
     font-weight: 600;
-    margin-top: 0.35rem;
+    margin-top: 0.3rem;
   }
 
-  /* Filtro em forma de botão (cidade, tipo, opção) */
+  /* Filtro: célula que vira traço cheio quando escolhida */
   .filtro {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    gap: 0.4rem;
     min-height: 2.75rem;
-    padding: 0.5rem 1.1rem;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--tinta) 8%, var(--fundo));
-    color: var(--tinta);
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    font-family: var(--font-semi);
     font-weight: 600;
+    font-size: 1rem;
     white-space: nowrap;
     transition:
-      background-color 0.15s ease,
-      color 0.15s ease,
-      transform 0.15s var(--ease-saida);
+      box-shadow var(--dur-estado) var(--ease-padrao),
+      background-color var(--dur-estado) var(--ease-padrao),
+      transform var(--dur-toque) var(--ease-padrao);
   }
   .filtro:hover {
-    background: color-mix(in oklab, var(--tinta) 15%, var(--fundo));
+    box-shadow: inset 0 0 0 1px var(--color-tinta);
   }
   .filtro[aria-pressed='true'],
   .filtro[aria-checked='true'],
   .filtro[aria-selected='true'],
   .filtro[data-ativo='true'] {
-    background: var(--acao);
-    color: var(--acao-tinta);
+    background: var(--color-tinta);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 2px var(--color-tinta);
   }
   .filtro:active {
-    transform: scale(0.96);
+    transform: scale(0.97);
   }
 
-  /* Foto que aproxima de leve ao passar o mouse */
   .zoom img {
-    transition: transform 0.7s var(--ease-saida);
-  }
-  .group:hover .zoom img,
-  .group:focus-visible .zoom img {
-    transform: scale(1.04);
+    transition: opacity var(--dur-entrada) var(--ease-padrao);
   }
 
-  /* Escurece só as faixas da foto onde há texto: o nome embaixo, o menu em cima */
+  /* Escurece só a faixa da foto onde há texto */
   .veu-cima {
-    background: linear-gradient(to bottom, rgb(0 0 0 / 0.4), rgb(0 0 0 / 0)); /* taste-skill-ignore: véu neutro sob o menu sobre a foto */
+    background: linear-gradient(to bottom, rgb(6 54 67 / 0.45), rgb(6 54 67 / 0)); /* taste-skill-ignore: véu sob o menu sobre a foto */
   }
   .veu-baixo {
-    background: linear-gradient(to top, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0)); /* taste-skill-ignore: véu neutro sob o texto da foto */
+    background: linear-gradient(to top, rgb(6 54 67 / 0.6), rgb(6 54 67 / 0)); /* taste-skill-ignore: véu sob o texto da foto */
   }
 }
 
 /* ------------------------------------------------------------------ */
-/* Movimento                                                           */
+/* Movimento: cubic-bezier(0.2, 0, 0, 1); 120 / 200 / 360 ms           */
 /* ------------------------------------------------------------------ */
 @keyframes subir {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -341,92 +375,39 @@ img {
     opacity: 1;
   }
 }
-@keyframes respirar {
-  from {
-    transform: scale(1.02);
-  }
-  to {
-    transform: scale(1.08);
-  }
-}
-/* Troca lenta das fotos do topo: cada uma aparece por um terço do ciclo */
-@keyframes trocar {
-  0% {
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  33.3% {
-    opacity: 1;
-  }
-  41.3% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
-  }
-}
 
-/* Entrada das partes de cada seção quando ela aparece (componente Revelar).
-   Sem JavaScript, nada fica escondido: a classe .js só existe com o script rodando. */
+/* Entrada dos blocos quando aparecem (componente Revelar). Sem JavaScript, nada fica escondido. */
 @media (prefers-reduced-motion: no-preference) {
-  /* só sobe: o texto nunca fica invisível, nem se a entrada não disparar */
+  /* só sobe 12 px: o conteúdo já está visível, nem some se a entrada não disparar */
   .js .entrar:not(.dentro) > * {
-    transform: translateY(28px);
+    transform: translateY(12px);
   }
   .js .entrar > * {
-    transition: transform 0.9s var(--ease-saida);
+    transition: transform var(--dur-entrada) var(--ease-padrao);
   }
   .js .entrar > *:nth-child(2) {
-    transition-delay: 0.08s;
+    transition-delay: 40ms;
   }
   .js .entrar > *:nth-child(3) {
-    transition-delay: 0.16s;
+    transition-delay: 80ms;
   }
   .js .entrar > *:nth-child(n + 4) {
-    transition-delay: 0.24s;
+    transition-delay: 120ms;
   }
-
   .chegar > * {
-    animation: subir 0.9s var(--ease-saida) both;
+    animation: subir var(--dur-entrada) var(--ease-padrao) both;
   }
   .chegar > *:nth-child(2) {
-    animation-delay: 0.08s;
+    animation-delay: 40ms;
   }
   .chegar > *:nth-child(3) {
-    animation-delay: 0.16s;
-  }
-  .chegar > *:nth-child(n + 4) {
-    animation-delay: 0.24s;
-  }
-
-  .respira {
-    animation: respirar 18s ease-in-out infinite alternate;
-  }
-  .troca > * + * {
-    opacity: 0;
-    animation: trocar 21s linear infinite backwards;
-  }
-  .troca > *:nth-child(2) {
-    animation-delay: 6s;
-  }
-  .troca > *:nth-child(3) {
-    animation-delay: 13s;
-  }
-  html[data-oculta] .troca > *,
-  html[data-oculta] .respira {
-    animation-play-state: paused;
+    animation-delay: 80ms;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  /* só a primeira foto do topo */
-  .troca > * + * {
-    display: none;
   }
   *,
   *::before,
@@ -449,25 +430,351 @@ img {
 }
 
 /* ------------------------------------------------------------------ */
-/* Cabeçalho                                                           */
+/* Cabeçalho: sobre o mar da página inicial ele é transparente e branco */
 /* ------------------------------------------------------------------ */
 .logo-escuro {
-  display: none;
+  display: none !important;
 }
-/* Na home, o cabeçalho fica sobre a foto da primeira tela, em branco */
-body:has(.abertura) .cabecalho {
+body:has(.mar-heroi) .cabecalho {
   position: absolute;
   inset-inline: 0;
   top: 0;
+  /* véu sob o menu: logo, idiomas e links legíveis sobre qualquer céu */
+  background: linear-gradient(to bottom, rgb(8 12 18 / 0.42), rgb(8 12 18 / 0)); /* taste-skill-ignore: véu neutro sob o menu sobre o céu */
   --tinta: #ffffff;
-  --acao: #ffffff;
-  --acao-tinta: var(--color-tinta);
-  --foco: #ffffff;
+  --tinta-suave: rgb(255 255 255 / 0.8);
+  --foco: var(--color-acao);
+  --linha: rgb(255 255 255 / 0.4);
   color: #ffffff;
 }
-body:has(.abertura) .cabecalho .logo-escuro {
-  display: block;
+body:has(.mar-heroi) .cabecalho .logo-escuro {
+  display: inline-flex !important;
 }
-body:has(.abertura) .cabecalho .logo-claro {
-  display: none;
+body:has(.mar-heroi) .cabecalho .logo-claro {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Página inicial: o mar 3D fixo atrás das janelas transparentes       */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .mar-fixo {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  /* imagem parada do mesmo céu: aparece na hora e fica quando não há 3D */
+  .mar-poster {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      var(--color-ceu-alto) 0%,
+      var(--color-ceu-meio) 22%,
+      var(--color-ceu-brilho) 36%,
+      var(--color-mar-longe) 36.2%,
+      var(--color-mar) 100%
+    ); /* taste-skill-ignore: o céu e o mar do 3D, parados */
+  }
+  .mar-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 600ms var(--ease-padrao);
+  }
+  .mar-canvas[data-pronto] {
+    opacity: 1;
+  }
+
+  .mar-heroi {
+    position: relative;
+    z-index: 10;
+    min-height: 60svh;
+    color: #ffffff;
+    touch-action: pan-y;
+  }
+  @media (min-width: 1024px) {
+    .mar-heroi {
+      min-height: 68svh;
+    }
+  }
+  .mar-heroi .gancho {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-display);
+    line-height: 0.98;
+    letter-spacing: -0.005em;
+    max-width: 18ch;
+    text-shadow: 0 1px 3px rgb(6 54 67 / 0.35);
+  }
+  @media (min-width: 768px) {
+    .mar-heroi .gancho {
+      max-width: 22ch;
+    }
+  }
+  .mar-heroi p {
+    text-shadow: 0 1px 3px rgb(6 54 67 / 0.6);
+  }
+
+  /* a folha do boletim sobe sobre o mar */
+  .folha {
+    position: relative;
+    z-index: 10;
+    background: var(--color-fundo);
+    border-radius: var(--radius-folha) var(--radius-folha) 0 0;
+  }
+
+  /* linhas do boletim */
+  .fila,
+  .fila-colunas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4.5rem 6.75rem;
+    gap: var(--vao-celula);
+    width: 100%;
+    text-align: left;
+  }
+  /* sem a coluna da cidade (página inicial: as linhas já vêm agrupadas por cidade) */
+  @media (min-width: 768px) {
+    .fila,
+    .fila-colunas {
+      grid-template-columns: minmax(0, 1.7fr) 4.75rem minmax(0, 1fr) 8rem;
+    }
+    .fila[data-cidade='sim'],
+    .fila-colunas[data-cidade='sim'] {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) 4.75rem minmax(0, 1fr) 8rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .fila,
+    .fila-colunas {
+      grid-template-columns: minmax(0, 1.6fr) 4.75rem minmax(0, 0.9fr) minmax(0, 1.1fr) 8.5rem;
+    }
+    .fila[data-cidade='sim'],
+    .fila-colunas[data-cidade='sim'] {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.75fr) 4.75rem minmax(0, 0.9fr) minmax(0, 1.1fr) 8.5rem;
+    }
+  }
+  .fila-colunas {
+    margin-top: 1.25rem;
+    margin-bottom: 0.4rem;
+    padding-inline: 0.25rem;
+  }
+  .fila {
+    border-radius: var(--radius-celula);
+    transition:
+      transform var(--dur-estado) var(--ease-padrao),
+      opacity var(--dur-estado) var(--ease-padrao);
+  }
+  .fila > span {
+    min-height: 3.5rem;
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
+    transition: border-color var(--dur-estado) var(--ease-padrao);
+  }
+  .fila .fila-nome {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.1rem;
+  }
+  .fila-titulo {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1.0625rem;
+    line-height: 1.15;
+  }
+  .fila-sub {
+    display: block;
+    font-size: var(--text-caption);
+    line-height: 1.3;
+    color: var(--color-tinta-suave);
+  }
+  .fila-texto {
+    font-size: var(--text-small);
+    line-height: 1.3;
+  }
+  .fila-horas {
+    justify-content: center;
+    border-radius: var(--radius-celula);
+    color: var(--color-tinta);
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .fila .fila-total {
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: right;
+    gap: 0.15rem;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fila:hover .celula {
+      border-color: var(--color-tinta);
+    }
+  }
+  .fila:focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 2px;
+  }
+  .fila[data-estado='escolhida'] {
+    transform: scale(1.02);
+  }
+  @media (min-width: 768px) {
+    .fila[data-estado='escolhida'] {
+      transform: scale(1.01);
+    }
+  }
+  .fila[data-estado='escolhida'] .celula {
+    border: 2px solid var(--color-tinta);
+  }
+  .fila[data-estado='alternativa'] {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+  .fila[data-estado='alternativa'] .celula {
+    border-style: dashed;
+    border-color: var(--color-borda-campo);
+  }
+  .fila:active {
+    transform: scale(0.97);
+  }
+
+  /* barra fixa de reserva */
+  .barra-reserva {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: subir-barra var(--dur-estado) var(--ease-padrao) both;
+  }
+  @keyframes subir-barra {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  body:has(.barra-reserva) main {
+    padding-bottom: 9rem;
+  }
+
+  /* mapa da região */
+  .mapa-janela {
+    position: relative;
+    z-index: 10;
+    min-height: 100svh;
+    overflow: hidden;
+  }
+  /* sem 3D: o mapa plano fica sobre o mar fundo, sem o horizonte da imagem parada atrás */
+  html:not([data-mar3d='on']) .mapa-janela {
+    background: var(--color-mar);
+  }
+  .mapa-caixa {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    width: min(92vw, calc(70svh * 0.84));
+    aspect-ratio: 1000 / 1191;
+    translate: -50% -50%;
+  }
+  .mapa-plano {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-celula);
+    overflow: hidden;
+  }
+  html[data-mar3d='on'] .mapa-plano {
+    display: none;
+  }
+  html[data-mar3d='on'] .mapa-caixa {
+    inset: 0;
+    width: auto;
+    aspect-ratio: auto;
+    translate: none;
+  }
+  .pino {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    translate: -50% -100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 44px;
+    min-height: 44px;
+    transition: opacity var(--dur-estado) var(--ease-padrao);
+  }
+  html[data-mar3d='on'] .pino {
+    left: 0;
+    top: 0;
+    transform: translate(var(--px, -999px), var(--py, -999px));
+  }
+  html[data-mar3d='on'] .pino[data-visivel='nao'] {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .pino-nome {
+    background: var(--color-mar);
+    color: #ffffff;
+    border: 1px solid rgb(255 255 255 / 0.35);
+    border-radius: var(--radius-celula);
+    padding: 0.35rem 0.7rem;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition: background-color var(--dur-estado) var(--ease-padrao);
+  }
+  .pino-ponto {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-acao);
+    border: 2px solid var(--color-mar);
+  }
+  .pino[aria-pressed='true'] .pino-nome,
+  .pino:hover .pino-nome {
+    background: var(--color-acao);
+    color: var(--color-tinta);
+    border-color: var(--color-acao);
+  }
+  .mapa-fonte {
+    position: absolute;
+    right: var(--margem);
+    bottom: 0.75rem;
+    z-index: 20;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-mar);
+    font-size: 0.75rem;
+    color: #ffffff;
+  }
+  .mapa-folha {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 30;
+    max-height: 64%;
+    overflow-y: auto;
+    border-radius: var(--radius-folha) var(--radius-folha) 0 0;
+    padding: 1rem var(--margem) calc(1rem + env(safe-area-inset-bottom));
+    animation: subir-barra var(--dur-entrada) var(--ease-padrao) both;
+  }
+  @media (min-width: 768px) {
+    .mapa-folha {
+      inset-inline: auto var(--margem);
+      bottom: var(--margem);
+      width: min(36rem, 50vw);
+      border-radius: var(--radius-folha);
+    }
+  }
 }

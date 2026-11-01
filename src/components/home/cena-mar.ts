@@ -450,7 +450,6 @@ export function criarCena(o: OpcoesCena): Cena | null {
     terraMat.uniforms.uLuz.value = 0.45 + 0.4 * t;
     contornoMat.opacity = 0.55 * Math.min(1, Math.max(0, (t - 0.55) / 0.35));
     pinoMat.opacity = Math.min(1, Math.max(0, (t - 0.6) / 0.3));
-    terra.visible = vis > 0.001;
     for (const [id, p] of pinos) {
       const alvo = id === destaque ? 1.45 : 1;
       p.grupo.scale.setScalar(p.grupo.scale.x + (alvo - p.grupo.scale.x) * Math.min(1, dt / 160));
@@ -490,6 +489,11 @@ export function criarCena(o: OpcoesCena): Cena | null {
   const alvoToque = document.querySelector<HTMLElement>('[data-mar-toque]');
   alvoToque?.addEventListener('pointerdown', tocar);
   alvoToque?.addEventListener('pointermove', mover);
+
+  // compila os shaders e envia a terra e os pinos à placa de vídeo já no carregamento, por baixo da imagem parada:
+  // assim a subida até o mapa não engasga na primeira vez que o litoral aparece
+  renderer.compile(cena, camera);
+  renderer.render(cena, camera);
 
   let rodando = false;
   return {

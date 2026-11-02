@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Horarios } from '@/data/passeios';
+import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { calcular, formatarCentavos, normalizarPessoas, type Pessoas } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { textoPessoas, type RotulosPessoas } from '@/lib/pessoas';
@@ -48,6 +50,10 @@ type Textos = {
   data: string;
   /** A dica dentro do campo de data vazio. */
   escolhaData: string;
+  horario: { saida: string; busca: string };
+  horarioAjudaSaida: string;
+  horarioAjudaBusca: string;
+  horarioHoje: string;
   observacoes: string;
   observacoesAjuda: string;
   aceitePre: string;
@@ -93,6 +99,9 @@ type Textos = {
     cpf: string;
     passaporte: string;
     data: string;
+    horario: string;
+    horarioIndisponivel: string;
+    semHorarioHoje: string;
     pessoas: string;
     aceite: string;
     cartao: string;
@@ -147,6 +156,7 @@ export function FormularioCheckout({
   idioma,
   locale,
   passeio,
+  horarios,
   opcoes,
   mostrarOpcoes,
   contadores,
@@ -161,6 +171,7 @@ export function FormularioCheckout({
   idioma: 'pt' | 'en' | 'es';
   locale: string;
   passeio: { slug: string; nome: string; cidade: string; duracao: string };
+  horarios: Horarios;
   opcoes: OpcaoWidget[];
   mostrarOpcoes: boolean;
   contadores: FaixaContador[];
@@ -174,7 +185,10 @@ export function FormularioCheckout({
 }) {
   const router = useRouter();
   const [hoje, setHoje] = useState('');
+  const [agora, setAgora] = useState<Date | null>(null);
   const [data, setData] = useState(inicial.data);
+  // com um horário só (ex.: city tour às 7h), ele já vem escolhido
+  const [hora, setHora] = useState(horarios.horas.length === 1 ? horarios.horas[0] : '');
   const [opcaoId, setOpcaoId] = useState(opcoes.some((o) => o.id === inicial.opcao) ? inicial.opcao : opcoes[0].id);
   const opcao = opcoes.find((o) => o.id === opcaoId) ?? opcoes[0];
   const [pessoas, setPessoas] = useState<Pessoas>(() => {
@@ -208,9 +222,23 @@ export function FormularioCheckout({
   const [isca, setIsca] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
+  // o relógio de Búzios: no dia de hoje, os horários vão sendo bloqueados enquanto a pessoa preenche
   useEffect(() => {
-    setHoje(hojeEmBuzios());
+    const atualizar = () => {
+      const d = new Date();
+      setAgora(d);
+      setHoje(hojeEmBuzios(d));
+    };
+    atualizar();
+    const id = window.setInterval(atualizar, 30_000);
+    return () => window.clearInterval(id);
   }, []);
+
+  const disponiveis = agora ? horasDisponiveis(horarios.horas, data, agora) : horarios.horas;
+  const primeiroDia = agora ? primeiroDiaComHorario(horarios.horas, agora) : hoje;
+  const semHorarioHoje = Boolean(hoje) && data === hoje && disponiveis.length === 0;
+  const algumBloqueadoHoje = Boolean(hoje) && data === hoje && disponiveis.length < horarios.horas.length;
+  const horaEscolhida = disponiveis.includes(hora) ? hora : '';
 
   const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
   const brl = (c: number) => formatarCentavos(c, locale);
@@ -240,6 +268,8 @@ export function FormularioCheckout({
     const e: Erros = {};
     const E = textos.erros;
     if (!dataPasseioValida(data)) e.data = E.data;
+    else if (semHorarioHoje) e.data = E.semHorarioHoje;
+    if (!semHorarioHoje && !horaEscolhida) e.hora = hora ? E.horarioIndisponivel : E.horario;
     if (pessoas.adultos < 1) e.adultos = E.pessoas;
     if (nome.trim().length < 3) e.nome = E.obrigatorio;
     if (!emailValido(email)) e.email = E.email;
@@ -262,8 +292,13 @@ export function FormularioCheckout({
     return e;
   }
 
-  // depois da primeira tentativa, os erros são recalculados a cada mudança (somem quando o campo é corrigido)
-  const erros: Erros = { ...(tentou ? validar() : {}), ...errosExtras };
+  // depois da primeira tentativa, os erros são recalculados a cada mudança (somem quando o campo é corrigido);
+  // o dia sem horário avisa na hora, sem esperar o envio
+  const erros: Erros = {
+    ...(semHorarioHoje ? { data: textos.erros.semHorarioHoje } : {}),
+    ...(tentou ? validar() : {}),
+    ...errosExtras,
+  };
   const temErros = Object.keys(erros).length > 0;
 
   async function tokenizarCartao(): Promise<string> {
@@ -324,6 +359,7 @@ export function FormularioCheckout({
           idioma,
           slug: passeio.slug,
           data,
+          hora: horaEscolhida,
           ...(mostrarOpcoes ? { opcao: opcao.id } : {}),
           adultos: pessoas.adultos,
           criancasMeia: pessoas.criancasMeia,
@@ -339,6 +375,13 @@ export function FormularioCheckout({
       const corpo = (await res.json().catch(() => ({}))) as { ok?: boolean; codigo?: string; token?: string; erro?: string };
       if (corpo.ok && corpo.codigo && corpo.token) {
         router.push(`${links.reserva}/${corpo.codigo}?t=${encodeURIComponent(corpo.token)}`);
+        return;
+      }
+      if (corpo.erro === 'hora') {
+        // o horário passou a ter menos de 2 horas de antecedência enquanto a pessoa preenchia
+        setErrosExtras({ hora: textos.erros.horarioIndisponivel });
+        setErroGeral(textos.erros.horarioIndisponivel);
+        setEnviando(false);
         return;
       }
       setErroGeral(corpo.erro === 'recusado' ? textos.erros.recusado : textos.erros.generico);
@@ -380,7 +423,7 @@ export function FormularioCheckout({
                 id="data"
                 valor={data}
                 dica={T.escolhaData}
-                min={hoje || undefined}
+                min={primeiroDia || undefined}
                 max={hoje ? somarDias(hoje, 366) : undefined}
                 onChange={(e) => setData(e.target.value)}
                 aria-invalid={Boolean(erros.data)}
@@ -388,6 +431,44 @@ export function FormularioCheckout({
                 required
               />
             </Campo>
+            {/* HORÁRIO: no dia de hoje, o que começa em menos de 2 horas aparece bloqueado */}
+            <fieldset className="min-w-0 sm:col-span-2" aria-describedby={erros.hora ? 'hora-erro' : 'hora-ajuda'}>
+              <legend className="rotulo">{horarios.busca ? T.horario.busca : T.horario.saida}</legend>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1.5">
+                {horarios.horas.map((h) => (
+                  <label
+                    key={h}
+                    className="filtro numeros cursor-pointer px-2 has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa"
+                    data-ativo={horaEscolhida === h}
+                  >
+                    <input
+                      type="radio"
+                      name="hora"
+                      value={h}
+                      checked={horaEscolhida === h}
+                      disabled={!disponiveis.includes(h)}
+                      onChange={() => {
+                        setHora(h);
+                        setErrosExtras({});
+                      }}
+                      aria-invalid={Boolean(erros.hora)}
+                      className="sr-only"
+                    />
+                    {formatarHora(h, idioma)}
+                  </label>
+                ))}
+              </div>
+              {erros.hora ? (
+                <span id="hora-erro" className="erro-campo" role="alert">
+                  {erros.hora}
+                </span>
+              ) : (
+                <span id="hora-ajuda" className="ajuda">
+                  {algumBloqueadoHoje && !semHorarioHoje && `${T.horarioHoje} `}
+                  {horarios.busca ? T.horarioAjudaBusca : T.horarioAjudaSaida}
+                </span>
+              )}
+            </fieldset>
             {mostrarOpcoes && (
               <fieldset className="min-w-0 sm:col-span-2">
                 <legend className="rotulo">{T.opcao}</legend>
@@ -798,6 +879,10 @@ export function FormularioCheckout({
                 <div className="flex justify-between gap-4">
                   <dt>{T.data}</dt>
                   <dd className="text-right font-semibold">{dataPasseioValida(data) ? formatarDataIso(data, locale) : '—'}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt>{horarios.busca ? T.horario.busca : T.horario.saida}</dt>
+                  <dd className="text-right font-semibold">{horaEscolhida ? formatarHora(horaEscolhida, idioma) : '—'}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt>{T.quantas}</dt>

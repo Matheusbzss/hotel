@@ -51,6 +51,7 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         locale={LOCALE_INTL[locale]}
         qrSvg={qrSvg}
         numeroWhatsApp={EMPRESA.whatsapp}
+        telefoneExibicao={EMPRESA.telefoneExibicao}
         linkWhatsApp={linkWhatsApp(`${d.contato.msg} (${publica.codigo})`)}
         linkNovaReserva={rota(locale, `/passeios/${publica.passeioSlug}`)}
         statusTextos={d.status}
@@ -58,6 +59,10 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           ...d.reserva,
           msgWhatsapp: d.checkout.msgWhatsapp,
           falarWhatsapp: d.comum.whatsapp,
+          horarioSaida: d.horario.saida,
+          horarioBusca: d.horario.busca,
+          dataHora: d.horario.dataHora,
+          encontro: d.passeio.encontro,
         }}
       />
     </main>

@@ -6,11 +6,12 @@ import { Confianca } from '@/components/passeio/Confianca';
 import { TopoPasseio } from '@/components/passeio/TopoPasseio';
 import { WidgetReserva } from '@/components/WidgetReserva';
 import { EMPRESA } from '@/config/empresa';
-import { PASSEIOS, obterPasseio, passeiosAtivos } from '@/data/passeios';
+import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { itemBoletim } from '@/lib/boletim';
 import { formatarCifra } from '@/lib/cifra';
+import { textoHorarios } from '@/lib/horarios';
 import { contadoresPessoas, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { formatarPreco, opcoesPasseio, precoAPartirCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { alternates, urlDoSite } from '@/lib/site';
@@ -81,6 +82,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const unidadeSingular = p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao;
   const unidadePlural = p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes;
   const regras = regrasCriancas(p, d);
+  const horarios = horariosDoPasseio(p);
+  const rotuloHorario = horarios.busca ? d.horario.busca : horarios.horas.length === 1 ? d.horario.saida : d.horario.saidas;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -144,9 +147,16 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 <dd>{regras.join(' ')}</dd>
               </div>
               <div className="largo">
-                <dt>{d.passeio.encontro}</dt>
-                <dd>{d.passeio.encontroTexto}</dd>
+                <dt>{rotuloHorario}</dt>
+                <dd>{textoHorarios(horarios.horas, locale, intl, d.horario.deHoraEmHora)}</dd>
               </div>
+              {/* com busca, o encontro é na hospedagem; sem busca, a equipe manda o ponto depois da reserva */}
+              {!horarios.busca && (
+                <div className="largo">
+                  <dt>{d.passeio.encontro}</dt>
+                  <dd>{d.passeio.encontroTexto}</dd>
+                </div>
+              )}
             </dl>
 
             <section className="entrar mt-14" aria-labelledby="sobre">
@@ -201,6 +211,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
               <WidgetReserva
                 slug={p.slug}
                 nome={p.nome[locale]}
+                horas={horarios.horas}
                 opcoes={opcoes.map((o) => ({ id: o.id, nome: o.nome[locale], tabela: tabelaPreco(p, o) }))}
                 mostrarOpcoes={temOpcoes(p)}
                 contadores={contadoresPessoas(tabelaPreco(p), d)}
@@ -225,6 +236,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   diminuir: d.comum.diminuir,
                   aumentar: d.comum.aumentar,
                   revisao: d.passeio.revisao,
+                  semHorarioHoje: d.checkout.erros.semHorarioHoje,
                 }}
               />
             </div>

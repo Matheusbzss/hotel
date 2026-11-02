@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatarCifra } from '@/lib/cifra';
+import { primeiroDiaComHorario } from '@/lib/horarios';
 import { calcular, normalizarPessoas, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { rastrear } from '@/lib/pixel';
@@ -35,6 +36,7 @@ export interface TextosWidget {
   diminuir: string;
   aumentar: string;
   revisao: string;
+  semHorarioHoje: string;
 }
 
 /**
@@ -44,6 +46,7 @@ export interface TextosWidget {
 export function WidgetReserva({
   slug,
   nome,
+  horas,
   opcoes,
   mostrarOpcoes,
   contadores,
@@ -55,6 +58,8 @@ export function WidgetReserva({
 }: {
   slug: string;
   nome: string;
+  /** Os horários do passeio ("HH:MM"): quando os de hoje já passaram, a data começa amanhã. */
+  horas: string[];
   opcoes: OpcaoWidget[];
   mostrarOpcoes: boolean;
   contadores: FaixaContador[];
@@ -69,6 +74,7 @@ export function WidgetReserva({
   const { grupo, alterar, pronto } = useGrupo();
   const [opcaoId, setOpcaoId] = useState(opcoes[0].id);
   const [hoje, setHoje] = useState('');
+  const [primeiroDia, setPrimeiroDia] = useState('');
   const [pessoas, setPessoas] = useState<Pessoas>(() => normalizarPessoas(opcoes[0].tabela, { adultos: 2 }));
   const [erroData, setErroData] = useState(false);
   const dataRef = useRef<HTMLInputElement>(null);
@@ -85,6 +91,10 @@ export function WidgetReserva({
 
   useEffect(() => {
     setHoje(hojeEmBuzios());
+    setPrimeiroDia(primeiroDiaComHorario(horas));
+  }, [horas]);
+
+  useEffect(() => {
     rastrear('ViewContent', {
       content_ids: [slug],
       content_name: nome,
@@ -97,9 +107,11 @@ export function WidgetReserva({
   const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
   const brl = (c: number) => formatarCifra(c, locale);
   const totalPessoas = pessoas.adultos + pessoas.criancasMeia + pessoas.criancasGratis;
+  // a data do grupo é hoje, mas os horários de hoje já passaram
+  const semHorarioHoje = Boolean(primeiroDia) && grupo.data === hoje && hoje < primeiroDia;
 
   const reservar = () => {
-    if (!dataPasseioValida(grupo.data)) {
+    if (!dataPasseioValida(grupo.data) || semHorarioHoje) {
       setErroData(true);
       dataRef.current?.focus();
       return;
@@ -154,19 +166,19 @@ export function WidgetReserva({
           id={idData}
           valor={grupo.data}
           dica={T.escolhaData}
-          min={hoje || undefined}
+          min={primeiroDia || undefined}
           max={hoje ? somarDias(hoje, 366) : undefined}
           onChange={(e) => {
             alterar({ data: e.target.value });
             setErroData(false);
           }}
-          aria-invalid={erroData}
-          aria-describedby={erroData ? `${idData}-erro` : undefined}
+          aria-invalid={erroData || semHorarioHoje}
+          aria-describedby={erroData || semHorarioHoje ? `${idData}-erro` : undefined}
           required
         />
-        {erroData && (
+        {(erroData || semHorarioHoje) && (
           <span id={`${idData}-erro`} className="erro-campo">
-            {T.escolhaData}
+            {semHorarioHoje ? T.semHorarioHoje : T.escolhaData}
           </span>
         )}
 

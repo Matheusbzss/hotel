@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
+import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
 import type { Reserva, StatusReserva } from './reservas';
@@ -14,6 +15,8 @@ export interface ReservaPublica {
   passeioSlug: string;
   passeioNome: string;
   data: string;
+  /** A hora no idioma da página ("9h", "9am") e se é a da busca na hospedagem. */
+  horario?: { texto: string; busca: boolean };
   adultos: number;
   criancas: number;
   /** "2 adultos + 1 criança (meia)", no idioma da página. */
@@ -47,6 +50,7 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     passeioSlug: r.passeio.slug,
     passeioNome: p?.nome[idioma] ?? r.passeio.nome,
     data: r.data,
+    horario: r.horario ? { texto: formatarHora(r.horario.hora, idioma), busca: r.horario.busca } : undefined,
     adultos: r.adultos,
     criancas: r.criancas,
     pessoasTexto: textoPessoas(r, dicionario(idioma).comum.rotulos, p ? semFaixas(p) : false),

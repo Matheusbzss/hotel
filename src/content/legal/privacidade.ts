@@ -34,7 +34,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Para que usamos e com qual base legal',
         paragrafos: [],
         lista: [
-          'Fazer e gerenciar a sua reserva, emitir o voucher, combinar horário e ponto de encontro e repassar ao operador os dados necessários para o passeio — execução de contrato (art. 7º, V, da LGPD).',
+          'Fazer e gerenciar a sua reserva, emitir o voucher com o horário, enviar o ponto de encontro e repassar ao operador os dados necessários para o passeio — execução de contrato (art. 7º, V, da LGPD).',
           'Processar pagamentos, reembolsos e prevenir fraudes — execução de contrato e legítimo interesse (art. 7º, V e IX).',
           'Guardar registros fiscais, contábeis e de consumo — cumprimento de obrigação legal e exercício regular de direitos (art. 7º, II e VI).',
           'Atender você pelo WhatsApp e por e-mail — execução de contrato e legítimo interesse.',
@@ -133,7 +133,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Why we use it and on what legal basis',
         paragrafos: [],
         lista: [
-          'To make and manage your booking, issue the voucher, arrange the time and meeting point and pass the necessary details to the tour operator — performance of a contract (LGPD art. 7, V).',
+          'To make and manage your booking, issue the voucher with the time, send the meeting point and pass the necessary details to the tour operator — performance of a contract (LGPD art. 7, V).',
           'To process payments and refunds and prevent fraud — performance of a contract and legitimate interest (art. 7, V and IX).',
           'To keep tax, accounting and consumer records — legal obligation and exercise of rights (art. 7, II and VI).',
           'To assist you on WhatsApp and by email — performance of a contract and legitimate interest.',
@@ -232,7 +232,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Para qué los usamos y con qué base legal',
         paragrafos: [],
         lista: [
-          'Hacer y gestionar tu reserva, emitir el voucher, coordinar horario y punto de encuentro y pasar al operador los datos necesarios para el paseo — ejecución de contrato (art. 7, V, de la LGPD).',
+          'Hacer y gestionar tu reserva, emitir el voucher con el horario, enviar el punto de encuentro y pasar al operador los datos necesarios para el paseo — ejecución de contrato (art. 7, V, de la LGPD).',
           'Procesar pagos y reembolsos y prevenir fraudes — ejecución de contrato e interés legítimo (art. 7, V y IX).',
           'Guardar registros fiscales, contables y de consumo — obligación legal y ejercicio regular de derechos (art. 7, II y VI).',
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',

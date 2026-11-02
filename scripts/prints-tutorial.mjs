@@ -15,6 +15,8 @@ const passos = quais.length ? quais.map(Number) : [1, 2, 3, 4];
 const IDIOMAS = { pt: 'pt-BR', es: 'es-AR', en: 'en-US' };
 // a data do exemplo: duas semanas à frente, para o campo de data aceitar
 const DATA = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+// um dos horários da escuna (9h, 11h e 14h)
+const HORA = '11:00';
 // o código segue o formato dos reais (sem 0, 1, I e O)
 const RESERVA = { codigo: 'ON-7K3P9Q', token: 'tutorial-local' };
 const PASTA_RESERVAS = path.join('.data', 'reservas');
@@ -40,6 +42,7 @@ async function reservaDeTeste(idioma) {
       status: 'pago',
       passeio: { slug: 'escuna-buzios', nome: e.passeio, cidade: 'buzios', unidade: 'pessoa' },
       data: DATA,
+      horario: { hora: HORA, busca: false },
       adultos: 2,
       criancas: 0,
       criancasMeia: 0,
@@ -57,7 +60,10 @@ async function reservaDeTeste(idioma) {
 
 /** Rola até o elemento, logo abaixo da cápsula do menu. */
 const rolar = (page, seletor) =>
-  page.locator(seletor).first().evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 84));
+  page
+    .locator(seletor)
+    .first()
+    .evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 84));
 
 const TELAS = {
   // 1. o passeio, com a data escolhida no quadro de reserva
@@ -72,12 +78,24 @@ const TELAS = {
     });
     await rolar(page, '#reservar');
   },
-  // 2. a escolha do horário: a tela entra na Etapa 5
-  2: null,
+  // 2. a escolha do horário no checkout, com um horário marcado
+  2: async (page, idioma) => {
+    await page.goto(`${base}/${idioma}/checkout/escuna-buzios?data=${DATA}&adultos=2&meia=0&gratis=0`, { waitUntil: 'networkidle' });
+    await page.locator(`label:has(input[name="hora"][value="${HORA}"])`).click();
+    await page.evaluate(() => {
+      document.body.tabIndex = -1;
+      document.body.focus();
+      document.body.removeAttribute('tabindex');
+    });
+    await rolar(page, 'form fieldset > legend.text-lead');
+  },
   // 3. o pagamento no checkout
   3: async (page, idioma) => {
     await page.goto(`${base}/${idioma}/checkout/escuna-buzios?data=${DATA}&adultos=2&meia=0&gratis=0`, { waitUntil: 'networkidle' });
-    await page.locator('form fieldset > legend.text-lead').nth(3).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 84));
+    await page
+      .locator('form fieldset > legend.text-lead')
+      .nth(3)
+      .evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 84));
   },
   // 4. o voucher de uma reserva paga
   4: async (page, idioma) => {

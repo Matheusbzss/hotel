@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { fmt } from '@/i18n/config';
 import { formatarCentavos } from '@/lib/orcamento';
 import { rastrear } from '@/lib/pixel';
 import type { ReservaPublica } from '@/lib/reserva-publica';
@@ -29,6 +30,7 @@ export function StatusReserva({
   linkWhatsApp,
   linkNovaReserva,
   numeroWhatsApp,
+  telefoneExibicao,
 }: {
   inicial: ReservaPublica;
   token: string;
@@ -40,6 +42,8 @@ export function StatusReserva({
   linkWhatsApp: string;
   linkNovaReserva: string;
   numeroWhatsApp: string;
+  /** O WhatsApp da equipe como aparece no voucher (+55 21 …). */
+  telefoneExibicao: string;
 }) {
   const [r, setR] = useState(inicial);
   const [restante, setRestante] = useState(tempoRestante(inicial.pixExpiraEm));
@@ -99,19 +103,21 @@ export function StatusReserva({
 
   const brl = formatarCentavos(r.totalCentavos, locale);
   const dataTexto = formatarDataIso(r.data, locale);
+  // nas mensagens, a data vai junto com a hora: "sáb., 14 de nov. de 2026 às 9h"
+  const dataHora = r.horario ? fmt(textos.dataHora, { data: dataTexto, hora: r.horario.texto }) : dataTexto;
   const pessoas = r.pessoasTexto;
   const nomePasseio = r.opcaoNome ? `${r.passeioNome} (${r.opcaoNome})` : r.passeioNome;
 
   const msgVoucher = textos.msgVoucher
     .replace('{codigo}', r.codigo)
     .replace('{passeio}', nomePasseio)
-    .replace('{data}', dataTexto)
+    .replace('{data}', dataHora)
     .replace('{pessoas}', pessoas)
     .replace('{hotel}', `${r.hotel} (${r.cidadeHospedagem})`);
   const msgFinalizar = textos.msgWhatsapp
     .replace('{codigo}', r.codigo)
     .replace('{passeio}', nomePasseio)
-    .replace('{data}', dataTexto)
+    .replace('{data}', dataHora)
     .replace('{pessoas}', pessoas)
     .replace('{total}', brl);
   const wa = (m: string) => `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(m)}`;
@@ -121,8 +127,8 @@ export function StatusReserva({
       <div className="px-6 pb-6 pt-6 md:px-8">
         <p className="text-small font-semibold">{r.status === 'pago' ? textos.voucher : textos.codigoReserva}</p>
         <p className="display numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
-        <dl className="mt-6 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
+        <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+          <div className="col-span-2">
             <dt className="text-small">{textos.passeio}</dt>
             <dd className="text-lead font-semibold leading-tight">{nomePasseio}</dd>
           </div>
@@ -130,22 +136,53 @@ export function StatusReserva({
             <dt className="text-small">{textos.data}</dt>
             <dd className="font-bold">{dataTexto}</dd>
           </div>
-          <div>
+          {r.horario && (
+            <div>
+              <dt className="text-small">{r.horario.busca ? textos.horarioBusca : textos.horarioSaida}</dt>
+              <dd className="numeros text-lead font-bold leading-tight">{r.horario.texto}</dd>
+            </div>
+          )}
+          <div className="col-span-2 sm:col-span-1">
             <dt className="text-small">{textos.pessoas}</dt>
             <dd className="font-bold">{pessoas}</dd>
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <dt className="text-small">{textos.nome}</dt>
             <dd className="font-bold">{r.nome}</dd>
           </div>
-          <div>
+          <div className="col-span-2">
             <dt className="text-small">{textos.hotel}</dt>
             <dd className="font-bold">
               {r.hotel} — {r.cidadeHospedagem}
             </dd>
           </div>
+          {r.horario && !r.horario.busca && (
+            <div className="col-span-2">
+              <dt className="text-small">{textos.encontro}</dt>
+              <dd className="font-bold">{textos.encontroTexto}</dd>
+            </div>
+          )}
         </dl>
       </div>
+      {/* o único lugar onde o cliente recebe o WhatsApp da equipe: o voucher da compra paga */}
+      {r.status === 'pago' && (
+        <div className="border-t border-(--color-borda) px-6 py-5 md:px-8">
+          <p className="text-small">{textos.whatsappEquipe}</p>
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <p className="numeros text-lead font-semibold">{telefoneExibicao}</p>
+            <a
+              href={wa(msgVoucher)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="botao botao-whats w-full sm:w-auto"
+              data-evento="Contact"
+            >
+              <IconeWhatsApp className="size-5" />
+              {textos.chamarWhatsapp}
+            </a>
+          </div>
+        </div>
+      )}
       <div className="tom-campo flex items-center justify-between gap-4 px-6 py-5 md:px-8">
         <span className="font-semibold">{statusTextos[r.status]}</span>
         <span className="numeros text-lead font-semibold">{brl}</span>
@@ -165,14 +202,10 @@ export function StatusReserva({
           <a href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`} className="botao w-full" download>
             {textos.baixarPdf}
           </a>
-          <a href={wa(msgVoucher)} target="_blank" rel="noopener noreferrer" className="botao botao-whats w-full" data-evento="Contact">
-            <IconeWhatsApp className="size-5" />
-            {textos.enviarWhatsapp}
-          </a>
           <div className="mt-6 bg-superficie px-5 py-5">
             <h2 className="font-bold">{textos.proximos}</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>{textos.proximo1}</li>
+              <li>{r.horario?.busca ? textos.proximo1Busca : textos.proximo1Saida}</li>
               <li>{textos.proximo2}</li>
               <li>{textos.proximo3}</li>
             </ul>

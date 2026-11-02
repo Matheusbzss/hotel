@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { obterPasseio } from '@/data/passeios';
+import { horariosDoPasseio, obterPasseio } from '@/data/passeios';
 import { IDIOMAS } from '@/i18n/config';
+import { horasDisponiveis } from '@/lib/horarios';
 import { criarPedido, ErroPagarme, interpretarPedido, pagarmeConfigurado } from '@/lib/pagarme';
 import { calcular, normalizarPessoas } from '@/lib/orcamento';
 import { custoParceiroCentavos, obterOpcao, regraCriancas, tabelaPreco, temOpcoes } from '@/lib/precos';
@@ -25,6 +26,7 @@ const Esquema = z.object({
   idioma: z.enum(IDIOMAS),
   slug: z.string().max(80),
   data: z.string(),
+  hora: z.string().regex(/^\d{2}:\d{2}$/),
   opcao: z.string().max(40).optional(),
   adultos: z.number().int().min(1).max(40),
   criancasMeia: z.number().int().min(0).max(30).optional().default(0),
@@ -84,6 +86,9 @@ export async function POST(req: Request) {
   const passeio = obterPasseio(e.slug);
   if (!passeio) return erro('slug');
   if (!dataPasseioValida(e.data)) return erro('data');
+  // a hora precisa ser uma das do passeio e, no dia de hoje, começar daqui a pelo menos 2 horas
+  const horarios = horariosDoPasseio(passeio);
+  if (!horasDisponiveis(horarios.horas, e.data).includes(e.hora)) return erro('hora');
   if (!emailValido(e.cliente.email)) return erro('cliente.email');
   if (!telefoneValido(e.cliente.ddi, e.cliente.telefone)) return erro('cliente.telefone');
   if (e.cliente.documentoTipo === 'cpf' ? !cpfValido(e.cliente.documento) : !passaporteValido(e.cliente.documento)) {
@@ -114,6 +119,7 @@ export async function POST(req: Request) {
         ...(temOpcoes(passeio) ? { opcao: { id: opcao.id, nome: opcao.nome.pt } } : {}),
       },
       data: e.data,
+      horario: { hora: e.hora, busca: horarios.busca },
       adultos: pessoas.adultos,
       criancas: pessoas.criancasMeia + pessoas.criancasGratis,
       criancasMeia: pessoas.criancasMeia,

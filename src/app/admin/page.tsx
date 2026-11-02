@@ -4,6 +4,7 @@ import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { pagarmeConfigurado } from '@/lib/pagarme';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
+import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
@@ -212,6 +213,14 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
                 </p>
                 <p>
                   {formatarDataIso(r.data, 'pt-BR')} ·{' '}
+                  {r.horario && (
+                    <>
+                      <strong>
+                        {r.horario.busca ? 'Busca na hospedagem' : 'Saída'} às {formatarHora(r.horario.hora, 'pt')}
+                      </strong>{' '}
+                      ·{' '}
+                    </>
+                  )}
                   {textoPessoas(
                     r,
                     ROTULOS_PESSOAS,

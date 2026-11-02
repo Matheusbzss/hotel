@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { FormularioCheckout } from '@/components/FormularioCheckout';
-import { obterPasseio } from '@/data/passeios';
+import { horariosDoPasseio, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 import { pagarmeConfigurado } from '@/lib/pagarme';
@@ -37,6 +37,7 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
             idioma={locale}
             locale={LOCALE_INTL[locale]}
             passeio={{ slug: p.slug, nome: p.nome[locale], cidade: nomeCidade(p, locale), duracao: p.duracao[locale] }}
+            horarios={horariosDoPasseio(p)}
             opcoes={opcoesPasseio(p).map((o) => ({ id: o.id, nome: o.nome[locale], tabela: tabelaPreco(p, o) }))}
             mostrarOpcoes={temOpcoes(p)}
             contadores={contadoresPessoas(tabelaPreco(p), d)}
@@ -57,6 +58,7 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
             textos={{
               ...d.checkout,
               escolhaData: d.grupo.escolhaData,
+              horario: d.horario,
               diminuir: d.comum.diminuir,
               aumentar: d.comum.aumentar,
               unidadeSingular: p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao,

@@ -1,9 +1,10 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import QRCode from 'qrcode';
 import { EMPRESA } from '@/config/empresa';
 import { obterPasseio } from '@/data/passeios';
-import { LOCALE_INTL } from '@/i18n/config';
+import { LOCALE_INTL, fmt } from '@/i18n/config';
 import { dicionario } from '@/i18n';
+import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
@@ -17,24 +18,24 @@ const COR = {
   superficie: rgb(225 / 255, 232 / 255, 230 / 255),
   acao: rgb(10 / 255, 107 / 255, 116 / 255),
   cinza: rgb(66 / 255, 85 / 255, 92 / 255),
+  /** o verde do botão de WhatsApp do site */
+  whats: rgb(37 / 255, 211 / 255, 102 / 255),
 };
 
+/** Os avisos fixos. O do horário (busca na hospedagem ou ponto de encontro) entra em segundo, vindo do dicionário. */
 const AVISOS = {
   pt: [
     'Apresente este voucher no celular ou impresso no dia do passeio.',
-    'Horário e ponto de encontro são confirmados pelo WhatsApp.',
     'Cancelamento com 24h de antecedência: reembolso integral.',
     'Cancelado por chuva, mau tempo ou mar: reembolso integral ou nova data, à sua escolha.',
   ],
   en: [
     'Show this voucher on your phone or printed on the day of the tour.',
-    'Time and meeting point are confirmed on WhatsApp.',
     'Cancellation at least 24h in advance: full refund.',
     'Cancelled due to rain, bad weather or sea conditions: full refund or a new date, your choice.',
   ],
   es: [
     'Presentá este voucher en el celular o impreso el día del paseo.',
-    'El horario y el punto de encuentro se confirman por WhatsApp.',
     'Cancelación con 24 h de anticipación: reembolso total.',
     'Cancelado por lluvia, mal tiempo o mar: reembolso total o nueva fecha, a tu elección.',
   ],
@@ -73,6 +74,22 @@ function texto(page: PDFPage, t: string, x: number, y: number, fonte: PDFFont, t
   page.drawText(limpar(t), { x, y, font: fonte, size: tamanho, color: cor });
 }
 
+/** Torna uma área da página clicável: no leitor de PDF, o toque abre o link. */
+function link(pdf: PDFDocument, page: PDFPage, url: string, x: number, y: number, largura: number, altura: number) {
+  const anotacao = pdf.context.register(
+    pdf.context.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [x, y, x + largura, y + altura],
+      Border: [0, 0, 0],
+      A: { Type: 'Action', S: 'URI', URI: PDFString.of(url) },
+    }),
+  );
+  const anotacoes = page.node.Annots();
+  if (anotacoes) anotacoes.push(anotacao);
+  else page.node.set(PDFName.of('Annots'), pdf.context.obj([anotacao]));
+}
+
 export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Promise<Uint8Array> {
   const idioma = reserva.idioma;
   const d = dicionario(idioma);
@@ -109,42 +126,66 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   texto(page, d.reserva.voucher, width - M - 200, height - 70, regular, 12, COR.cinza);
   texto(page, reserva.codigo, width - M - 200, height - 102, negrito, 30);
 
-  // cartão com os dados
-  const topoCartao = height - 170;
-  const alturaCartao = 330;
-  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.superficie });
-
   const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
+  const hospedagem = `${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`;
+  const dataTexto = formatarDataIso(reserva.data, locale);
+  const horario = reserva.horario;
+  const hora = horario ? formatarHora(horario.hora, idioma) : '';
 
   const campos: [string, string][] = [
     [d.reserva.passeio, nomePasseio],
-    [d.reserva.data, formatarDataIso(reserva.data, locale)],
+    [d.reserva.data, dataTexto],
+    ...(horario ? [[horario.busca ? d.horario.busca : d.horario.saida, hora] as [string, string]] : []),
     [d.reserva.nome, reserva.cliente.nome],
     [d.reserva.pessoas, pessoas],
-    [d.reserva.hotel, `${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`],
+    [d.reserva.hotel, hospedagem],
     [d.reserva.total, formatarPreco(reserva.totalCentavos, idioma)],
   ];
 
-  let y = topoCartao - 44;
+  // cartão com os dados: a altura acompanha o número de linhas
   const larguraValor = width - 2 * M - 48 - 150;
-  for (const [rotulo, valor] of campos) {
+  const blocos = campos.map(([rotulo, valor]) => ({ rotulo, linhas: quebrar(valor, negrito, 14, larguraValor) }));
+  const topoCartao = height - 170;
+  const alturaCartao = Math.max(330, 38 + blocos.reduce((s, b) => s + 30 + b.linhas.length * 17, 0));
+  page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.superficie });
+
+  let y = topoCartao - 44;
+  for (const { rotulo, linhas } of blocos) {
     texto(page, rotulo, M + 24, y, regular, 10, COR.cinza);
-    const linhas = quebrar(valor, negrito, 14, larguraValor);
     linhas.forEach((l, i) => texto(page, l, M + 24, y - 17 - i * 17, negrito, 14));
     y -= 30 + linhas.length * 17;
   }
 
   // QR code com o link da reserva
+  const xColuna = width - M - 24 - 130;
   const qr = await QRCode.toBuffer(urlReserva, { margin: 2, width: 300, color: { dark: '#0B2530', light: '#FFFFFF' } });
   const qrImg = await pdf.embedPng(qr);
-  page.drawImage(qrImg, { x: width - M - 24 - 130, y: topoCartao - 44 - 130, width: 130, height: 130 });
-  texto(page, d.status.pago || 'Pago', width - M - 24 - 130, topoCartao - 44 - 152, negrito, 14, COR.acao);
+  page.drawImage(qrImg, { x: xColuna, y: topoCartao - 44 - 130, width: 130, height: 130 });
+  texto(page, d.status.pago || 'Pago', xColuna, topoCartao - 44 - 152, negrito, 14, COR.acao);
 
-  // avisos
+  // o WhatsApp da equipe, num botão que abre a conversa com o voucher já escrito
+  const msg = fmt(d.reserva.msgVoucher, {
+    codigo: reserva.codigo,
+    passeio: nomePasseio,
+    data: horario ? fmt(d.horario.dataHora, { data: dataTexto, hora }) : dataTexto,
+    pessoas,
+    hotel: `${reserva.hospedagem.hotel} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
+  });
+  const urlWhats = `https://wa.me/${EMPRESA.whatsapp}?text=${encodeURIComponent(msg)}`;
+  const yBotao = topoCartao - 44 - 152 - 64;
+  texto(page, d.reserva.whatsappEquipe, xColuna, yBotao + 42, regular, 10, COR.cinza);
+  page.drawRectangle({ x: xColuna, y: yBotao, width: 130, height: 32, color: COR.whats });
+  const numero = limpar(EMPRESA.telefoneExibicao);
+  const larguraNumero = negrito.widthOfTextAtSize(numero, 11);
+  texto(page, numero, xColuna + (130 - larguraNumero) / 2, yBotao + 12, negrito, 11);
+  link(pdf, page, urlWhats, xColuna, yBotao, 130, 32);
+
+  // avisos: o do horário vem logo depois do primeiro
+  const avisos = [AVISOS[idioma][0], horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida, ...AVISOS[idioma].slice(1)];
   let ya = topoCartao - alturaCartao - 50;
   texto(page, IMPORTANTE[idioma], M, ya, negrito, 13);
   ya -= 22;
-  for (const aviso of AVISOS[idioma]) {
+  for (const aviso of avisos) {
     for (const l of quebrar(`• ${aviso}`, regular, 11, width - 2 * M)) {
       texto(page, l, M, ya, regular, 11);
       ya -= 16;

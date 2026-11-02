@@ -17,6 +17,11 @@
  * - FOTOS: coloque as imagens em /public/fotos/ e liste os caminhos em `fotos`
  *   (a primeira é a capa). Sem fotos, o card mostra uma capa com o ícone do passeio.
  * - TEXTOS: cada campo de texto tem as versões pt (português), en (inglês) e es (espanhol).
+ * - HORÁRIOS: cada tipo de passeio tem os seus em HORARIOS_POR_CATEGORIA (ex.: barcos às 9h, 11h
+ *   e 14h). Um passeio com horário diferente usa o campo `horarios`. Com `busca: true`, a hora é a
+ *   da busca na hospedagem; com `busca: false`, a da saída do passeio. No dia de hoje, o checkout
+ *   só libera os horários que começam daqui a 2 horas ou mais (ANTECEDENCIA_MINIMA_MINUTOS, em
+ *   src/lib/horarios.ts).
  * - Para tirar um passeio do ar sem apagar, use `ativo: false`.
  *
  * REVISAR: durações, roteiros e itens inclusos foram escritos com base no formato padrão
@@ -49,6 +54,13 @@ export interface OpcaoPasseio {
   origemPreco?: 'parceiro' | 'pesquisa';
 }
 
+export interface Horarios {
+  /** As horas que o cliente pode escolher, em "HH:MM" (horário de Brasília), em ordem. */
+  horas: string[];
+  /** true: a hora é a da busca na hospedagem. false: a hora é a da saída do passeio. */
+  busca: boolean;
+}
+
 export interface Passeio {
   slug: string;
   ativo?: boolean;
@@ -63,6 +75,8 @@ export interface Passeio {
   capacidadePorUnidade?: number;
   criancas?: PoliticaCriancas;
   duracao: Texto;
+  /** Só quando o horário é diferente do da categoria (HORARIOS_POR_CATEGORIA). */
+  horarios?: Horarios;
   destaque?: boolean;
   fotos: string[];
   /** Ícone da capa enquanto o passeio não tem fotos. */
@@ -81,6 +95,20 @@ export const MARGEM_PERCENTUAL = 10;
 
 /** Regra padrão de crianças: até 5 anos não paga; a partir de 6 paga inteira. */
 export const CRIANCAS_PADRAO: PoliticaCriancas = { gratisAte: 5 };
+
+/** Horário livre: o cliente escolhe a hora, de hora em hora, das 7h às 17h. */
+const DAS_7_AS_17 = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+/** Os horários de cada tipo de passeio. Passeio com horário diferente usa o campo `horarios`. */
+export const HORARIOS_POR_CATEGORIA: Record<Categoria, Horarios> = {
+  barco: { horas: ['09:00', '11:00', '14:00'], busca: false },
+  lancha: { horas: DAS_7_AS_17, busca: false },
+  'buggy-quadriciclo': { horas: DAS_7_AS_17, busca: false },
+  mergulho: { horas: ['07:00', '10:00'], busca: false },
+  // city tours e full days: a van busca na hospedagem às 7h
+  'city-tour': { horas: ['07:00'], busca: true },
+  aventura: { horas: DAS_7_AS_17, busca: false },
+};
 
 export const CIDADES: Record<Cidade, { nome: Texto; ordem: number }> = {
   buzios: { nome: { pt: 'Búzios', en: 'Búzios', es: 'Búzios' }, ordem: 1 },
@@ -621,6 +649,7 @@ export const PASSEIOS: Passeio[] = [
     precoParceiro: 100,
     unidade: 'pessoa',
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
+    horarios: { horas: ['08:00', '11:00', '14:00'], busca: true },
     fotos: [
       '/fotos/buzios/escada-para-a-praia.jpg',
       '/fotos/buzios/trolley-jardineira.jpg',
@@ -643,14 +672,14 @@ export const PASSEIOS: Passeio[] = [
       es: 'El trolley es un vehículo abierto que recorre Búzios con paradas cortas en los puntos más fotogénicos. Sin ventanas cerradas, disfrutás la brisa y la vista todo el tiempo.\n\nEs una opción liviana y económica para tener un panorama de la península, ideal para todas las edades.',
     },
     inclui: {
-      pt: ['Passeio em trolley aberto', 'Condutor local', 'Paradas em praias e mirantes'],
-      en: ['Open-air trolley ride', 'Local driver', 'Stops at beaches and viewpoints'],
-      es: ['Paseo en trolley abierto', 'Conductor local', 'Paradas en playas y miradores'],
+      pt: ['Busca no hotel ou pousada', 'Passeio em trolley aberto', 'Condutor local', 'Paradas em praias e mirantes'],
+      en: ['Pick-up at your hotel', 'Open-air trolley ride', 'Local driver', 'Stops at beaches and viewpoints'],
+      es: ['Búsqueda en el hotel o posada', 'Paseo en trolley abierto', 'Conductor local', 'Paradas en playas y miradores'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
       pt: [
-        'Saída do ponto de encontro',
+        'Busca no hotel ou pousada',
         'Praias de Geribá e Ferradura',
         'Mirante da Praia Brava',
         'Praia de João Fernandes',
@@ -658,7 +687,7 @@ export const PASSEIOS: Passeio[] = [
         'Retorno',
       ],
       en: [
-        'Departure from the meeting point',
+        'Pick-up at your hotel',
         'Geribá and Ferradura beaches',
         'Brava beach viewpoint',
         'João Fernandes beach',
@@ -666,7 +695,7 @@ export const PASSEIOS: Passeio[] = [
         'Return',
       ],
       es: [
-        'Salida desde el punto de encuentro',
+        'Búsqueda en el hotel o posada',
         'Playas de Geribá y Ferradura',
         'Mirador de la playa Brava',
         'Playa de João Fernandes',
@@ -1295,6 +1324,7 @@ export const PASSEIOS: Passeio[] = [
     unidade: 'embarcacao',
     capacidadePorUnidade: 10,
     duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
+    horarios: { horas: ['10:00'], busca: false },
     fotos: [
       '/fotos/arraial/lancha-agua-turquesa-do-alto.jpg',
       '/fotos/lancha/lancha-rumo-a-praia.jpg',
@@ -1687,6 +1717,7 @@ export const PASSEIOS: Passeio[] = [
     precoParceiro: 145,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 3h30 (com traslado)', en: 'About 3.5 hours (with transfer)', es: 'Unas 3 h 30 (con traslado)' },
+    horarios: { horas: ['09:00', '11:00', '14:00'], busca: true },
     fotos: [
       '/fotos/cabo-frio/ilha-do-japones-do-alto.jpg',
       '/fotos/buzios/escuna-toboga-banho.jpg',
@@ -1762,6 +1793,7 @@ export const PASSEIOS: Passeio[] = [
     unidade: 'embarcacao',
     capacidadePorUnidade: 10,
     duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
+    horarios: { horas: ['10:00'], busca: false },
     fotos: [
       '/fotos/lancha/lancha-agua-rasa.jpg',
       '/fotos/cabo-frio/ilha-do-japones-do-alto.jpg',
@@ -1971,7 +2003,7 @@ export const PASSEIOS: Passeio[] = [
     },
     roteiro: {
       pt: [
-        'Busca no hotel de madrugada/início da manhã',
+        'Busca no hotel ou pousada',
         'Cristo Redentor',
         'Pão de Açúcar',
         'Escadaria Selarón e Arcos da Lapa',
@@ -1980,7 +2012,7 @@ export const PASSEIOS: Passeio[] = [
         'Retorno à Região dos Lagos à noite',
       ],
       en: [
-        'Early-morning pick-up at your hotel',
+        'Pick-up at your hotel',
         'Christ the Redeemer',
         'Sugarloaf Mountain',
         'Selarón Steps and Lapa Arches',
@@ -1989,7 +2021,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to the Lakes Region in the evening',
       ],
       es: [
-        'Búsqueda en el hotel de madrugada',
+        'Búsqueda en el hotel o posada',
         'Cristo Redentor',
         'Pan de Azúcar',
         'Escalera Selarón y Arcos de Lapa',
@@ -2034,4 +2066,8 @@ export function passeiosAtivos(): Passeio[] {
 
 export function obterPasseio(slug: string): Passeio | undefined {
   return PASSEIOS.find((p) => p.slug === slug && p.ativo !== false);
+}
+
+export function horariosDoPasseio(p: Passeio): Horarios {
+  return p.horarios ?? HORARIOS_POR_CATEGORIA[p.categoria];
 }

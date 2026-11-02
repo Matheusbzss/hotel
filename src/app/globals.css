@@ -378,6 +378,15 @@ img {
   .filtro:active {
     transform: scale(0.97);
   }
+  /* opção que não dá para escolher (ex.: horário de hoje que começa em menos de 2 horas) */
+  .filtro:has(input:disabled) {
+    background: transparent;
+    color: var(--color-tinta-suave);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    text-decoration: line-through;
+    cursor: not-allowed;
+    transform: none;
+  }
 
   .zoom img {
     transition: opacity var(--dur-entrada) var(--ease-padrao);

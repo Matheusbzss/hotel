@@ -29,7 +29,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
         lista: [
           'Você é responsável por informar dados corretos (nome, contato, documento, data, número de pessoas e hospedagem).',
-          'Horário de saída e ponto de encontro são confirmados pelo WhatsApp após a compra e podem variar com a maré, o clima e a temporada.',
+          'O horário é escolhido na compra e consta no voucher, mas pode mudar por causa da maré, do clima ou da temporada. Nos passeios sem busca na hospedagem, a equipe envia o ponto de encontro pelo WhatsApp após a compra.',
           'Se não houver disponibilidade na data escolhida, avisaremos e você escolhe entre nova data ou reembolso integral.',
           'Menores de 18 anos devem estar acompanhados por um responsável.',
         ],
@@ -115,7 +115,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
         lista: [
           'You are responsible for providing correct details (name, contact, ID document, date, number of people and accommodation).',
-          'Departure time and meeting point are confirmed on WhatsApp after purchase and may change with the tide, the weather and the season.',
+          'The time is chosen at purchase and shown on the voucher, but it may change with the tide, the weather or the season. For tours without hotel pick-up, our team sends the meeting point on WhatsApp after purchase.',
           'If there is no availability on the chosen date, we will let you know and you choose between a new date or a full refund.',
           'Under-18s must be accompanied by a responsible adult.',
         ],
@@ -203,7 +203,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
         lista: [
           'Sos responsable de informar datos correctos (nombre, contacto, documento, fecha, cantidad de personas y alojamiento).',
-          'El horario de salida y el punto de encuentro se confirman por WhatsApp después de la compra y pueden variar según la marea, el clima y la temporada.',
+          'El horario se elige en la compra y figura en el voucher, pero puede cambiar según la marea, el clima o la temporada. En los paseos sin búsqueda en el alojamiento, el equipo envía el punto de encuentro por WhatsApp después de la compra.',
           'Si no hay disponibilidad en la fecha elegida, te avisamos y elegís entre una nueva fecha o el reembolso total.',
           'Los menores de 18 años deben estar acompañados por un adulto responsable.',
         ],

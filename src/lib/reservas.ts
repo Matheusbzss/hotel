@@ -32,6 +32,11 @@ export interface Reserva {
     opcao?: { id: string; nome: string };
   };
   data: string;
+  /**
+   * A hora escolhida no checkout ("HH:MM") e se ela é a da busca na hospedagem ou a da saída.
+   * As reservas feitas antes da escolha de horário não têm este campo.
+   */
+  horario?: { hora: string; busca: boolean };
   /** Adultos e crianças que pagam inteira. */
   adultos: number;
   /** Total de crianças com desconto (meia + grátis). */

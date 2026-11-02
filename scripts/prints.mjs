@@ -2,7 +2,8 @@
  * Prints e testes rápidos com Playwright: celular (390 px) e computador (1440 px).
  * Uso: node scripts/prints.mjs [url-base] [pasta-saida] [paginas...]
  * Ex.: node scripts/prints.mjs http://localhost:3000 .impeccable/review /es /es/passeios
- * Também registra erros do console e, na página inicial, toca num passeio e num pino do mapa.
+ * Também registra erros do console e, na página inicial, clica de verdade nos pinos do mapa
+ * (se algo cobrir o pino, o clique falha e aparece no relatório).
  */
 import { mkdir } from 'node:fs/promises';
 import { chromium, devices } from 'playwright';
@@ -18,6 +19,7 @@ const telas = [
 
 const navegador = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] });
 const erros = [];
+const avisos = [];
 for (const [nome, opcoes] of telas) {
   const ctx = await navegador.newContext({ ...opcoes, locale: 'es-AR' });
   const page = await ctx.newPage();
@@ -28,29 +30,40 @@ for (const [nome, opcoes] of telas) {
     const id = caminho.replace(/^\//, '').replace(/\//g, '-') || 'inicio';
     await page.goto(base + caminho, { waitUntil: 'networkidle', timeout: 90000 });
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(2500);
-    // espera o 3D entrar (quando o aparelho tem WebGL): até 40 s no renderizador por software dos testes
-    await page.waitForFunction(() => document.documentElement.dataset.mar3d === 'on' || !document.getElementById('mar-janela'), null, { timeout: 40000 }).catch(() => {});
+    await page.waitForTimeout(1500);
     await page.screenshot({ path: `${saida}/${id}-${nome}.png` });
-    const tem3d = await page.evaluate(() => document.documentElement.dataset.mar3d === 'on');
-    console.log(`${nome} ${caminho}: 3D ${tem3d ? 'ligado' : 'desligado'}`);
-    if (await page.locator('#boletim').count()) {
-      await page.locator('#boletim').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: `${saida}/${id}-${nome}-boletim.png` });
-      await page.locator('.fila').first().click();
-      await page.waitForTimeout(500);
-      await page.screenshot({ path: `${saida}/${id}-${nome}-escolhido.png` });
-      await page.locator('.fila').first().click();
-      await page.locator('#mapa-janela').evaluate((el) => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top, behavior: 'instant' }));
-      await page.waitForFunction(() => !document.documentElement.dataset.mar3d || document.documentElement.dataset.voo === '1.00', null, { timeout: 30000 }).catch(() => {});
+
+    if (await page.locator('#passeios').count()) {
+      await page.locator('#passeios').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: `${saida}/${id}-${nome}-vitrine.png` });
+    }
+
+    const palco = page.locator('.mapa-palco');
+    if (await palco.count()) {
+      // print da tela, com o mapa logo abaixo do menu (o print de um elemento muda a altura da tela no celular)
+      const mostrarMapa = () =>
+        palco.evaluate((el) => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 76, behavior: 'instant' }));
+      await mostrarMapa();
+      // o 3D carrega perto da tela; no renderizador por software dos testes pode levar um tempo
+      await page.waitForFunction(() => document.querySelector('.mapa-palco')?.getAttribute('data-3d') !== 'plano', null, { timeout: 90000 }).catch(() => {});
+      const modo = await palco.getAttribute('data-3d');
+      console.log(`${nome} ${caminho}: mapa ${modo}`);
       await page.waitForTimeout(2500);
+      await mostrarMapa();
       await page.screenshot({ path: `${saida}/${id}-${nome}-mapa.png` });
-      const pino = page.locator('.pino[data-visivel="sim"]').first();
-      if (await pino.count()) {
-        await pino.dispatchEvent('click');
-        await page.waitForTimeout(600);
-        await page.screenshot({ path: `${saida}/${id}-${nome}-mapa-cidade.png` });
+      for (const cidade of ['buzios', 'arraial-do-cabo']) {
+        const pino = page.locator(`.pino[data-pino="${cidade}"]`);
+        try {
+          await pino.click({ timeout: 15000 });
+          await page.waitForTimeout(5000);
+          await mostrarMapa();
+          await page.screenshot({ path: `${saida}/${id}-${nome}-mapa-${cidade}.png` });
+          await page.locator('.mapa-cartao .mapa-fechar').click({ timeout: 15000 });
+          await page.waitForTimeout(2500);
+        } catch (e) {
+          avisos.push(`[${nome}] pino ${cidade} não clicável: ${e.message.split('\n')[0]}`);
+        }
       }
     }
     await page.screenshot({ path: `${saida}/${id}-${nome}-inteira.png`, fullPage: true, timeout: 120000 });
@@ -58,4 +71,5 @@ for (const [nome, opcoes] of telas) {
   await ctx.close();
 }
 await navegador.close();
+if (avisos.length) console.log(`Avisos:\n${avisos.join('\n')}`);
 console.log(erros.length ? `Erros no console:\n${[...new Set(erros)].join('\n')}` : 'Sem erros no console.');

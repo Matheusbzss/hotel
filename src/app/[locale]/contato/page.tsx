@@ -75,10 +75,6 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
                 <dt className="text-small text-(--tinta-suave)">{c.idiomas}</dt>
                 <dd>{d.rodape.idiomas}</dd>
               </div>
-              <div>
-                <dt className="text-small text-(--tinta-suave)">{c.cnpj}</dt>
-                <dd className="numeros">{EMPRESA.cnpj}</dd>
-              </div>
             </dl>
           </div>
         </div>

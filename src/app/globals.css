@@ -96,16 +96,19 @@ img {
   max-width: 100%;
 }
 
-h1,
-h2,
-h3 {
-  text-wrap: balance;
-}
+/* na camada base: assim as peças (como a etiqueta, que não quebra linha) podem mudar isso */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
 
-p,
-li,
-dd {
-  text-wrap: pretty;
+  p,
+  li,
+  dd {
+    text-wrap: pretty;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -430,351 +433,518 @@ dd {
 }
 
 /* ------------------------------------------------------------------ */
-/* Cabeçalho: sobre o mar da página inicial ele é transparente e branco */
+/* Vidro fosco estilo iPhone (pedido do dono): menu, barra, etiquetas  */
 /* ------------------------------------------------------------------ */
+@layer components {
+  .vidro {
+    -webkit-backdrop-filter: var(--vidro-desfoque);
+    backdrop-filter: var(--vidro-desfoque);
+  }
+  .vidro-claro {
+    background: var(--vidro-claro);
+    box-shadow: inset 0 0 0 1px var(--vidro-claro-borda);
+    color: var(--color-tinta);
+  }
+  .vidro-foto {
+    background: var(--vidro-foto);
+    box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
+    color: #ffffff;
+  }
+  .vidro-escuro {
+    background: var(--vidro-escuro);
+    box-shadow: inset 0 0 0 1px var(--vidro-escuro-borda);
+    color: #ffffff;
+  }
+  /* sem desfoque no aparelho: o vidro vira um fundo quase opaco e o texto continua legível */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .vidro-claro {
+      background: rgb(255 255 255 / 0.95);
+    }
+    .vidro-foto {
+      background: rgb(6 54 67 / 0.6);
+    }
+    .vidro-escuro {
+      background: rgb(6 54 67 / 0.95);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Cabeçalho: cápsula de vidro presa no topo                           */
+/* ------------------------------------------------------------------ */
+.cabecalho {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 40;
+  padding-inline: calc(var(--margem) - 0.25rem);
+  pointer-events: none;
+}
+.cabecalho-barra {
+  pointer-events: auto;
+  max-width: calc(var(--largura-max) + 1rem);
+  margin-inline: auto;
+  border-radius: var(--radius-vidro);
+  transition:
+    background-color var(--dur-estado) var(--ease-padrao),
+    color var(--dur-estado) var(--ease-padrao),
+    box-shadow var(--dur-estado) var(--ease-padrao);
+}
 .logo-escuro {
   display: none !important;
 }
-body:has(.mar-heroi) .cabecalho {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  /* véu sob o menu: logo, idiomas e links legíveis sobre qualquer céu */
-  background: linear-gradient(to bottom, rgb(8 12 18 / 0.42), rgb(8 12 18 / 0)); /* taste-skill-ignore: véu neutro sob o menu sobre o céu */
-  --tinta: #ffffff;
-  --tinta-suave: rgb(255 255 255 / 0.8);
-  --foco: var(--color-acao);
-  --linha: rgb(255 255 255 / 0.4);
+/* sobre a foto do topo (antes de rolar): vidro sobre a foto, texto branco */
+html:not([data-rolou]) body:has(.topo-foto) .cabecalho-barra {
+  background: var(--vidro-foto);
+  box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
   color: #ffffff;
+  --foco: var(--color-acao);
 }
-body:has(.mar-heroi) .cabecalho .logo-escuro {
+html:not([data-rolou]) body:has(.topo-foto) .cabecalho .logo-escuro {
   display: inline-flex !important;
 }
-body:has(.mar-heroi) .cabecalho .logo-claro {
+html:not([data-rolou]) body:has(.topo-foto) .cabecalho .logo-claro {
   display: none !important;
 }
 
 /* ------------------------------------------------------------------ */
-/* Página inicial: o mar 3D fixo atrás das janelas transparentes       */
+/* Página inicial                                                       */
 /* ------------------------------------------------------------------ */
 @layer components {
-  .mar-fixo {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-  }
-  /* imagem parada do mesmo céu: aparece na hora e fica quando não há 3D */
-  .mar-poster {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      to bottom,
-      var(--color-ceu-alto) 0%,
-      var(--color-ceu-meio) 22%,
-      var(--color-ceu-brilho) 36%,
-      var(--color-mar-longe) 36.2%,
-      var(--color-mar) 100%
-    ); /* taste-skill-ignore: o céu e o mar do 3D, parados */
-  }
-  .mar-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    transition: opacity 600ms var(--ease-padrao);
-  }
-  .mar-canvas[data-pronto] {
-    opacity: 1;
-  }
-
-  .mar-heroi {
+  /* topo: a foto real em tela cheia, por baixo da cápsula do menu */
+  .topo-foto {
     position: relative;
-    z-index: 10;
-    min-height: 60svh;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 78svh;
+    margin-top: -4.5rem;
     color: #ffffff;
-    touch-action: pan-y;
+    background: var(--color-mar);
   }
   @media (min-width: 1024px) {
-    .mar-heroi {
-      min-height: 68svh;
+    .topo-foto {
+      min-height: 82svh;
     }
   }
-  .mar-heroi .gancho {
+  .topo-foto .foto {
+    position: absolute;
+    inset: -4%;
+    z-index: -2;
+    transform: translate3d(var(--px, 0px), var(--py, 0px), 0) scale(1.06);
+  }
+  /* véu só onde há texto: em cima (menu e gancho) e embaixo (texto e botão) */
+  .topo-foto::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      to bottom,
+      rgb(8 12 18 / 0.5) 0%,
+      rgb(8 12 18 / 0.08) 38%,
+      rgb(8 12 18 / 0) 55%,
+      rgb(8 12 18 / 0.55) 100%
+    ); /* taste-skill-ignore: véu neutro sob o texto sobre a foto */
+  }
+  .topo-foto .gancho {
     font-family: var(--font-display);
     font-weight: 600;
     font-size: var(--text-display);
     line-height: 0.98;
     letter-spacing: -0.005em;
     max-width: 18ch;
-    text-shadow: 0 1px 3px rgb(6 54 67 / 0.35);
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.35);
   }
   @media (min-width: 768px) {
-    .mar-heroi .gancho {
+    .topo-foto .gancho {
       max-width: 22ch;
     }
   }
-  .mar-heroi p {
-    text-shadow: 0 1px 3px rgb(6 54 67 / 0.6);
+  .topo-foto p {
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.6);
   }
 
-  /* a folha do boletim sobe sobre o mar */
-  .folha {
+  .etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .etiqueta .ponto {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.85);
+  }
+
+  /* cartão de passeio: foto real, etiquetas de vidro, preço por pessoa */
+  .cartao {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-cartao);
+    background: var(--color-papel);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    overflow: hidden;
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+    transition:
+      transform var(--dur-estado) var(--ease-padrao),
+      box-shadow var(--dur-estado) var(--ease-padrao);
+  }
+  .cartao[data-inclinado] {
+    transition: box-shadow var(--dur-estado) var(--ease-padrao);
+    box-shadow:
+      inset 0 0 0 1px var(--color-borda),
+      0 18px 32px -18px rgb(6 54 67 / 0.45);
+  }
+  .cartao:focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 3px;
+  }
+  .cartao-foto {
     position: relative;
-    z-index: 10;
-    background: var(--color-fundo);
-    border-radius: var(--radius-folha) var(--radius-folha) 0 0;
+    aspect-ratio: 4 / 3;
+  }
+  .cartao-foto .etiquetas {
+    position: absolute;
+    left: 0.6rem;
+    top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .cartao-texto {
+    padding: 0.85rem 0.9rem 1rem;
+  }
+  .cartao-titulo {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1.1875rem;
+    line-height: 1.15;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .cartao:hover .cartao-titulo {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      text-decoration-thickness: 1px;
+    }
   }
 
-  /* linhas do boletim */
-  .fila,
-  .fila-colunas {
+  /* trilho: no celular os cartões deslizam para o lado com encaixe; no computador viram grade */
+  .trilho {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 4.5rem 6.75rem;
-    gap: var(--vao-celula);
-    width: 100%;
-    text-align: left;
+    grid-auto-flow: column;
+    grid-auto-columns: 80%;
+    gap: 0.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--margem);
+    margin-inline: calc(-1 * var(--margem));
+    padding: 0.25rem var(--margem) 1rem;
+    scrollbar-width: none;
   }
-  /* sem a coluna da cidade (página inicial: as linhas já vêm agrupadas por cidade) */
-  @media (min-width: 768px) {
-    .fila,
-    .fila-colunas {
-      grid-template-columns: minmax(0, 1.7fr) 4.75rem minmax(0, 1fr) 8rem;
-    }
-    .fila[data-cidade='sim'],
-    .fila-colunas[data-cidade='sim'] {
-      grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) 4.75rem minmax(0, 1fr) 8rem;
+  .trilho::-webkit-scrollbar {
+    display: none;
+  }
+  .trilho > * {
+    scroll-snap-align: start;
+  }
+  @media (min-width: 640px) {
+    .trilho {
+      grid-auto-columns: 46%;
     }
   }
   @media (min-width: 1024px) {
-    .fila,
-    .fila-colunas {
-      grid-template-columns: minmax(0, 1.6fr) 4.75rem minmax(0, 0.9fr) minmax(0, 1.1fr) 8.5rem;
-    }
-    .fila[data-cidade='sim'],
-    .fila-colunas[data-cidade='sim'] {
-      grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.75fr) 4.75rem minmax(0, 0.9fr) minmax(0, 1.1fr) 8.5rem;
-    }
-  }
-  .fila-colunas {
-    margin-top: 1.25rem;
-    margin-bottom: 0.4rem;
-    padding-inline: 0.25rem;
-  }
-  .fila {
-    border-radius: var(--radius-celula);
-    transition:
-      transform var(--dur-estado) var(--ease-padrao),
-      opacity var(--dur-estado) var(--ease-padrao);
-  }
-  .fila > span {
-    min-height: 3.5rem;
-    display: flex;
-    align-items: center;
-    padding: 0.4rem 0.6rem;
-    transition: border-color var(--dur-estado) var(--ease-padrao);
-  }
-  .fila .fila-nome {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 0.1rem;
-  }
-  .fila-titulo {
-    font-family: var(--font-semi);
-    font-weight: 600;
-    font-size: 1.0625rem;
-    line-height: 1.15;
-  }
-  .fila-sub {
-    display: block;
-    font-size: var(--text-caption);
-    line-height: 1.3;
-    color: var(--color-tinta-suave);
-  }
-  .fila-texto {
-    font-size: var(--text-small);
-    line-height: 1.3;
-  }
-  .fila-horas {
-    justify-content: center;
-    border-radius: var(--radius-celula);
-    color: var(--color-tinta);
-    font-family: var(--font-semi);
-    font-weight: 600;
-    font-size: 1rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .fila .fila-total {
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: center;
-    text-align: right;
-    gap: 0.15rem;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .fila:hover .celula {
-      border-color: var(--color-tinta);
+    .trilho {
+      grid-auto-flow: row;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: visible;
+      margin-inline: 0;
+      padding-inline: 0;
+      gap: 1rem;
     }
   }
-  .fila:focus-visible {
-    outline: 2px solid var(--color-tinta);
-    outline-offset: 2px;
-  }
-  .fila[data-estado='escolhida'] {
-    transform: scale(1.02);
+
+  /* mapa da região: a foto de satélite real sobre o relevo (nada desenhado por código) */
+  .mapa-secao {
+    padding-block: 4rem 3rem;
   }
   @media (min-width: 768px) {
-    .fila[data-estado='escolhida'] {
-      transform: scale(1.01);
+    .mapa-secao {
+      padding-block: 6rem 4rem;
     }
   }
-  .fila[data-estado='escolhida'] .celula {
-    border: 2px solid var(--color-tinta);
+  .mapa-moldura {
+    margin-top: 1.5rem;
   }
-  .fila[data-estado='alternativa'] {
-    opacity: 0.9;
-    transform: scale(0.98);
-  }
-  .fila[data-estado='alternativa'] .celula {
-    border-style: dashed;
-    border-color: var(--color-borda-campo);
-  }
-  .fila:active {
-    transform: scale(0.97);
-  }
-
-  /* barra fixa de reserva */
-  .barra-reserva {
-    position: fixed;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 40;
-    padding-bottom: env(safe-area-inset-bottom);
-    animation: subir-barra var(--dur-estado) var(--ease-padrao) both;
-  }
-  @keyframes subir-barra {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: none;
-    }
-  }
-  body:has(.barra-reserva) main {
-    padding-bottom: 9rem;
-  }
-
-  /* mapa da região */
-  .mapa-janela {
+  .mapa-palco {
     position: relative;
-    z-index: 10;
-    min-height: 100svh;
+    isolation: isolate;
     overflow: hidden;
+    height: 76svh;
+    min-height: 30rem;
+    max-height: 52rem;
+    background: var(--color-superficie);
   }
-  /* sem 3D: o mapa plano fica sobre o mar fundo, sem o horizonte da imagem parada atrás */
-  html:not([data-mar3d='on']) .mapa-janela {
-    background: var(--color-mar);
+  @media (min-width: 1024px) {
+    .mapa-moldura {
+      max-width: calc(var(--largura-max) + 2 * var(--margem));
+      margin: 2.5rem auto 0;
+      padding-inline: var(--margem);
+    }
+    .mapa-palco {
+      height: 82vh;
+      min-height: 36rem;
+      max-height: 56rem;
+      border-radius: var(--radius-vidro);
+    }
   }
-  .mapa-caixa {
-    position: absolute;
-    left: 50%;
-    top: 56%;
-    width: min(92vw, calc(70svh * 0.84));
-    aspect-ratio: 1000 / 1191;
-    translate: -50% -50%;
-  }
+  /* sem z-index aqui: os pinos e as praias, que moram dentro, precisam ficar acima do canvas */
   .mapa-plano {
     position: absolute;
     inset: 0;
-    border-radius: var(--radius-celula);
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  html[data-mar3d='on'] .mapa-plano {
-    display: none;
-  }
-  html[data-mar3d='on'] .mapa-caixa {
+  .mapa-plano-caixa {
+    position: absolute;
     inset: 0;
-    width: auto;
-    aspect-ratio: auto;
-    translate: none;
   }
+  .mapa-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* sem 3D: a foto inteira, sem cortar, para os pinos caírem no lugar certo */
+  .mapa-palco[data-3d='off'] .mapa-plano-caixa {
+    position: relative;
+    inset: auto;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 3286 / 4425;
+  }
+  .mapa-palco[data-3d='off'] .mapa-img {
+    object-fit: fill;
+  }
+  .mapa-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    touch-action: pan-y;
+    opacity: 0;
+    transition: opacity 600ms var(--ease-padrao);
+  }
+  .mapa-canvas[data-pronto] {
+    opacity: 1;
+  }
+
+  /* pinos: o ponto fica sobre a cidade; enquanto o 3D carrega, ficam escondidos */
   .pino {
     position: absolute;
-    left: var(--x);
-    top: var(--y);
-    translate: -50% -100%;
+    left: 0;
+    top: 0;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
     min-width: 44px;
     min-height: 44px;
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, calc(-100% + 7px));
+    visibility: hidden;
+    opacity: 0;
     transition: opacity var(--dur-estado) var(--ease-padrao);
   }
-  html[data-mar3d='on'] .pino {
-    left: 0;
-    top: 0;
-    transform: translate(var(--px, -999px), var(--py, -999px));
+  .mapa-palco[data-3d='on'] .pino,
+  .mapa-palco[data-3d='off'] .pino {
+    visibility: visible;
+    opacity: 1;
   }
-  html[data-mar3d='on'] .pino[data-visivel='nao'] {
-    opacity: 0;
+  .mapa-palco[data-3d='on'] .pino[data-visivel='nao'] {
     visibility: hidden;
+    opacity: 0;
   }
-  .pino-nome {
-    background: var(--color-mar);
-    color: #ffffff;
-    border: 1px solid rgb(255 255 255 / 0.35);
-    border-radius: var(--radius-celula);
-    padding: 0.35rem 0.7rem;
-    font-family: var(--font-semi);
-    font-weight: 600;
-    font-size: 1rem;
-    white-space: nowrap;
-    transition: background-color var(--dur-estado) var(--ease-padrao);
+  .mapa-palco[data-3d='off'] .pino {
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-50%, calc(-100% + 7px));
   }
   .pino-ponto {
     width: 14px;
     height: 14px;
     border-radius: 999px;
     background: var(--color-acao);
-    border: 2px solid var(--color-mar);
+    box-shadow: 0 0 0 2px #ffffff;
   }
-  .pino[aria-pressed='true'] .pino-nome,
-  .pino:hover .pino-nome {
+  .pino[aria-pressed='true'] .etiqueta {
     background: var(--color-acao);
     color: var(--color-tinta);
-    border-color: var(--color-acao);
+    box-shadow: none;
   }
-  .mapa-fonte {
+
+  /* nomes das praias: só os da cidade escolhida, sem encostar um no outro */
+  .praia-rotulo {
     position: absolute;
-    right: var(--margem);
-    bottom: 0.75rem;
-    z-index: 20;
-    padding: 0.15rem 0.45rem;
-    border-radius: var(--radius-celula);
-    background: var(--color-mar);
-    font-size: 0.75rem;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, calc(-100% - 7px));
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: rgb(6 54 67 / 0.78);
     color: #ffffff;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-entrada) var(--ease-padrao);
   }
-  .mapa-folha {
+  .praia-rotulo::after {
+    content: '';
     position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    z-index: 30;
-    max-height: 64%;
-    overflow-y: auto;
-    border-radius: var(--radius-folha) var(--radius-folha) 0 0;
-    padding: 1rem var(--margem) calc(1rem + env(safe-area-inset-bottom));
-    animation: subir-barra var(--dur-entrada) var(--ease-padrao) both;
+    left: 50%;
+    bottom: -7px;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1.5px rgb(6 54 67 / 0.78);
+  }
+  .praia-rotulo[data-visivel='sim'] {
+    opacity: 1;
+  }
+  .praia-rotulo[data-lado='baixo'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, 7px);
+  }
+  .praia-rotulo[data-lado='baixo']::after {
+    top: -7px;
+    bottom: auto;
+  }
+  .praia-rotulo[data-lado='direita'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(9px, -50%);
+  }
+  .praia-rotulo[data-lado='esquerda'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(calc(-100% - 9px), -50%);
+  }
+  .praia-rotulo[data-lado='direita']::after,
+  .praia-rotulo[data-lado='esquerda']::after {
+    top: 50%;
+    bottom: auto;
+    margin: -2.5px 0 0;
+  }
+  .praia-rotulo[data-lado='direita']::after {
+    left: -9px;
+  }
+  .praia-rotulo[data-lado='esquerda']::after {
+    left: auto;
+    right: -9px;
+  }
+  .mapa-palco[data-3d='off'] .praia-rotulo {
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-50%, calc(-100% - 7px));
+  }
+
+  .mapa-dica {
+    position: absolute;
+    top: 0.75rem;
+    left: 50%;
+    z-index: 3;
+    width: max-content;
+    max-width: calc(100% - 1.5rem);
+    transform: translateX(-50%);
+    animation: surgir var(--dur-entrada) var(--ease-padrao) both;
+  }
+  .mapa-cartao {
+    /* sobre a foto escura do mapa, o vidro claro precisa de mais corpo para o texto ler bem */
+    --vidro-claro: rgb(255 255 255 / 0.86);
+    position: absolute;
+    inset-inline: 0.5rem;
+    bottom: 0.5rem;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.6rem 0.75rem;
+    padding: 0.6rem;
+    border-radius: var(--radius-vidro);
+    animation: subir var(--dur-entrada) var(--ease-padrao) both;
+  }
+  .mapa-cartao-foto {
+    position: relative;
+    overflow: hidden;
+    border-radius: calc(var(--radius-vidro) - 0.5rem);
+    aspect-ratio: 1;
+  }
+  /* espaço à direita para o botão de fechar */
+  .mapa-cartao-info {
+    min-width: 0;
+    align-self: center;
+    padding-right: 2.5rem;
+  }
+  .mapa-cartao-botao {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .mapa-fechar {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
   }
   @media (min-width: 768px) {
-    .mapa-folha {
-      inset-inline: auto var(--margem);
-      bottom: var(--margem);
-      width: min(36rem, 50vw);
-      border-radius: var(--radius-folha);
+    .mapa-cartao {
+      inset-inline: auto;
+      left: 1rem;
+      bottom: 1rem;
+      width: 22rem;
+      grid-template-columns: minmax(0, 1fr);
+      padding: 0.5rem;
+    }
+    .mapa-cartao-foto {
+      aspect-ratio: 16 / 10;
+    }
+    .mapa-cartao-info {
+      padding: 0 0.4rem;
+    }
+    .mapa-cartao-botao {
+      width: auto;
+      margin: 0 0.4rem 0.4rem;
+    }
+    .mapa-fechar {
+      top: 0.9rem;
+      right: 0.9rem;
+    }
+  }
+  .mapa-fonte {
+    margin-top: 0.5rem;
+    padding-inline: var(--margem);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--color-tinta-suave);
+  }
+  @media (min-width: 1024px) {
+    .mapa-fonte {
+      padding-inline: 0;
     }
   }
 }
+

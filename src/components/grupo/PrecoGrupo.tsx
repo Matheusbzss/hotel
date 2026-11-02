@@ -1,26 +1,29 @@
 'use client';
 
-import { LOCALE_INTL, type Idioma } from '@/i18n/config';
-import { calcular, formatarCentavos, type TabelaPreco } from '@/lib/orcamento';
+import { fmt } from '@/i18n/config';
+import { calcular, type TabelaPreco } from '@/lib/orcamento';
+import { textoPessoas, type RotulosPessoas } from '@/lib/pessoas';
+import { Cifra } from '../Cifra';
 import { pessoasDoGrupo, useGrupo } from './GrupoContexto';
 
-/** "Total para o seu grupo: R$ 192,50" — calculado com o grupo escolhido na página. */
+/** "Total para 2 adultos: R$ 154", calculado com o grupo escolhido na página (rola ao mudar). */
 export function PrecoGrupo({
   tabela,
   locale,
-  rotulo,
+  textos,
   className = '',
 }: {
   tabela: TabelaPreco;
-  locale: Idioma;
-  rotulo: string;
+  locale: string;
+  textos: { totalPara: string; rotulos: RotulosPessoas };
   className?: string;
 }) {
   const { grupo } = useGrupo();
   const total = calcular(tabela, pessoasDoGrupo(grupo, tabela)).totalCentavos;
+  const pessoas = textoPessoas({ adultos: grupo.adultos, criancasMeia: grupo.criancas6a10, criancasGratis: grupo.criancas0a5 }, textos.rotulos);
   return (
     <p className={className}>
-      {rotulo}: <span className="numeros">{formatarCentavos(total, LOCALE_INTL[locale])}</span>
+      {fmt(textos.totalPara, { pessoas })}: <Cifra centavos={total} locale={locale} className="font-semibold tabular-nums" />
     </p>
   );
 }

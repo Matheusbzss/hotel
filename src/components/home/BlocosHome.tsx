@@ -58,21 +58,36 @@ export function TabelaGarantias({ d, className = '' }: { d: Dicionario; classNam
   );
 }
 
+/** Regras e avisos da página inicial: compacto, uma linha por situação; a tabela completa fica na política. */
 export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
   const H = d.home;
   return (
-    <section className="moldura py-16 md:py-28" aria-labelledby="garantias-titulo">
-      <div className="entrar">
-        <h2 id="garantias-titulo" className="titulo">
-          {H.garantiasTitulo.join(' ')}
-        </h2>
-        <TabelaGarantias d={d} className="mt-6 md:mt-10" />
-        <p className="mt-6 max-w-[62ch] text-small">
-          {H.garantiasNota}{' '}
-          <Link href={hrefPolitica} className="link font-semibold">
-            {H.garantiasLink}
-          </Link>
-        </p>
+    <section className="moldura py-12 md:py-16" aria-labelledby="garantias-titulo">
+      <div className="entrar grid gap-4 md:grid-cols-12 md:gap-8">
+        <div className="md:col-span-4">
+          <h2 id="garantias-titulo" className="subtitulo">
+            {H.garantiasTitulo}
+          </h2>
+          <p className="mt-2 max-w-[40ch] text-small text-(--color-tinta-suave)">
+            {H.garantiasNota}{' '}
+            <Link href={hrefPolitica} className="link font-semibold text-(--color-tinta)">
+              {H.garantiasLink}
+            </Link>
+          </p>
+        </div>
+        <dl className="divide-y divide-(--color-borda) rounded-[8px] border border-(--color-borda) bg-(--color-papel) text-small md:col-span-8">
+          {H.garantias.map((g) => (
+            <div key={g.se} className="grid gap-0.5 px-3.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_10rem] md:gap-4">
+              <dt className="font-semibold">{g.se}</dt>
+              <dd>
+                {g.recebe}
+                {/* no celular o prazo vem na mesma linha (o ponto nunca fica sozinho no fim); no computador, na sua coluna */}
+                <span className="text-(--color-tinta-suave) md:hidden"> ·{' '}{g.prazo}</span>
+              </dd>
+              <dd className="hidden text-right text-(--color-tinta-suave) md:block">{g.prazo}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );
@@ -161,7 +176,7 @@ export function Perguntas({ d }: { d: Dicionario }) {
             ))}
           </ul>
           <div className="mt-6 flex flex-col gap-3">
-            <a href="#boletim" className="botao">
+            <a href="#passeios" className="botao">
               {H.faqBotao}
             </a>
             <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="link inline-flex min-h-11 items-center font-semibold" data-evento="Contact">

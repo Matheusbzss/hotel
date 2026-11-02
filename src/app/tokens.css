@@ -58,9 +58,18 @@
   --ease-saida: cubic-bezier(0.3, 0, 1, 1);
   --radius-celula: 4px;
   --radius-folha: 8px;
+  --radius-cartao: 8px;
+  --radius-vidro: 16px;
 }
 
 :root {
+  --vidro-foto: rgb(255 255 255 / 0.16);
+  --vidro-foto-borda: rgb(255 255 255 / 0.38);
+  --vidro-claro: rgb(255 255 255 / 0.72);
+  --vidro-claro-borda: rgb(6 54 67 / 0.12);
+  --vidro-escuro: rgb(6 54 67 / 0.72);
+  --vidro-escuro-borda: rgb(255 255 255 / 0.18);
+  --vidro-desfoque: blur(18px) saturate(160%);
   --dur-toque: 120ms;
   --dur-estado: 200ms;
   --dur-entrada: 360ms;

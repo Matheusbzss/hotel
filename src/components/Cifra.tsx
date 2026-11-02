@@ -1,18 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-
-/** "R$ 154" quando não há centavos, "R$ 291,50" quando há. */
-export function formatarCifra(centavos: number, locale: string): string {
-  const inteiro = centavos % 100 === 0;
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'BRL',
-    currencyDisplay: 'narrowSymbol',
-    minimumFractionDigits: inteiro ? 0 : 2,
-    maximumFractionDigits: inteiro ? 0 : 2,
-  }).format(centavos / 100);
-}
+import { formatarCifra } from '@/lib/cifra';
 
 /**
  * Valor que rola até o novo número quando o grupo ou a data mudam: 200 ms, desacelerando,

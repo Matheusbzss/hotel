@@ -15,3 +15,5 @@ next-env.d.ts
 .impeccable/osm/
 .impeccable/dna/
 .impeccable/mocks/
+sentinel/
+.impeccable/fotos-web/

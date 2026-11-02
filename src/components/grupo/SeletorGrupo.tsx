@@ -3,12 +3,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { textoPessoas, type RotulosPessoas } from '@/lib/pessoas';
 import { hojeEmBuzios, somarDias } from '@/lib/validacao';
+import { CampoData } from '../CampoData';
 import { Contador } from './Contador';
 import { useGrupo } from './GrupoContexto';
 
 export interface TextosSeletorGrupo {
   data: string;
-  /** A dica dentro do campo de data vazio (só o iPhone precisa: ele não mostra dd/mm/aaaa). */
+  /** A dica dentro do campo de data vazio. */
   escolhaData: string;
   quemVai: string;
   adultos: string;
@@ -62,22 +63,14 @@ export function SeletorGrupo({ textos: T, className = '' }: { textos: TextosSele
         <label htmlFor={idData} className="rotulo">
           {T.data}
         </label>
-        <div className="relative">
-          <input
-            id={idData}
-            type="date"
-            className="campo"
-            value={grupo.data}
-            min={hoje || undefined}
-            max={hoje ? somarDias(hoje, 366) : undefined}
-            onChange={(e) => alterar({ data: e.target.value })}
-          />
-          {!grupo.data && (
-            <span className="campo-dica" aria-hidden="true">
-              {T.escolhaData}
-            </span>
-          )}
-        </div>
+        <CampoData
+          id={idData}
+          valor={grupo.data}
+          dica={T.escolhaData}
+          min={hoje || undefined}
+          max={hoje ? somarDias(hoje, 366) : undefined}
+          onChange={(e) => alterar({ data: e.target.value })}
+        />
       </div>
       <div>
         <span className="rotulo" id={`${idPainel}-rotulo`}>

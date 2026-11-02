@@ -24,6 +24,7 @@ import {
   validadeCartaoValida,
   type CidadeHospedagem,
 } from '@/lib/validacao';
+import { CampoData } from './CampoData';
 import { Contador } from './grupo/Contador';
 import { IconeWhatsApp } from './IconeWhatsApp';
 import type { OpcaoWidget } from './WidgetReserva';
@@ -45,6 +46,8 @@ type Textos = {
   hotel: string;
   passeio: string;
   data: string;
+  /** A dica dentro do campo de data vazio. */
+  escolhaData: string;
   observacoes: string;
   observacoesAjuda: string;
   aceitePre: string;
@@ -373,11 +376,10 @@ export function FormularioCheckout({
           <legend className="text-lead font-semibold">{T.passeio}</legend>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Campo id="data" rotulo={T.data} erro={erros.data} className="sm:col-span-2">
-              <input
+              <CampoData
                 id="data"
-                type="date"
-                className="campo"
-                value={data}
+                valor={data}
+                dica={T.escolhaData}
                 min={hoje || undefined}
                 max={hoje ? somarDias(hoje, 366) : undefined}
                 onChange={(e) => setData(e.target.value)}

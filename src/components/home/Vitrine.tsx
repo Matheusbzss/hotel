@@ -52,7 +52,8 @@ export function Vitrine({
         </div>
         <SeletorGrupo className="md:col-span-6" textos={textos.grupo} />
       </div>
-      <div role="group" aria-label={textos.filtro} className="sem-barra -mx-(--margem) mt-5 flex gap-2 overflow-x-auto px-(--margem) pb-1">
+      {/* quebra a linha no celular: rolando para o lado, a última cidade ficava cortada e escondida */}
+      <div role="group" aria-label={textos.filtro} className="mt-5 flex flex-wrap gap-2">
         <button type="button" className="filtro" aria-pressed={cidade === null} onClick={() => setCidade(null)}>
           {textos.todas}
         </button>

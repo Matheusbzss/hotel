@@ -289,12 +289,29 @@ img {
     opacity: 1;
   }
   /* campo de data: no iPhone o Safari dá ao campo uma largura própria, maior que a coluna
-     (ele passava por baixo do vizinho), e vazio não mostra nada; a dica só aparece lá */
+     (ele passava por baixo do vizinho). Vazio, cada navegador mostra uma coisa (o iPhone, nada),
+     então todos mostram a dica até a pessoa tocar no campo */
   input[type='date'].campo {
     min-width: 0;
   }
+  input[type='date'].campo[data-vazio]:not(:focus) {
+    color: transparent;
+  }
   .campo-dica {
-    display: none;
+    position: absolute;
+    top: 50%;
+    right: calc(0.85rem + 1px);
+    left: calc(0.85rem + 1px);
+    overflow: hidden;
+    transform: translateY(-50%);
+    color: var(--color-tinta-suave);
+    font-size: var(--text-body);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  .campo:focus + .campo-dica {
+    visibility: hidden;
   }
   @supports (-webkit-touch-callout: none) {
     input[type='date'].campo {
@@ -304,15 +321,6 @@ img {
     input[type='date'].campo::-webkit-date-and-time-value {
       min-height: 1.5em;
       text-align: left;
-    }
-    .campo-dica {
-      position: absolute;
-      top: 50%;
-      left: 0.85rem;
-      display: block;
-      transform: translateY(-50%);
-      color: var(--color-tinta-suave);
-      pointer-events: none;
     }
   }
   .rotulo {

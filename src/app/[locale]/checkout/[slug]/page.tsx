@@ -56,6 +56,7 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
             }}
             textos={{
               ...d.checkout,
+              escolhaData: d.grupo.escolhaData,
               diminuir: d.comum.diminuir,
               aumentar: d.comum.aumentar,
               unidadeSingular: p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao,

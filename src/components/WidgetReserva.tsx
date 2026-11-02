@@ -7,6 +7,7 @@ import { calcular, normalizarPessoas, type Pessoas, type TabelaPreco } from '@/l
 import type { FaixaContador } from '@/lib/passeio-view';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
+import { CampoData } from './CampoData';
 import { Cifra } from './Cifra';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
@@ -148,30 +149,21 @@ export function WidgetReserva({
         <label htmlFor={idData} className="rotulo mt-5">
           {T.data}
         </label>
-        <div className="relative">
-          <input
-            ref={dataRef}
-            id={idData}
-            type="date"
-            className="campo"
-            value={grupo.data}
-            min={hoje || undefined}
-            max={hoje ? somarDias(hoje, 366) : undefined}
-            onChange={(e) => {
-              alterar({ data: e.target.value });
-              setErroData(false);
-            }}
-            aria-invalid={erroData}
-            aria-describedby={erroData ? `${idData}-erro` : undefined}
-            required
-          />
-          {/* no iPhone o campo vazio não mostra nada; esta dica só aparece lá */}
-          {!grupo.data && (
-            <span className="campo-dica" aria-hidden="true">
-              {T.escolhaData}
-            </span>
-          )}
-        </div>
+        <CampoData
+          ref={dataRef}
+          id={idData}
+          valor={grupo.data}
+          dica={T.escolhaData}
+          min={hoje || undefined}
+          max={hoje ? somarDias(hoje, 366) : undefined}
+          onChange={(e) => {
+            alterar({ data: e.target.value });
+            setErroData(false);
+          }}
+          aria-invalid={erroData}
+          aria-describedby={erroData ? `${idData}-erro` : undefined}
+          required
+        />
         {erroData && (
           <span id={`${idData}-erro`} className="erro-campo">
             {T.escolhaData}

@@ -17,3 +17,6 @@ next-env.d.ts
 .impeccable/mocks/
 sentinel/
 .impeccable/fotos-web/
+
+# material bruto enviado pelo dono: só entra no site depois de otimizado
+material-recebido/

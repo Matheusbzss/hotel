@@ -170,6 +170,19 @@ const pt = {
         texto: 'O voucher tem número único e PDF. Horário e ponto de encontro são confirmados com você depois da reserva.',
       },
     ],
+    // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
+    tutorial: [
+      { titulo: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
+      { titulo: 'Escolha o horário.', texto: 'Você vê os horários de saída do passeio e escolhe o seu.' },
+      { titulo: 'Pague por Pix ou cartão.', texto: 'Sempre o valor total, na mesma página, sem taxa escondida.' },
+      { titulo: 'Embarque com o voucher no celular.', texto: 'O voucher já vem com o horário, tem número único e PDF.' },
+    ],
+    tutorialTelas: [
+      'Página do passeio com a data escolhida e o total do grupo',
+      'Escolha do horário na página de pagamento',
+      'Pagamento por Pix ou cartão',
+      'Voucher da reserva confirmada, com o horário',
+    ],
     garantiasTitulo: 'Regras e avisos',
     garantiasColunas: ['Se', 'Você recebe', 'Prazo'],
     garantias: [

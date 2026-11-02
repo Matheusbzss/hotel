@@ -172,6 +172,19 @@ const en: Dicionario = {
         texto: 'The voucher has a unique number and a PDF. We confirm the time and meeting point with you after booking.',
       },
     ],
+    // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
+    tutorial: [
+      { titulo: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
+      { titulo: 'Pick the time.', texto: 'You see the tour’s departure times and choose yours.' },
+      { titulo: 'Pay by Pix or card.', texto: 'Always the full amount, on the same page, with no hidden fees.' },
+      { titulo: 'Board with the voucher on your phone.', texto: 'The voucher already shows the time, with a unique number and a PDF.' },
+    ],
+    tutorialTelas: [
+      'Tour page with the chosen date and the group total',
+      'Choosing the time on the checkout page',
+      'Paying by Pix or card',
+      'Voucher of the confirmed booking, with the time',
+    ],
     garantiasTitulo: 'Rules and notices',
     garantiasColunas: ['If', 'You get', 'When'],
     garantias: [

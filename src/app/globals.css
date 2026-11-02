@@ -704,6 +704,52 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-clar
       gap: 1rem;
     }
   }
+  /* no tutorial, os celulares são mais estreitos que os cartões: aparece um pedaço do próximo */
+  .trilho-celulares {
+    grid-auto-columns: 66%;
+  }
+  @media (min-width: 640px) {
+    .trilho-celulares {
+      grid-auto-columns: 40%;
+    }
+  }
+
+  /* moldura de celular para os prints reais do site (tutorial): corpo escuro, cantos, a barra de status
+     só com a ilha da câmera (sem ícones desenhados) e a página embaixo */
+  .celular {
+    container-type: inline-size;
+  }
+  .celular-corpo {
+    padding: 3cqw;
+    border-radius: 16cqw;
+    background: #0d1417;
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.16),
+      0 1.25rem 2.5rem -1.25rem rgb(0 0 0 / 0.65);
+  }
+  .celular-tela {
+    position: relative;
+    aspect-ratio: 390 / 844;
+    overflow: hidden;
+    border-radius: 13cqw;
+    background: var(--color-fundo);
+  }
+  .celular-tela::before {
+    content: '';
+    position: absolute;
+    top: 3cqw;
+    left: 50%;
+    z-index: 1;
+    width: 30cqw;
+    height: 8.5cqw;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: #000;
+  }
+  .celular-pagina {
+    position: absolute;
+    inset: 13cqw 0 0;
+  }
 
   /* mapa da região: a foto de satélite real sobre o relevo (nada desenhado por código) */
   .mapa-secao {

@@ -172,6 +172,19 @@ const es: Dicionario = {
         texto: 'El voucher tiene número único y PDF. El horario y el punto de encuentro se confirman con vos después de reservar.',
       },
     ],
+    // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
+    tutorial: [
+      { titulo: 'Elegí el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
+      { titulo: 'Elegí el horario.', texto: 'Ves los horarios de salida del paseo y elegís el tuyo.' },
+      { titulo: 'Pagá con Pix o tarjeta.', texto: 'Siempre el valor total, en la misma página, sin cargos escondidos.' },
+      { titulo: 'Embarcá con el voucher en el celular.', texto: 'El voucher ya viene con el horario, tiene número único y PDF.' },
+    ],
+    tutorialTelas: [
+      'Página del paseo con la fecha elegida y el total del grupo',
+      'Elección del horario en la página de pago',
+      'Pago con Pix o tarjeta',
+      'Voucher de la reserva confirmada, con el horario',
+    ],
     garantiasTitulo: 'Reglas y avisos',
     garantiasColunas: ['Si', 'Recibís', 'Plazo'],
     garantias: [

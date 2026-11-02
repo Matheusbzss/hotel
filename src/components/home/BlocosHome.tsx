@@ -60,7 +60,7 @@ export function TabelaGarantias({ d, className = '' }: { d: Dicionario; classNam
 }
 
 /** Uma foto real de fundo, de borda a borda, com o conteúdo por cima em vidro (o vidro só aparece sobre foto). */
-function FaixaFoto({ src, posicao, children, ...props }: { src: string; posicao?: string; children: ReactNode } & ComponentProps<'section'>) {
+export function FaixaFoto({ src, posicao, children, ...props }: { src: string; posicao?: string; children: ReactNode } & ComponentProps<'section'>) {
   return (
     <section className="relative isolate overflow-hidden py-14 md:py-24" {...props}>
       <Image src={src} alt="" fill sizes="100vw" quality={70} className="-z-10 object-cover" style={posicao ? { objectPosition: posicao } : undefined} />

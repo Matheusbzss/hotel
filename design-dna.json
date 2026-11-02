@@ -882,7 +882,8 @@
         "menu": "cápsula do cabeçalho: vidro sobre a foto do topo, vidro claro ao rolar",
         "etiquetas": "fatos e duração sobre as fotos (vidro-foto)",
         "faixa_de_foto": "blocos da página inicial sobre uma foto de borda a borda: Reglas y avisos em vidro claro (água de Arraial vista do alto), Cómo funciona em vidro escuro (orla de Cabo Frio ao entardecer)",
-        "cartao_de_produto": "transfer e casas (Etapas 6 e 7): foto inteira no cartão e as informações numa faixa de vidro claro na parte de baixo da foto"
+        "cartao_de_produto": "transfer e casas (Etapas 6 e 7): foto inteira no cartão e as informações numa faixa de vidro claro na parte de baixo da foto",
+        "tutorial": "Como funciona em 4 passos: prints reais do site (scripts/prints-tutorial.mjs) numa moldura de celular, lado a lado, cada um com a legenda em vidro escuro sobre a foto da orla; desligado (src/data/tutorial.ts) até existirem as telas de horário (Etapa 5) e pagamento (Etapa 8)"
       }
     },
     "canvas_drawings": {

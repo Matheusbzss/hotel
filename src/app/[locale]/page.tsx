@@ -4,8 +4,10 @@ import { CardPasseio } from '@/components/CardPasseio';
 import { ChamadaPacotes, ComoFunciona, Garantias, Perguntas } from '@/components/home/BlocosHome';
 import { MapaRegiao } from '@/components/home/MapaRegiao';
 import { TopoFoto } from '@/components/home/TopoFoto';
+import { Tutorial } from '@/components/home/Tutorial';
 import { Vitrine } from '@/components/home/Vitrine';
 import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
+import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
@@ -97,7 +99,8 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
       />
 
       <Garantias d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
-      <ComoFunciona d={d} />
+      {/* o tutorial com os prints do site fica desligado até as telas de horário e de pagamento existirem */}
+      {TUTORIAL_ATIVO ? <Tutorial d={d} telas={[1, 2, 3, 4].map((n) => telaTutorial(locale, n))} /> : <ComoFunciona d={d} />}
       <ChamadaPacotes d={d} href={rota(locale, '/passeio-e-hospedagem')} />
       <Perguntas d={d} />
 

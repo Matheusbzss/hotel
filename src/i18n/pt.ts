@@ -286,6 +286,9 @@ const pt = {
     semFotos: 'Fotos deste passeio em breve.',
     precoPorPessoa: 'por pessoa',
     escolhaOpcao: 'Escolha a duração',
+    pagoSeguro: 'Pagamento seguro por Pix ou cartão',
+    encontro: 'Ponto de encontro',
+    encontroTexto: 'Confirmado depois da reserva',
   },
   checkout: {
     titulo: 'Finalizar reserva',

@@ -1,11 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { calcular, formatarCentavos, normalizarPessoas, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { formatarCifra } from '@/lib/cifra';
+import { calcular, normalizarPessoas, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
+import { Cifra } from './Cifra';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
 
@@ -20,7 +22,6 @@ export interface TextosWidget {
   data: string;
   total: string;
   reservar: string;
-  politica: string;
   escolhaData: string;
   escolhaOpcao: string;
   unidadesAviso: string;
@@ -35,7 +36,10 @@ export interface TextosWidget {
   revisao: string;
 }
 
-/** Cartão de reserva: opção, data e pessoas, com o total na hora. Abre com o grupo escolhido no site. */
+/**
+ * Cartão de reserva: opção, data e pessoas, com o total na hora e, embaixo do botão, as garantias.
+ * Abre com o grupo escolhido no site.
+ */
 export function WidgetReserva({
   slug,
   nome,
@@ -45,6 +49,7 @@ export function WidgetReserva({
   regras,
   locale,
   checkoutHref,
+  garantias,
   textos: T,
 }: {
   slug: string;
@@ -55,6 +60,8 @@ export function WidgetReserva({
   regras: string[];
   locale: string;
   checkoutHref: string;
+  /** As garantias (cancelamento, chuva, voucher, pagamento) logo abaixo do botão. */
+  garantias?: ReactNode;
   textos: TextosWidget;
 }) {
   const router = useRouter();
@@ -87,7 +94,7 @@ export function WidgetReserva({
   }, [slug, nome, opcoes]);
 
   const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
-  const brl = (c: number) => formatarCentavos(c, locale);
+  const brl = (c: number) => formatarCifra(c, locale);
   const totalPessoas = pessoas.adultos + pessoas.criancasMeia + pessoas.criancasGratis;
 
   const reservar = () => {
@@ -107,12 +114,14 @@ export function WidgetReserva({
   };
 
   return (
-    <div id="reservar" className="scroll-mt-6">
-      <div className="tom-papel p-5 sm:p-7">
+    // abaixo da cápsula do menu, que também fica presa no topo
+    <div id="reservar" className="scroll-mt-24">
+      <div className="rounded-cartao border border-(--color-borda) bg-(--color-papel) p-5 sm:p-6">
         <h2 className="text-lead font-semibold">{T.titulo}</h2>
-        <p className="mt-1">
-          {mostrarOpcoes && `${T.aPartirDe} `}
-          <strong className="numeros text-lead">{brl(Math.min(...opcoes.map((o) => o.tabela.precoCentavos)))}</strong> {T.rotuloUnidade}
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
+          {mostrarOpcoes && <span className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</span>}
+          <strong className="cifra text-figure">{brl(Math.min(...opcoes.map((o) => o.tabela.precoCentavos)))}</strong>
+          <span className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</span>
         </p>
 
         {mostrarOpcoes && (
@@ -139,22 +148,30 @@ export function WidgetReserva({
         <label htmlFor={idData} className="rotulo mt-5">
           {T.data}
         </label>
-        <input
-          ref={dataRef}
-          id={idData}
-          type="date"
-          className="campo"
-          value={grupo.data}
-          min={hoje || undefined}
-          max={hoje ? somarDias(hoje, 366) : undefined}
-          onChange={(e) => {
-            alterar({ data: e.target.value });
-            setErroData(false);
-          }}
-          aria-invalid={erroData}
-          aria-describedby={erroData ? `${idData}-erro` : undefined}
-          required
-        />
+        <div className="relative">
+          <input
+            ref={dataRef}
+            id={idData}
+            type="date"
+            className="campo"
+            value={grupo.data}
+            min={hoje || undefined}
+            max={hoje ? somarDias(hoje, 366) : undefined}
+            onChange={(e) => {
+              alterar({ data: e.target.value });
+              setErroData(false);
+            }}
+            aria-invalid={erroData}
+            aria-describedby={erroData ? `${idData}-erro` : undefined}
+            required
+          />
+          {/* no iPhone o campo vazio não mostra nada; esta dica só aparece lá */}
+          {!grupo.data && (
+            <span className="campo-dica" aria-hidden="true">
+              {T.escolhaData}
+            </span>
+          )}
+        </div>
         {erroData && (
           <span id={`${idData}-erro`} className="erro-campo">
             {T.escolhaData}
@@ -175,11 +192,15 @@ export function WidgetReserva({
             />
           ))}
         </div>
-        {regras.length > 0 && <p className="mt-4 text-small">{regras.join(' ')}</p>}
+        {regras.length > 0 && <p className="mt-4 text-small text-(--color-tinta-suave)">{regras.join(' ')}</p>}
 
-        <div className="mt-6 flex items-baseline justify-between gap-4 pt-1">
+        <div className="mt-5 flex items-baseline justify-between gap-4 border-t border-(--color-borda) pt-4">
           <span className="font-semibold">{T.total}</span>
-          <span className="numeros text-head font-semibold leading-none" aria-live="polite">
+          {/* o número rola na tela; o leitor de tela ouve só o valor final */}
+          <span aria-hidden="true">
+            <Cifra centavos={orc.totalCentavos} locale={locale} className="cifra text-figure-lg" />
+          </span>
+          <span className="sr-only" aria-live="polite">
             {brl(orc.totalCentavos)}
           </span>
         </div>
@@ -194,11 +215,9 @@ export function WidgetReserva({
         <button type="button" onClick={reservar} className="botao mt-5 w-full">
           {T.reservar}
         </button>
+        {garantias && <div className="mt-5">{garantias}</div>}
       </div>
-      <div className="space-y-3 pt-4">
-        <p className="text-small">{T.politica}</p>
-        <p className="text-small text-(--tinta-suave)">{T.revisao}</p>
-      </div>
+      <p className="pt-3 text-small text-(--color-tinta-suave)">{T.revisao}</p>
     </div>
   );
 }

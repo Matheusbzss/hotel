@@ -292,6 +292,9 @@ const en: Dicionario = {
     semFotos: 'Photos of this tour coming soon.',
     precoPorPessoa: 'per person',
     escolhaOpcao: 'Choose the duration',
+    pagoSeguro: 'Secure payment by Pix or card',
+    encontro: 'Meeting point',
+    encontroTexto: 'Confirmed after booking',
   },
   checkout: {
     titulo: 'Complete your booking',

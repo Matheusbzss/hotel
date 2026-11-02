@@ -1,12 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { TabelaPreco } from '@/lib/orcamento';
+import type { RotulosPessoas } from '@/lib/pessoas';
+import { PrecoGrupo } from './grupo/PrecoGrupo';
 
 /**
- * Barra fixa do celular com o preço e o atalho para a reserva. Some quando o cartão de reserva,
- * os outros passeios ou o rodapé aparecem, para não cobrir nada.
+ * Barra de vidro fosco do celular: o preço por pessoa, o total do grupo e o atalho para a reserva.
+ * Some quando o cartão de reserva, os outros passeios ou o rodapé aparecem, para não cobrir nada.
  */
-export function BarraReservaMovel({ rotuloPreco, preco, rotuloBotao }: { rotuloPreco: string; preco: string; rotuloBotao: string }) {
+export function BarraReservaMovel({
+  preco,
+  unidade,
+  tabela,
+  locale,
+  textos,
+}: {
+  preco: string;
+  unidade: string;
+  tabela: TabelaPreco;
+  locale: string;
+  textos: { reservar: string; totalPara: string; rotulos: RotulosPessoas };
+}) {
   const [oculta, setOculta] = useState(false);
 
   useEffect(() => {
@@ -26,17 +41,19 @@ export function BarraReservaMovel({ rotuloPreco, preco, rotuloBotao }: { rotuloP
 
   return (
     <div
-      className={`tom-campo fixed inset-x-0 bottom-0 z-30 transition-transform duration-300 lg:hidden ${oculta ? 'translate-y-full' : ''}`}
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className={`fixed inset-x-0 bottom-0 z-30 px-2 transition-transform duration-300 lg:hidden ${oculta ? 'translate-y-[calc(100%+1rem)]' : ''}`}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}
       aria-hidden={oculta}
     >
-      <div className="moldura flex h-[76px] items-center justify-between gap-4">
-        <p className="leading-tight">
-          <span className="block text-small">{rotuloPreco}</span>
-          <span className="numeros block text-lead font-semibold">{preco}</span>
-        </p>
-        <a href="#reservar" className="botao" tabIndex={oculta ? -1 : undefined}>
-          {rotuloBotao}
+      <div className="vidro vidro-escuro flex items-center justify-between gap-3 rounded-vidro py-2 pl-4 pr-2">
+        <div className="min-w-0 leading-tight">
+          <p className="truncate">
+            <strong className="cifra text-lead">{preco}</strong> <span className="text-small">{unidade}</span>
+          </p>
+          <PrecoGrupo tabela={tabela} locale={locale} textos={textos} className="truncate text-caption text-white/80" />
+        </div>
+        <a href="#reservar" className="botao shrink-0" tabIndex={oculta ? -1 : undefined}>
+          {textos.reservar}
         </a>
       </div>
     </div>

@@ -8,6 +8,8 @@ import { useGrupo } from './GrupoContexto';
 
 export interface TextosSeletorGrupo {
   data: string;
+  /** A dica dentro do campo de data vazio (só o iPhone precisa: ele não mostra dd/mm/aaaa). */
+  escolhaData: string;
   quemVai: string;
   adultos: string;
   adultosAjuda: string;
@@ -60,15 +62,22 @@ export function SeletorGrupo({ textos: T, className = '' }: { textos: TextosSele
         <label htmlFor={idData} className="rotulo">
           {T.data}
         </label>
-        <input
-          id={idData}
-          type="date"
-          className="campo"
-          value={grupo.data}
-          min={hoje || undefined}
-          max={hoje ? somarDias(hoje, 366) : undefined}
-          onChange={(e) => alterar({ data: e.target.value })}
-        />
+        <div className="relative">
+          <input
+            id={idData}
+            type="date"
+            className="campo"
+            value={grupo.data}
+            min={hoje || undefined}
+            max={hoje ? somarDias(hoje, 366) : undefined}
+            onChange={(e) => alterar({ data: e.target.value })}
+          />
+          {!grupo.data && (
+            <span className="campo-dica" aria-hidden="true">
+              {T.escolhaData}
+            </span>
+          )}
+        </div>
       </div>
       <div>
         <span className="rotulo" id={`${idPainel}-rotulo`}>

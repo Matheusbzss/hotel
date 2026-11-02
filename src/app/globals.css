@@ -288,6 +288,33 @@ img {
     color: var(--color-tinta-suave);
     opacity: 1;
   }
+  /* campo de data: no iPhone o Safari dá ao campo uma largura própria, maior que a coluna
+     (ele passava por baixo do vizinho), e vazio não mostra nada; a dica só aparece lá */
+  input[type='date'].campo {
+    min-width: 0;
+  }
+  .campo-dica {
+    display: none;
+  }
+  @supports (-webkit-touch-callout: none) {
+    input[type='date'].campo {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type='date'].campo::-webkit-date-and-time-value {
+      min-height: 1.5em;
+      text-align: left;
+    }
+    .campo-dica {
+      position: absolute;
+      top: 50%;
+      left: 0.85rem;
+      display: block;
+      transform: translateY(-50%);
+      color: var(--color-tinta-suave);
+      pointer-events: none;
+    }
+  }
   .rotulo {
     display: block;
     font-weight: 500;
@@ -493,16 +520,16 @@ img {
   display: none !important;
 }
 /* sobre a foto do topo (antes de rolar): vidro sobre a foto, texto branco */
-html:not([data-rolou]) body:has(.topo-foto) .cabecalho-barra {
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho-barra {
   background: var(--vidro-foto);
   box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
   color: #ffffff;
   --foco: var(--color-acao);
 }
-html:not([data-rolou]) body:has(.topo-foto) .cabecalho .logo-escuro {
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-escuro {
   display: inline-flex !important;
 }
-html:not([data-rolou]) body:has(.topo-foto) .cabecalho .logo-claro {
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-claro {
   display: none !important;
 }
 
@@ -946,5 +973,89 @@ html:not([data-rolou]) body:has(.topo-foto) .cabecalho .logo-claro {
       padding-inline: 0;
     }
   }
-}
 
+  /* página do passeio: as fotos de borda a borda por baixo da cápsula do menu */
+  .topo-passeio {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    height: 70svh;
+    min-height: 28rem;
+    max-height: 46rem;
+    margin-top: -4.5rem;
+    color: #ffffff;
+    background: var(--color-mar);
+  }
+  @media (min-width: 1024px) {
+    .topo-passeio {
+      height: 76vh;
+      max-height: 52rem;
+    }
+  }
+  .topo-passeio-fotos {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+  }
+  /* véu só onde há texto; não pega o toque, para as fotos continuarem deslizando */
+  .topo-passeio::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgb(8 12 18 / 0.45) 0%,
+      rgb(8 12 18 / 0) 28%,
+      rgb(8 12 18 / 0) 50%,
+      rgb(8 12 18 / 0.62) 100%
+    ); /* taste-skill-ignore: véu neutro sob o texto sobre a foto */
+  }
+  .topo-passeio-texto {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding-bottom: 1.25rem;
+    pointer-events: none;
+  }
+  @media (min-width: 768px) {
+    .topo-passeio-texto {
+      padding-bottom: 2rem;
+    }
+  }
+  .topo-passeio-titulo {
+    max-width: 18ch;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.25rem, 1.5rem + 3.2vw, 4rem);
+    line-height: 0.98;
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.4);
+  }
+
+  /* a ficha do passeio em células; as linhas entre elas são o fundo aparecendo no vão de 1 px */
+  .ficha {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-cartao);
+    background: var(--color-borda);
+  }
+  .ficha > div {
+    padding: 0.75rem 0.9rem;
+    background: var(--color-papel);
+  }
+  .ficha > .largo {
+    grid-column: 1 / -1;
+  }
+  .ficha dt {
+    font-size: 0.875rem;
+    color: var(--color-tinta-suave);
+  }
+  .ficha dd {
+    margin-top: 0.15rem;
+    font-weight: 600;
+  }
+}

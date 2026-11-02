@@ -288,6 +288,9 @@ const es: Dicionario = {
     semFotos: 'Pronto, fotos de este paseo.',
     precoPorPessoa: 'por persona',
     escolhaOpcao: 'Elegí la duración',
+    pagoSeguro: 'Pago seguro con Pix o tarjeta',
+    encontro: 'Punto de encuentro',
+    encontroTexto: 'Se confirma después de reservar',
   },
   checkout: {
     titulo: 'Finalizar reserva',

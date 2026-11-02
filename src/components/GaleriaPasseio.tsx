@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 
-interface Textos {
+export interface TextosGaleria {
   galeria: string;
   verFotos: string;
   anterior: string;
@@ -15,12 +15,11 @@ interface Textos {
 const preencher = (t: string, v: Record<string, number>) => t.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ''));
 
 /**
- * Galeria do passeio. No computador: uma foto grande e duas menores, e as demais na tela cheia.
- * No celular: deslize entre as fotos. Tocar em qualquer foto abre a tela cheia.
+ * As fotos do passeio de borda a borda, no espaço que o pai der (o topo da página do passeio):
+ * deslize para ver a próxima; tocar numa foto, ou em "Ver as fotos" no computador, abre a tela cheia.
  */
-export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt: string; textos: Textos }) {
+export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt: string; textos: TextosGaleria }) {
   const dialogo = useRef<HTMLDialogElement>(null);
-  const trilho = useRef<HTMLDivElement>(null);
   const [atual, setAtual] = useState(0);
   const [aberta, setAberta] = useState(0);
 
@@ -56,50 +55,31 @@ export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt
   );
 
   return (
-    <section aria-label={T.galeria}>
-      {/* celular: deslizar */}
-      <div className="relative md:hidden">
-        <div
-          ref={trilho}
-          className="sem-barra -mx-(--margem) flex aspect-[4/5] snap-x snap-mandatory overflow-x-auto"
-          onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
-        >
-          {fotos.map((src, i) => (
-            <button key={src} type="button" onClick={() => abrir(i)} className="relative h-full w-full shrink-0 snap-start">
-              <Image src={src} alt={altFoto(i)} fill sizes="100vw" priority={i === 0} quality={80} className="object-cover" />
-            </button>
-          ))}
-        </div>
-        {fotos.length > 1 && (
-          <p className="numeros absolute right-3 top-3 rounded-full bg-mar px-3 py-1.5 text-small text-white" aria-hidden="true">
-            {atual + 1}/{fotos.length}
-          </p>
-        )}
-      </div>
-
-      {/* computador: uma grande e duas menores */}
-      <div className={`hidden gap-2 md:grid ${fotos.length > 2 ? 'aspect-[16/9] grid-cols-3 grid-rows-2' : 'aspect-[16/10] grid-cols-1'}`}>
-        {fotos.slice(0, fotos.length > 2 ? 3 : 1).map((src, i) => (
-          <button
-            key={src}
-            type="button"
-            onClick={() => abrir(i)}
-            className={`group zoom relative overflow-hidden ${i === 0 && fotos.length > 2 ? 'col-span-2 row-span-2' : ''}`}
-          >
-            <Image
-              src={src}
-              alt={altFoto(i)}
-              fill
-              sizes={i === 0 ? '(min-width: 1024px) 45vw, 70vw' : '(min-width: 1024px) 22vw, 35vw'}
-              priority={i === 0}
-              quality={80}
-              className="object-cover"
-            />
+    <section aria-label={T.galeria} className="absolute inset-0">
+      <div
+        className="sem-barra absolute inset-0 flex snap-x snap-mandatory overflow-x-auto"
+        onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+      >
+        {fotos.map((src, i) => (
+          <button key={src} type="button" onClick={() => abrir(i)} className="relative h-full w-full shrink-0 snap-start">
+            <Image src={src} alt={altFoto(i)} fill sizes="100vw" priority={i === 0} quality={80} className="object-cover" />
           </button>
         ))}
       </div>
       {fotos.length > 1 && (
-        <button type="button" onClick={() => abrir(0)} className="botao botao-vazado mt-3 hidden md:inline-flex">
+        <p
+          className="numeros vidro vidro-escuro absolute right-3 top-20 rounded-full px-3 py-1.5 text-small md:right-6 md:top-24"
+          aria-hidden="true"
+        >
+          {atual + 1}/{fotos.length}
+        </p>
+      )}
+      {fotos.length > 1 && (
+        <button
+          type="button"
+          onClick={() => abrir(atual)}
+          className="etiqueta vidro vidro-escuro absolute bottom-6 right-6 hidden min-h-11 md:inline-flex"
+        >
           {preencher(T.verFotos, { n: fotos.length })}
         </button>
       )}

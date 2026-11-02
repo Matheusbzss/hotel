@@ -11,7 +11,7 @@ export function VigiaRolagem() {
   const caminho = usePathname();
   useEffect(() => {
     const raiz = document.documentElement;
-    const foto = document.querySelector('.topo-foto');
+    const foto = document.querySelector('.topo-foto, .topo-passeio');
     if (!foto) {
       raiz.removeAttribute('data-rolou');
       return;

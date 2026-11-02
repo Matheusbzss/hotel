@@ -1,0 +1,293 @@
+{
+ "fonte": "OpenStreetMap (natural=beach), © colaboradores do OpenStreetMap, ODbL.",
+ "praias": [
+  {
+   "nome": "Mangue de Pedra",
+   "x": 4413,
+   "y": 14108,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Prainha",
+   "x": -1949,
+   "y": -10948,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia João Fernandes",
+   "x": 13245,
+   "y": 13083,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia João Fernandinho",
+   "x": 13441,
+   "y": 13351,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia dos Ossos",
+   "x": 12662,
+   "y": 12613,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Azeda",
+   "x": 12635,
+   "y": 13031,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Azedinha",
+   "x": 12607,
+   "y": 13140,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Armaçao",
+   "x": 12562,
+   "y": 12238,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia do Canto",
+   "x": 11690,
+   "y": 11709,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Tartaruga",
+   "x": 10248,
+   "y": 11427,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia do Forno",
+   "x": 13325,
+   "y": 10907,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Ferradura",
+   "x": 12211,
+   "y": 9776,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Ferradurinha",
+   "x": 10760,
+   "y": 8672,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia de Geribá",
+   "x": 9738,
+   "y": 8802,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Rasa",
+   "x": 5954,
+   "y": 11989,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Tucuns",
+   "x": 8097,
+   "y": 7048,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Brava",
+   "x": 13701,
+   "y": 11628,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Marina",
+   "x": 5145,
+   "y": 13327,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia de Manguinhos",
+   "x": 8178,
+   "y": 10522,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia Grande",
+   "x": -3245,
+   "y": -12207,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia do Pontal",
+   "x": -3024,
+   "y": -8861,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia Olho de Boi",
+   "x": 14342,
+   "y": 11594,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia de José Gonçalves",
+   "x": 6483,
+   "y": 5489,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia das Caravelas",
+   "x": 5232,
+   "y": 5023,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia das Conchas",
+   "x": 2354,
+   "y": -1055,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Farol",
+   "x": 13,
+   "y": -15630,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia do Forno",
+   "x": -972,
+   "y": -11720,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia dos Anjos",
+   "x": -1530,
+   "y": -12505,
+   "cidade": "arraial-do-cabo"
+  },
+  {
+   "nome": "Praia do Peró",
+   "x": 2751,
+   "y": 1670,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia Brava",
+   "x": 664,
+   "y": -2718,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Sudoeste",
+   "x": -11519,
+   "y": -1440,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia Ponta da Peça",
+   "x": -11433,
+   "y": -755,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Sol",
+   "x": -10920,
+   "y": -80,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia da Pitória",
+   "x": -10201,
+   "y": 1915,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Forte",
+   "x": -1041,
+   "y": -2940,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia das Dunas",
+   "x": -2276,
+   "y": -4011,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Foguete",
+   "x": -3011,
+   "y": -6393,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia dos Amores",
+   "x": 10977,
+   "y": 8589,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Ponta d'água",
+   "x": -14694,
+   "y": 576,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia de Araruama",
+   "x": -10442,
+   "y": 3043,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia das Moças",
+   "x": 8199,
+   "y": 15024,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Gorda",
+   "x": 4047,
+   "y": 14245,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Praia da Foca",
+   "x": 12942,
+   "y": 10475,
+   "cidade": "buzios"
+  },
+  {
+   "nome": "Prainha",
+   "x": 4044,
+   "y": 4424,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia do Siqueira",
+   "x": -4895,
+   "y": -1821,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia da Salina",
+   "x": -14604,
+   "y": 738,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Praia Brava (Área Nudista)",
+   "x": 819,
+   "y": -2633,
+   "cidade": "cabo-frio"
+  },
+  {
+   "nome": "Prainhas do Atalaia",
+   "x": -702,
+   "y": -14202,
+   "cidade": "arraial-do-cabo"
+  }
+ ]
+}

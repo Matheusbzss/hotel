@@ -1,0 +1,1061 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* ------------------------------------------------------------------ */
+/* Boletim do mar. Os valores vêm de design-dna.json (tokens.css).     */
+/* Partes de decisão: chão branco frio e tinta mar-fundo.              */
+/* Partes de sonho: o mar 3D e o mar fundo, com texto branco.          */
+/* ------------------------------------------------------------------ */
+
+:root {
+  color-scheme: light;
+  --fundo: var(--color-fundo);
+  --tinta: var(--color-tinta);
+  --tinta-suave: var(--color-tinta-suave);
+  --acao: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-tinta);
+  --linha: var(--color-borda);
+  --linha-campo: var(--color-borda-campo);
+}
+
+/* papéis de cor por faixa da página */
+.tom-fundo,
+.tom-superficie,
+.tom-papel {
+  --tinta: var(--color-tinta);
+  --tinta-suave: var(--color-tinta-suave);
+  --acao: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-tinta);
+  --linha: var(--color-borda);
+  --linha-campo: var(--color-borda-campo);
+  color-scheme: light;
+}
+.tom-fundo {
+  --fundo: var(--color-fundo);
+}
+.tom-superficie {
+  --fundo: var(--color-superficie);
+}
+.tom-papel {
+  --fundo: var(--color-papel);
+}
+/* o mar fundo: texto branco, foco dourado */
+.tom-campo,
+.tom-acao {
+  --fundo: var(--color-mar);
+  --tinta: #ffffff;
+  --tinta-suave: var(--color-d1);
+  --acao: var(--color-acao);
+  --acao-tinta: var(--color-tinta);
+  --foco: var(--color-acao);
+  --linha: rgb(255 255 255 / 0.22);
+  --linha-campo: rgb(255 255 255 / 0.55);
+  color-scheme: dark;
+}
+.tom-fundo,
+.tom-superficie,
+.tom-papel,
+.tom-campo,
+.tom-acao {
+  background-color: var(--fundo);
+  color: var(--tinta);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  background: var(--color-fundo);
+  scrollbar-color: var(--color-borda-campo) var(--color-fundo);
+}
+
+body {
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--color-turquesa-texto);
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-sol);
+  color: var(--color-tinta);
+}
+
+:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* na camada base: assim as peças (como a etiqueta, que não quebra linha) podem mudar isso */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  dd {
+    text-wrap: pretty;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Peças                                                               */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .moldura {
+    width: 100%;
+    max-width: calc(var(--largura-max) + 2 * var(--margem));
+    margin-inline: auto;
+    padding-inline: var(--margem);
+  }
+
+  /* Gancho e números grandes: Barlow Condensed */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 0.98;
+  }
+
+  /* Títulos: Barlow Semi Condensed */
+  .titulo {
+    font-family: var(--font-semi);
+    font-size: var(--text-head);
+    font-weight: 600;
+    line-height: 1.02;
+  }
+  .subtitulo {
+    font-family: var(--font-semi);
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .texto-corrido p + p {
+    margin-top: 1em;
+  }
+
+  /* Cabeçalho curto de coluna do boletim (só em tabelas) */
+  .coluna {
+    font-family: var(--font-semi);
+    font-size: var(--text-overline);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-suave);
+  }
+
+  /* Número de preço, hora ou total */
+  .cifra {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  /* Célula: a unidade de tudo. Cantos de 4 px, borda fina, sem sombra. */
+  .celula {
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-celula);
+  }
+  .tom-campo .celula,
+  .tom-acao .celula {
+    background: rgb(255 255 255 / 0.06);
+    color: #ffffff;
+    border-color: rgb(255 255 255 / 0.22);
+  }
+
+  /* Botão principal: o sol, com texto mar-fundo */
+  .botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1.4rem;
+    border-radius: var(--radius-celula);
+    background: var(--acao);
+    color: var(--acao-tinta);
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1.125rem;
+    line-height: 1.15;
+    text-align: center;
+    transition:
+      transform var(--dur-toque) var(--ease-padrao),
+      background-color var(--dur-estado) var(--ease-padrao);
+  }
+  .botao:hover {
+    background: color-mix(in oklab, var(--acao) 88%, var(--color-tinta));
+  }
+  .botao:active {
+    transform: scale(0.97);
+  }
+  @media (min-width: 1024px) {
+    .botao {
+      min-height: 3rem;
+    }
+  }
+  .botao-whats {
+    background: var(--color-whats);
+    color: var(--color-tinta);
+  }
+  .botao-whats:hover {
+    background: color-mix(in oklab, var(--color-whats) 85%, var(--color-tinta));
+  }
+  /* secundário: contorno de 1 px */
+  .botao-vazado {
+    background: transparent;
+    color: var(--tinta);
+    box-shadow: inset 0 0 0 1px var(--tinta);
+  }
+  .botao-vazado:hover {
+    background: color-mix(in oklab, var(--tinta) 8%, transparent);
+  }
+  .botao[aria-disabled='true'],
+  .botao:disabled {
+    background: var(--color-superficie);
+    color: var(--color-borda-campo);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Link de texto */
+  .link {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: text-decoration-thickness var(--dur-toque) var(--ease-padrao);
+  }
+  .link:hover {
+    text-decoration-thickness: 2px;
+  }
+  .tom-fundo .link,
+  .tom-superficie .link,
+  .tom-papel .link {
+    color: var(--color-turquesa-texto);
+  }
+
+  /* Campos */
+  .campo {
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--color-borda-campo);
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    font-size: var(--text-body);
+    transition: border-color var(--dur-estado) var(--ease-padrao);
+  }
+  textarea.campo {
+    min-height: 6rem;
+  }
+  .campo:hover {
+    border-color: var(--color-tinta);
+  }
+  .campo:focus {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 0;
+    border-color: var(--color-tinta);
+  }
+  .campo[aria-invalid='true'] {
+    border-color: var(--color-erro);
+  }
+  .campo:disabled {
+    background: var(--color-superficie);
+    color: var(--color-borda-campo);
+    border-color: var(--color-borda);
+  }
+  .campo::placeholder {
+    color: var(--color-tinta-suave);
+    opacity: 1;
+  }
+  /* campo de data: no iPhone o Safari dá ao campo uma largura própria, maior que a coluna
+     (ele passava por baixo do vizinho), e vazio não mostra nada; a dica só aparece lá */
+  input[type='date'].campo {
+    min-width: 0;
+  }
+  .campo-dica {
+    display: none;
+  }
+  @supports (-webkit-touch-callout: none) {
+    input[type='date'].campo {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type='date'].campo::-webkit-date-and-time-value {
+      min-height: 1.5em;
+      text-align: left;
+    }
+    .campo-dica {
+      position: absolute;
+      top: 50%;
+      left: 0.85rem;
+      display: block;
+      transform: translateY(-50%);
+      color: var(--color-tinta-suave);
+      pointer-events: none;
+    }
+  }
+  .rotulo {
+    display: block;
+    font-weight: 500;
+    font-size: var(--text-small);
+    margin-bottom: 0.3rem;
+  }
+  .ajuda {
+    display: block;
+    font-size: var(--text-caption);
+    color: var(--tinta-suave);
+    margin-top: 0.3rem;
+  }
+  .erro-campo {
+    display: block;
+    font-size: var(--text-caption);
+    color: var(--color-erro);
+    font-weight: 600;
+    margin-top: 0.3rem;
+  }
+
+  /* Filtro: célula que vira traço cheio quando escolhida */
+  .filtro {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+    color: var(--color-tinta);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition:
+      box-shadow var(--dur-estado) var(--ease-padrao),
+      background-color var(--dur-estado) var(--ease-padrao),
+      transform var(--dur-toque) var(--ease-padrao);
+  }
+  .filtro:hover {
+    box-shadow: inset 0 0 0 1px var(--color-tinta);
+  }
+  .filtro[aria-pressed='true'],
+  .filtro[aria-checked='true'],
+  .filtro[aria-selected='true'],
+  .filtro[data-ativo='true'] {
+    background: var(--color-tinta);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 2px var(--color-tinta);
+  }
+  .filtro:active {
+    transform: scale(0.97);
+  }
+
+  .zoom img {
+    transition: opacity var(--dur-entrada) var(--ease-padrao);
+  }
+
+  /* Escurece só a faixa da foto onde há texto */
+  .veu-cima {
+    background: linear-gradient(to bottom, rgb(6 54 67 / 0.45), rgb(6 54 67 / 0)); /* taste-skill-ignore: véu sob o menu sobre a foto */
+  }
+  .veu-baixo {
+    background: linear-gradient(to top, rgb(6 54 67 / 0.6), rgb(6 54 67 / 0)); /* taste-skill-ignore: véu sob o texto da foto */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Movimento: cubic-bezier(0.2, 0, 0, 1); 120 / 200 / 360 ms           */
+/* ------------------------------------------------------------------ */
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes surgir {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Entrada dos blocos quando aparecem (componente Revelar). Sem JavaScript, nada fica escondido. */
+@media (prefers-reduced-motion: no-preference) {
+  /* só sobe 12 px: o conteúdo já está visível, nem some se a entrada não disparar */
+  .js .entrar:not(.dentro) > * {
+    transform: translateY(12px);
+  }
+  .js .entrar > * {
+    transition: transform var(--dur-entrada) var(--ease-padrao);
+  }
+  .js .entrar > *:nth-child(2) {
+    transition-delay: 40ms;
+  }
+  .js .entrar > *:nth-child(3) {
+    transition-delay: 80ms;
+  }
+  .js .entrar > *:nth-child(n + 4) {
+    transition-delay: 120ms;
+  }
+  .chegar > * {
+    animation: subir var(--dur-entrada) var(--ease-padrao) both;
+  }
+  .chegar > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .chegar > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}
+.sem-barra {
+  scrollbar-width: none;
+}
+
+.numeros {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* Vidro fosco estilo iPhone (pedido do dono): menu, barra, etiquetas  */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .vidro {
+    -webkit-backdrop-filter: var(--vidro-desfoque);
+    backdrop-filter: var(--vidro-desfoque);
+  }
+  .vidro-claro {
+    background: var(--vidro-claro);
+    box-shadow: inset 0 0 0 1px var(--vidro-claro-borda);
+    color: var(--color-tinta);
+  }
+  .vidro-foto {
+    background: var(--vidro-foto);
+    box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
+    color: #ffffff;
+  }
+  .vidro-escuro {
+    background: var(--vidro-escuro);
+    box-shadow: inset 0 0 0 1px var(--vidro-escuro-borda);
+    color: #ffffff;
+  }
+  /* sem desfoque no aparelho: o vidro vira um fundo quase opaco e o texto continua legível */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .vidro-claro {
+      background: rgb(255 255 255 / 0.95);
+    }
+    .vidro-foto {
+      background: rgb(6 54 67 / 0.6);
+    }
+    .vidro-escuro {
+      background: rgb(6 54 67 / 0.95);
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Cabeçalho: cápsula de vidro presa no topo                           */
+/* ------------------------------------------------------------------ */
+.cabecalho {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 40;
+  padding-inline: calc(var(--margem) - 0.25rem);
+  pointer-events: none;
+}
+.cabecalho-barra {
+  pointer-events: auto;
+  max-width: calc(var(--largura-max) + 1rem);
+  margin-inline: auto;
+  border-radius: var(--radius-vidro);
+  transition:
+    background-color var(--dur-estado) var(--ease-padrao),
+    color var(--dur-estado) var(--ease-padrao),
+    box-shadow var(--dur-estado) var(--ease-padrao);
+}
+.logo-escuro {
+  display: none !important;
+}
+/* sobre a foto do topo (antes de rolar): vidro sobre a foto, texto branco */
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho-barra {
+  background: var(--vidro-foto);
+  box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
+  color: #ffffff;
+  --foco: var(--color-acao);
+}
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-escuro {
+  display: inline-flex !important;
+}
+html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-claro {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Página inicial                                                       */
+/* ------------------------------------------------------------------ */
+@layer components {
+  /* topo: a foto real em tela cheia, por baixo da cápsula do menu */
+  .topo-foto {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-height: 78svh;
+    margin-top: -4.5rem;
+    color: #ffffff;
+    background: var(--color-mar);
+  }
+  @media (min-width: 1024px) {
+    .topo-foto {
+      min-height: 82svh;
+    }
+  }
+  .topo-foto .foto {
+    position: absolute;
+    inset: -4%;
+    z-index: -2;
+    transform: translate3d(var(--px, 0px), var(--py, 0px), 0) scale(1.06);
+  }
+  /* véu só onde há texto: em cima (menu e gancho) e embaixo (texto e botão) */
+  .topo-foto::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+      to bottom,
+      rgb(8 12 18 / 0.5) 0%,
+      rgb(8 12 18 / 0.08) 38%,
+      rgb(8 12 18 / 0) 55%,
+      rgb(8 12 18 / 0.55) 100%
+    ); /* taste-skill-ignore: véu neutro sob o texto sobre a foto */
+  }
+  .topo-foto .gancho {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-display);
+    line-height: 0.98;
+    letter-spacing: -0.005em;
+    max-width: 18ch;
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.35);
+  }
+  @media (min-width: 768px) {
+    .topo-foto .gancho {
+      max-width: 22ch;
+    }
+  }
+  .topo-foto p {
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.6);
+  }
+
+  .etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 0.875rem;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .etiqueta .ponto {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.85);
+  }
+
+  /* cartão de passeio: foto real, etiquetas de vidro, preço por pessoa */
+  .cartao {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-cartao);
+    background: var(--color-papel);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    overflow: hidden;
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+    transition:
+      transform var(--dur-estado) var(--ease-padrao),
+      box-shadow var(--dur-estado) var(--ease-padrao);
+  }
+  .cartao[data-inclinado] {
+    transition: box-shadow var(--dur-estado) var(--ease-padrao);
+    box-shadow:
+      inset 0 0 0 1px var(--color-borda),
+      0 18px 32px -18px rgb(6 54 67 / 0.45);
+  }
+  .cartao:focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 3px;
+  }
+  .cartao-foto {
+    position: relative;
+    aspect-ratio: 4 / 3;
+  }
+  .cartao-foto .etiquetas {
+    position: absolute;
+    left: 0.6rem;
+    top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .cartao-texto {
+    padding: 0.85rem 0.9rem 1rem;
+  }
+  .cartao-titulo {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1.1875rem;
+    line-height: 1.15;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .cartao:hover .cartao-titulo {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      text-decoration-thickness: 1px;
+    }
+  }
+
+  /* trilho: no celular os cartões deslizam para o lado com encaixe; no computador viram grade */
+  .trilho {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 80%;
+    gap: 0.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--margem);
+    margin-inline: calc(-1 * var(--margem));
+    padding: 0.25rem var(--margem) 1rem;
+    scrollbar-width: none;
+  }
+  .trilho::-webkit-scrollbar {
+    display: none;
+  }
+  .trilho > * {
+    scroll-snap-align: start;
+  }
+  @media (min-width: 640px) {
+    .trilho {
+      grid-auto-columns: 46%;
+    }
+  }
+  @media (min-width: 1024px) {
+    .trilho {
+      grid-auto-flow: row;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: visible;
+      margin-inline: 0;
+      padding-inline: 0;
+      gap: 1rem;
+    }
+  }
+
+  /* mapa da região: a foto de satélite real sobre o relevo (nada desenhado por código) */
+  .mapa-secao {
+    padding-block: 4rem 3rem;
+  }
+  @media (min-width: 768px) {
+    .mapa-secao {
+      padding-block: 6rem 4rem;
+    }
+  }
+  .mapa-moldura {
+    margin-top: 1.5rem;
+  }
+  .mapa-palco {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    height: 76svh;
+    min-height: 30rem;
+    max-height: 52rem;
+    background: var(--color-superficie);
+  }
+  @media (min-width: 1024px) {
+    .mapa-moldura {
+      max-width: calc(var(--largura-max) + 2 * var(--margem));
+      margin: 2.5rem auto 0;
+      padding-inline: var(--margem);
+    }
+    .mapa-palco {
+      height: 82vh;
+      min-height: 36rem;
+      max-height: 56rem;
+      border-radius: var(--radius-vidro);
+    }
+  }
+  /* sem z-index aqui: os pinos e as praias, que moram dentro, precisam ficar acima do canvas */
+  .mapa-plano {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mapa-plano-caixa {
+    position: absolute;
+    inset: 0;
+  }
+  .mapa-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* sem 3D: a foto inteira, sem cortar, para os pinos caírem no lugar certo */
+  .mapa-palco[data-3d='off'] .mapa-plano-caixa {
+    position: relative;
+    inset: auto;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 3286 / 4425;
+  }
+  .mapa-palco[data-3d='off'] .mapa-img {
+    object-fit: fill;
+  }
+  .mapa-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    touch-action: pan-y;
+    opacity: 0;
+    transition: opacity 600ms var(--ease-padrao);
+  }
+  .mapa-canvas[data-pronto] {
+    opacity: 1;
+  }
+
+  /* pinos: o ponto fica sobre a cidade; enquanto o 3D carrega, ficam escondidos */
+  .pino {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 44px;
+    min-height: 44px;
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, calc(-100% + 7px));
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity var(--dur-estado) var(--ease-padrao);
+  }
+  .mapa-palco[data-3d='on'] .pino,
+  .mapa-palco[data-3d='off'] .pino {
+    visibility: visible;
+    opacity: 1;
+  }
+  .mapa-palco[data-3d='on'] .pino[data-visivel='nao'] {
+    visibility: hidden;
+    opacity: 0;
+  }
+  .mapa-palco[data-3d='off'] .pino {
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-50%, calc(-100% + 7px));
+  }
+  .pino-ponto {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-acao);
+    box-shadow: 0 0 0 2px #ffffff;
+  }
+  .pino[aria-pressed='true'] .etiqueta {
+    background: var(--color-acao);
+    color: var(--color-tinta);
+    box-shadow: none;
+  }
+
+  /* nomes das praias: só os da cidade escolhida, sem encostar um no outro */
+  .praia-rotulo {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, calc(-100% - 7px));
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    background: rgb(6 54 67 / 0.78);
+    color: #ffffff;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--dur-entrada) var(--ease-padrao);
+  }
+  .praia-rotulo::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -7px;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 0 0 1.5px rgb(6 54 67 / 0.78);
+  }
+  .praia-rotulo[data-visivel='sim'] {
+    opacity: 1;
+  }
+  .praia-rotulo[data-lado='baixo'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(-50%, 7px);
+  }
+  .praia-rotulo[data-lado='baixo']::after {
+    top: -7px;
+    bottom: auto;
+  }
+  .praia-rotulo[data-lado='direita'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(9px, -50%);
+  }
+  .praia-rotulo[data-lado='esquerda'] {
+    transform: translate(var(--px, -999px), var(--py, -999px)) translate(calc(-100% - 9px), -50%);
+  }
+  .praia-rotulo[data-lado='direita']::after,
+  .praia-rotulo[data-lado='esquerda']::after {
+    top: 50%;
+    bottom: auto;
+    margin: -2.5px 0 0;
+  }
+  .praia-rotulo[data-lado='direita']::after {
+    left: -9px;
+  }
+  .praia-rotulo[data-lado='esquerda']::after {
+    left: auto;
+    right: -9px;
+  }
+  .mapa-palco[data-3d='off'] .praia-rotulo {
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-50%, calc(-100% - 7px));
+  }
+
+  .mapa-dica {
+    position: absolute;
+    top: 0.75rem;
+    left: 50%;
+    z-index: 3;
+    width: max-content;
+    max-width: calc(100% - 1.5rem);
+    transform: translateX(-50%);
+    animation: surgir var(--dur-entrada) var(--ease-padrao) both;
+  }
+  .mapa-cartao {
+    /* sobre a foto escura do mapa, o vidro claro precisa de mais corpo para o texto ler bem */
+    --vidro-claro: rgb(255 255 255 / 0.86);
+    position: absolute;
+    inset-inline: 0.5rem;
+    bottom: 0.5rem;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    gap: 0.6rem 0.75rem;
+    padding: 0.6rem;
+    border-radius: var(--radius-vidro);
+    animation: subir var(--dur-entrada) var(--ease-padrao) both;
+  }
+  .mapa-cartao-foto {
+    position: relative;
+    overflow: hidden;
+    border-radius: calc(var(--radius-vidro) - 0.5rem);
+    aspect-ratio: 1;
+  }
+  /* espaço à direita para o botão de fechar */
+  .mapa-cartao-info {
+    min-width: 0;
+    align-self: center;
+    padding-right: 2.5rem;
+  }
+  .mapa-cartao-botao {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .mapa-fechar {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+  }
+  @media (min-width: 768px) {
+    .mapa-cartao {
+      inset-inline: auto;
+      left: 1rem;
+      bottom: 1rem;
+      width: 22rem;
+      grid-template-columns: minmax(0, 1fr);
+      padding: 0.5rem;
+    }
+    .mapa-cartao-foto {
+      aspect-ratio: 16 / 10;
+    }
+    .mapa-cartao-info {
+      padding: 0 0.4rem;
+    }
+    .mapa-cartao-botao {
+      width: auto;
+      margin: 0 0.4rem 0.4rem;
+    }
+    .mapa-fechar {
+      top: 0.9rem;
+      right: 0.9rem;
+    }
+  }
+  .mapa-fonte {
+    margin-top: 0.5rem;
+    padding-inline: var(--margem);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--color-tinta-suave);
+  }
+  @media (min-width: 1024px) {
+    .mapa-fonte {
+      padding-inline: 0;
+    }
+  }
+
+  /* página do passeio: as fotos de borda a borda por baixo da cápsula do menu */
+  .topo-passeio {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    height: 70svh;
+    min-height: 28rem;
+    max-height: 46rem;
+    margin-top: -4.5rem;
+    color: #ffffff;
+    background: var(--color-mar);
+  }
+  @media (min-width: 1024px) {
+    .topo-passeio {
+      height: 76vh;
+      max-height: 52rem;
+    }
+  }
+  .topo-passeio-fotos {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+  }
+  /* véu só onde há texto; não pega o toque, para as fotos continuarem deslizando */
+  .topo-passeio::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgb(8 12 18 / 0.45) 0%,
+      rgb(8 12 18 / 0) 28%,
+      rgb(8 12 18 / 0) 50%,
+      rgb(8 12 18 / 0.62) 100%
+    ); /* taste-skill-ignore: véu neutro sob o texto sobre a foto */
+  }
+  .topo-passeio-texto {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding-bottom: 1.25rem;
+    pointer-events: none;
+  }
+  @media (min-width: 768px) {
+    .topo-passeio-texto {
+      padding-bottom: 2rem;
+    }
+  }
+  .topo-passeio-titulo {
+    max-width: 18ch;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.25rem, 1.5rem + 3.2vw, 4rem);
+    line-height: 0.98;
+    text-shadow: 0 1px 3px rgb(8 12 18 / 0.4);
+  }
+
+  /* a ficha do passeio em células; as linhas entre elas são o fundo aparecendo no vão de 1 px */
+  .ficha {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-cartao);
+    background: var(--color-borda);
+  }
+  .ficha > div {
+    padding: 0.75rem 0.9rem;
+    background: var(--color-papel);
+  }
+  .ficha > .largo {
+    grid-column: 1 / -1;
+  }
+  .ficha dt {
+    font-size: 0.875rem;
+    color: var(--color-tinta-suave);
+  }
+  .ficha dd {
+    margin-top: 0.15rem;
+    font-weight: 600;
+  }
+}

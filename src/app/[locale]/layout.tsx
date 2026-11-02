@@ -1,0 +1,101 @@
+import type { Metadata, Viewport } from 'next';
+import { Barlow, Barlow_Condensed, Barlow_Semi_Condensed } from 'next/font/google';
+import { notFound } from 'next/navigation';
+import { Cabecalho } from '@/components/Cabecalho';
+import { GrupoProvider } from '@/components/grupo/GrupoContexto';
+import { Rastreamento } from '@/components/Rastreamento';
+import { Revelar } from '@/components/Revelar';
+import { Rodape } from '@/components/Rodape';
+import { EMPRESA } from '@/config/empresa';
+import { dicionario } from '@/i18n';
+import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
+import { urlDoSite } from '@/lib/site';
+import '../globals.css';
+
+/**
+ * Barlow em três larguras, como um sistema de placas (design-dna.json > typography):
+ * Regular no texto, Semi Condensed nos títulos e números, Condensed no gancho.
+ * Servida pelo próprio site: o navegador do cliente não chama o Google.
+ */
+const barlow = Barlow({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
+const barlowSemi = Barlow_Semi_Condensed({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['500', '600', '700'],
+  variable: '--font-barlow-semi',
+  display: 'swap',
+});
+const barlowCond = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
+
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return IDIOMAS.map((locale) => ({ locale }));
+}
+
+export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isIdioma(locale)) return {};
+  const d = dicionario(locale);
+  return {
+    metadataBase: new URL(urlDoSite()),
+    title: { default: d.meta.titulo, template: `%s | ${EMPRESA.marca}` },
+    description: d.meta.descricao,
+    applicationName: EMPRESA.marca,
+    openGraph: {
+      siteName: EMPRESA.marca,
+      locale: OG_LOCALE[locale],
+      type: 'website',
+    },
+    twitter: { card: 'summary_large_image' },
+    formatDetection: { telephone: false },
+  };
+}
+
+export const viewport: Viewport = {
+  themeColor: '#063643',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
+export default async function LayoutIdioma({ children, params }: LayoutProps<'/[locale]'>) {
+  const { locale } = await params;
+  if (!isIdioma(locale)) notFound();
+  const d = dicionario(locale);
+
+  const organizacao = {
+    '@context': 'https://schema.org',
+    '@type': 'TravelAgency',
+    name: EMPRESA.marca,
+    taxID: EMPRESA.cnpj,
+    url: urlDoSite(),
+    email: EMPRESA.email,
+    logo: `${urlDoSite()}/logo/orla-nativa-emblema-512.png`,
+    address: { '@type': 'PostalAddress', addressLocality: EMPRESA.cidade, addressRegion: EMPRESA.uf, addressCountry: 'BR' },
+    areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo'],
+    availableLanguage: ['pt-BR', 'en', 'es'],
+  };
+
+  return (
+    <html lang={HREFLANG[locale]} className={`${barlow.variable} ${barlowSemi.variable} ${barlowCond.variable}`}>
+      <body className="min-h-dvh">
+        <a
+          href="#conteudo"
+          className="sr-only z-50 rounded-[4px] bg-(--color-acao) px-5 py-3 font-semibold text-(--color-tinta) focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          {d.nav.pularConteudo}
+        </a>
+        <Cabecalho idioma={locale} d={d} />
+        <GrupoProvider>{children}</GrupoProvider>
+        <Rodape idioma={locale} d={d} />
+        <Revelar />
+        <Rastreamento
+          pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}
+          textos={d.cookies}
+          linkPrivacidade={rota(locale, '/politica-de-privacidade')}
+        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizacao) }} />
+      </body>
+    </html>
+  );
+}

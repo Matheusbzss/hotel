@@ -1,0 +1,902 @@
+{
+  "meta": {
+    "name": "Orla Nativa — Boletim do mar",
+    "description": "Fonte única de cores, fontes, espaçamentos, formas, movimento e efeitos do site da Orla Nativa. Fotos reais da região levam o desejo (o pôr do sol de Búzios no topo, cada passeio num cartão com a própria foto); a decisão vem clara em cima delas, em vidro fosco estilo iPhone e no chão branco frio. Cores medidas nas fotos reais dos passeios (design-dna measure-colors, k=8). Ajustado pelo dono em 2026-11-01.",
+    "source_references": [
+      "public/fotos/arraial/barcos-agua-turquesa.jpg",
+      "public/fotos/arraial/lancha-agua-turquesa-do-alto.jpg",
+      "public/fotos/buzios/jet-ski-por-do-sol.jpg",
+      "public/fotos/cabo-frio/orla-entardecer.jpg",
+      "public/fotos/cabo-frio/praia-do-forte-agua-azul.jpg",
+      "public/fotos/lancha/lancha-entardecer.jpg",
+      "public/fotos/quadriciclo/quadriciclo-por-do-sol.jpg",
+      "site atual agenciavictorhugo.online (identidade anterior, usada como evidência, não como autoridade)",
+      "PRODUCT.md",
+      ".impeccable/surfaces/src-app-locale-page-tsx.md (contrato da direção Boletim do mar)"
+    ],
+    "created_at": "2026-10-31",
+    "updated_at": "2026-11-01"
+  },
+  "brand": {
+    "name": "Orla Nativa",
+    "tagline": "Viagens & Passeios",
+    "logo": {
+      "chosen": "A. Horizonte",
+      "symbol": "célula 40x40 com cantos de 4px: céu dourado #F2AD47 na parte de cima (até 55%), meio sol #FFF1C9 pousado no horizonte, mar #063643 embaixo com duas linhas de água #04A7AA",
+      "wordmark": "Orla Nativa em Barlow Semi Condensed 600; Viagens & Passeios em caixa alta Barlow Semi Condensed 600, 10.5px, espaçamento 2px",
+      "on_light": {
+        "wordmark": "#063643",
+        "tagline": "#4A6470"
+      },
+      "on_dark": {
+        "wordmark": "#FFFFFF",
+        "tagline": "#8FD3D4"
+      },
+      "on_sky": {
+        "wordmark": "#FFFFFF",
+        "tagline": "#FFF1C9"
+      },
+      "min_size": "símbolo legível a partir de 16px; logo horizontal a partir de 120px de largura"
+    }
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "analogous (mar e céu frios) com complementar quente (sol) como ação",
+      "primary": {
+        "hex": "#063643",
+        "role": "mar fundo: tinta de todo o texto, partes imersivas, barra fixa de reserva"
+      },
+      "secondary": {
+        "hex": "#04A7AA",
+        "role": "turquesa de Arraial: água, destaques decorativos e foco sobre fundo escuro; nunca texto sobre claro (2.95:1)"
+      },
+      "secondary_text": {
+        "hex": "#0A6F72",
+        "role": "turquesa escuro para links e texto de destaque sobre claro (5.95:1 no branco)"
+      },
+      "accent": {
+        "hex": "#F2AD47",
+        "role": "sol: botão de ação principal, sempre com texto #063643 (6.71:1)"
+      },
+      "neutral": {
+        "scale": [
+          "#FFFFFF",
+          "#F4F8F8",
+          "#E6EEEF",
+          "#C3D2D4",
+          "#6F8790",
+          "#4A6470",
+          "#063643"
+        ],
+        "usage": "#FFFFFF células e cartões; #F4F8F8 chão das partes de decisão; #E6EEEF superfície de apoio e esqueletos; #C3D2D4 borda de células (decorativa); #6F8790 borda de campos e controles (limite de componente); #4A6470 texto suave (5.86:1 no chão); #063643 texto principal (tinta)"
+      },
+      "semantic": {
+        "success": "#1E7A4C",
+        "warning": "#9A5B00",
+        "error": "#B3261E",
+        "error_surface": "#FFD9D4",
+        "info": "#0A6F72"
+      },
+      "surface": {
+        "background": "#F4F8F8",
+        "card": "#FFFFFF",
+        "elevated": "#FFFFFF com borda de 1px #C3D2D4, sem sombra",
+        "immersive": "#063643"
+      },
+      "data_scale": {
+        "meaning": "quanto do dia o passeio ocupa (duração), do turquesa de Arraial ao pôr do sol; sempre com texto #063643",
+        "steps": [
+          {
+            "id": "d1",
+            "hex": "#8FD3D4",
+            "range": "até 1 h",
+            "ink_contrast": 7.69
+          },
+          {
+            "id": "d2",
+            "hex": "#B9DFD3",
+            "range": "2 a 3 h",
+            "ink_contrast": 9.01
+          },
+          {
+            "id": "d3",
+            "hex": "#E4D9B8",
+            "range": "4 a 5 h",
+            "ink_contrast": 9.23
+          },
+          {
+            "id": "d4",
+            "hex": "#F5C66E",
+            "range": "6 a 8 h",
+            "ink_contrast": 8.16
+          },
+          {
+            "id": "d5",
+            "hex": "#F29B5C",
+            "range": "dia inteiro",
+            "ink_contrast": 5.95
+          }
+        ]
+      },
+      "sky_and_sea": {
+        "meaning": "cores do mar 3D ao entardecer, medidas nas fotos de pôr do sol e de água",
+        "sky_top": "#273E6B",
+        "sky_mid": "#8C6A86",
+        "sky_glow": "#FAC27F",
+        "sun": "#F2AD47",
+        "sea_near": "#063643",
+        "sea_far": "#0F4A5A",
+        "sea_shallow": "#04A7AA",
+        "land": "#A0926C",
+        "land_shadow": "#3F4A3E",
+        "sun_core": "#FFF1C9",
+        "whatsapp_after_purchase_only": "#25D366"
+      },
+      "contrast_strategy": "tinta escura sobre chão claro em tudo o que se lê e decide; branco sobre mar fundo só nas partes imersivas e na barra fixa; a cor de dado nunca carrega texto branco",
+      "measurement": {
+        "tool": "design-dna scripts/measure-colors.mjs",
+        "k": 8,
+        "sampling": {
+          "method": "deterministic_stratified",
+          "max_pixels": 160000
+        }
+      },
+      "measured_palette": [
+        {
+          "reference": "arraial/barcos-agua-turquesa.jpg",
+          "palette": [
+            {
+              "hex": "#04a7aa",
+              "coverage": 0.4037,
+              "role": "background"
+            },
+            {
+              "hex": "#047bd6",
+              "coverage": 0.2563,
+              "role": "accent"
+            },
+            {
+              "hex": "#04898d",
+              "coverage": 0.12,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#4badf8",
+              "coverage": 0.1133,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#1e4a4b",
+              "coverage": 0.0546,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#060e13",
+              "coverage": 0.0316,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#5a7878",
+              "coverage": 0.0139,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#b8d8db",
+              "coverage": 0.0068,
+              "role": "text"
+            }
+          ]
+        },
+        {
+          "reference": "arraial/lancha-agua-turquesa-do-alto.jpg",
+          "palette": [
+            {
+              "hex": "#259598",
+              "coverage": 0.2559,
+              "role": "background"
+            },
+            {
+              "hex": "#4cabb2",
+              "coverage": 0.2461,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#0f7677",
+              "coverage": 0.2105,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#063643",
+              "coverage": 0.1447,
+              "role": "accent"
+            },
+            {
+              "hex": "#77c4d0",
+              "coverage": 0.0967,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#a7989b",
+              "coverage": 0.0155,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#675252",
+              "coverage": 0.0154,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#dcdad7",
+              "coverage": 0.0153,
+              "role": "text"
+            }
+          ]
+        },
+        {
+          "reference": "buzios/jet-ski-por-do-sol.jpg",
+          "palette": [
+            {
+              "hex": "#121517",
+              "coverage": 0.251,
+              "role": "background"
+            },
+            {
+              "hex": "#6b9cc3",
+              "coverage": 0.1694,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#99b3c6",
+              "coverage": 0.1451,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#cecdc4",
+              "coverage": 0.1364,
+              "role": "text"
+            },
+            {
+              "hex": "#60625c",
+              "coverage": 0.1154,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#d9b98b",
+              "coverage": 0.0907,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#7d3006",
+              "coverage": 0.0596,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#f2ad47",
+              "coverage": 0.0324,
+              "role": "accent"
+            }
+          ]
+        },
+        {
+          "reference": "cabo-frio/orla-entardecer.jpg",
+          "palette": [
+            {
+              "hex": "#273e6b",
+              "coverage": 0.1865,
+              "role": "background"
+            },
+            {
+              "hex": "#485686",
+              "coverage": 0.1656,
+              "role": "accent"
+            },
+            {
+              "hex": "#58564e",
+              "coverage": 0.1368,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#847b7b",
+              "coverage": 0.1341,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#1a201d",
+              "coverage": 0.1286,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#beaa99",
+              "coverage": 0.0964,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#dfd4c1",
+              "coverage": 0.0877,
+              "role": "text"
+            },
+            {
+              "hex": "#a29dc3",
+              "coverage": 0.0644,
+              "role": "unassigned"
+            }
+          ]
+        },
+        {
+          "reference": "cabo-frio/praia-do-forte-agua-azul.jpg",
+          "palette": [
+            {
+              "hex": "#1c92ac",
+              "coverage": 0.2114,
+              "role": "background"
+            },
+            {
+              "hex": "#65a7d3",
+              "coverage": 0.2083,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#ceaa85",
+              "coverage": 0.1877,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#a2a692",
+              "coverage": 0.1455,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#61a09b",
+              "coverage": 0.1192,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#e2d5cf",
+              "coverage": 0.0613,
+              "role": "text"
+            },
+            {
+              "hex": "#2c2b17",
+              "coverage": 0.0373,
+              "role": "accent"
+            },
+            {
+              "hex": "#655d45",
+              "coverage": 0.0292,
+              "role": "unassigned"
+            }
+          ]
+        },
+        {
+          "reference": "lancha/lancha-entardecer.jpg",
+          "palette": [
+            {
+              "hex": "#80b3d5",
+              "coverage": 0.2181,
+              "role": "background"
+            },
+            {
+              "hex": "#b3ced9",
+              "coverage": 0.2133,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#ddd0b0",
+              "coverage": 0.1473,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#4c8ea1",
+              "coverage": 0.1335,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#136879",
+              "coverage": 0.1154,
+              "role": "accent"
+            },
+            {
+              "hex": "#9ea59c",
+              "coverage": 0.071,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#212e37",
+              "coverage": 0.0619,
+              "role": "text"
+            },
+            {
+              "hex": "#64665d",
+              "coverage": 0.0395,
+              "role": "unassigned"
+            }
+          ]
+        },
+        {
+          "reference": "quadriciclo/quadriciclo-por-do-sol.jpg",
+          "palette": [
+            {
+              "hex": "#fac27f",
+              "coverage": 0.2126,
+              "role": "background"
+            },
+            {
+              "hex": "#decbba",
+              "coverage": 0.1852,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#432e1e",
+              "coverage": 0.1766,
+              "role": "accent"
+            },
+            {
+              "hex": "#0f0e12",
+              "coverage": 0.1711,
+              "role": "text"
+            },
+            {
+              "hex": "#7b4b1a",
+              "coverage": 0.161,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#aa6c47",
+              "coverage": 0.0513,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#475b74",
+              "coverage": 0.0376,
+              "role": "unassigned"
+            },
+            {
+              "hex": "#d6115d",
+              "coverage": 0.0044,
+              "role": "unassigned"
+            }
+          ]
+        }
+      ],
+      "glass": {
+        "sobre_foto": {
+          "fundo": "rgb(255 255 255 / 0.16)",
+          "borda": "rgb(255 255 255 / 0.38)",
+          "texto": "#FFFFFF"
+        },
+        "sobre_claro": {
+          "fundo": "rgb(255 255 255 / 0.72)",
+          "borda": "rgb(6 54 67 / 0.12)",
+          "texto": "#063643"
+        },
+        "escuro": {
+          "fundo": "rgb(6 54 67 / 0.72)",
+          "borda": "rgb(255 255 255 / 0.18)",
+          "texto": "#FFFFFF"
+        },
+        "desfoque": "18px",
+        "saturacao": "160%"
+      }
+    },
+    "typography": {
+      "type_scale": {
+        "display": {
+          "size": "clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem)",
+          "weight": 600,
+          "line_height": 0.98,
+          "tracking": "-0.005em",
+          "family": "condensed"
+        },
+        "heading_1": {
+          "size": "clamp(2rem, 1.45rem + 2.6vw, 3.5rem)",
+          "weight": 600,
+          "line_height": 1.02,
+          "tracking": "0",
+          "family": "semi"
+        },
+        "heading_2": {
+          "size": "clamp(1.5rem, 1.25rem + 1.2vw, 2.25rem)",
+          "weight": 600,
+          "line_height": 1.1,
+          "tracking": "0",
+          "family": "semi"
+        },
+        "heading_3": {
+          "size": "clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem)",
+          "weight": 600,
+          "line_height": 1.2,
+          "tracking": "0",
+          "family": "semi"
+        },
+        "body": {
+          "size": "1.0625rem",
+          "weight": 400,
+          "line_height": 1.5,
+          "tracking": "0",
+          "family": "sans"
+        },
+        "body_small": {
+          "size": "0.9375rem",
+          "weight": 400,
+          "line_height": 1.45,
+          "tracking": "0",
+          "family": "sans"
+        },
+        "caption": {
+          "size": "0.8125rem",
+          "weight": 500,
+          "line_height": 1.35,
+          "tracking": "0.01em",
+          "family": "sans"
+        },
+        "overline": {
+          "size": "0.75rem",
+          "weight": 600,
+          "line_height": 1.2,
+          "tracking": "0.08em",
+          "family": "semi",
+          "transform": "uppercase",
+          "use": "só cabeçalhos curtos de coluna do boletim"
+        },
+        "figure": {
+          "size": "clamp(1.375rem, 1.25rem + 0.6vw, 1.75rem)",
+          "weight": 600,
+          "line_height": 1,
+          "tracking": "0",
+          "family": "semi",
+          "numeric": "tabular-nums",
+          "use": "preços, totais e horas"
+        },
+        "figure_large": {
+          "size": "clamp(1.75rem, 1.4rem + 1.6vw, 2.75rem)",
+          "weight": 600,
+          "line_height": 1,
+          "tracking": "-0.005em",
+          "family": "semi",
+          "numeric": "tabular-nums"
+        }
+      },
+      "font_families": {
+        "heading": "Barlow Semi Condensed (500, 600, 700)",
+        "display": "Barlow Condensed (600)",
+        "body": "Barlow (400, 500, 600)",
+        "mono": "nenhuma: números com font-variant-numeric: tabular-nums da própria Barlow",
+        "fallback_stack": "\"Barlow\", \"Arial Nova\", \"Segoe UI\", Roboto, system-ui, sans-serif",
+        "loading": "next/font/google, servida pelo próprio site, display swap, subsets latin e latin-ext"
+      },
+      "font_style_notes": "Barlow vem da sinalização pública da Califórnia (placas de estrada, ônibus, trens): grotesca de baixo contraste, levemente arredondada, números claros de longe. Usada em três larguras como sistema de sinalização: Condensed para o gancho e números grandes, Semi Condensed para títulos e cabeçalhos de coluna, Regular para o texto. Preços, horas e totais sempre com tabular-nums."
+    },
+    "spacing": {
+      "base_unit": "8px (meio passo de 4px)",
+      "scale": [
+        "4px",
+        "8px",
+        "12px",
+        "16px",
+        "24px",
+        "32px",
+        "48px",
+        "64px",
+        "96px",
+        "128px"
+      ],
+      "cell_gap": "3px entre células do boletim",
+      "content_density": "compacto nas tabelas, espaçoso entre blocos",
+      "section_rhythm": "cada bloco denso seguido de uma pausa: 64px no celular, 96 a 128px no computador; sempre mais espaço acima de um título do que abaixo"
+    },
+    "layout": {
+      "grid_system": "grade de células: 4 colunas no celular, 8 no tablet, 12 no computador",
+      "max_content_width": "1200px",
+      "columns": {
+        "mobile": 4,
+        "tablet": 8,
+        "desktop": 12
+      },
+      "gutter": {
+        "mobile": "16px",
+        "desktop": "24px"
+      },
+      "margin": "clamp(1rem, 0.6rem + 1.8vw, 2rem)",
+      "breakpoints": {
+        "design_base": "390px",
+        "tablet": "768px",
+        "desktop": "1024px",
+        "wide": "1280px",
+        "max": "1440px"
+      },
+      "table_steps": {
+        "mobile": [
+          "passeio",
+          "horas",
+          "total"
+        ],
+        "tablet": [
+          "passeio",
+          "horas",
+          "para quem",
+          "total"
+        ],
+        "desktop": [
+          "passeio",
+          "horas",
+          "para quem",
+          "crianças",
+          "total"
+        ],
+        "rule": "colunas caem em degraus declarados; o preço nunca encolhe nem some; a coluna da cidade só aparece quando a lista mistura cidades sem agrupar"
+      },
+      "alignment_tendency": "grade estrita de células; só o mar e o gancho fogem da grade"
+    },
+    "shape": {
+      "border_radius": {
+        "small": "4px (campos, etiquetas, células de tabela)",
+        "medium": "8px (cartões com foto, folhas)",
+        "large": "16px (painéis de vidro)",
+        "pill": "999px (botões pequenos de vidro sobre foto)"
+      },
+      "border_usage": "1px #C3D2D4 em células; 1px #6F8790 em campos e controles; 2px #063643 no item escolhido; 1px tracejado #6F8790 nas alternativas quando há um escolhido",
+      "divider_style": "sem fio em cada linha: as linhas do boletim se separam por 3px de chão entre células"
+    },
+    "elevation": {
+      "shadow_style": "none",
+      "levels": {
+        "low": "borda de 1px",
+        "medium": "borda de 2px #063643 (escolhido)",
+        "high": "fundo sólido #063643 (barra fixa e folhas)"
+      },
+      "depth_cues": "profundidade real só no 3D; na interface, escala (escolhido 1.02 no celular, 1.01 no computador; outros 0.98) e opacidade (outros 0.9: abaixo disso o texto pequeno cairia abaixo de 4.5:1)"
+    },
+    "iconography": {
+      "style": "linha, cantos retos, desenhados para o projeto (barco, lancha, buggy, quadriciclo, mergulho, sol, ondas, relógio, pessoas, cadeado, voucher)",
+      "stroke_weight": "1.75px na grade de 24px",
+      "size_scale": [
+        "16px",
+        "20px",
+        "24px",
+        "32px"
+      ],
+      "preferred_set": "SVG próprio inline, sem biblioteca de ícones"
+    },
+    "motion": {
+      "easing": {
+        "standard": "cubic-bezier(0.2, 0, 0, 1)",
+        "ambient": "sine in-out (só o mar)",
+        "exit": "cubic-bezier(0.3, 0, 1, 1)"
+      },
+      "duration_scale": {
+        "micro": "120ms",
+        "normal": "200ms",
+        "macro": "360ms",
+        "stagger": "40ms (no máximo 400ms no total)",
+        "scroll_scrub": "0.6s"
+      },
+      "entrance_pattern": "sobe 12px e aparece, uma vez só, ao entrar na tela",
+      "exit_pattern": "some em 120ms sem deslocamento",
+      "press": "escala 0.97 em 120ms",
+      "philosophy": "rápido e preciso na interface; contínuo e lento só no mar 3D; checkout só com barra de progresso e animação de sucesso; nada de elástico; com reduzir movimento, tudo muda sem animação e o mar vira imagem parada"
+    },
+    "components": {
+      "button_style": "principal: fundo #F2AD47, texto #063643, peso 600, raio 4px, altura mínima 52px no celular e 48px no computador; secundário: contorno 1px #063643; texto: link sublinhado #0A6F72",
+      "input_style": "rótulo acima, campo branco, borda 1px #6F8790, raio 4px, altura 52px, foco com anel 2px #063643, erro com borda e mensagem #B3261E logo abaixo",
+      "card_style": "cartão de passeio: foto real 4:3 no topo com raio 8px, etiqueta de duração (cor de dado) e de cidade em vidro sobre a foto, nome em Barlow Semi Condensed, preço por pessoa ou por veículo em número grande e o total do grupo pequeno embaixo; inclina até 6 graus seguindo o dedo ou o mouse",
+      "navigation_pattern": "menu em vidro fosco estilo iPhone: cápsula flutuante a 8px do topo, desfoque de 18px, branco translúcido sobre fotos e chão; logo à esquerda, idiomas e menu à direita; fica presa no topo ao rolar",
+      "modal_style": "folha que sobe do rodapé no celular (topo com raio 8px), caixa centralizada no computador, fundo #063643 a 60% sem desfoque",
+      "list_style": "vitrine: cartões com foto em fileiras por cidade; no celular deslizam para o lado com encaixe, no computador formam grade de 3 a 4 colunas; o escolhido ganha traço de 2px e a barra de reserva de vidro aparece",
+      "component_notes": "todo elemento interativo tem os cinco estados: normal, passar o mouse (borda vira #063643), foco (anel 2px #063643 com 2px de folga; sobre o mar o anel é #F2AD47), pressionado (escala 0.97), desativado (fundo #E6EEEF, texto #6F8790, sem cursor)"
+    }
+  },
+  "design_style": {
+    "aesthetic": {
+      "mood": [
+        "vivo",
+        "real",
+        "luminoso",
+        "confiável",
+        "organizado"
+      ],
+      "visual_metaphor": "a orla de verdade, organizada: fotos reais da região com a informação em vidro por cima",
+      "era_influence": "design de informação contemporâneo: sinalização pública, tabelas de previsão do mar e do vento",
+      "genre": "reserva de viagens com design de informação",
+      "personality_traits": [
+        "organizado",
+        "honesto",
+        "calmo",
+        "prático"
+      ],
+      "adjectives": [
+        "tecnológico",
+        "realista",
+        "claro",
+        "praiano"
+      ]
+    },
+    "visual_language": {
+      "complexity": "moderate",
+      "ornamentation": "none",
+      "whitespace_usage": "arejado em volta do mar e entre blocos; compacto dentro do boletim",
+      "visual_weight_distribution": "escuro e imersivo no alto, claro e informativo embaixo",
+      "focal_strategy": "single hero element (o mar 3D), depois o boletim",
+      "contrast_level": "high",
+      "texture_usage": "nenhuma inventada: a textura é a das fotos reais e do relevo do mapa"
+    },
+    "composition": {
+      "hierarchy_method": "escala tipográfica e números grandes",
+      "balance_type": "asymmetric no mar, grade estrita no boletim",
+      "flow_direction": "de cima para baixo: mar, boletim, mapa 3D, garantias, perguntas",
+      "grouping_strategy": "células em linhas; uma linha por passeio",
+      "negative_space_role": "pausa calma depois de cada bloco denso"
+    },
+    "imagery": {
+      "photo_treatment": "fotos reais em cor natural, sem filtro; o topo é o pôr do sol com barcos na baía de Búzios; cada passeio usa a própria foto; fotos de terceiros só com licença de uso comercial e crédito registrado em public/fotos/CREDITOS.md",
+      "illustration_style": "nenhuma; só ícones de linha próprios",
+      "graphic_elements": "células com cor de dado, linha do horizonte",
+      "pattern_usage": "none",
+      "image_shape": "retângulo com raio 8px nos cartões; tela cheia no topo"
+    },
+    "interaction_feel": {
+      "feedback_style": "escala 0.97 ao tocar, escolhido em traço cheio, números que rolam ao recalcular",
+      "hover_behavior": "no computador a borda escurece para #063643; nada se mexe",
+      "transition_personality": "snappy",
+      "loading_style": "células-esqueleto no tom #E6EEEF; espera longa com o ícone de barco balançando",
+      "microinteraction_density": "moderate"
+    },
+    "brand_voice_in_ui": {
+      "tone": "claro, direto e amigável, sem exagero",
+      "formality": "informal e respeitoso; voseo rioplatense no espanhol",
+      "cta_style": "direct imperative",
+      "empty_state_approach": "explica o que aconteceu e oferece o próximo passo",
+      "error_tone": "calmo: diz o que corrigir, perto do campo"
+    }
+  },
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "moderate: foto com profundidade no topo e mapa 3D com relevo; none no checkout",
+      "performance_tier": "heavy (WebGL) com carregamento progressivo",
+      "fallback_strategy": "texto, botões e fotos chegam primeiro; o mapa 3D carrega quando a seção se aproxima; sem WebGL, com reduzir movimento ou economia de dados, fica o mapa plano com relevo e as mesmas cidades",
+      "primary_technology": "WebGL/Three.js + GSAP"
+    },
+    "background_effects": {
+      "type": "none",
+      "description": "fora do mar 3D não há fundo animado",
+      "technology": "none",
+      "params": {
+        "color_palette": [],
+        "speed": "none",
+        "density": "none",
+        "opacity": "1",
+        "blend_mode": "normal"
+      }
+    },
+    "particle_systems": {
+      "enabled": false,
+      "type": "none",
+      "description": "os brilhos do sol na água saem do próprio shader",
+      "technology": "none",
+      "params": {
+        "count": 0,
+        "shape": "none",
+        "size_range": "none",
+        "movement_pattern": "none",
+        "color_behavior": "none",
+        "interaction": "none",
+        "spawn_area": "none"
+      }
+    },
+    "3d_elements": {
+      "enabled": true,
+      "type": "mapa 3D da Região dos Lagos",
+      "description": "Relevo real (dados de elevação públicos) com cores de vegetação, areia e água rasa, litoral do OpenStreetMap, pinos das três cidades; tocar numa cidade aproxima a câmera, mostra os nomes das praias e a foto da cidade.",
+      "technology": "three.js (WebGLRenderer) dentro da seção do mapa",
+      "params": {
+        "renderer": "WebGLRenderer, antialias só no computador, pixel ratio no máximo 2 (1.5 no celular)",
+        "lighting": "relevo sombreado na própria textura, luz do noroeste",
+        "camera": "perspectiva, vista inclinada de cima; voa até a cidade tocada",
+        "materials": "textura de relevo colorida gerada no build (scripts/gerar-relevo.mjs)",
+        "geometry": "plano deslocado pela altura real, exagero de 1.6x",
+        "post_processing": [],
+        "interaction_model": "arrastar inclina e gira de leve; giroscópio inclina; tocar no pino voa até a cidade"
+      }
+    },
+    "shader_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "o mar desenhado em shader saiu a pedido do dono (artificial); o topo é foto real",
+      "technology": "none",
+      "params": {
+        "uniforms": [],
+        "vertex_manipulation": "none",
+        "fragment_output": "none",
+        "noise_type": "none",
+        "distortion": "none"
+      }
+    },
+    "scroll_effects": {
+      "parallax": {
+        "enabled": false,
+        "layers": "0",
+        "depth_range": "none",
+        "speed_curve": "none"
+      },
+      "scroll_triggered_animations": {
+        "enabled": true,
+        "trigger_points": "topo do bloco a 85% da tela",
+        "animation_type": "fade-up 12px, uma vez",
+        "scrub_behavior": "só a câmera 3D acompanha a rolagem, com 0.6s de atraso"
+      },
+      "scroll_morphing": {
+        "enabled": true,
+        "description": "a câmera sai do nível do mar e sobe até a vista aérea do mapa da região"
+      }
+    },
+    "text_effects": {
+      "type": "none",
+      "description": "títulos aparecem sem animação de letras; só os números de preço rolam ao recalcular",
+      "technology": "requestAnimationFrame",
+      "params": {
+        "split_strategy": "none",
+        "animation_per_unit": "none",
+        "stagger": "40ms entre totais",
+        "effect_style": "rolagem numérica 200ms"
+      }
+    },
+    "cursor_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "o público está no celular; nada de cursor próprio",
+      "params": {
+        "shape": "none",
+        "size": "none",
+        "blend_mode": "none",
+        "trail": "none",
+        "interaction_zone": "none"
+      }
+    },
+    "image_effects": {
+      "type": "parallax-tilt",
+      "description": "a foto do topo se move de leve com a inclinação do celular, o mouse e a rolagem; os cartões inclinam seguindo o dedo",
+      "technology": "CSS transforms com requestAnimationFrame",
+      "params": {
+        "filter_pipeline": "none",
+        "hover_transform": "cartão: rotateX/rotateY até 6 graus e escala 1.02",
+        "reveal_animation": "none",
+        "distortion_type": "none"
+      }
+    },
+    "glassmorphism_neumorphism": {
+      "enabled": true,
+      "style": "vidro fosco estilo iPhone (pedido do dono)",
+      "params": {
+        "blur_radius": "18px",
+        "transparency": "0.16 sobre foto, 0.72 sobre claro",
+        "border_treatment": "1px de brilho translúcido",
+        "shadow_type": "none",
+        "light_source_angle": "none"
+      }
+    },
+    "canvas_drawings": {
+      "enabled": false,
+      "type": "none",
+      "description": "o 3D cobre o que seria canvas",
+      "technology": "none",
+      "params": {
+        "draw_method": "none",
+        "animation_loop": "none",
+        "color_scheme": "none",
+        "responsiveness": "none",
+        "interaction": "none"
+      }
+    },
+    "svg_animations": {
+      "enabled": true,
+      "type": "path-draw e micro-loops funcionais",
+      "description": "ícones de barco, buggy, sol e ondas que se mexem só quando têm motivo (carregando, escolhido); confirmação de pagamento com o traço do visto desenhado",
+      "params": {
+        "animation_method": "CSS + Web Animations API",
+        "path_morphing": "none",
+        "stroke_animation": "stroke-dashoffset no visto de sucesso",
+        "filter_effects": "none"
+      }
+    },
+    "composite_notes": "O topo é a foto real com profundidade suave; o 3D fica só no mapa, que carrega quando a seção se aproxima e pausa fora da tela. O vidro aparece no menu, na barra de reserva e nas etiquetas sobre fotos. O checkout não tem 3D nem animação além da barra de progresso e do sucesso."
+  }
+}

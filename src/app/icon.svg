@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Orla Nativa">
+  <title>Orla Nativa</title>
+  <mask id="e"><circle cx="50" cy="50" r="50" fill="#fff"/><path d="M-4 65 Q9.5 60 23 65 T50 65 T77 65 T104 65" fill="none" stroke="#000" stroke-width="7.5"/><path d="M-4 81 Q9.5 76 23 81 T50 81 T77 81 T104 81" fill="none" stroke="#000" stroke-width="7.5"/></mask>
+  <circle cx="50" cy="50" r="50" fill="#ff6b57" mask="url(#e)"/>
+</svg>

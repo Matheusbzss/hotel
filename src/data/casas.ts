@@ -43,3 +43,38 @@ export const CASAS: Casa[] = [
 ];
 
 export const casasAtivas = () => (CASAS_ATIVO ? CASAS.filter((c) => c.ativo !== false) : []);
+
+/**
+ * REGRAS DAS CASAS — o dono preenche; campo vazio (null) não aparece no site.
+ * Valem para todas as casas. Diária, mínimo de noites, capacidade, caução e taxa de limpeza podem mudar
+ * de casa para casa: quando cada casa tiver os seus (Etapa 7), os dela valem no lugar destes.
+ */
+export interface RegrasCasas {
+  /** Sinal pago na reserva, em porcentagem do total. */
+  sinalPorcento: number;
+  /** Diária em reais (muda com a temporada e os feriados). */
+  diaria: number | null;
+  minimoNoites: number | null;
+  /** Horários como '15h' ou '15h30'. */
+  checkIn: string | null;
+  checkOut: string | null;
+  capacidadeMaxima: number | null;
+  festasEBarulho: Texto | null;
+  pets: Texto | null;
+  /** Em reais. */
+  caucao: number | null;
+  taxaLimpeza: number | null;
+}
+
+export const REGRAS_CASAS: RegrasCasas = {
+  sinalPorcento: 50,
+  diaria: null,
+  minimoNoites: null,
+  checkIn: null,
+  checkOut: null,
+  capacidadeMaxima: null,
+  festasEBarulho: null,
+  pets: null,
+  caucao: null,
+  taxaLimpeza: null,
+};

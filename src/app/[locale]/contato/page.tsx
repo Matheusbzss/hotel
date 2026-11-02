@@ -54,6 +54,7 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
               {c.titulo}
             </h1>
             <p className="mt-4">{c.texto}</p>
+            <p className="mt-3 text-small font-semibold">{d.comum.avisoWhatsapp}</p>
             <a href={email} className="botao mt-6 w-full" data-evento="Contact">
               <IconeEmail className="size-5" />
               {c.botao}

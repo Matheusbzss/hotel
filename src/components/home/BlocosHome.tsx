@@ -74,28 +74,43 @@ export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: st
   const H = d.home;
   return (
     <FaixaFoto src="/fotos/arraial/lancha-agua-turquesa-do-alto.jpg" posicao="30% 40%" aria-labelledby="garantias-titulo">
-      <div className="entrar vidro vidro-claro rounded-[24px] p-5 md:ml-auto md:max-w-2xl md:p-8">
-        <h2 id="garantias-titulo" className="subtitulo">
-          {H.garantiasTitulo}
-        </h2>
-        <dl className="mt-4 divide-y divide-(--color-tinta)/15 text-small">
-          {H.garantias.map((g) => (
-            <div key={g.se} className="grid gap-0.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-4">
-              <dt className="font-semibold">{g.se}</dt>
-              <dd>
-                {g.recebe}
-                {/* o prazo vem na mesma linha, preso ao ponto por um espaço que não quebra (o ponto nunca fica sozinho no fim) */}
-                <span className="text-(--color-tinta-suave)">{' · '}{g.prazo}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-3 max-w-[60ch] text-small">
-          {H.garantiasNota}{' '}
-          <Link href={hrefPolitica} className="link font-semibold">
-            {H.garantiasLink}
-          </Link>
-        </p>
+      <div className="grid gap-4 md:ml-auto md:max-w-2xl">
+        <div className="entrar vidro vidro-claro rounded-[24px] p-5 md:p-8">
+          <h2 id="garantias-titulo" className="subtitulo">
+            {H.garantiasTitulo}
+          </h2>
+          <dl className="mt-4 divide-y divide-(--color-tinta)/15 text-small">
+            {H.garantias.map((g) => (
+              <div key={g.se} className="grid gap-0.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-4">
+                <dt className="font-semibold">{g.se}</dt>
+                <dd>
+                  {g.recebe}
+                  {/* o prazo vem na mesma linha, preso ao ponto por um espaço que não quebra (o ponto nunca fica sozinho no fim) */}
+                  <span className="text-(--color-tinta-suave)">{' · '}{g.prazo}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-4 font-semibold">{d.comum.avisoWhatsapp}</p>
+          <p className="mt-2 max-w-[60ch] text-small">
+            {H.garantiasNota}{' '}
+            <Link href={hrefPolitica} className="link font-semibold">
+              {H.garantiasLink}
+            </Link>
+          </p>
+        </div>
+        {/* o que vale no dia: embarque, documento, taxas, saúde e o roteiro */}
+        <div className="entrar vidro vidro-claro rounded-[24px] p-5 md:p-8">
+          <h3 className="font-[family-name:var(--font-semi)] text-lead font-semibold">{H.diaTitulo}</h3>
+          <ul className="mt-3 grid gap-2 text-small">
+            {H.diaRegras.map((r) => (
+              <li key={r} className="flex gap-2.5">
+                <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-(--color-turquesa-texto)" aria-hidden="true" />
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </FaixaFoto>
   );

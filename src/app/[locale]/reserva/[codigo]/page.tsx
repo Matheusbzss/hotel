@@ -5,6 +5,7 @@ import { StatusReserva } from '@/components/StatusReserva';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
+import { linkEmail } from '@/lib/email';
 import { sincronizarReserva } from '@/lib/pagamentos';
 import { paraPublico, tokenConfere } from '@/lib/reserva-publica';
 import { obterReserva } from '@/lib/reservas';
@@ -26,8 +27,9 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
       <main id="conteudo" className="tom-fundo moldura pb-32 pt-16">
         <h1 className="display text-head">{d.reserva.naoEncontrada}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{d.reserva.naoEncontradaTexto}</p>
-        <a href={linkWhatsApp(d.contato.msg)} target="_blank" rel="noopener noreferrer" className="botao botao-whats mt-8">
-          {d.comum.whatsapp}
+        {/* sem reserva válida, o contato é o e-mail: o WhatsApp só aparece depois da reserva */}
+        <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="botao mt-8" data-evento="Contact">
+          {d.contato.botao}
         </a>
       </main>
     );

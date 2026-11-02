@@ -96,10 +96,11 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   page.drawRectangle({ x: 0, y: height - faixa, width, height: faixa, color: COR.tinta });
 
   const logo = await pdf.embedPng(Buffer.from(LOGO_VOUCHER_PNG_BASE64, 'base64'));
-  const lw = 210;
+  // o emblema redondo, à esquerda do código do voucher
+  const lw = 96;
   page.drawImage(logo, {
     x: M,
-    y: height - faixa - 30 - (lw * logo.height) / logo.width,
+    y: height - faixa - 18 - (lw * logo.height) / logo.width,
     width: lw,
     height: (lw * logo.height) / logo.width,
   });

@@ -4,7 +4,7 @@ import { EMPRESA } from '@/config/empresa';
 import { CIDADES, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
-import { COR_OG, TAMANHO_OG, emblemaDataUri, fontesOg, fotoDataUri } from '@/lib/og';
+import { COR_OG, TAMANHO_OG, fontesOg, fotoDataUri, logoDataUri } from '@/lib/og';
 import { rotuloUnidade } from '@/lib/passeio-view';
 import { formatarPreco, precoAPartirCentavos } from '@/lib/precos';
 
@@ -18,7 +18,7 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
   const idioma = isIdioma(locale) ? locale : 'pt';
   const d = dicionario(idioma);
   const p = obterPasseio(slug);
-  const [fonts, emblema, foto] = await Promise.all([fontesOg(), emblemaDataUri(), p?.fotos[0] ? fotoDataUri(p.fotos[0]) : null]);
+  const [fonts, logo, foto] = await Promise.all([fontesOg(), logoDataUri(), p?.fotos[0] ? fotoDataUri(p.fotos[0]) : null]);
   if (!p) {
     return new ImageResponse(<div style={{ display: 'flex', width: '100%', height: '100%', background: COR_OG.tinta }} />, {
       ...size,
@@ -47,11 +47,8 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
           </span>
           <span style={{ fontWeight: 500, fontSize: 24, color: COR_OG.suave, marginTop: 8 }}>{rotuloUnidade(p, d)}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 36 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={emblema} width={40} height={40} alt="" />
-          <span style={{ fontWeight: 600, fontSize: 26 }}>{EMPRESA.marca}</span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logo} width={232} height={56} alt="" style={{ marginTop: 36 }} />
       </div>
     </div>,
     { ...size, fonts },

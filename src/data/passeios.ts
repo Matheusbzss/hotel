@@ -209,6 +209,8 @@ export const PASSEIOS: Passeio[] = [
     destaque: true,
     fotos: [
       '/fotos/buzios/escuna-no-mar.jpg',
+      '/fotos/buzios/escuna-toboga-e-banho.jpg',
+      '/fotos/buzios/escuna-perto-da-gruta.jpg',
       '/fotos/buzios/escuna-ancorada.jpg',
       '/fotos/buzios/escuna-proa.jpg',
       '/fotos/buzios/escuna-toboga-do-alto.jpg',

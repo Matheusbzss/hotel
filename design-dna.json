@@ -21,22 +21,27 @@
     "name": "Orla Nativa",
     "tagline": "Viagens & Passeios",
     "logo": {
-      "chosen": "A. Horizonte",
-      "symbol": "célula 40x40 com cantos de 4px: céu dourado #F2AD47 na parte de cima (até 55%), meio sol #FFF1C9 pousado no horizonte, mar #063643 embaixo com duas linhas de água #04A7AA",
-      "wordmark": "Orla Nativa em Barlow Semi Condensed 600; Viagens & Passeios em caixa alta Barlow Semi Condensed 600, 10.5px, espaçamento 2px",
+      "chosen": "Banners (sol e serra), refeita em SVG",
+      "symbol": "sol dourado (#F3CB84 a #DDA552) atrás de uma serra clara (#FAE2C0) que corta a parte de baixo dele, com um fio dourado saindo para a direita; na frente, a serra azul (#063643) em pincelada, com as pontas afinando",
+      "wordmark": "ORLA / NATIVA em Cinzel 600, alinhadas à esquerda, com a onda em pincelada passando entre as linhas (afastada do O para não virar QRLA) e um fio dourado no fim; sem frase",
+      "versions": {
+        "stacked": "public/logo/orla-nativa.svg (símbolo em cima do nome): imagem de compartilhamento grande, materiais",
+        "horizontal": "public/logo/orla-nativa-horizontal.svg (símbolo à esquerda do nome): cabeçalho e painel",
+        "symbol": "public/logo/orla-nativa-simbolo.svg (símbolo num quadrado azul): ícone do navegador e do celular",
+        "emblem": "public/logo/orla-nativa-emblema.svg (círculo azul com anel dourado): rodapé, voucher e redes"
+      },
       "on_light": {
         "wordmark": "#063643",
-        "tagline": "#4A6470"
+        "ridge": "#063643",
+        "back_ridge": "#FAE2C0"
       },
       "on_dark": {
-        "wordmark": "#FFFFFF",
-        "tagline": "#8FD3D4"
+        "wordmark": "#F6EBD8",
+        "ridge": "#F6EBD8",
+        "back_ridge": "#063643"
       },
-      "on_sky": {
-        "wordmark": "#FFFFFF",
-        "tagline": "#FFF1C9"
-      },
-      "min_size": "símbolo legível a partir de 16px; logo horizontal a partir de 120px de largura"
+      "source": "scripts/gerar-logo.mjs (medidas do banner em scripts/dados/logo-traco.json)",
+      "min_size": "ícone legível a partir de 16px; lado a lado a partir de 36px de altura"
     }
   },
   "design_system": {

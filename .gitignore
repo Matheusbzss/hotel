@@ -20,3 +20,6 @@ sentinel/
 
 # material bruto enviado pelo dono: só entra no site depois de otimizado
 material-recebido/
+
+# fontes baixadas para gerar a logo (Cinzel, licença OFL)
+.impeccable/fontes/

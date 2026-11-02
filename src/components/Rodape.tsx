@@ -3,10 +3,10 @@ import { EMPRESA } from '@/config/empresa';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { linkEmail } from '@/lib/email';
-import { Logo } from './Logo';
+import { Emblema } from './Logo';
 import { RedefinirCookies } from './RedefinirCookies';
 
-/** Rodapé compacto: logo, o e-mail de suporte e as políticas numa linha só. */
+/** Rodapé compacto: o emblema redondo, o e-mail de suporte e as políticas numa linha só. */
 export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const ano = new Date().getFullYear();
   const R = d.rodape;
@@ -19,7 +19,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
     <footer id="rodape" className="tom-campo relative z-10">
       <div className="moldura flex flex-col gap-6 py-10 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="space-y-4">
-          <Logo fundo="escuro" />
+          <Emblema titulo={EMPRESA.marca} className="size-24" />
           <p className="text-small text-(--tinta-suave)">
             {R.suporte}{' '}
             <a

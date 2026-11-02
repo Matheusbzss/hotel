@@ -29,7 +29,8 @@ export async function fotoDataUri(caminho: string): Promise<string | null> {
   }
 }
 
-export async function emblemaDataUri(): Promise<string> {
-  const svg = await readFile(join(process.cwd(), 'public/logo/orla-nativa-emblema.svg'));
+/** A logo lado a lado em creme, para o fundo escuro das prévias. */
+export async function logoDataUri(): Promise<string> {
+  const svg = await readFile(join(process.cwd(), 'public/logo/orla-nativa-horizontal-fundo-escuro.svg'));
   return `data:image/svg+xml;base64,${svg.toString('base64')}`;
 }

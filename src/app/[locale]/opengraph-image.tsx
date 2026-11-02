@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
-import { COR_OG, TAMANHO_OG, emblemaDataUri, fontesOg, fotoDataUri } from '@/lib/og';
+import { COR_OG, TAMANHO_OG, fontesOg, fotoDataUri, logoDataUri } from '@/lib/og';
 
 export const size = TAMANHO_OG;
 export const contentType = 'image/png';
@@ -12,7 +12,7 @@ export const alt = `${EMPRESA.marca} — ${EMPRESA.slogan}`;
 export default async function Imagem({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const d = dicionario(isIdioma(locale) ? locale : 'pt');
-  const [fonts, foto, emblema] = await Promise.all([fontesOg(), fotoDataUri('/fotos/buzios/escuna-no-mar.jpg'), emblemaDataUri()]);
+  const [fonts, foto, logo] = await Promise.all([fontesOg(), fotoDataUri('/fotos/buzios/escuna-no-mar.jpg'), logoDataUri()]);
   return new ImageResponse(
     <div
       style={{
@@ -49,11 +49,8 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
           backgroundImage: 'linear-gradient(rgba(11,37,48,0), rgba(11,37,48,0.6) 35%, rgba(11,37,48,0.9))', // taste-skill-ignore: escurece a foto
         }}
       />
-      <div style={{ position: 'absolute', left: 60, top: 50, display: 'flex', alignItems: 'center', gap: 16 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={emblema} width={56} height={56} alt="" />
-        <span style={{ fontWeight: 600, fontSize: 30 }}>{EMPRESA.slogan}</span>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={logo} width={290} height={70} alt="" style={{ position: 'absolute', left: 60, top: 46 }} />
       <div style={{ position: 'absolute', left: 60, right: 60, bottom: 34, display: 'flex', flexDirection: 'column' }}>
         <span style={{ fontWeight: 500, fontSize: 34, lineHeight: 1.25, maxWidth: 780 }}>{d.home.heroTexto}</span>
         <span style={{ fontWeight: 600, fontSize: 186, lineHeight: 0.92, letterSpacing: -5, marginTop: 14 }}>

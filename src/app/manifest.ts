@@ -9,9 +9,9 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#FF7A66',
+    theme_color: '#063643',
     icons: [
-      { src: '/logo/orla-nativa-emblema-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/logo/orla-nativa-icone-512.png', sizes: '512x512', type: 'image/png' },
       { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   };

@@ -13,10 +13,11 @@ const ICONES = {
  * cancelamento grátis, reembolso se chover, voucher na hora e pagamento seguro.
  */
 export function Confianca({ d, className = '' }: { d: Dicionario; className?: string }) {
+  const [cancelar, chuva, voucher] = d.passeio.garantias;
   const itens: [keyof typeof ICONES, string][] = [
-    ['cancelar', d.home.confianca[0]],
-    ['chuva', d.home.confianca[1]],
-    ['voucher', d.home.confianca[2]],
+    ['cancelar', cancelar],
+    ['chuva', chuva],
+    ['voucher', voucher],
     ['pagamento', d.passeio.pagoSeguro],
   ];
   return (

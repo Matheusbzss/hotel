@@ -535,7 +535,7 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho-barra {
   --foco: var(--color-acao);
 }
 html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-escuro {
-  display: inline-flex !important;
+  display: block !important;
 }
 html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-claro {
   display: none !important;

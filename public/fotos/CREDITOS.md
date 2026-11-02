@@ -15,3 +15,9 @@ As fotos em `public/fotos/` são dos passeios e parceiros da agência, exceto as
 | `src/data/litoral.json`, `lagoas.json`, `praias.json` | OpenStreetMap | © colaboradores do OpenStreetMap, licença ODbL |
 
 O crédito do satélite e do OpenStreetMap aparece na legenda do mapa.
+
+## Logo
+
+| Arquivo | Origem | Licença |
+| --- | --- | --- |
+| `public/logo/*.svg`, `src/app/icon.svg`, `src/app/apple-icon.png` | Logo da Orla Nativa redesenhada em SVG a partir dos banners da agência por `scripts/gerar-logo.mjs`. As letras usam a fonte [Cinzel](https://fonts.google.com/specimen/Cinzel) (Natanael Gama), convertida em desenho | Logo: da agência. Cinzel: [SIL Open Font License 1.1](https://openfontlicense.org), uso comercial livre |

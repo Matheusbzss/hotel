@@ -876,6 +876,13 @@
         "border_treatment": "1px de brilho translúcido",
         "shadow_type": "none",
         "light_source_angle": "none"
+      },
+      "rule": "o vidro só vai por cima de foto real; sobre fundo branco ele não aparece",
+      "uses": {
+        "menu": "cápsula do cabeçalho: vidro sobre a foto do topo, vidro claro ao rolar",
+        "etiquetas": "fatos e duração sobre as fotos (vidro-foto)",
+        "faixa_de_foto": "blocos da página inicial sobre uma foto de borda a borda: Reglas y avisos em vidro claro (água de Arraial vista do alto), Cómo funciona em vidro escuro (orla de Cabo Frio ao entardecer)",
+        "cartao_de_produto": "transfer e casas (Etapas 6 e 7): foto inteira no cartão e as informações numa faixa de vidro claro na parte de baixo da foto"
       }
     },
     "canvas_drawings": {

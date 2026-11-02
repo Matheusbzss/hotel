@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import type { ComponentProps, ReactNode } from 'react';
 import type { Dicionario } from '@/i18n';
 import { linkEmail } from '@/lib/email';
 
@@ -12,7 +13,7 @@ function Foto({ src, legenda, d, sizes, posicao }: { src: string; legenda: Legen
       alt={d.home.legendas[legenda]}
       fill
       sizes={sizes}
-      quality={76}
+      quality={80}
       className="object-cover"
       style={posicao ? { objectPosition: posicao } : undefined}
     />
@@ -58,70 +59,68 @@ export function TabelaGarantias({ d, className = '' }: { d: Dicionario; classNam
   );
 }
 
-/** Regras e avisos da página inicial: compacto, uma linha por situação; a tabela completa fica na política. */
-export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
-  const H = d.home;
+/** Uma foto real de fundo, de borda a borda, com o conteúdo por cima em vidro (o vidro só aparece sobre foto). */
+function FaixaFoto({ src, posicao, children, ...props }: { src: string; posicao?: string; children: ReactNode } & ComponentProps<'section'>) {
   return (
-    <section className="moldura py-12 md:py-16" aria-labelledby="garantias-titulo">
-      <div className="entrar grid gap-4 md:grid-cols-12 md:gap-8">
-        <div className="md:col-span-4">
-          <h2 id="garantias-titulo" className="subtitulo">
-            {H.garantiasTitulo}
-          </h2>
-          <p className="mt-2 max-w-[40ch] text-small text-(--color-tinta-suave)">
-            {H.garantiasNota}{' '}
-            <Link href={hrefPolitica} className="link font-semibold text-(--color-tinta)">
-              {H.garantiasLink}
-            </Link>
-          </p>
-        </div>
-        <dl className="divide-y divide-(--color-borda) rounded-[8px] border border-(--color-borda) bg-(--color-papel) text-small md:col-span-8">
-          {H.garantias.map((g) => (
-            <div key={g.se} className="grid gap-0.5 px-3.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_10rem] md:gap-4">
-              <dt className="font-semibold">{g.se}</dt>
-              <dd>
-                {g.recebe}
-                {/* no celular o prazo vem na mesma linha (o ponto nunca fica sozinho no fim); no computador, na sua coluna */}
-                <span className="text-(--color-tinta-suave) md:hidden"> ·{' '}{g.prazo}</span>
-              </dd>
-              <dd className="hidden text-right text-(--color-tinta-suave) md:block">{g.prazo}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+    <section className="relative isolate overflow-hidden py-14 md:py-24" {...props}>
+      <Image src={src} alt="" fill sizes="100vw" quality={70} className="-z-10 object-cover" style={posicao ? { objectPosition: posicao } : undefined} />
+      <div className="moldura">{children}</div>
     </section>
   );
 }
 
-/** Como funciona: três linhas, cada uma com a foto de verdade do momento e o que acontece nele. */
+/** Regras e avisos da página inicial: um vidro claro sobre a água de Arraial vista do alto; a tabela completa fica na política. */
+export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
+  const H = d.home;
+  return (
+    <FaixaFoto src="/fotos/arraial/lancha-agua-turquesa-do-alto.jpg" posicao="30% 40%" aria-labelledby="garantias-titulo">
+      <div className="entrar vidro vidro-claro rounded-[24px] p-5 md:ml-auto md:max-w-2xl md:p-8">
+        <h2 id="garantias-titulo" className="subtitulo">
+          {H.garantiasTitulo}
+        </h2>
+        <dl className="mt-4 divide-y divide-(--color-tinta)/15 text-small">
+          {H.garantias.map((g) => (
+            <div key={g.se} className="grid gap-0.5 py-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-4">
+              <dt className="font-semibold">{g.se}</dt>
+              <dd>
+                {g.recebe}
+                {/* o prazo vem na mesma linha, preso ao ponto por um espaço que não quebra (o ponto nunca fica sozinho no fim) */}
+                <span className="text-(--color-tinta-suave)">{' · '}{g.prazo}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-3 max-w-[60ch] text-small">
+          {H.garantiasNota}{' '}
+          <Link href={hrefPolitica} className="link font-semibold">
+            {H.garantiasLink}
+          </Link>
+        </p>
+      </div>
+    </FaixaFoto>
+  );
+}
+
+/** Como funciona: os passos em vidro escuro sobre a orla de Cabo Frio ao entardecer. */
 export function ComoFunciona({ d }: { d: Dicionario }) {
   const H = d.home;
-  const fotos: { src: string; legenda: Legenda; posicao?: string }[] = [
-    { src: '/fotos/buzios/buggy-orla.jpg', legenda: 'buggyOrla' },
-    { src: '/fotos/buzios/escuna-proa.jpg', legenda: 'escunaProa' },
-    { src: '/fotos/arraial/barco-gruta.jpg', legenda: 'barcoGruta', posicao: '50% 78%' },
-  ];
   return (
-    <section className="tom-superficie py-16 md:py-28" aria-labelledby="como-titulo">
-      <div className="moldura">
-        <h2 id="como-titulo" className="titulo">
-          {H.comoTitulo}
-        </h2>
-        <ol className="entrar mt-6 grid gap-(--vao-celula) md:mt-10">
-          {H.etapas.map((e, i) => (
-            <li key={e.inicio} className="celula grid grid-cols-[6.5rem_minmax(0,1fr)] overflow-hidden md:grid-cols-[14rem_minmax(0,1fr)]">
-              <figure className="relative min-h-28 md:min-h-40">
-                <Foto src={fotos[i].src} legenda={fotos[i].legenda} d={d} sizes="(min-width: 768px) 14rem, 6.5rem" posicao={fotos[i].posicao} />
-              </figure>
-              <p className="self-center px-4 py-4 md:px-6">
-                <strong className="block font-[family-name:var(--font-semi)] text-lead font-semibold">{e.inicio}</strong>
-                <span className="mt-1 block text-small text-(--color-tinta-suave)">{e.texto}</span>
-              </p>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
+    <FaixaFoto src="/fotos/cabo-frio/orla-entardecer.jpg" posicao="50% 60%" aria-labelledby="como-titulo">
+      <h2 id="como-titulo" className="titulo text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.35)]">
+        {H.comoTitulo}
+      </h2>
+      <ol className="entrar mt-6 grid gap-3 md:mt-8 md:grid-cols-3 md:gap-4">
+        {H.etapas.map((e, i) => (
+          <li key={e.inicio} className="vidro vidro-escuro rounded-[20px] p-5 md:p-6">
+            <span className="numeros font-[family-name:var(--font-semi)] text-[2rem] font-semibold leading-none" aria-hidden="true">
+              {i + 1}
+            </span>
+            <strong className="mt-3 block font-[family-name:var(--font-semi)] text-lead font-semibold">{e.inicio}</strong>
+            <span className="mt-1 block text-small text-white/90">{e.texto}</span>
+          </li>
+        ))}
+      </ol>
+    </FaixaFoto>
   );
 }
 

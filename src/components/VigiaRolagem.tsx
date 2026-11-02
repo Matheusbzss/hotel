@@ -16,7 +16,8 @@ export function VigiaRolagem() {
       raiz.removeAttribute('data-rolou');
       return;
     }
-    const io = new IntersectionObserver(([e]) => raiz.toggleAttribute('data-rolou', !e.isIntersecting), {
+    // só conta quando o fim da foto passa por cima do menu; abaixo da tela (janela baixa, antes de rolar) não
+    const io = new IntersectionObserver(([e]) => raiz.toggleAttribute('data-rolou', !e.isIntersecting && e.boundingClientRect.top < (e.rootBounds?.top ?? 72)), {
       // a cápsula tem 64 px: troca quando sobra menos que isso da foto
       rootMargin: '-72px 0px 0px 0px',
       threshold: 0,

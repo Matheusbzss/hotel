@@ -6,6 +6,7 @@ import { MapaRegiao } from '@/components/home/MapaRegiao';
 import { TopoFoto } from '@/components/home/TopoFoto';
 import { Tutorial } from '@/components/home/Tutorial';
 import { Vitrine } from '@/components/home/Vitrine';
+import { CardTransfer } from '@/components/transfer/CardTransfer';
 import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
 import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
@@ -48,11 +49,17 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
     id: c,
     titulo: c === 'rio-de-janeiro' ? H.saindoDaRegiao : CIDADES[c].nome[locale],
     contagem: quantos(daCidade(c).length),
-    cartoes: daCidade(c).map((p) => (
-      <li key={p.slug}>
-        <CardPasseio passeio={p} idioma={locale} d={d} mostrarCidade={c === 'rio-de-janeiro'} />
-      </li>
-    )),
+    cartoes: [
+      ...daCidade(c).map((p) => (
+        <li key={p.slug}>
+          <CardPasseio passeio={p} idioma={locale} d={d} mostrarCidade={c === 'rio-de-janeiro'} />
+        </li>
+      )),
+      // o transfer privado entra como mais uma opção de cada cidade
+      <li key="transfer">
+        <CardTransfer cidade={c} idioma={locale} d={d} />
+      </li>,
+    ],
   }));
 
   const textosCidade = H.mapaCidades as Partial<Record<Cidade, string>>;

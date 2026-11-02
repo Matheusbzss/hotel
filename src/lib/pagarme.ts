@@ -1,5 +1,5 @@
 import { EMPRESA } from '@/config/empresa';
-import type { Reserva, StatusReserva } from './reservas';
+import type { ReservaPasseio, StatusReserva } from './reservas';
 import { soDigitos } from './validacao';
 
 /**
@@ -109,8 +109,9 @@ function telefonePagarme(telefoneE164: string) {
   return { country_code: ddi, area_code: nacional.slice(0, 2), number: nacional.slice(2) };
 }
 
+/** O pedido online é só de passeio por enquanto (o transfer finaliza pelo WhatsApp até a Etapa 8). */
 export async function criarPedido(
-  reserva: Reserva,
+  reserva: ReservaPasseio,
   itens: ItemPedido[],
   pagamento: { metodo: 'pix' } | { metodo: 'cartao'; cartao: DadosCobrancaCartao },
 ): Promise<Pedido> {

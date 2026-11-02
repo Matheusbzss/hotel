@@ -3,12 +3,13 @@ import QRCode from 'qrcode';
 import { EMPRESA } from '@/config/empresa';
 import { obterPasseio } from '@/data/passeios';
 import { LOCALE_INTL, fmt } from '@/i18n/config';
-import { dicionario } from '@/i18n';
+import { dicionario, type Dicionario } from '@/i18n';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
-import type { Reserva } from './reservas';
+import { ehTransfer, type Reserva, type ReservaPasseio, type ReservaTransfer } from './reservas';
+import { transferVisivel, type TrechoVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
 import { LOGO_VOUCHER_PNG_BASE64 } from './logo-voucher';
 
@@ -90,19 +91,87 @@ function link(pdf: PDFDocument, page: PDFPage, url: string, x: number, y: number
   else page.node.set(PDFName.of('Annots'), pdf.context.obj([anotacao]));
 }
 
-export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Promise<Uint8Array> {
+/** O que muda entre o voucher de passeio e o de transfer: os campos do cartão, a mensagem do WhatsApp e os avisos. */
+interface ConteudoVoucher {
+  /** Cada campo: o rótulo e um ou mais parágrafos (cada parágrafo quebra em linhas sozinho). */
+  campos: [string, string[]][];
+  mensagem: string;
+  avisos: string[];
+}
+
+function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVoucher {
   const idioma = reserva.idioma;
-  const d = dicionario(idioma);
   const locale = LOCALE_INTL[idioma];
   const passeio = obterPasseio(reserva.passeio.slug);
   const opcao = reserva.passeio.opcao ? passeio?.opcoes?.find((o) => o.id === reserva.passeio.opcao?.id) : undefined;
   const nomeOpcao = opcao?.nome[idioma] ?? reserva.passeio.opcao?.nome;
   const nomePasseio = `${passeio?.nome[idioma] ?? reserva.passeio.nome}${nomeOpcao ? ` (${nomeOpcao})` : ''}`;
+  const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
+  const dataTexto = formatarDataIso(reserva.data, locale);
+  const horario = reserva.horario;
+  const hora = horario ? formatarHora(horario.hora, idioma) : '';
+  return {
+    campos: [
+      [d.reserva.passeio, [nomePasseio]],
+      [d.reserva.data, [dataTexto]],
+      ...(horario ? [[horario.busca ? d.horario.busca : d.horario.saida, [hora]] as [string, string[]]] : []),
+      [d.reserva.nome, [reserva.cliente.nome]],
+      [d.reserva.pessoas, [pessoas]],
+      [d.reserva.hotel, [`${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`]],
+      [d.reserva.total, [formatarPreco(reserva.totalCentavos, idioma)]],
+    ],
+    mensagem: fmt(d.reserva.msgVoucher, {
+      codigo: reserva.codigo,
+      passeio: nomePasseio,
+      data: horario ? fmt(d.horario.dataHora, { data: dataTexto, hora }) : dataTexto,
+      pessoas,
+      hotel: `${reserva.hospedagem.hotel} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
+    }),
+    // o aviso do horário (busca na hospedagem ou ponto de encontro) vem logo depois do primeiro
+    avisos: [AVISOS[idioma][0], horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida, ...AVISOS[idioma].slice(1)],
+  };
+}
+
+function conteudoTransfer(reserva: ReservaTransfer, d: Dicionario): ConteudoVoucher {
+  const idioma = reserva.idioma;
+  const locale = LOCALE_INTL[idioma];
+  const T = d.transfer;
+  const v = transferVisivel(reserva, idioma, d);
+  const dataHora = (tr: TrechoVisivel) => fmt(d.horario.dataHora, { data: formatarDataIso(tr.data, locale), hora: tr.hora });
+  // a seta não existe nas letras do PDF: o trajeto usa o travessão
+  const trecho = (tr: TrechoVisivel) => [dataHora(tr), `${tr.saida} – ${tr.destino}`, ...(tr.voo ? [`${T.voo} ${tr.voo}`] : [])];
+  return {
+    campos: [
+      [T.titulo, [v.veiculo]],
+      [T.ida, trecho(v.ida)],
+      ...(v.volta ? [[T.volta, trecho(v.volta)] as [string, string[]]] : []),
+      [d.reserva.nome, [reserva.cliente.nome]],
+      [T.passageiros, [v.passageiros]],
+      [T.malas, [v.malas]],
+      ...(v.cadeirinhas ? [[T.cadeirinhas, [v.cadeirinhas]] as [string, string[]]] : []),
+      [d.reserva.total, [formatarPreco(reserva.totalCentavos, idioma)]],
+    ],
+    mensagem: fmt(T.msgVoucherTransfer, {
+      codigo: reserva.codigo,
+      trajeto: `${v.ida.saida} → ${v.ida.destino}`,
+      data: dataHora(v.ida),
+      pessoas: v.passageiros,
+    }),
+    // o motorista no desembarque, a espera, o nome dos outros passageiros e o cancelamento
+    avisos: [T.como[0], T.como[1], T.demaisPassageiros, AVISOS[idioma][1]],
+  };
+}
+
+export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Promise<Uint8Array> {
+  const idioma = reserva.idioma;
+  const d = dicionario(idioma);
+  const conteudo = ehTransfer(reserva) ? conteudoTransfer(reserva, d) : conteudoPasseio(reserva, d);
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(`Voucher ${reserva.codigo} — ${EMPRESA.marca}`);
   pdf.setAuthor(EMPRESA.marca);
-  const page = pdf.addPage([595.28, 841.89]);
+  const A4: [number, number] = [595.28, 841.89];
+  const page = pdf.addPage(A4);
   const { width, height } = page.getSize();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const negrito = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -126,25 +195,12 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   texto(page, d.reserva.voucher, width - M - 200, height - 70, regular, 12, COR.cinza);
   texto(page, reserva.codigo, width - M - 200, height - 102, negrito, 30);
 
-  const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
-  const hospedagem = `${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`;
-  const dataTexto = formatarDataIso(reserva.data, locale);
-  const horario = reserva.horario;
-  const hora = horario ? formatarHora(horario.hora, idioma) : '';
-
-  const campos: [string, string][] = [
-    [d.reserva.passeio, nomePasseio],
-    [d.reserva.data, dataTexto],
-    ...(horario ? [[horario.busca ? d.horario.busca : d.horario.saida, hora] as [string, string]] : []),
-    [d.reserva.nome, reserva.cliente.nome],
-    [d.reserva.pessoas, pessoas],
-    [d.reserva.hotel, hospedagem],
-    [d.reserva.total, formatarPreco(reserva.totalCentavos, idioma)],
-  ];
-
   // cartão com os dados: a altura acompanha o número de linhas
   const larguraValor = width - 2 * M - 48 - 150;
-  const blocos = campos.map(([rotulo, valor]) => ({ rotulo, linhas: quebrar(valor, negrito, 14, larguraValor) }));
+  const blocos = conteudo.campos.map(([rotulo, paragrafos]) => ({
+    rotulo,
+    linhas: paragrafos.flatMap((p) => quebrar(p, negrito, 14, larguraValor)),
+  }));
   const topoCartao = height - 170;
   const alturaCartao = Math.max(330, 38 + blocos.reduce((s, b) => s + 30 + b.linhas.length * 17, 0));
   page.drawRectangle({ x: M, y: topoCartao - alturaCartao, width: width - 2 * M, height: alturaCartao, color: COR.superficie });
@@ -164,14 +220,7 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   texto(page, d.status.pago || 'Pago', xColuna, topoCartao - 44 - 152, negrito, 14, COR.acao);
 
   // o WhatsApp da equipe, num botão que abre a conversa com o voucher já escrito
-  const msg = fmt(d.reserva.msgVoucher, {
-    codigo: reserva.codigo,
-    passeio: nomePasseio,
-    data: horario ? fmt(d.horario.dataHora, { data: dataTexto, hora }) : dataTexto,
-    pessoas,
-    hotel: `${reserva.hospedagem.hotel} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
-  });
-  const urlWhats = `https://wa.me/${EMPRESA.whatsapp}?text=${encodeURIComponent(msg)}`;
+  const urlWhats = `https://wa.me/${EMPRESA.whatsapp}?text=${encodeURIComponent(conteudo.mensagem)}`;
   const yBotao = topoCartao - 44 - 152 - 64;
   texto(page, d.reserva.whatsappEquipe, xColuna, yBotao + 42, regular, 10, COR.cinza);
   page.drawRectangle({ x: xColuna, y: yBotao, width: 130, height: 32, color: COR.whats });
@@ -180,28 +229,39 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   texto(page, numero, xColuna + (130 - larguraNumero) / 2, yBotao + 12, negrito, 11);
   link(pdf, page, urlWhats, xColuna, yBotao, 130, 32);
 
-  // avisos: o do horário vem logo depois do primeiro
-  const avisos = [AVISOS[idioma][0], horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida, ...AVISOS[idioma].slice(1)];
+  // avisos: se não couberem acima do rodapé, continuam numa segunda página
+  let folha = page;
   let ya = topoCartao - alturaCartao - 50;
-  texto(page, IMPORTANTE[idioma], M, ya, negrito, 13);
+  const garantirEspaco = (precisa: number) => {
+    if (ya - precisa >= 130) return;
+    folha = pdf.addPage(A4);
+    folha.drawRectangle({ x: 0, y: height - faixa, width, height: faixa, color: COR.tinta });
+    ya = height - 70;
+  };
+  garantirEspaco(40);
+  texto(folha, IMPORTANTE[idioma], M, ya, negrito, 13);
   ya -= 22;
-  for (const aviso of avisos) {
-    for (const l of quebrar(`• ${aviso}`, regular, 11, width - 2 * M)) {
-      texto(page, l, M, ya, regular, 11);
+  for (const aviso of conteudo.avisos) {
+    const linhas = quebrar(`• ${aviso}`, regular, 11, width - 2 * M);
+    garantirEspaco(linhas.length * 16);
+    for (const l of linhas) {
+      texto(folha, l, M, ya, regular, 11);
       ya -= 16;
     }
     ya -= 2;
   }
 
-  // rodapé com dados da empresa
+  // rodapé com dados da empresa, em todas as páginas
   const rodape = [
     `${EMPRESA.marca} — ${EMPRESA.slogan}`,
     `CNPJ ${EMPRESA.cnpj}`,
     `WhatsApp ${EMPRESA.telefoneExibicao} · ${EMPRESA.email} · ${EMPRESA.dominio}`,
     `${EMPRESA.cidade} – ${EMPRESA.uf}`,
   ];
-  rodape.forEach((l, i) => texto(page, l, M, 92 - i * 15, i === 0 ? negrito : regular, 10, i === 0 ? COR.tinta : COR.cinza));
-  page.drawRectangle({ x: 0, y: 0, width, height: 10, color: COR.tinta });
+  for (const p of pdf.getPages()) {
+    rodape.forEach((l, i) => texto(p, l, M, 92 - i * 15, i === 0 ? negrito : regular, 10, i === 0 ? COR.tinta : COR.cinza));
+    p.drawRectangle({ x: 0, y: 0, width, height: 10, color: COR.tinta });
+  }
 
   return pdf.save();
 }

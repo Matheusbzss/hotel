@@ -63,6 +63,16 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           horarioBusca: d.horario.busca,
           dataHora: d.horario.dataHora,
           encontro: d.passeio.encontro,
+          transferIda: d.transfer.ida,
+          transferVolta: d.transfer.volta,
+          transferVoo: d.transfer.voo,
+          transferPassageiros: d.transfer.passageiros,
+          transferMalas: d.transfer.malas,
+          transferCadeirinhas: d.transfer.cadeirinhas,
+          transferDemais: d.transfer.demaisPassageiros,
+          transferMsgVoucher: d.transfer.msgVoucherTransfer,
+          transferEspera: d.transfer.como[0],
+          transferConfirmado: d.transfer.confirmadoTexto,
         }}
       />
     </main>

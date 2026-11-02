@@ -2,6 +2,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BlobPreconditionFailedError, del, get, head, list, put } from '@vercel/blob';
+import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
 import type { Idioma } from '@/i18n/config';
 import type { CidadeHospedagem } from './validacao';
 
@@ -16,45 +17,20 @@ export type StatusReserva = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'ex
 
 export type MetodoPagamento = 'pix' | 'cartao' | 'whatsapp';
 
-export interface Reserva {
+/** O que toda reserva tem, de passeio ou de transfer. */
+interface ReservaBase {
   codigo: string;
   token: string;
   criadaEm: string;
   atualizadaEm: string;
   idioma: Idioma;
   status: StatusReserva;
-  passeio: {
-    slug: string;
-    nome: string;
-    cidade: string;
-    unidade: 'pessoa' | 'veiculo' | 'embarcacao';
-    /** Opção escolhida (ex.: lancha 2 horas), quando o passeio tem opções. */
-    opcao?: { id: string; nome: string };
-  };
+  /** A data do passeio, ou a da ida do transfer (AAAA-MM-DD). */
   data: string;
-  /**
-   * A hora escolhida no checkout ("HH:MM") e se ela é a da busca na hospedagem ou a da saída.
-   * As reservas feitas antes da escolha de horário não têm este campo.
-   */
-  horario?: { hora: string; busca: boolean };
-  /** Adultos e crianças que pagam inteira. */
-  adultos: number;
-  /** Total de crianças com desconto (meia + grátis). */
-  criancas: number;
-  criancasMeia?: number;
-  criancasGratis?: number;
-  unidades: number;
   totalCentavos: number;
   /** Quanto vai para o parceiro (sem margem), para controle interno. */
   custoParceiroCentavos: number;
-  cliente: {
-    nome: string;
-    email: string;
-    telefone: string;
-    documentoTipo: 'cpf' | 'passaporte';
-    documento: string;
-  };
-  hospedagem: { cidade: CidadeHospedagem; hotel: string };
+  cliente: { nome: string; email: string; telefone: string };
   observacoes?: string;
   pagamento: {
     metodo: MetodoPagamento;
@@ -69,6 +45,67 @@ export interface Reserva {
   };
   historico: { em: string; evento: string }[];
 }
+
+export interface ReservaPasseio extends ReservaBase {
+  /** As reservas feitas antes do transfer não têm o tipo: são todas de passeio. */
+  tipo?: 'passeio';
+  passeio: {
+    slug: string;
+    nome: string;
+    cidade: string;
+    unidade: 'pessoa' | 'veiculo' | 'embarcacao';
+    /** Opção escolhida (ex.: lancha 2 horas), quando o passeio tem opções. */
+    opcao?: { id: string; nome: string };
+  };
+  /**
+   * A hora escolhida no checkout ("HH:MM") e se ela é a da busca na hospedagem ou a da saída.
+   * As reservas feitas antes da escolha de horário não têm este campo.
+   */
+  horario?: { hora: string; busca: boolean };
+  /** Adultos e crianças que pagam inteira. */
+  adultos: number;
+  /** Total de crianças com desconto (meia + grátis). */
+  criancas: number;
+  criancasMeia?: number;
+  criancasGratis?: number;
+  unidades: number;
+  cliente: ReservaBase['cliente'] & { documentoTipo: 'cpf' | 'passaporte'; documento: string };
+  hospedagem: { cidade: CidadeHospedagem; hotel: string };
+}
+
+/** Uma ponta do trecho: o lugar da lista e, fora dos aeroportos, o hotel, a pousada ou o endereço. */
+export interface PontaTransfer {
+  lugar: IdLugar;
+  endereco?: string;
+}
+
+export interface TrechoTransfer {
+  saida: PontaTransfer;
+  destino: PontaTransfer;
+  /** AAAA-MM-DD e HH:MM. */
+  data: string;
+  hora: string;
+  /** O número do voo, quando o trecho sai de um aeroporto ou vai para um (opcional). */
+  voo?: string;
+  precoCentavos: number;
+}
+
+export interface ReservaTransfer extends ReservaBase {
+  tipo: 'transfer';
+  transfer: {
+    veiculo: Veiculo;
+    ida: TrechoTransfer;
+    volta?: TrechoTransfer;
+    passageiros: number;
+    malas: Malas;
+    /** A idade de cada criança que vai de cadeirinha ou assento de elevação. */
+    cadeirinhas: number[];
+  };
+}
+
+export type Reserva = ReservaPasseio | ReservaTransfer;
+
+export const ehTransfer = (r: Reserva): r is ReservaTransfer => r.tipo === 'transfer';
 
 const ALFABETO = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
@@ -209,12 +246,14 @@ function banco(): Armazenamento {
 
 /* ------------------------------------------------------------------ */
 
-export type NovaReserva = Omit<Reserva, 'codigo' | 'token' | 'criadaEm' | 'atualizadaEm' | 'historico'>;
+type CamposGerados = 'codigo' | 'token' | 'criadaEm' | 'atualizadaEm' | 'historico';
+/** Os dados de uma reserva nova, de passeio ou de transfer (o resto o banco preenche). */
+export type NovaReserva = Omit<ReservaPasseio, CamposGerados> | Omit<ReservaTransfer, CamposGerados>;
 
-export async function criarReserva(dados: NovaReserva): Promise<Reserva> {
+export async function criarReserva<T extends NovaReserva>(dados: T): Promise<T & Pick<Reserva, CamposGerados>> {
   const agora = new Date().toISOString();
   for (let tentativa = 0; tentativa < 8; tentativa++) {
-    const reserva: Reserva = {
+    const reserva = {
       ...dados,
       codigo: gerarCodigo(),
       token: gerarToken(),

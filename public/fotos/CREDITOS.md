@@ -21,3 +21,9 @@ O crédito do satélite e do OpenStreetMap aparece na legenda do mapa.
 | Arquivo | Origem | Licença |
 | --- | --- | --- |
 | `public/logo/*.svg`, `src/app/icon.svg`, `src/app/apple-icon.png` | Logo da Orla Nativa redesenhada em SVG a partir dos banners da agência por `scripts/gerar-logo.mjs`. As letras usam a fonte [Cinzel](https://fonts.google.com/specimen/Cinzel) (Natanael Gama), convertida em desenho | Logo: da agência. Cinzel: [SIL Open Font License 1.1](https://openfontlicense.org), uso comercial livre |
+
+## Transfer
+
+| Arquivo | Origem | Licença |
+| --- | --- | --- |
+| `transfer/*.jpg` | Fotos dos veículos da agência, recebidas em 01/11/2026. As placas foram borradas por `scripts/preparar-fotos-transfer.mjs` | Da agência. O casal de `carro-virtus-com-clientes.jpg` autorizou o uso; a foto dos motoristas (`carros-creta-com-motoristas.jpg`) foi liberada pelo dono em 02/11/2026 |

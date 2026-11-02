@@ -107,17 +107,28 @@ export function StatusReserva({
   const dataHora = r.horario ? fmt(textos.dataHora, { data: dataTexto, hora: r.horario.texto }) : dataTexto;
   const pessoas = r.pessoasTexto;
   const nomePasseio = r.opcaoNome ? `${r.passeioNome} (${r.opcaoNome})` : r.passeioNome;
+  // transfer: a data e a hora de cada trecho, e o trajeto da ida nas mensagens
+  const t = r.transfer;
+  const dataHoraTrecho = (tr: { data: string; hora: string }) =>
+    fmt(textos.dataHora, { data: formatarDataIso(tr.data, locale), hora: tr.hora });
+  const trajeto = t ? `${t.ida.saida} → ${t.ida.destino}` : '';
 
-  const msgVoucher = textos.msgVoucher
-    .replace('{codigo}', r.codigo)
-    .replace('{passeio}', nomePasseio)
-    .replace('{data}', dataHora)
-    .replace('{pessoas}', pessoas)
-    .replace('{hotel}', `${r.hotel} (${r.cidadeHospedagem})`);
+  const msgVoucher = t
+    ? textos.transferMsgVoucher
+        .replace('{codigo}', r.codigo)
+        .replace('{trajeto}', trajeto)
+        .replace('{data}', dataHoraTrecho(t.ida))
+        .replace('{pessoas}', pessoas)
+    : textos.msgVoucher
+        .replace('{codigo}', r.codigo)
+        .replace('{passeio}', nomePasseio)
+        .replace('{data}', dataHora)
+        .replace('{pessoas}', pessoas)
+        .replace('{hotel}', `${r.hotel} (${r.cidadeHospedagem})`);
   const msgFinalizar = textos.msgWhatsapp
     .replace('{codigo}', r.codigo)
-    .replace('{passeio}', nomePasseio)
-    .replace('{data}', dataHora)
+    .replace('{passeio}', t ? `${r.passeioNome}: ${trajeto}` : nomePasseio)
+    .replace('{data}', t ? dataHoraTrecho(t.ida) : dataHora)
     .replace('{pessoas}', pessoas)
     .replace('{total}', brl);
   const wa = (m: string) => `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(m)}`;
@@ -127,42 +138,91 @@ export function StatusReserva({
       <div className="px-6 pb-6 pt-6 md:px-8">
         <p className="text-small font-semibold">{r.status === 'pago' ? textos.voucher : textos.codigoReserva}</p>
         <p className="display numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
-        <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
-          <div className="col-span-2">
-            <dt className="text-small">{textos.passeio}</dt>
-            <dd className="text-lead font-semibold leading-tight">{nomePasseio}</dd>
-          </div>
-          <div>
-            <dt className="text-small">{textos.data}</dt>
-            <dd className="font-bold">{dataTexto}</dd>
-          </div>
-          {r.horario && (
-            <div>
-              <dt className="text-small">{r.horario.busca ? textos.horarioBusca : textos.horarioSaida}</dt>
-              <dd className="numeros text-lead font-bold leading-tight">{r.horario.texto}</dd>
-            </div>
-          )}
-          <div className="col-span-2 sm:col-span-1">
-            <dt className="text-small">{textos.pessoas}</dt>
-            <dd className="font-bold">{pessoas}</dd>
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <dt className="text-small">{textos.nome}</dt>
-            <dd className="font-bold">{r.nome}</dd>
-          </div>
-          <div className="col-span-2">
-            <dt className="text-small">{textos.hotel}</dt>
-            <dd className="font-bold">
-              {r.hotel} — {r.cidadeHospedagem}
-            </dd>
-          </div>
-          {r.horario && !r.horario.busca && (
+        {t ? (
+          <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
             <div className="col-span-2">
-              <dt className="text-small">{textos.encontro}</dt>
-              <dd className="font-bold">{textos.encontroTexto}</dd>
+              <dt className="text-small">{r.passeioNome}</dt>
+              <dd className="text-lead font-semibold leading-tight">{t.veiculo}</dd>
             </div>
-          )}
-        </dl>
+            {(
+              [
+                [textos.transferIda, t.ida],
+                [textos.transferVolta, t.volta],
+              ] as const
+            ).map(
+              ([rotulo, tr]) =>
+                tr && (
+                  <div key={rotulo} className="col-span-2">
+                    <dt className="text-small">{rotulo}</dt>
+                    <dd className="font-bold">{dataHoraTrecho(tr)}</dd>
+                    <dd>
+                      {tr.saida} → {tr.destino}
+                    </dd>
+                    {tr.voo && (
+                      <dd className="text-small">
+                        {textos.transferVoo} {tr.voo}
+                      </dd>
+                    )}
+                  </div>
+                ),
+            )}
+            <div className="col-span-2 sm:col-span-1">
+              <dt className="text-small">{textos.transferPassageiros}</dt>
+              <dd className="font-bold">{pessoas}</dd>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <dt className="text-small">{textos.nome}</dt>
+              <dd className="font-bold">{r.nome}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-small">{textos.transferMalas}</dt>
+              <dd className="font-bold">{t.malas}</dd>
+            </div>
+            {t.cadeirinhas && (
+              <div className="col-span-2">
+                <dt className="text-small">{textos.transferCadeirinhas}</dt>
+                <dd className="font-bold">{t.cadeirinhas}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+            <div className="col-span-2">
+              <dt className="text-small">{textos.passeio}</dt>
+              <dd className="text-lead font-semibold leading-tight">{nomePasseio}</dd>
+            </div>
+            <div>
+              <dt className="text-small">{textos.data}</dt>
+              <dd className="font-bold">{dataTexto}</dd>
+            </div>
+            {r.horario && (
+              <div>
+                <dt className="text-small">{r.horario.busca ? textos.horarioBusca : textos.horarioSaida}</dt>
+                <dd className="numeros text-lead font-bold leading-tight">{r.horario.texto}</dd>
+              </div>
+            )}
+            <div className="col-span-2 sm:col-span-1">
+              <dt className="text-small">{textos.pessoas}</dt>
+              <dd className="font-bold">{pessoas}</dd>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <dt className="text-small">{textos.nome}</dt>
+              <dd className="font-bold">{r.nome}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-small">{textos.hotel}</dt>
+              <dd className="font-bold">
+                {r.hotel} — {r.cidadeHospedagem}
+              </dd>
+            </div>
+            {r.horario && !r.horario.busca && (
+              <div className="col-span-2">
+                <dt className="text-small">{textos.encontro}</dt>
+                <dd className="font-bold">{textos.encontroTexto}</dd>
+              </div>
+            )}
+          </dl>
+        )}
       </div>
       {/* o único lugar onde o cliente recebe o WhatsApp da equipe: o voucher da compra paga */}
       {r.status === 'pago' && (
@@ -181,6 +241,8 @@ export function StatusReserva({
               {textos.chamarWhatsapp}
             </a>
           </div>
+          {/* no transfer, o titular manda por aqui o nome dos outros passageiros */}
+          {t && <p className="mt-3 text-small">{textos.transferDemais}</p>}
         </div>
       )}
       <div className="tom-campo flex items-center justify-between gap-4 px-6 py-5 md:px-8">
@@ -195,7 +257,7 @@ export function StatusReserva({
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <h1 className="display text-head">{textos.confirmadoTitulo}</h1>
-          <p className="mt-4 max-w-[46ch] text-lead">{textos.confirmadoTexto}</p>
+          <p className="mt-4 max-w-[46ch] text-lead">{t ? textos.transferConfirmado : textos.confirmadoTexto}</p>
           <div className="mt-8">{Voucher}</div>
         </div>
         <div className="space-y-3 lg:col-span-5 lg:pt-32">
@@ -205,7 +267,7 @@ export function StatusReserva({
           <div className="mt-6 bg-superficie px-5 py-5">
             <h2 className="font-bold">{textos.proximos}</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>{r.horario?.busca ? textos.proximo1Busca : textos.proximo1Saida}</li>
+              <li>{t ? textos.transferEspera : r.horario?.busca ? textos.proximo1Busca : textos.proximo1Saida}</li>
               <li>{textos.proximo2}</li>
               <li>{textos.proximo3}</li>
             </ul>

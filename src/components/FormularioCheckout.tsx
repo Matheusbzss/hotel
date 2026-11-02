@@ -115,7 +115,8 @@ const PAISES = ['BR', 'AR', 'UY', 'CL', 'PY', 'BO', 'PE', 'CO', 'MX', 'US', 'CA'
 
 type Erros = Partial<Record<string, string>>;
 
-function Campo({
+/** Um campo do checkout: o rótulo, o controle e a ajuda ou o erro embaixo. */
+export function Campo({
   id,
   rotulo,
   erro,
@@ -150,7 +151,7 @@ function Campo({
   );
 }
 
-const descricao = (id: string, erro?: string, ajuda?: string) => (erro ? `${id}-erro` : ajuda ? `${id}-ajuda` : undefined);
+export const descricao = (id: string, erro?: string, ajuda?: string) => (erro ? `${id}-erro` : ajuda ? `${id}-ajuda` : undefined);
 
 export function FormularioCheckout({
   idioma,

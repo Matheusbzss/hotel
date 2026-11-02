@@ -7,6 +7,7 @@ import { urlDoSite } from '@/lib/site';
 const PAGINAS: { caminho: string; prioridade: number; frequencia: MetadataRoute.Sitemap[number]['changeFrequency'] }[] = [
   { caminho: '/', prioridade: 1, frequencia: 'weekly' },
   { caminho: '/passeios', prioridade: 0.9, frequencia: 'weekly' },
+  { caminho: '/transfer', prioridade: 0.8, frequencia: 'monthly' },
   { caminho: '/passeio-e-hospedagem', prioridade: 0.7, frequencia: 'monthly' },
   { caminho: '/contato', prioridade: 0.5, frequencia: 'yearly' },
   { caminho: '/politica-de-cancelamento', prioridade: 0.3, frequencia: 'yearly' },

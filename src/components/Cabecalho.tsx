@@ -15,6 +15,7 @@ import { VigiaRolagem } from './VigiaRolagem';
 export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
+    { href: rota(idioma, '/transfer'), texto: d.nav.transfer },
     { href: rota(idioma, '/passeio-e-hospedagem'), texto: d.nav.hospedagem },
     // a área de casas só entra no menu quando for ativada (src/data/casas.ts)
     ...(CASAS_ATIVO ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),

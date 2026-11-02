@@ -8,7 +8,16 @@ import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
-import { bancoConfigurado, listarReservas, type Reserva, type StatusReserva } from '@/lib/reservas';
+import {
+  bancoConfigurado,
+  ehTransfer,
+  listarReservas,
+  type Reserva,
+  type ReservaPasseio,
+  type ReservaTransfer,
+  type StatusReserva,
+} from '@/lib/reservas';
+import { transferVisivel } from '@/lib/transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +42,8 @@ const COR: Record<StatusReserva, string> = {
   reembolsado: 'bg-[#e5e9ee] text-mar',
 };
 
-const ROTULOS_PESSOAS = dicionario('pt').comum.rotulos;
+const DICIONARIO_PT = dicionario('pt');
+const ROTULOS_PESSOAS = DICIONARIO_PT.comum.rotulos;
 
 const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[] }[] = [
   { valor: '', rotulo: 'Todas' },
@@ -75,6 +85,75 @@ function Login({ erro }: { erro?: string }) {
         </button>
       </form>
     </main>
+  );
+}
+
+/** O passeio, a data, a hora, as pessoas e a hospedagem. */
+function DetalhesPasseio({ r }: { r: ReservaPasseio }) {
+  const p = obterPasseio(r.passeio.slug);
+  return (
+    <>
+      <p className="font-bold">
+        {r.passeio.nome}
+        {r.passeio.opcao ? ` — ${r.passeio.opcao.nome}` : ''}
+      </p>
+      <p>
+        {formatarDataIso(r.data, 'pt-BR')} ·{' '}
+        {r.horario && (
+          <>
+            <strong>
+              {r.horario.busca ? 'Busca na hospedagem' : 'Saída'} às {formatarHora(r.horario.hora, 'pt')}
+            </strong>{' '}
+            ·{' '}
+          </>
+        )}
+        {textoPessoas(r, ROTULOS_PESSOAS, p ? semFaixas(p) : false)}
+        {r.passeio.unidade !== 'pessoa' ? ` · ${r.unidades} ${r.passeio.unidade === 'veiculo' ? 'veículo(s)' : 'embarcação(ões)'}` : ''}
+      </p>
+      <p>
+        Hotel: <strong>{r.hospedagem.hotel}</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]})
+      </p>
+    </>
+  );
+}
+
+/** O transfer: o veículo, a ida e a volta (com voo), os passageiros, as malas e as cadeirinhas. */
+function DetalhesTransfer({ r }: { r: ReservaTransfer }) {
+  const v = transferVisivel(r, 'pt', DICIONARIO_PT);
+  const trechos = [
+    ['Ida', v.ida],
+    ['Volta', v.volta],
+  ] as const;
+  return (
+    <>
+      <p className="font-bold">Transfer privado — {v.veiculo}</p>
+      {trechos.map(
+        ([rotulo, t]) =>
+          t && (
+            <p key={rotulo}>
+              {rotulo}:{' '}
+              <strong>
+                {formatarDataIso(t.data, 'pt-BR')} às {t.hora}
+              </strong>{' '}
+              · {t.saida} → {t.destino}
+              {t.voo ? ` · voo ${t.voo}` : ''}
+            </p>
+          ),
+      )}
+      <p>
+        {v.passageiros} · {v.malas}
+      </p>
+      {v.cadeirinhas && <p>Cadeirinhas: {v.cadeirinhas}</p>}
+    </>
+  );
+}
+
+/** O que a busca do painel procura além do código e do contato: o passeio e o hotel, ou os endereços do transfer. */
+function textosDaBusca(r: Reserva): string[] {
+  if (!ehTransfer(r)) return [r.hospedagem.hotel, r.passeio.nome];
+  const t = r.transfer;
+  return ['transfer', t.ida.saida.endereco, t.ida.destino.endereco, t.volta?.saida.endereco, t.volta?.destino.endereco].filter(
+    (x): x is string => Boolean(x),
   );
 }
 
@@ -121,9 +200,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
     (r) =>
       (!filtro.status || filtro.status.includes(r.status)) &&
       (!busca ||
-        [r.codigo, r.cliente.nome, r.cliente.email, r.cliente.telefone, r.hospedagem.hotel, r.passeio.nome].some((c) =>
-          c.toLowerCase().includes(busca),
-        )),
+        [r.codigo, r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) => c.toLowerCase().includes(busca))),
   );
   const pagas = todas.filter((r) => r.status === 'pago');
   const receita = pagas.reduce((s, r) => s + r.totalCentavos, 0);
@@ -207,42 +284,16 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
                 {r.pagamento.pagoEm && <p className="text-small text-tinta-suave">Paga {dataHora(r.pagamento.pagoEm)}</p>}
               </div>
               <div className="lg:col-span-4">
-                <p className="font-bold">
-                  {r.passeio.nome}
-                  {r.passeio.opcao ? ` — ${r.passeio.opcao.nome}` : ''}
-                </p>
-                <p>
-                  {formatarDataIso(r.data, 'pt-BR')} ·{' '}
-                  {r.horario && (
-                    <>
-                      <strong>
-                        {r.horario.busca ? 'Busca na hospedagem' : 'Saída'} às {formatarHora(r.horario.hora, 'pt')}
-                      </strong>{' '}
-                      ·{' '}
-                    </>
-                  )}
-                  {textoPessoas(
-                    r,
-                    ROTULOS_PESSOAS,
-                    (() => {
-                      const p = obterPasseio(r.passeio.slug);
-                      return p ? semFaixas(p) : false;
-                    })(),
-                  )}
-                  {r.passeio.unidade !== 'pessoa'
-                    ? ` · ${r.unidades} ${r.passeio.unidade === 'veiculo' ? 'veículo(s)' : 'embarcação(ões)'}`
-                    : ''}
-                </p>
-                <p>
-                  Hotel: <strong>{r.hospedagem.hotel}</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]})
-                </p>
+                {ehTransfer(r) ? <DetalhesTransfer r={r} /> : <DetalhesPasseio r={r} />}
                 {r.observacoes && <p className="mt-1 text-small">Obs.: {r.observacoes}</p>}
               </div>
               <div className="lg:col-span-3">
                 <p className="font-semibold">{r.cliente.nome}</p>
-                <p className="text-small">
-                  {r.cliente.documentoTipo === 'cpf' ? 'CPF' : 'Passaporte'} {r.cliente.documento}
-                </p>
+                {!ehTransfer(r) && (
+                  <p className="text-small">
+                    {r.cliente.documentoTipo === 'cpf' ? 'CPF' : 'Passaporte'} {r.cliente.documento}
+                  </p>
+                )}
                 <p>
                   <a href={whats} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
                     {r.cliente.telefone}

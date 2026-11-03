@@ -1,8 +1,9 @@
 import Image from 'next/image';
-import { TRAJETOS, VEICULOS, type Idioma, type Veiculo } from '@/data/transfer';
+import { TRAJETOS, VEICULOS, precoDoTrajeto, type Idioma, type Veiculo } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { precoPixCentavos } from '@/lib/orcamento';
 
 /** Os textos do cartão de reserva do transfer. */
 export function textosWidgetTransfer(d: Dicionario) {
@@ -34,10 +35,23 @@ export function FichaTransfer({ d, className = '' }: { d: Dicionario; className?
   );
 }
 
-/** Os trajetos com preço fixo, com o preço do carro e da van por trecho. */
+/** Os trajetos com preço fixo, com o preço do carro e da van por trecho: no Pix em destaque e no cartão. */
 export function PrecosTransfer({ d, idioma, className = '' }: { d: Dicionario; idioma: Idioma; className?: string }) {
   const T = d.transfer;
-  const preco = (reais: number | null) => (reais === null ? T.sobCotacao : formatarCifra(reais * 100, LOCALE_INTL[idioma]));
+  const locale = LOCALE_INTL[idioma];
+  const preco = (reais: number | null) => {
+    if (reais === null) return <span className="cifra text-lead font-semibold">{T.sobCotacao}</span>;
+    const centavos = Math.round(reais * 100);
+    return (
+      <>
+        <span className="cifra text-lead font-semibold">{formatarCifra(precoPixCentavos(centavos), locale)}</span>{' '}
+        <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+        <span className="block text-small text-(--color-tinta-suave)">
+          <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(centavos, locale)}</span> {d.preco.noCartao}
+        </span>
+      </>
+    );
+  };
   return (
     <section aria-labelledby="precos-transfer" className={className}>
       <h2 id="precos-transfer" className="text-lead font-semibold">
@@ -52,7 +66,7 @@ export function PrecosTransfer({ d, idioma, className = '' }: { d: Dicionario; i
               {VEICULOS_EM_ORDEM.map((v) => (
                 <div key={v}>
                   <dt className="text-small text-(--color-tinta-suave)">{VEICULOS[v].nome[idioma]}</dt>
-                  <dd className="cifra text-lead font-semibold">{preco(t.preco[v])}</dd>
+                  <dd>{preco(precoDoTrajeto(t, v))}</dd>
                 </div>
               ))}
             </dl>

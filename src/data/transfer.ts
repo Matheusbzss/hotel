@@ -142,6 +142,12 @@ export function precoTrecho(saida: IdLugar, destino: IdLugar, veiculo: Veiculo):
   return null;
 }
 
+/** O preço de um trajeto da tabela no veículo, com o ajuste geral, em reais; `null` quando é sob cotação. */
+export function precoDoTrajeto(t: (typeof TRAJETOS)[number], veiculo: Veiculo): number | null {
+  const p = t.preco[veiculo];
+  return p === null ? null : comAjuste(p);
+}
+
 /** O menor preço de um trecho que sai ou chega na zona (para o "a partir de" dos cartões). */
 export function menorPrecoDaZona(zona: Zona): number | null {
   const precos = TRAJETOS.filter((t) => t.de === zona || t.para.includes(zona)).flatMap((t) =>

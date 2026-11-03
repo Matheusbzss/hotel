@@ -12,7 +12,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. A quem se aplica',
         paragrafos: [
-          `Esta política vale para todos os passeios comprados no site ${E.dominio}, operado por ${E.marca}, CNPJ ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
+          `Esta política vale para todos os passeios comprados no site ${E.dominio}, operado por ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
           'Ela segue o Código de Defesa do Consumidor (Lei nº 8.078/1990) e o Decreto nº 7.962/2013, que trata do comércio eletrônico. Nada nesta política reduz os direitos que a lei garante a você.',
         ],
       },
@@ -93,7 +93,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Scope',
         paragrafos: [
-          `This policy applies to all tours purchased on ${E.dominio}, operated by ${E.marca}, CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `This policy applies to all tours purchased on ${E.dominio}, operated by ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
           'It follows the Brazilian Consumer Protection Code (Law 8,078/1990) and Decree 7,962/2013 on e-commerce. Nothing in this policy limits the rights the law gives you.',
         ],
       },
@@ -174,7 +174,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Alcance',
         paragrafos: [
-          `Esta política se aplica a todos los paseos comprados en el sitio ${E.dominio}, operado por ${E.marca}, CNPJ ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `Esta política se aplica a todos los paseos comprados en el sitio ${E.dominio}, operado por ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
           'Sigue el Código de Defensa del Consumidor de Brasil (Ley 8.078/1990) y el Decreto 7.962/2013 sobre comercio electrónico. Nada en esta política reduce los derechos que la ley te garantiza.',
         ],
       },

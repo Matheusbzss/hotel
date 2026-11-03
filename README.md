@@ -6,7 +6,7 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 
 | O que                                                                                                               | Arquivo                                       |
 | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Nome, CNPJ, e-mail, WhatsApp (só no fim da reserva), domínio                                                        | `src/config/empresa.ts`                       |
+| Nome, e-mail, WhatsApp (só no fim da reserva), domínio                                                              | `src/config/empresa.ts`                       |
 | Passeios (nome, cidade, categoria, preço do parceiro, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                        |
 | Margem sobre o preço do parceiro (hoje 10%)                                                                         | `MARGEM_PERCENTUAL` em `src/data/passeios.ts` |
 | Regra padrão de crianças (até 5 anos grátis)                                                                        | `CRIANCAS_PADRAO` em `src/data/passeios.ts`   |

@@ -12,7 +12,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quem é o controlador dos dados',
         paragrafos: [
-          `${E.marca}, CNPJ ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
+          `${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
           `Canal do titular de dados (encarregado): ${E.email}.`,
         ],
       },
@@ -111,7 +111,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Data controller',
         paragrafos: [
-          `${E.marca}, CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
           `Data subject contact (data protection officer): ${E.email}.`,
         ],
       },
@@ -210,7 +210,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Responsable de los datos',
         paragrafos: [
-          `${E.marca}, CNPJ ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
           `Canal del titular de datos (encargado): ${E.email}.`,
         ],
       },

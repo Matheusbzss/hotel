@@ -11,7 +11,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quem somos',
         paragrafos: [
-          `O site ${E.dominio} é operado por ${E.marca}, inscrita no CNPJ sob o nº ${E.cnpj}, sediada em ${E.cidade} – ${E.uf}.`,
+          `O site ${E.dominio} é operado por ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
           `Contato: e-mail ${E.email}. Depois da reserva, o atendimento também é feito pelo WhatsApp.`,
         ],
       },
@@ -97,7 +97,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Who we are',
         paragrafos: [
-          `${E.dominio} is operated by ${E.marca}, registered under CNPJ ${E.cnpj}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `${E.dominio} is operated by ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
           `Contact: email ${E.email}. After booking, we also assist you on WhatsApp.`,
         ],
       },
@@ -185,7 +185,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quiénes somos',
         paragrafos: [
-          `El sitio ${E.dominio} es operado por ${E.marca}, inscripta en el CNPJ con el nº ${E.cnpj}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `El sitio ${E.dominio} es operado por ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
           `Contacto: e-mail ${E.email}. Después de la reserva, también te atendemos por WhatsApp.`,
         ],
       },

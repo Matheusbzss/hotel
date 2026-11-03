@@ -1,14 +1,13 @@
 /**
- * DADOS DA EMPRESA — único lugar para trocar nome, CNPJ, e-mail e telefone.
+ * DADOS DA EMPRESA — único lugar para trocar nome, e-mail e telefone.
  *
  * Rodapé, políticas, termos, voucher em PDF e checkout leem tudo daqui.
+ * Nenhum CNPJ aparece no site (regra do CLAUDE.md). Quando chegar o CNPJ novo, ele volta só no
+ * rodapé e nos termos, e o teste tests/sem-cnpj.test.ts muda junto.
  */
 export const EMPRESA = {
   marca: 'Orla Nativa',
   slogan: 'Viagens & Passeios',
-
-  // Dados legais
-  cnpj: '69.664.651/0001-82',
 
   // Contato
   email: 'suporte@orlanativa.com.br',

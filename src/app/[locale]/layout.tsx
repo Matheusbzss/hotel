@@ -67,7 +67,6 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     '@context': 'https://schema.org',
     '@type': 'TravelAgency',
     name: EMPRESA.marca,
-    taxID: EMPRESA.cnpj,
     url: urlDoSite(),
     email: EMPRESA.email,
     logo: `${urlDoSite()}/logo/orla-nativa-emblema-512.png`,

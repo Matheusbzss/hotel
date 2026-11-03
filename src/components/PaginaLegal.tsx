@@ -66,7 +66,7 @@ export function PaginaLegal({
             {acao.botao}
           </a>
           <p className="text-small text-(--tinta-suave)">
-            {fmt(d.legal.atualizado, { data })} · {EMPRESA.marca} · CNPJ {EMPRESA.cnpj}
+            {fmt(d.legal.atualizado, { data })}&nbsp;· {EMPRESA.marca}
           </p>
         </div>
       </header>

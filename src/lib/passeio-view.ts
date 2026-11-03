@@ -82,7 +82,7 @@ export interface PrecoPasseio {
 
 export function precoPasseio(p: Passeio, idioma: Idioma, d: Dicionario): PrecoPasseio {
   const opcoes = opcoesPasseio(p);
-  const maisBarata = opcoes.reduce((a, b) => (precoVendaCentavos(b.precoParceiro) < precoVendaCentavos(a.precoParceiro) ? b : a));
+  const maisBarata = opcoes.reduce((a, b) => (precoVendaCentavos(b.preco) < precoVendaCentavos(a.preco) ? b : a));
   const cap = p.capacidadePorUnidade ?? 1;
   return {
     slug: p.slug,

@@ -28,8 +28,11 @@ interface ReservaBase {
   /** A data do passeio, ou a da ida do transfer (AAAA-MM-DD). */
   data: string;
   totalCentavos: number;
-  /** Quanto vai para o parceiro (sem margem), para controle interno. */
-  custoParceiroCentavos: number;
+  /**
+   * O total no Pix (com o desconto), nas reservas que terminam pelo WhatsApp: a forma de pagamento ainda
+   * não está escolhida, e a equipe cobra este valor no Pix ou o `totalCentavos` no cartão.
+   */
+  totalPixCentavos?: number;
   cliente: { nome: string; email: string; telefone: string };
   observacoes?: string;
   pagamento: {

@@ -101,6 +101,15 @@ const es: Dicionario = {
     alterar: 'Cambiar',
     semData: 'fecha a elegir',
   },
+  // os dois preços: no Pix (com desconto) e no cartão; o dólar só em espanhol e inglês
+  preco: {
+    noPix: 'con Pix',
+    noCartao: 'con tarjeta',
+    pix: 'Pix',
+    cartao: 'Tarjeta',
+    descontoPix: '{p}% de descuento con Pix',
+    dolar: '≈ US$ {v}',
+  },
   boletim: {
     titulo: 'Paseos y el total de tu grupo',
     filtroCidades: 'Filtrar por ciudad',

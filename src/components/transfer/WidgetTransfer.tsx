@@ -16,6 +16,8 @@ import {
   type Veiculo,
 } from '@/data/transfer';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { linkEmail } from '@/lib/email';
 import { formatarDataIso, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
@@ -69,6 +71,10 @@ export interface TextosTransfer {
   cotacaoVolta: string;
   diminuir: string;
   aumentar: string;
+  noPix: string;
+  noCartao: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
 }
 
 interface Ponta {
@@ -164,11 +170,14 @@ export function WidgetTransfer({
   idioma,
   locale,
   checkoutHref,
+  dolar = null,
   textos: T,
 }: {
   idioma: Idioma;
   locale: string;
   checkoutHref: string;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
   textos: TextosTransfer;
 }) {
   const router = useRouter();
@@ -237,11 +246,18 @@ export function WidgetTransfer({
     }
     return soma;
   };
+  /** O total no Pix, em centavos: cada trecho com o desconto (o mesmo cálculo do checkout). */
+  const totalPix = (v: Veiculo): number | null => {
+    if (total(v) === null) return null;
+    return trechos.reduce((s, [de, para]) => s + precoPixCentavos(Math.round((precoTrecho(de, para, v) ?? 0) * 100)), 0);
+  };
   const cabe: Record<Veiculo, boolean> = { carro: cabeNoCarro(pessoas, malas), van: cabeNaVan(pessoas, malas) };
   const sugerido: Veiculo | null = cabe.carro ? 'carro' : cabe.van ? 'van' : null;
   const veiculo = escolhido && cabe[escolhido] ? escolhido : sugerido;
   const precoEscolhido = veiculo ? total(veiculo) : null;
-  const cifra = (reais: number) => formatarCifra(reais * 100, locale);
+  const cifra = (reais: number) => formatarCifra(Math.round(reais * 100), locale);
+  const pixEscolhido = veiculo ? totalPix(veiculo) : null;
+  const usd = (reais: number) => textoDolar(Math.round(reais * 100), dolar, T.dolar, locale);
 
   const nomePonta = (p: Ponta) => {
     if (!p.lugar) return '—';
@@ -472,6 +488,7 @@ export function WidgetTransfer({
         <div className="grid grid-cols-2 gap-1.5">
           {(['carro', 'van'] as Veiculo[]).map((v) => {
             const preco = total(v);
+            const pix = totalPix(v);
             return (
               <label
                 key={v}
@@ -490,7 +507,13 @@ export function WidgetTransfer({
                 <span>{VEICULOS[v].nome[idioma]}</span>
                 <span className="text-small font-normal">{T.ateNPessoas.replace('{n}', String(VEICULOS[v].capacidade))}</span>
                 <span className="numeros mt-1 text-small">
-                  {!cabe[v] ? T.naoCabe : !completo ? '—' : preco === null ? T.sobCotacao : cifra(preco)}
+                  {!cabe[v]
+                    ? T.naoCabe
+                    : !completo
+                      ? '—'
+                      : preco === null || pix === null
+                        ? T.sobCotacao
+                        : `${formatarCifra(pix, locale)} ${T.noPix}`}
                 </span>
               </label>
             );
@@ -502,13 +525,24 @@ export function WidgetTransfer({
         <p className="mt-5 border-t border-(--color-borda) pt-4 text-small text-(--color-tinta-suave)">{T.escolhaTrajeto}</p>
       ) : veiculo && precoEscolhido !== null ? (
         <>
-          <div className="mt-5 flex items-baseline justify-between gap-4 border-t border-(--color-borda) pt-4">
-            <span className="font-semibold">{idaVolta ? T.totalIdaVolta : T.total}</span>
-            <span aria-hidden="true">
-              <Cifra centavos={precoEscolhido * 100} locale={locale} className="cifra text-figure-lg" />
-            </span>
+          <div className="mt-5 border-t border-(--color-borda) pt-4">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-semibold">
+                {idaVolta ? T.totalIdaVolta : T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+              </span>
+              <span aria-hidden="true">
+                <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="cifra text-figure-lg" />
+              </span>
+            </div>
+            <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
+              <span>
+                {idaVolta ? T.totalIdaVolta : T.total} {T.noCartao}
+                {usd(precoEscolhido) && ` · ${usd(precoEscolhido)}`}
+              </span>
+              <Cifra centavos={Math.round(precoEscolhido * 100)} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
+            </p>
             <span className="sr-only" aria-live="polite">
-              {cifra(precoEscolhido)}
+              {`${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}. ${T.noCartao}: ${cifra(precoEscolhido)}.`}
             </span>
           </div>
           {erro && (

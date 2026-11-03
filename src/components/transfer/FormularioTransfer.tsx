@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { LUGARES, VEICULOS, totalTransfer, type IdLugar, type Malas, type Veiculo } from '@/data/transfer';
+import { LUGARES, VEICULOS, precoTrecho, totalTransfer, type IdLugar, type Malas, type Veiculo } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarHora } from '@/lib/horarios';
-import { formatarCentavos } from '@/lib/orcamento';
+import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
 import { textoMalas } from '@/lib/transfer-view';
 import { DDIS, emailValido, formatarDataIso, telefoneValido } from '@/lib/validacao';
 import { Campo, descricao } from '../FormularioCheckout';
@@ -48,7 +48,14 @@ export function FormularioTransfer({
   idioma: Idioma;
   locale: string;
   pedido: PedidoTransfer;
-  textos: { checkout: Dicionario['checkout']; transfer: Dicionario['transfer']; dataHora: string; diminuir: string; aumentar: string };
+  textos: {
+    checkout: Dicionario['checkout'];
+    transfer: Dicionario['transfer'];
+    preco: Dicionario['preco'];
+    dataHora: string;
+    diminuir: string;
+    aumentar: string;
+  };
   links: { termos: string; politica: string; reserva: string; transfer: string };
 }) {
   const C = textos.checkout;
@@ -75,6 +82,14 @@ export function FormularioTransfer({
     trechos.map((t) => ({ saida: t.saida.lugar, destino: t.destino.lugar })),
     pedido.veiculo,
   );
+  // no Pix, cada trecho com o desconto (o mesmo cálculo do servidor)
+  const totalPix =
+    totalReais === null
+      ? null
+      : trechos.reduce(
+          (s, t) => s + precoPixCentavos(Math.round((precoTrecho(t.saida.lugar, t.destino.lugar, pedido.veiculo) ?? 0) * 100)),
+          0,
+        );
   const temAeroporto = (t: TrechoPedido) => Boolean(LUGARES[t.saida.lugar].aeroporto || LUGARES[t.destino.lugar].aeroporto);
   // saindo do aeroporto, o voo é o de chegada; indo para ele, o de partida
   const rotuloVoo = (t: TrechoPedido) => (LUGARES[t.saida.lugar].aeroporto ? T.vooChegada : T.vooPartida);
@@ -397,9 +412,21 @@ export function FormularioTransfer({
                 {T.mudarTrajeto}
               </Link>
             </div>
-            <div className="flex items-center justify-between gap-4 bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
-              <span className="font-semibold">{pedido.volta ? T.totalIdaVolta : T.total}</span>
-              <span className="numeros titulo leading-none">{totalReais === null ? '—' : formatarCentavos(totalReais * 100, locale)}</span>
+            <div className="bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold">
+                  {pedido.volta ? T.totalIdaVolta : T.total} <span className="text-(--color-d2)">{textos.preco.noPix}</span>
+                </span>
+                <span className="numeros titulo leading-none">{totalPix === null ? '—' : formatarCentavos(totalPix, locale)}</span>
+              </div>
+              {totalReais !== null && (
+                <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
+                  <span>
+                    {pedido.volta ? T.totalIdaVolta : T.total} {textos.preco.noCartao}
+                  </span>
+                  <span className="numeros font-semibold">{formatarCentavos(Math.round(totalReais * 100), locale)}</span>
+                </p>
+              )}
             </div>
           </div>
 

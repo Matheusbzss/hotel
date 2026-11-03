@@ -101,7 +101,10 @@ export function StatusReserva({
     );
   }, [r.status, r.codigo, r.totalCentavos, r.passeioSlug, r.adultos, r.criancas]);
 
-  const brl = formatarCentavos(r.totalCentavos, locale);
+  // esperando o pagamento pelo WhatsApp: os dois valores, o do Pix (com desconto) e o do cartão
+  const brl = r.totalPixCentavos
+    ? `${formatarCentavos(r.totalPixCentavos, locale)} ${textos.noPix} · ${formatarCentavos(r.totalCentavos, locale)} ${textos.noCartao}`
+    : formatarCentavos(r.totalCentavos, locale);
   const dataTexto = formatarDataIso(r.data, locale);
   // nas mensagens, a data vai junto com a hora: "sáb., 14 de nov. de 2026 às 9h"
   const dataHora = r.horario ? fmt(textos.dataHora, { data: dataTexto, hora: r.horario.texto }) : dataTexto;

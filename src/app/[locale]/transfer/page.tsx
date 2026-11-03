@@ -13,6 +13,7 @@ import { WidgetTransfer } from '@/components/transfer/WidgetTransfer';
 import { FOTOS_TRANSFER, FOTO_TOPO_TRANSFER } from '@/data/transfer';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
+import { cotacaoDolar } from '@/lib/dolar';
 import { alternates } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/transfer'>): Promise<Metadata> {
@@ -74,6 +75,7 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
               idioma={locale}
               locale={LOCALE_INTL[locale]}
               checkoutHref={rota(locale, '/transfer/checkout')}
+              dolar={locale === 'pt' ? null : await cotacaoDolar()}
               textos={textosWidgetTransfer(d)}
             />
           </div>

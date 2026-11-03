@@ -4,6 +4,7 @@ import { menorPrecoDaZona, type Zona } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, rota, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { CartaoInclinavel } from '../Inclinar';
 
 /** A cidade do trilho vira a zona de preço do transfer (o Rio inclui os dois aeroportos). */
@@ -16,13 +17,22 @@ const ZONA: Record<Cidade, Zona> = {
 
 /**
  * O transfer como mais uma opção no trilho de cada cidade: a foto real do carro no aeroporto, o preço
- * "a partir de" por veículo e o atalho para a página do transfer com a cidade já no destino.
+ * "a partir de" por veículo (no Pix em destaque e no cartão) e o atalho para a página do transfer com a
+ * cidade já no destino.
  */
 export function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Idioma; d: Dicionario }) {
   const T = d.transfer;
   const menor = menorPrecoDaZona(ZONA[cidade]);
-  const preco = menor === null ? null : formatarCifra(menor * 100, LOCALE_INTL[idioma]);
-  const rotulo = [T.titulo, T.cartaoTexto, preco && `${d.comum.aPartirDe} ${preco} ${T.porVeiculo}`].filter(Boolean).join(', ');
+  const centavos = menor === null ? null : Math.round(menor * 100);
+  const preco = centavos === null ? null : formatarCifra(centavos, LOCALE_INTL[idioma]);
+  const pix = centavos === null ? null : formatarCifra(precoPixCentavos(centavos), LOCALE_INTL[idioma]);
+  const rotulo = [
+    T.titulo,
+    T.cartaoTexto,
+    preco && `${d.comum.aPartirDe} ${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao} ${T.porVeiculo}`,
+  ]
+    .filter(Boolean)
+    .join(', ');
   return (
     <CartaoInclinavel href={rota(idioma, `/transfer?destino=${cidade}`)} rotulo={rotulo}>
       <div className="cartao-foto">
@@ -43,11 +53,17 @@ export function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Id
       <div className="cartao-texto" aria-hidden="true">
         <h3 className="cartao-titulo">{T.titulo}</h3>
         {preco && (
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="text-small text-(--color-tinta-suave)">{d.comum.aPartirDe}</span>
-            <strong className="cifra text-figure">{preco}</strong>
-            <span className="text-small text-(--color-tinta-suave)">{T.porVeiculo}</span>
-          </p>
+          <>
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
+              <span className="text-small text-(--color-tinta-suave)">{d.comum.aPartirDe}</span>
+              <strong className="cifra text-figure">{pix}</strong>
+              <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+              <span className="text-small text-(--color-tinta-suave)">{T.porVeiculo}</span>
+            </p>
+            <p className="text-small text-(--color-tinta-suave)">
+              <span className="numeros font-semibold text-(--color-tinta)">{preco}</span> {d.preco.noCartao}
+            </p>
+          </>
         )}
         <p className="mt-1 text-caption text-(--color-tinta-suave)">{T.cartaoTexto}</p>
       </div>

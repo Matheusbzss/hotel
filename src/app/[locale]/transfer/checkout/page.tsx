@@ -70,6 +70,7 @@ export default async function CheckoutTransfer({ params, searchParams }: PagePro
               pedido={pedido}
               textos={{
                 checkout: d.checkout,
+                preco: d.preco,
                 transfer: T,
                 dataHora: d.horario.dataHora,
                 diminuir: d.comum.diminuir,

@@ -2,13 +2,13 @@
  * ARQUIVO DE DADOS DOS PASSEIOS
  *
  * Como editar:
- * - PREÇO: cada passeio guarda o preço do PARCEIRO em `precoParceiro` (em reais).
- *   O preço de venda é calculado automaticamente: precoParceiro + MARGEM_PERCENTUAL.
- *   Para mudar a margem de todos os passeios, troque só MARGEM_PERCENTUAL abaixo.
+ * - PREÇO: cada passeio guarda o preço de VENDA em `preco` (em reais): o que o cliente paga no
+ *   cartão. Para mudar todos os preços de uma vez (ex.: baixar 10%) e para o desconto do Pix, use
+ *   src/config/precos.ts. O custo do parceiro não fica no código.
  *   `origemPreco` diz de onde veio o valor: 'parceiro' (lista do parceiro) ou
  *   'pesquisa' (preço médio de mercado pesquisado na internet — confirme com o parceiro).
  * - OPÇÕES: passeios com mais de um formato (ex.: lancha 2 h ou 4 h) usam `opcoes`,
- *   cada uma com o próprio preço do parceiro. O "a partir de" usa a opção mais barata.
+ *   cada uma com o próprio preço. O "a partir de" usa a opção mais barata.
  * - UNIDADE: 'pessoa' (por pessoa), 'veiculo' (por veículo) ou 'embarcacao' (por embarcação).
  *   Para 'veiculo' e 'embarcacao', informe `capacidadePorUnidade` (quantas pessoas cabem).
  * - CRIANÇAS: `criancas.gratisAte` = idade até a qual não paga (padrão: 5 anos);
@@ -49,8 +49,8 @@ export interface PoliticaCriancas {
 export interface OpcaoPasseio {
   id: string;
   nome: Texto;
-  /** Preço do parceiro em reais desta opção, SEM a margem. */
-  precoParceiro: number;
+  /** Preço de venda em reais desta opção (o do cartão). */
+  preco: number;
   origemPreco?: 'parceiro' | 'pesquisa';
 }
 
@@ -66,8 +66,8 @@ export interface Passeio {
   ativo?: boolean;
   cidade: Cidade;
   categoria: Categoria;
-  /** Preço do parceiro em reais, SEM a margem (quando há opções, use o da opção mais barata). */
-  precoParceiro: number;
+  /** Preço de venda em reais, o do cartão (quando há opções, use o da opção mais barata). */
+  preco: number;
   origemPreco: 'parceiro' | 'pesquisa';
   opcoes?: OpcaoPasseio[];
   unidade: UnidadePreco;
@@ -89,9 +89,6 @@ export interface Passeio {
   roteiro: Lista;
   levar: Lista;
 }
-
-/** Margem aplicada sobre o preço do parceiro (10 = +10%). */
-export const MARGEM_PERCENTUAL = 10;
 
 /** Regra padrão de crianças: até 5 anos não paga; a partir de 6 paga inteira. */
 export const CRIANCAS_PADRAO: PoliticaCriancas = { gratisAte: 5 };
@@ -231,7 +228,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'barco',
-    precoParceiro: 70,
+    preco: 77,
     unidade: 'pessoa',
     duracao: { pt: '2h30', en: '2h30', es: '2h30' },
     destaque: true,
@@ -300,7 +297,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'barco',
-    precoParceiro: 110,
+    preco: 121,
     unidade: 'pessoa',
     duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     fotos: [
@@ -358,7 +355,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 100,
+    preco: 110,
     unidade: 'pessoa',
     duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     destaque: true,
@@ -427,7 +424,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 280,
+    preco: 308,
     unidade: 'veiculo',
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
@@ -486,7 +483,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
-    precoParceiro: 190,
+    preco: 209,
     unidade: 'pessoa',
     duracao: { pt: '4 horas', en: '4 hours', es: '4 horas' },
     destaque: true,
@@ -559,7 +556,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
-    precoParceiro: 240,
+    preco: 264,
     unidade: 'pessoa',
     duracao: { pt: 'Dia inteiro (cerca de 9 horas)', en: 'Full day (about 9 hours)', es: 'Día completo (unas 9 horas)' },
     fotos: [
@@ -646,7 +643,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'city-tour',
-    precoParceiro: 100,
+    preco: 110,
     unidade: 'pessoa',
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     horarios: { horas: ['08:00', '11:00', '14:00'], busca: true },
@@ -712,10 +709,10 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'lancha',
-    precoParceiro: 800,
+    preco: 880,
     opcoes: [
-      { id: '2h', nome: { pt: '2 horas', en: '2 hours', es: '2 horas' }, precoParceiro: 800 },
-      { id: '4h', nome: { pt: '4 horas', en: '4 hours', es: '4 horas' }, precoParceiro: 1600 },
+      { id: '2h', nome: { pt: '2 horas', en: '2 hours', es: '2 horas' }, preco: 880 },
+      { id: '4h', nome: { pt: '4 horas', en: '4 hours', es: '4 horas' }, preco: 1760 },
     ],
     unidade: 'embarcacao',
     capacidadePorUnidade: 6,
@@ -789,10 +786,10 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'aventura',
-    precoParceiro: 400,
+    preco: 440,
     opcoes: [
-      { id: '30min', nome: { pt: '30 minutos', en: '30 minutes', es: '30 minutos' }, precoParceiro: 400, origemPreco: 'pesquisa' },
-      { id: '1h', nome: { pt: '1 hora', en: '1 hour', es: '1 hora' }, precoParceiro: 700 },
+      { id: '30min', nome: { pt: '30 minutos', en: '30 minutes', es: '30 minutos' }, preco: 440, origemPreco: 'pesquisa' },
+      { id: '1h', nome: { pt: '1 hora', en: '1 hour', es: '1 hora' }, preco: 770 },
     ],
     unidade: 'embarcacao',
     capacidadePorUnidade: 2,
@@ -844,7 +841,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'aventura',
-    precoParceiro: 450,
+    preco: 495,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 10 minutos de voo', en: 'About 10 minutes of flight', es: 'Unos 10 minutos de vuelo' },
     fotos: [
@@ -902,7 +899,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'barco',
-    precoParceiro: 90,
+    preco: 99,
     unidade: 'pessoa',
     duracao: { pt: '4 horas', en: '4 hours', es: '4 horas' },
     destaque: true,
@@ -967,7 +964,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'city-tour',
-    precoParceiro: 265,
+    preco: 291.5,
     unidade: 'pessoa',
     duracao: { pt: 'Dia inteiro (cerca de 10 horas)', en: 'Full day (about 10 hours)', es: 'Día completo (unas 10 horas)' },
     destaque: true,
@@ -1047,7 +1044,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'city-tour',
-    precoParceiro: 240,
+    preco: 264,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 7 horas', en: 'About 7 hours', es: 'Unas 7 horas' },
     fotos: [
@@ -1122,7 +1119,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'mergulho',
-    precoParceiro: 250,
+    preco: 275,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 4 horas', en: 'About 4 hours', es: 'Unas 4 horas' },
     fotos: [
@@ -1202,7 +1199,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 150,
+    preco: 165,
     unidade: 'pessoa',
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
     fotos: [
@@ -1256,7 +1253,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 250,
+    preco: 275,
     unidade: 'veiculo',
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
@@ -1320,7 +1317,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'pesquisa',
     cidade: 'arraial-do-cabo',
     categoria: 'lancha',
-    precoParceiro: 2200,
+    preco: 2420,
     unidade: 'embarcacao',
     capacidadePorUnidade: 10,
     duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
@@ -1401,7 +1398,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'pesquisa',
     cidade: 'arraial-do-cabo',
     categoria: 'mergulho',
-    precoParceiro: 265,
+    preco: 291.5,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 4 horas (2 mergulhos)', en: 'About 4 hours (2 dives)', es: 'Unas 4 horas (2 inmersiones)' },
     fotos: [
@@ -1497,7 +1494,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'barco',
-    precoParceiro: 100,
+    preco: 110,
     unidade: 'pessoa',
     duracao: { pt: '2h30', en: '2h30', es: '2h30' },
     destaque: true,
@@ -1544,7 +1541,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'city-tour',
-    precoParceiro: 230,
+    preco: 253,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 7 horas', en: 'About 7 hours', es: 'Unas 7 horas' },
     fotos: [
@@ -1619,7 +1616,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 150,
+    preco: 165,
     unidade: 'pessoa',
     duracao: { pt: '3 horas', en: '3 hours', es: '3 horas' },
     fotos: [
@@ -1666,7 +1663,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'cabo-frio',
     categoria: 'buggy-quadriciclo',
-    precoParceiro: 270,
+    preco: 297,
     unidade: 'veiculo',
     capacidadePorUnidade: 2,
     duracao: { pt: '2 horas', en: '2 hours', es: '2 horas' },
@@ -1714,7 +1711,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'pesquisa',
     cidade: 'cabo-frio',
     categoria: 'barco',
-    precoParceiro: 145,
+    preco: 159.5,
     unidade: 'pessoa',
     duracao: { pt: 'Cerca de 3h30 (com traslado)', en: 'About 3.5 hours (with transfer)', es: 'Unas 3 h 30 (con traslado)' },
     horarios: { horas: ['09:00', '11:00', '14:00'], busca: true },
@@ -1789,7 +1786,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'pesquisa',
     cidade: 'cabo-frio',
     categoria: 'lancha',
-    precoParceiro: 2200,
+    preco: 2420,
     unidade: 'embarcacao',
     capacidadePorUnidade: 10,
     duracao: { pt: 'Cerca de 6 horas (10h às 16h)', en: 'About 6 hours (10am to 4pm)', es: 'Unas 6 horas (de 10 a 16 h)' },
@@ -1865,7 +1862,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'pesquisa',
     cidade: 'cabo-frio',
     categoria: 'city-tour',
-    precoParceiro: 310,
+    preco: 341,
     unidade: 'pessoa',
     duracao: { pt: 'Dia inteiro (cerca de 9 horas)', en: 'Full day (about 9 hours)', es: 'Día completo (unas 9 horas)' },
     fotos: [
@@ -1948,7 +1945,7 @@ export const PASSEIOS: Passeio[] = [
     origemPreco: 'parceiro',
     cidade: 'rio-de-janeiro',
     categoria: 'city-tour',
-    precoParceiro: 380,
+    preco: 418,
     unidade: 'pessoa',
     duracao: { pt: 'Dia inteiro (cerca de 14 horas)', en: 'Full day (about 14 hours)', es: 'Día completo (unas 14 horas)' },
     fotos: [

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Horarios } from '@/data/passeios';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
-import { calcular, formatarCentavos, normalizarPessoas, type Pessoas } from '@/lib/orcamento';
+import { calcular, formatarCentavos, normalizarPessoas, totalPixCentavos, type Pessoas } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { textoPessoas, type RotulosPessoas } from '@/lib/pessoas';
 import { rastrear } from '@/lib/pixel';
@@ -85,6 +85,8 @@ type Textos = {
   indisponivelTitulo: string;
   indisponivelTexto: string;
   finalizarWhatsapp: string;
+  noPix: string;
+  noCartao: string;
   diminuir: string;
   aumentar: string;
   opcao: string;
@@ -242,7 +244,10 @@ export function FormularioCheckout({
   const horaEscolhida = disponiveis.includes(hora) ? hora : '';
 
   const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
+  const totalPix = totalPixCentavos(orc);
   const brl = (c: number) => formatarCentavos(c, locale);
+  // o total em destaque é o do jeito de pagar escolhido; sem pagamento online, o do Pix
+  const noCartaoEscolhido = pagamentoOnline && metodo === 'cartao';
 
   useEffect(() => {
     rastrear('InitiateCheckout', {
@@ -897,11 +902,21 @@ export function FormularioCheckout({
                 ))}
               </dl>
             </div>
-            <div className="flex items-center justify-between gap-4 bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
-              <span className="font-semibold">{T.total}</span>
-              <span className="numeros titulo leading-none" aria-live="polite">
-                {brl(orc.totalCentavos)}
-              </span>
+            <div className="bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold">
+                  {T.total} <span className="text-(--color-d2)">{noCartaoEscolhido ? T.noCartao : T.noPix}</span>
+                </span>
+                <span className="numeros titulo leading-none" aria-live="polite">
+                  {brl(noCartaoEscolhido ? orc.totalCentavos : totalPix)}
+                </span>
+              </div>
+              <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
+                <span>
+                  {T.total} {noCartaoEscolhido ? T.noPix : T.noCartao}
+                </span>
+                <span className="numeros font-semibold">{brl(noCartaoEscolhido ? totalPix : orc.totalCentavos)}</span>
+              </p>
             </div>
           </div>
 
@@ -913,7 +928,12 @@ export function FormularioCheckout({
             )}
             {pagamentoOnline ? (
               <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando}>
-                {enviando ? T.processando : (metodo === 'pix' ? T.pagarPix : T.pagarCartao).replace('{valor}', brl(orc.totalCentavos))}
+                {enviando
+                  ? T.processando
+                  : (metodo === 'pix' ? T.pagarPix : T.pagarCartao).replace(
+                      '{valor}',
+                      brl(metodo === 'pix' ? totalPix : orc.totalCentavos),
+                    )}
               </button>
             ) : (
               <button type="submit" className="botao botao-whats w-full" disabled={enviando} aria-busy={enviando}>

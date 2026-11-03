@@ -49,7 +49,6 @@ async function reservaDeTeste(idioma) {
       criancasGratis: 0,
       unidades: 2,
       totalCentavos: 15400,
-      custoParceiroCentavos: 0,
       cliente: { nome: e.nome, email: 'exemplo@example.com', telefone: '', documentoTipo: 'passaporte', documento: '' },
       hospedagem: { cidade: 'buzios', hotel: e.hotel },
       pagamento: { metodo: 'pix', pagoEm: agora },

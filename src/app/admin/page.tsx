@@ -204,7 +204,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   );
   const pagas = todas.filter((r) => r.status === 'pago');
   const receita = pagas.reduce((s, r) => s + r.totalCentavos, 0);
-  const custo = pagas.reduce((s, r) => s + (r.custoParceiroCentavos ?? 0), 0);
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -227,7 +226,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
         </form>
       </header>
 
-      <section className="mt-6 grid gap-3 sm:grid-cols-3" aria-label="Resumo">
+      <section className="mt-6 grid gap-3 sm:grid-cols-2" aria-label="Resumo">
         <div className="bg-white px-5 py-4">
           <p className="text-small text-tinta-suave">Reservas pagas</p>
           <p className="text-2xl font-bold">{pagas.length}</p>
@@ -235,10 +234,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
         <div className="bg-white px-5 py-4">
           <p className="text-small text-tinta-suave">Vendido (pagas)</p>
           <p className="text-2xl font-bold">{formatarPreco(receita)}</p>
-        </div>
-        <div className="bg-white px-5 py-4">
-          <p className="text-small text-tinta-suave">Margem (vendido − parceiro)</p>
-          <p className="text-2xl font-bold">{formatarPreco(receita - custo)}</p>
         </div>
       </section>
 
@@ -308,7 +303,6 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
               </div>
               <div className="lg:col-span-2 lg:text-right">
                 <p className="text-xl font-bold">{formatarPreco(r.totalCentavos)}</p>
-                <p className="text-small text-tinta-suave">Parceiro: {formatarPreco(r.custoParceiroCentavos ?? 0)}</p>
                 <p className="text-small text-tinta-suave">
                   {r.pagamento.metodo === 'pix'
                     ? 'Pix'

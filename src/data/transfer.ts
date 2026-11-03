@@ -2,17 +2,23 @@
  * ARQUIVO DE DADOS DO TRANSFER PRIVADO (carro ou van, com motorista particular)
  *
  * Como editar:
- * - PREÇOS: em TRAJETOS, por trecho (só ida), por veículo, não por pessoa. São o valor final ao cliente
- *   (o transfer não leva a margem dos passeios). Ida e volta = a soma dos dois trechos. Um preço `null`
- *   deixa aquele veículo "sob cotação" no trajeto.
+ * - PREÇOS: em TRAJETOS, por trecho (só ida), por veículo, não por pessoa. São o preço de venda no
+ *   cartão; o ajuste geral de preços e o desconto do Pix ficam em src/config/precos.ts. Ida e volta =
+ *   a soma dos dois trechos. Um preço `null` deixa aquele veículo "sob cotação" no trajeto.
  * - Qualquer trajeto que não esteja em TRAJETOS (por exemplo, dentro da mesma cidade) é "sob cotação".
  * - LUGARES: a lista de saída e de destino. Os aeroportos já vêm com o ponto de encontro (o desembarque);
  *   as cidades pedem o hotel, a pousada ou o endereço.
  * - MALAS: os limites de cada veículo estão em cabeNoCarro e cabeNaVan.
  */
 
+// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+import { precoComAjuste } from '../lib/orcamento.ts';
+
 export type Idioma = 'pt' | 'en' | 'es';
 type Texto = Record<Idioma, string>;
+
+/** O preço de TRAJETOS com o ajuste geral de preços, em reais. */
+const comAjuste = (reais: number) => precoComAjuste(reais) / 100;
 
 /** A região do preço: o Rio (cidade e os dois aeroportos), o aeroporto de Cabo Frio e cada cidade. */
 export type Zona = 'rio' | 'aeroporto-cabo-frio' | 'buzios' | 'cabo-frio' | 'arraial-do-cabo' | 'outra';
@@ -128,7 +134,10 @@ export function precoTrecho(saida: IdLugar, destino: IdLugar, veiculo: Veiculo):
   const a = LUGARES[saida].zona;
   const b = LUGARES[destino].zona;
   for (const t of TRAJETOS) {
-    if ((t.de === a && t.para.includes(b)) || (t.de === b && t.para.includes(a))) return t.preco[veiculo];
+    if ((t.de === a && t.para.includes(b)) || (t.de === b && t.para.includes(a))) {
+      const p = t.preco[veiculo];
+      return p === null ? null : comAjuste(p);
+    }
   }
   return null;
 }
@@ -138,7 +147,7 @@ export function menorPrecoDaZona(zona: Zona): number | null {
   const precos = TRAJETOS.filter((t) => t.de === zona || t.para.includes(zona)).flatMap((t) =>
     Object.values(t.preco).filter((p): p is number => p !== null),
   );
-  return precos.length ? Math.min(...precos) : null;
+  return precos.length ? comAjuste(Math.min(...precos)) : null;
 }
 
 export interface Malas {

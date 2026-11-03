@@ -1,55 +1,62 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aplicarMargem, calcular, faixasIdade, normalizarPessoas, type TabelaPreco } from '../src/lib/orcamento.ts';
+import { calcular, faixasIdade, normalizarPessoas, precoComAjuste, precoPixCentavos, type TabelaPreco } from '../src/lib/orcamento.ts';
+import { AJUSTE_PRECOS_PORCENTO, DESCONTO_PIX_PORCENTO } from '../src/config/precos.ts';
 import { textoPessoas } from '../src/lib/pessoas.ts';
-import { CATEGORIAS, CIDADES, CRIANCAS_PADRAO, MARGEM_PERCENTUAL, PASSEIOS } from '../src/data/passeios.ts';
+import { CATEGORIAS, CIDADES, CRIANCAS_PADRAO, PASSEIOS } from '../src/data/passeios.ts';
 
-test('margem padrão é 10%', () => {
-  assert.equal(MARGEM_PERCENTUAL, 10);
+test('os preços mudam num lugar só: ajuste geral em 0% e desconto do Pix de 10%', () => {
+  assert.equal(AJUSTE_PRECOS_PORCENTO, 0);
+  assert.equal(DESCONTO_PIX_PORCENTO, 10);
 });
 
-test('preço de venda = parceiro + 10% (exemplos do cliente)', () => {
-  assert.equal(aplicarMargem(100, 10), 11000);
-  assert.equal(aplicarMargem(265, 10), 29150);
-  assert.equal(aplicarMargem(70, 10), 7700);
+test('ajuste geral de preços e preço no Pix', () => {
+  assert.equal(precoComAjuste(77, 0), 7700);
+  assert.equal(precoComAjuste(291.5, 0), 29150);
+  // "baixar 10% em tudo"
+  assert.equal(precoComAjuste(77, -10), 6930);
+  assert.equal(precoComAjuste(800, -10), 72000);
+  assert.equal(precoPixCentavos(7700, 10), 6930);
+  assert.equal(precoPixCentavos(15400, 10), 13860);
+  assert.equal(precoPixCentavos(29150, 10), 26235);
 });
 
-test('os 21 passeios da lista do parceiro mantêm o preço da lista', () => {
+test('os 19 passeios da lista do parceiro mantêm o preço de venda de antes', () => {
   const esperado: Record<string, number> = {
-    'full-day-buzios': 240,
-    'city-tour-buzios': 190,
-    'catamara-buzios': 110,
-    'escuna-buzios': 70,
-    'trolley-buzios': 100,
-    'buggy-buzios': 100,
-    'quadriciclo-buzios': 280,
-    'helicoptero-buzios': 450,
-    'full-day-arraial-do-cabo': 265,
-    'city-tour-arraial-do-cabo': 240,
-    'barco-arraial-do-cabo': 90,
-    'mergulho-arraial-do-cabo': 250,
-    'buggy-arraial-do-cabo': 150,
-    'quadriciclo-arraial-do-cabo': 250,
-    'city-tour-cabo-frio': 230,
-    'catamara-cabo-frio': 100,
-    'buggy-cabo-frio': 150,
-    'quadriciclo-cabo-frio': 270,
-    'city-tour-rio-de-janeiro': 380,
+    'full-day-buzios': 264,
+    'city-tour-buzios': 209,
+    'catamara-buzios': 121,
+    'escuna-buzios': 77,
+    'trolley-buzios': 110,
+    'buggy-buzios': 110,
+    'quadriciclo-buzios': 308,
+    'helicoptero-buzios': 495,
+    'full-day-arraial-do-cabo': 291.5,
+    'city-tour-arraial-do-cabo': 264,
+    'barco-arraial-do-cabo': 99,
+    'mergulho-arraial-do-cabo': 275,
+    'buggy-arraial-do-cabo': 165,
+    'quadriciclo-arraial-do-cabo': 275,
+    'city-tour-cabo-frio': 253,
+    'catamara-cabo-frio': 110,
+    'buggy-cabo-frio': 165,
+    'quadriciclo-cabo-frio': 297,
+    'city-tour-rio-de-janeiro': 418,
   };
   for (const [slug, preco] of Object.entries(esperado)) {
     const p = PASSEIOS.find((x) => x.slug === slug);
     assert.ok(p, slug);
-    assert.equal(p.precoParceiro, preco, slug);
+    assert.equal(p.preco, preco, slug);
     assert.equal(p.origemPreco, 'parceiro', slug);
   }
-  // lancha (R$ 400) e jet ski (R$ 700) da lista viraram opções por tempo
+  // a lancha e o jet ski da lista viraram opções por tempo
   const lancha = PASSEIOS.find((x) => x.slug === 'lancha-buzios')!;
   assert.deepEqual(
-    lancha.opcoes?.map((o) => o.precoParceiro),
-    [800, 1600],
+    lancha.opcoes?.map((o) => o.preco),
+    [880, 1760],
   );
   const jet = PASSEIOS.find((x) => x.slug === 'jet-ski-buzios')!;
-  assert.ok(jet.opcoes?.some((o) => o.precoParceiro === 700));
+  assert.ok(jet.opcoes?.some((o) => o.preco === 770));
 });
 
 test('catálogo com 26 passeios, incluindo lanchas em Arraial e Cabo Frio', () => {
@@ -71,7 +78,7 @@ test('dados completos nos três idiomas', () => {
     if (p.unidade !== 'pessoa') assert.ok((p.capacidadePorUnidade ?? 0) > 0, `${p.slug} sem capacidade`);
     if (p.opcoes) {
       assert.ok(p.opcoes.length >= 2, `${p.slug}: opções`);
-      assert.equal(p.precoParceiro, Math.min(...p.opcoes.map((o) => o.precoParceiro)), `${p.slug}: preço = opção mais barata`);
+      assert.equal(p.preco, Math.min(...p.opcoes.map((o) => o.preco)), `${p.slug}: preço = opção mais barata`);
     }
     for (const l of ['pt', 'en', 'es'] as const) {
       for (const campo of ['nome', 'resumo', 'descricao', 'duracao'] as const) assert.ok(p[campo][l]?.trim(), `${p.slug}.${campo}.${l}`);

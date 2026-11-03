@@ -6,7 +6,15 @@ import { formatarCifra } from '@/lib/cifra';
 
 /** Os textos do cartão de reserva do transfer. */
 export function textosWidgetTransfer(d: Dicionario) {
-  return { ...d.transfer, escolhaData: d.passeio.escolhaData, diminuir: d.comum.diminuir, aumentar: d.comum.aumentar };
+  return {
+    ...d.transfer,
+    escolhaData: d.passeio.escolhaData,
+    diminuir: d.comum.diminuir,
+    aumentar: d.comum.aumentar,
+    noPix: d.preco.noPix,
+    noCartao: d.preco.noCartao,
+    dolar: d.preco.dolar,
+  };
 }
 
 const VEICULOS_EM_ORDEM: Veiculo[] = ['carro', 'van'];

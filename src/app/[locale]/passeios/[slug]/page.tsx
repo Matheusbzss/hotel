@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CardPasseio } from '@/components/CardPasseio';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
-import { PrecoGrupo } from '@/components/grupo/PrecoGrupo';
 import { ListaMarcada } from '@/components/ListaMarcada';
 import { Confianca } from '@/components/passeio/Confianca';
 import { TopoPasseio } from '@/components/passeio/TopoPasseio';
@@ -13,7 +12,9 @@ import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { itemBoletim } from '@/lib/boletim';
 import { formatarCifra } from '@/lib/cifra';
+import { cotacaoDolar } from '@/lib/dolar';
 import { textoHorarios } from '@/lib/horarios';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { contadoresPessoas, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { formatarPreco, opcoesPasseio, precoAPartirCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { alternates, urlDoSite } from '@/lib/site';
@@ -61,6 +62,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const unidadePlural = p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes;
   const regras = regrasCriancas(p, d);
   const horarios = horariosDoPasseio(p);
+  // o aproximado em dólar só nas páginas em espanhol e inglês
+  const dolar = locale === 'pt' ? null : await cotacaoDolar();
   const rotuloHorario = horarios.busca ? d.horario.busca : horarios.horas.length === 1 ? d.horario.saida : d.horario.saidas;
 
   const jsonLd = {
@@ -83,17 +86,14 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
 
   return (
     <main id="conteudo" className="tom-fundo">
-      {/* barra de vidro no celular com o preço por pessoa, o total do grupo e o atalho para a reserva */}
+      {/* barra de vidro no celular com os dois preços (Pix em destaque) e o atalho para a reserva */}
       <BarraReservaMovel
-        preco={formatarCifra(aPartir, intl)}
-        unidade={item.temOpcoes ? `${item.paraQuem} · ${d.boletim.desde}` : item.paraQuem}
+        preco={formatarCifra(precoPixCentavos(aPartir), intl)}
+        unidade={item.temOpcoes ? `${d.preco.noPix} · ${d.boletim.desde}` : d.preco.noPix}
         detalhe={
-          <PrecoGrupo
-            tabela={item.tabela}
-            locale={intl}
-            textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos }}
-            className="truncate text-caption text-white/80"
-          />
+          <p className="truncate text-caption text-white/80">
+            {formatarCifra(aPartir, intl)} {d.preco.noCartao} · {item.paraQuem}
+          </p>
         }
         textos={{ reservar: d.passeio.reservar }}
       />
@@ -203,6 +203,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 locale={intl}
                 checkoutHref={rota(locale, `/checkout/${p.slug}`)}
                 garantias={<Confianca d={d} />}
+                dolar={dolar}
                 textos={{
                   titulo: d.passeio.reservarTitulo,
                   data: d.passeio.data,
@@ -221,6 +222,9 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   aumentar: d.comum.aumentar,
                   revisao: d.passeio.revisao,
                   semHorarioHoje: d.checkout.erros.semHorarioHoje,
+                  noPix: d.preco.noPix,
+                  noCartao: d.preco.noCartao,
+                  dolar: d.preco.dolar,
                 }}
               />
             </div>

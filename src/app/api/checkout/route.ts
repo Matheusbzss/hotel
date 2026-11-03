@@ -4,8 +4,8 @@ import { horariosDoPasseio, obterPasseio } from '@/data/passeios';
 import { IDIOMAS } from '@/i18n/config';
 import { horasDisponiveis } from '@/lib/horarios';
 import { criarPedido, ErroPagarme, interpretarPedido, pagarmeConfigurado } from '@/lib/pagarme';
-import { calcular, normalizarPessoas } from '@/lib/orcamento';
-import { custoParceiroCentavos, obterOpcao, regraCriancas, tabelaPreco, temOpcoes } from '@/lib/precos';
+import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos } from '@/lib/orcamento';
+import { obterOpcao, regraCriancas, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { atualizarReserva, criarReserva, registrar } from '@/lib/reservas';
 import {
   CIDADES_HOSPEDAGEM,
@@ -105,6 +105,8 @@ export async function POST(req: Request) {
 
   const online = pagarmeConfigurado() && e.pagamento.metodo !== 'whatsapp';
   const metodo = online ? e.pagamento.metodo : 'whatsapp';
+  // no Pix, cada preço da conta já com o desconto (src/config/precos.ts)
+  const totalPix = totalPixCentavos(orc);
 
   let reserva;
   try {
@@ -125,8 +127,8 @@ export async function POST(req: Request) {
       criancasMeia: pessoas.criancasMeia,
       criancasGratis: pessoas.criancasGratis,
       unidades: orc.unidades,
-      totalCentavos: orc.totalCentavos,
-      custoParceiroCentavos: custoParceiroCentavos(passeio, opcao, pessoas),
+      totalCentavos: metodo === 'pix' ? totalPix : orc.totalCentavos,
+      ...(metodo === 'whatsapp' ? { totalPixCentavos: totalPix } : {}),
       cliente: {
         nome: e.cliente.nome,
         email: e.cliente.email.toLowerCase(),
@@ -162,7 +164,7 @@ export async function POST(req: Request) {
             ? `${nomePasseio} (por ${unidade})`
             : `${nomePasseio} (${rotuloInteira})`,
       quantidade: l.quantidade,
-      unitarioCentavos: l.unitarioCentavos,
+      unitarioCentavos: metodo === 'pix' ? precoPixCentavos(l.unitarioCentavos) : l.unitarioCentavos,
       codigo: `${passeio.slug}${temOpcoes(passeio) ? `-${opcao.id}` : ''}-${l.tipo}`,
     }));
 

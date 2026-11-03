@@ -3,9 +3,10 @@ import { LOCALE_INTL, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { itemBoletim } from '@/lib/boletim';
 import { formatarCifra } from '@/lib/cifra';
-import { PrecoGrupo } from './grupo/PrecoGrupo';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { CartaoInclinavel } from './Inclinar';
 import { MidiaPasseio } from './MidiaPasseio';
+import { PrecoDuplo } from './PrecoDuplo';
 
 /** Classes inteiras da cor de duração (o Tailwind só gera o que encontra escrito por extenso). */
 const PONTO: Record<string, string> = {
@@ -39,7 +40,8 @@ export function CardPasseio({
   const item = itemBoletim(p, idioma, d);
   const locale = LOCALE_INTL[idioma];
   const preco = formatarCifra(item.tabela.precoCentavos, locale);
-  const rotulo = `${item.nome}, ${item.horas}, ${item.temOpcoes ? `${d.boletim.desde} ` : ''}${preco} ${item.paraQuem}`;
+  const pix = formatarCifra(precoPixCentavos(item.tabela.precoCentavos), locale);
+  const rotulo = `${item.nome}, ${item.horas}, ${item.temOpcoes ? `${d.boletim.desde} ` : ''}${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao} ${item.paraQuem}`;
   return (
     <CartaoInclinavel href={item.href} rotulo={rotulo}>
       <div className="cartao-foto">
@@ -56,16 +58,14 @@ export function CardPasseio({
       </div>
       <div className="cartao-texto" aria-hidden="true">
         <h3 className="cartao-titulo">{item.nome}</h3>
-        <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
-          {item.temOpcoes && <span className="text-small text-(--color-tinta-suave)">{d.boletim.desde}</span>}
-          <strong className="cifra text-figure">{preco}</strong>
-          <span className="text-small text-(--color-tinta-suave)">{item.paraQuem}</span>
-        </p>
-        <PrecoGrupo
+        <PrecoDuplo
           tabela={item.tabela}
-          locale={locale}
-          textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos }}
-          className="mt-1 text-caption text-(--color-tinta-suave)"
+          idioma={idioma}
+          d={d}
+          desde={item.temOpcoes}
+          paraQuem={item.paraQuem}
+          tamanho="cartao"
+          className="mt-2"
         />
       </div>
     </CartaoInclinavel>

@@ -73,6 +73,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           transferMsgVoucher: d.transfer.msgVoucherTransfer,
           transferEspera: d.transfer.como[0],
           transferConfirmado: d.transfer.confirmadoTexto,
+          noPix: d.preco.noPix,
+          noCartao: d.preco.noCartao,
         }}
       />
     </main>

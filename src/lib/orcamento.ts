@@ -1,8 +1,24 @@
-/** Cálculo do total de uma reserva (sem dependências: roda no navegador e no servidor). */
+/** Cálculo do total de uma reserva (só depende dos números de src/config/precos.ts: roda no navegador e no servidor). */
 
-/** Preço do parceiro (em reais) + margem (%) → preço de venda em centavos. Ex.: 265 com 10% → 29150. */
-export function aplicarMargem(precoParceiro: number, margem: number): number {
-  return Math.round((Math.round(precoParceiro * 100) * (100 + margem)) / 100);
+// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+import { AJUSTE_PRECOS_PORCENTO, DESCONTO_PIX_PORCENTO } from '../config/precos.ts';
+
+/** Preço de venda (em reais) com o ajuste geral de preços → centavos. Ex.: 77 com ajuste 0 → 7700; com -10 → 6930. */
+export function precoComAjuste(precoReais: number, ajuste: number = AJUSTE_PRECOS_PORCENTO): number {
+  return Math.round((Math.round(precoReais * 100) * (100 + ajuste)) / 100);
+}
+
+/** O preço no Pix: o do cartão menos o desconto do Pix, em centavos. Ex.: 7700 com 10% → 6930. */
+export function precoPixCentavos(centavosCartao: number, desconto: number = DESCONTO_PIX_PORCENTO): number {
+  return Math.round((centavosCartao * (100 - desconto)) / 100);
+}
+
+/** O total no Pix: cada preço da conta com o desconto (assim o total bate com o preço por pessoa no Pix). */
+export function totalPixCentavos(
+  o: { linhas: { quantidade: number; unitarioCentavos: number }[] },
+  desconto: number = DESCONTO_PIX_PORCENTO,
+): number {
+  return o.linhas.reduce((s, l) => s + l.quantidade * precoPixCentavos(l.unitarioCentavos, desconto), 0);
 }
 
 export interface RegraCriancas {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { IDS_LUGARES, LUGARES, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
 import { IDIOMAS } from '@/i18n/config';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { criarReserva, type TrechoTransfer } from '@/lib/reservas';
 import { emailValido, hojeEmBuzios, soDigitos, somarDias, telefoneValido } from '@/lib/validacao';
 
@@ -88,9 +89,9 @@ export async function POST(req: Request) {
     data: t.data,
     hora: t.hora,
     ...(t.voo ? { voo: t.voo.toUpperCase() } : {}),
-    precoCentavos: preco * 100,
+    precoCentavos: Math.round(preco * 100),
   });
-  const centavos = (precos as number[]).map((p) => p * 100);
+  const centavos = (precos as number[]).map((p) => Math.round(p * 100));
 
   try {
     const reserva = await criarReserva({
@@ -99,8 +100,8 @@ export async function POST(req: Request) {
       status: 'aguardando_whatsapp',
       data: e.ida.data,
       totalCentavos: centavos.reduce((s, c) => s + c, 0),
-      // o transfer não tem preço de parceiro cadastrado
-      custoParceiroCentavos: 0,
+      // no Pix, cada trecho com o desconto (src/config/precos.ts)
+      totalPixCentavos: centavos.reduce((s, c) => s + precoPixCentavos(c), 0),
       cliente: {
         nome: e.cliente.nome,
         email: e.cliente.email.toLowerCase(),

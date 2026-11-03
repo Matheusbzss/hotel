@@ -64,6 +64,8 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
               unidadeSingular: p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao,
               unidadePlural: p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes,
               rotulos: d.comum.rotulos,
+              noPix: d.preco.noPix,
+              noCartao: d.preco.noCartao,
             }}
           />
         </div>

@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatarCifra } from '@/lib/cifra';
 import { primeiroDiaComHorario } from '@/lib/horarios';
-import { calcular, normalizarPessoas, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
+import { textoDolar } from '@/lib/dolar';
+import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
@@ -37,11 +38,15 @@ export interface TextosWidget {
   aumentar: string;
   revisao: string;
   semHorarioHoje: string;
+  noPix: string;
+  noCartao: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
 }
 
 /**
- * Cartão de reserva: opção, data e pessoas, com o total na hora e, embaixo do botão, as garantias.
- * Abre com o grupo escolhido no site.
+ * Cartão de reserva: opção, data e pessoas, com o total na hora (no Pix em destaque e no cartão) e,
+ * embaixo do botão, as garantias. Abre com o grupo escolhido no site.
  */
 export function WidgetReserva({
   slug,
@@ -54,6 +59,7 @@ export function WidgetReserva({
   locale,
   checkoutHref,
   garantias,
+  dolar = null,
   textos: T,
 }: {
   slug: string;
@@ -68,6 +74,8 @@ export function WidgetReserva({
   checkoutHref: string;
   /** As garantias (cancelamento, chuva, voucher, pagamento) logo abaixo do botão. */
   garantias?: ReactNode;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
   textos: TextosWidget;
 }) {
   const router = useRouter();
@@ -105,7 +113,10 @@ export function WidgetReserva({
   }, [slug, nome, opcoes]);
 
   const orc = useMemo(() => calcular(opcao.tabela, pessoas), [opcao, pessoas]);
+  const totalPix = totalPixCentavos(orc);
   const brl = (c: number) => formatarCifra(c, locale);
+  const menorPreco = Math.min(...opcoes.map((o) => o.tabela.precoCentavos));
+  const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
   const totalPessoas = pessoas.adultos + pessoas.criancasMeia + pessoas.criancasGratis;
   // a data do grupo é hoje, mas os horários de hoje já passaram
   const semHorarioHoje = Boolean(primeiroDia) && grupo.data === hoje && hoje < primeiroDia;
@@ -133,8 +144,13 @@ export function WidgetReserva({
         <h2 className="text-lead font-semibold">{T.titulo}</h2>
         <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
           {mostrarOpcoes && <span className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</span>}
-          <strong className="cifra text-figure">{brl(Math.min(...opcoes.map((o) => o.tabela.precoCentavos)))}</strong>
+          <strong className="cifra text-figure">{brl(precoPixCentavos(menorPreco))}</strong>
+          <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
           <span className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</span>
+        </p>
+        <p className="text-small text-(--color-tinta-suave)">
+          <span className="numeros font-semibold text-(--color-tinta)">{brl(menorPreco)}</span> {T.noCartao}
+          {usd(menorPreco) && ` · ${usd(menorPreco)}`}
         </p>
 
         {mostrarOpcoes && (
@@ -151,7 +167,9 @@ export function WidgetReserva({
                   className="filtro flex-col items-start !gap-0 py-2.5 text-left"
                 >
                   <span>{o.nome}</span>
-                  <span className="numeros text-small font-normal">{brl(o.tabela.precoCentavos)}</span>
+                  <span className="numeros text-small font-normal">
+                    {brl(precoPixCentavos(o.tabela.precoCentavos))} {T.noPix}
+                  </span>
                 </button>
               ))}
             </div>
@@ -198,14 +216,25 @@ export function WidgetReserva({
         </div>
         {regras.length > 0 && <p className="mt-4 text-small text-(--color-tinta-suave)">{regras.join(' ')}</p>}
 
-        <div className="mt-5 flex items-baseline justify-between gap-4 border-t border-(--color-borda) pt-4">
-          <span className="font-semibold">{T.total}</span>
-          {/* o número rola na tela; o leitor de tela ouve só o valor final */}
-          <span aria-hidden="true">
-            <Cifra centavos={orc.totalCentavos} locale={locale} className="cifra text-figure-lg" />
-          </span>
+        <div className="mt-5 border-t border-(--color-borda) pt-4">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-semibold">
+              {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+            </span>
+            {/* os números rolam na tela; o leitor de tela ouve só os valores finais */}
+            <span aria-hidden="true">
+              <Cifra centavos={totalPix} locale={locale} className="cifra text-figure-lg" />
+            </span>
+          </div>
+          <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
+            <span>
+              {T.total} {T.noCartao}
+              {usd(orc.totalCentavos) && ` · ${usd(orc.totalCentavos)}`}
+            </span>
+            <Cifra centavos={orc.totalCentavos} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
+          </p>
           <span className="sr-only" aria-live="polite">
-            {brl(orc.totalCentavos)}
+            {`${T.total} ${T.noPix}: ${brl(totalPix)}. ${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}.`}
           </span>
         </div>
         {opcao.tabela.unidade !== 'pessoa' && (

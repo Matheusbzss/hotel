@@ -99,6 +99,15 @@ const pt = {
     alterar: 'Alterar',
     semData: 'data a escolher',
   },
+  // os dois preços: no Pix (com desconto) e no cartão; o dólar só em espanhol e inglês
+  preco: {
+    noPix: 'no Pix',
+    noCartao: 'no cartão',
+    pix: 'Pix',
+    cartao: 'Cartão',
+    descontoPix: '{p}% de desconto no Pix',
+    dolar: '≈ US$ {v}',
+  },
   boletim: {
     titulo: 'Passeios e o total do seu grupo',
     filtroCidades: 'Filtrar por cidade',

@@ -29,6 +29,8 @@ export interface ReservaPublica {
   opcaoNome?: string;
   unidades: number;
   totalCentavos: number;
+  /** O total no Pix, enquanto a reserva espera o pagamento pelo WhatsApp. */
+  totalPixCentavos?: number;
   nome: string;
   hotel: string;
   cidadeHospedagem: string;
@@ -51,6 +53,7 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const d = dicionario(idioma);
   const pagamento = {
     totalCentavos: r.totalCentavos,
+    totalPixCentavos: r.status === 'aguardando_whatsapp' ? r.totalPixCentavos : undefined,
     nome: r.cliente.nome,
     metodo: r.pagamento.metodo,
     pixCopiaECola: r.status === 'pendente' ? r.pagamento.pixCopiaECola : undefined,

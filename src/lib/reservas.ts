@@ -1,16 +1,21 @@
-import { randomBytes, randomInt } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BlobPreconditionFailedError, del, get, head, list, put } from '@vercel/blob';
 import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
 import type { Idioma } from '@/i18n/config';
+import { supabase, supabaseConfigurado } from './banco';
+import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
+import { deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
 
 /**
  * Banco de reservas.
- * - Na Vercel: Vercel Blob em modo PRIVADO (variável BLOB_READ_WRITE_TOKEN, criada ao conectar o
- *   Blob Store ao projeto). Cada reserva é um JSON em reservas/<VOUCHER>.json.
- * - No computador (npm run dev): arquivos em .data/reservas/.
+ * - Na Vercel: o banco de dados (Supabase, src/lib/banco.ts). Cada reserva é um pedido com um item (o
+ *   voucher) e o histórico. As reservas de antes continuam no Vercel Blob (reservas/<VOUCHER>.json), como
+ *   cópia de segurança: uma reserva que ainda não estiver no banco é lida de lá e, se alguém mexer nela,
+ *   vem para o banco antes. Nada é apagado do Blob.
+ * - No computador (npm run dev): arquivos em .data/reservas/. Com RESERVAS_NO_BANCO=1 no comando, usa o
+ *   banco de verdade (para testar), e os arquivos fazem o papel do Blob.
  */
 
 export type StatusReserva = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'expirado' | 'aguardando_whatsapp' | 'reembolsado';
@@ -110,23 +115,7 @@ export type Reserva = ReservaPasseio | ReservaTransfer;
 
 export const ehTransfer = (r: Reserva): r is ReservaTransfer => r.tipo === 'transfer';
 
-const ALFABETO = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-
-/** Gera um código no formato ON-7K3P9Q (sem 0/O/1/I para não confundir). */
-export function gerarCodigo(): string {
-  let s = '';
-  for (let i = 0; i < 6; i++) s += ALFABETO[randomInt(ALFABETO.length)];
-  return `ON-${s}`;
-}
-
-export function gerarToken(): string {
-  return randomBytes(18).toString('base64url');
-}
-
-/** Aceita também o prefixo VH- das reservas feitas antes da troca de marca. */
-export function codigoValido(codigo: string): boolean {
-  return /^(ON|VH)-[2-9A-HJ-NP-Z]{6}$/.test(codigo);
-}
+export { codigoValido, gerarCodigo, gerarToken };
 
 /* ------------------------------------------------------------------ */
 
@@ -237,14 +226,90 @@ const arquivoLocal: Armazenamento = {
   },
 };
 
-export function bancoConfigurado(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN) || !process.env.VERCEL;
+/** O pedido com o item e o histórico, numa consulta só. */
+type PedidoCompleto = LinhaPedido & { itens_pedido: LinhaItem[]; pedidos_historico: EventoHistorico[] };
+const PEDIDO_COMPLETO = '*, itens_pedido(*), pedidos_historico(em, evento)';
+
+function daLinha(p: PedidoCompleto): Reserva {
+  // hoje cada pedido tem um item só, com o mesmo código do pedido (o carrinho da Etapa 3 muda isso)
+  const item = p.itens_pedido.find((i) => i.voucher_codigo === p.codigo) ?? p.itens_pedido[0];
+  return deLinhas(p, item, p.pedidos_historico);
 }
 
-function banco(): Armazenamento {
+const erroDoBanco = (e: { message: string }) => new Error(`Banco de dados: ${e.message}`);
+
+const bancoDeDados: Armazenamento = {
+  async ler(codigo) {
+    const { data, error } = await supabase().from('pedidos').select(PEDIDO_COMPLETO).eq('codigo', codigo).maybeSingle();
+    if (error) throw erroDoBanco(error);
+    if (!data) return null;
+    const p = data as unknown as PedidoCompleto;
+    // a versão é o "atualizado_em" exato do banco: a função atualizar_reserva só grava se ele não mudou
+    return { reserva: daLinha(p), versao: p.atualizado_em };
+  },
+  async criar(reserva) {
+    const l = paraLinhas(reserva);
+    const { data, error } = await supabase().rpc('criar_reserva', { p_pedido: l.pedido, p_item: l.item, p_historico: l.historico });
+    if (error) throw erroDoBanco(error);
+    return data === true;
+  },
+  async gravar(reserva, versao) {
+    const l = paraLinhas(reserva);
+    const { data, error } = await supabase().rpc('atualizar_reserva', {
+      // sem versão, grava por cima
+      p_versao: versao ?? (null as unknown as string),
+      p_pedido: l.pedido,
+      p_item: l.item,
+      p_historico: l.historico,
+    });
+    if (error) throw erroDoBanco(error);
+    return data === true;
+  },
+  async listar() {
+    const reservas: Reserva[] = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await supabase()
+        .from('pedidos')
+        .select(PEDIDO_COMPLETO)
+        .order('criado_em', { ascending: false })
+        .range(de, de + 999);
+      if (error) throw erroDoBanco(error);
+      const pagina = data as unknown as PedidoCompleto[];
+      reservas.push(...pagina.map(daLinha));
+      if (pagina.length < 1000) return reservas;
+    }
+  },
+};
+
+/** No banco de dados: sempre na Vercel (com o Supabase configurado); no computador, só com RESERVAS_NO_BANCO=1. */
+function noBanco(): boolean {
+  return supabaseConfigurado() && (Boolean(process.env.VERCEL) || process.env.RESERVAS_NO_BANCO === '1');
+}
+
+/** Onde as reservas novas são gravadas e procuradas primeiro. */
+function principal(): Armazenamento {
+  if (noBanco()) return bancoDeDados;
   if (process.env.BLOB_READ_WRITE_TOKEN) return blob;
   if (!process.env.VERCEL) return arquivoLocal;
-  throw new Error('Banco de reservas não configurado: conecte um Blob Store (privado) ao projeto na Vercel.');
+  throw new Error('Banco de reservas não configurado: faltam SUPABASE_URL e SUPABASE_SECRET_KEY na Vercel.');
+}
+
+/** Onde as reservas moravam antes do banco (o Blob; no computador, os arquivos): só para as que ainda não vieram. */
+function anterior(): Armazenamento | null {
+  if (!noBanco()) return null;
+  if (process.env.BLOB_READ_WRITE_TOKEN) return blob;
+  return process.env.VERCEL ? null : arquivoLocal;
+}
+
+export function bancoConfigurado(): boolean {
+  return noBanco() || Boolean(process.env.BLOB_READ_WRITE_TOKEN) || !process.env.VERCEL;
+}
+
+/** Para o painel: onde as reservas estão sendo gravadas agora. */
+export function ondeFicamAsReservas(): string {
+  if (noBanco()) return 'banco de dados (Supabase)';
+  if (process.env.BLOB_READ_WRITE_TOKEN) return 'Vercel Blob';
+  return process.env.VERCEL ? 'NÃO configurado' : 'arquivos no computador';
 }
 
 /* ------------------------------------------------------------------ */
@@ -265,32 +330,41 @@ export async function criarReserva<T extends NovaReserva>(dados: T): Promise<T &
       historico: [{ em: agora, evento: 'Reserva criada' }],
     };
     // A gravação falha se o código já existir: assim nenhum voucher se repete.
-    if (await banco().criar(reserva)) return reserva;
+    if (await principal().criar(reserva)) return reserva;
   }
   throw new Error('Não foi possível gerar um código de reserva único.');
 }
 
 export async function obterReserva(codigo: string): Promise<Reserva | null> {
   if (!codigoValido(codigo)) return null;
-  const r = await banco().ler(codigo);
-  return r?.reserva ?? null;
+  const r = await principal().ler(codigo);
+  if (r) return r.reserva;
+  // ainda não veio para o banco: o link antigo continua abrindo pelo Blob
+  return (await anterior()?.ler(codigo))?.reserva ?? null;
 }
 
 /** Atualiza com controle de concorrência (webhook e consulta de status podem chegar juntos). */
 export async function atualizarReserva(codigo: string, alterar: (r: Reserva) => Reserva | null): Promise<Reserva | null> {
   for (let tentativa = 0; tentativa < 5; tentativa++) {
-    const atual = await banco().ler(codigo);
-    if (!atual) return null;
+    let atual = await principal().ler(codigo);
+    if (!atual) {
+      // ainda só no Blob: vem para o banco antes de mudar (no Blob ela fica como estava)
+      const antes = await anterior()?.ler(codigo);
+      if (!antes) return null;
+      await principal().criar(antes.reserva);
+      atual = await principal().ler(codigo);
+      if (!atual) return null;
+    }
     const nova = alterar(structuredClone(atual.reserva));
     if (!nova) return atual.reserva;
     nova.atualizadaEm = new Date().toISOString();
-    if (await banco().gravar(nova, atual.versao)) return nova;
+    if (await principal().gravar(nova, atual.versao)) return nova;
   }
   throw new Error(`Conflito ao atualizar a reserva ${codigo}.`);
 }
 
 export async function listarReservas(): Promise<Reserva[]> {
-  const todas = await banco().listar();
+  const todas = await principal().listar();
   return todas.sort((a, b) => b.criadaEm.localeCompare(a.criadaEm));
 }
 

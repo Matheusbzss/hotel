@@ -9,7 +9,7 @@ import {
   telefoneValido,
   validadeCartaoValida,
 } from '../src/lib/validacao.ts';
-import { codigoValido, gerarCodigo } from '../src/lib/reservas.ts';
+import { codigoValido, gerarCodigo } from '../src/lib/codigo-reserva.ts';
 
 test('CPF', () => {
   assert.equal(cpfValido('529.982.247-25'), true);

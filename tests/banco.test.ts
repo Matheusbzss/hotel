@@ -16,10 +16,21 @@ function arquivos(pasta: string): string[] {
 const FONTES = arquivos('src').filter((a) => /\.(ts|tsx|js|jsx|mjs)$/.test(a));
 const BANCO = path.join('src', 'lib', 'banco.ts');
 const ler = (a: string) => readFileSync(a, 'utf8');
+/** O arquivo sem as linhas de comentário (os tipos gerados pelo Supabase citam createClient num comentário). */
+const codigo = (a: string) =>
+  ler(a)
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\/?\*)/.test(l))
+    .join('\n');
 
-test('a chave secreta do banco só é lida em src/lib/banco.ts', () => {
+test('a chave secreta do banco só é lida em src/lib/banco.ts, e só ele cria o acesso ao banco', () => {
+  // citar o nome numa mensagem de erro pode; ler o valor, só o banco.ts
   assert.deepEqual(
-    FONTES.filter((a) => ler(a).includes('SUPABASE_SECRET_KEY')),
+    FONTES.filter((a) => /process\.env(\.SUPABASE_SECRET_KEY|\[['"]SUPABASE_SECRET_KEY)/.test(codigo(a))),
+    [BANCO],
+  );
+  assert.deepEqual(
+    FONTES.filter((a) => /\bcreateClient\s*[<(]/.test(codigo(a))),
     [BANCO],
   );
 });

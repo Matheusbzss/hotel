@@ -535,7 +535,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      atualizar_reserva: {
+        Args: {
+          p_historico: Json
+          p_item: Json
+          p_pedido: Json
+          p_versao: string
+        }
+        Returns: boolean
+      }
+      criar_reserva: {
+        Args: { p_historico: Json; p_item: Json; p_pedido: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

@@ -9,9 +9,9 @@ import { semFaixas } from '@/lib/passeio-view';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
-  bancoConfigurado,
   ehTransfer,
   listarReservas,
+  ondeFicamAsReservas,
   type Reserva,
   type ReservaPasseio,
   type ReservaTransfer,
@@ -214,8 +214,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <div>
             <h1 className="text-2xl font-bold">Reservas</h1>
             <p className="text-small text-tinta-suave">
-              Pagamento online: {pagarmeConfigurado() ? 'ativo (Pagar.me)' : 'desativado — reservas finalizadas pelo WhatsApp'} · Banco:{' '}
-              {bancoConfigurado() ? 'conectado' : 'NÃO configurado'}
+              Pagamento online: {pagarmeConfigurado() ? 'ativo (Pagar.me)' : 'desativado — reservas finalizadas pelo WhatsApp'} · Reservas
+              em: {ondeFicamAsReservas()}
             </p>
           </div>
         </div>

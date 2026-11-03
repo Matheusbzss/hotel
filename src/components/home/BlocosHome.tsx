@@ -4,22 +4,6 @@ import type { ComponentProps, ReactNode } from 'react';
 import type { Dicionario } from '@/i18n';
 import { linkEmail } from '@/lib/email';
 
-type Legenda = keyof Dicionario['home']['legendas'];
-
-function Foto({ src, legenda, d, sizes, posicao }: { src: string; legenda: Legenda; d: Dicionario; sizes: string; posicao?: string }) {
-  return (
-    <Image
-      src={src}
-      alt={d.home.legendas[legenda]}
-      fill
-      sizes={sizes}
-      quality={80}
-      className="object-cover"
-      style={posicao ? { objectPosition: posicao } : undefined}
-    />
-  );
-}
-
 /** A política de cancelamento em linhas de células: a situação, o que você recebe e o prazo. */
 export function TabelaGarantias({ d, className = '' }: { d: Dicionario; className?: string }) {
   const H = d.home;
@@ -136,39 +120,6 @@ export function ComoFunciona({ d }: { d: Dicionario }) {
         ))}
       </ol>
     </FaixaFoto>
-  );
-}
-
-/** Passeio + hospedagem: o convite numa célula escura, com duas fotos reais. */
-export function ChamadaPacotes({ d, href }: { d: Dicionario; href: string }) {
-  const H = d.home;
-  return (
-    <section className="moldura py-16 md:py-28" aria-labelledby="pacotes-titulo">
-      <div className="tom-campo grid overflow-hidden rounded-[4px] md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="entrar grid content-center gap-4 p-6 md:p-10">
-          <h2 id="pacotes-titulo" className="titulo">
-            {H.pacotesTitulo}
-          </h2>
-          <p className="text-lead">
-            <Link href={href} className="link font-semibold text-(--color-acao)">
-              {H.pacotesLink}
-            </Link>
-            {H.pacotesTexto}
-          </p>
-          <p className="text-small text-(--tinta-suave)">
-            {H.pacotesNotas[0]} {H.pacotesNotas[1]}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-(--vao-celula)">
-          <figure className="relative aspect-[3/4] md:aspect-auto">
-            <Foto src="/fotos/arraial/mergulho.jpg" legenda="mergulho" d={d} sizes="(min-width: 768px) 25vw, 50vw" />
-          </figure>
-          <figure className="relative aspect-[3/4] md:aspect-auto">
-            <Foto src="/fotos/buzios/escuna-mastros.jpg" legenda="escunaMastros" d={d} sizes="(min-width: 768px) 25vw, 50vw" />
-          </figure>
-        </div>
-      </div>
-    </section>
   );
 }
 

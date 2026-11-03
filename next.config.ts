@@ -2,6 +2,13 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // o pacote de passeio + hospedagem saiu do site (Fase 2): quem tiver o link antigo vai para o início
+  async redirects() {
+    return [
+      { source: '/passeio-e-hospedagem', destination: '/', permanent: true },
+      { source: '/:idioma(en|es)/passeio-e-hospedagem', destination: '/:idioma', permanent: true },
+    ];
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     qualities: [70, 80],

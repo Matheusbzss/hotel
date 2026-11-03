@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { CASAS_NO_AR } from '@/data/casas';
 import type { Dicionario } from '@/i18n';
 import { Profundidade } from './Profundidade';
 
@@ -22,7 +23,7 @@ export function TopoFoto({ d }: { d: Dicionario }) {
         <h1 id="gancho" className="gancho">
           {H.gancho}
         </h1>
-        <p className="mt-4 max-w-[42ch] text-lead">{H.ganchoTexto}</p>
+        <p className="mt-4 max-w-[42ch] text-lead">{CASAS_NO_AR ? H.ganchoTexto : H.ganchoTextoSemCasas}</p>
         <a href="#passeios" className="botao mt-6">
           {H.ganchoCta}
         </a>

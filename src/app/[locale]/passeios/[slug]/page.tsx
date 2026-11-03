@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CardPasseio } from '@/components/CardPasseio';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
+import { PrecoGrupo } from '@/components/grupo/PrecoGrupo';
+import { ListaMarcada } from '@/components/ListaMarcada';
 import { Confianca } from '@/components/passeio/Confianca';
 import { TopoPasseio } from '@/components/passeio/TopoPasseio';
 import { WidgetReserva } from '@/components/WidgetReserva';
@@ -39,30 +41,6 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
       url: rota(locale, `/passeios/${p.slug}`),
     },
   };
-}
-
-function Lista({ titulo, id, itens, marca }: { titulo: string; id: string; itens: string[]; marca: 'sim' | 'nao' }) {
-  return (
-    <section aria-labelledby={id}>
-      <h2 id={id} className="text-lead font-semibold">
-        {titulo}
-      </h2>
-      <ul className="mt-4 space-y-2.5">
-        {itens.map((i) => (
-          <li key={i} className="flex gap-3">
-            <svg viewBox="0 0 24 24" className="mt-1 size-5 shrink-0" fill="currentColor" aria-hidden="true">
-              {marca === 'sim' ? (
-                <path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6L20.1 8.4 18.7 7z" />
-              ) : (
-                <path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6Z" />
-              )}
-            </svg>
-            {i}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 export default async function PaginaPasseio({ params }: PageProps<'/[locale]/passeios/[slug]'>) {
@@ -109,9 +87,15 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
       <BarraReservaMovel
         preco={formatarCifra(aPartir, intl)}
         unidade={item.temOpcoes ? `${item.paraQuem} · ${d.boletim.desde}` : item.paraQuem}
-        tabela={item.tabela}
-        locale={intl}
-        textos={{ reservar: d.passeio.reservar, totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos }}
+        detalhe={
+          <PrecoGrupo
+            tabela={item.tabela}
+            locale={intl}
+            textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos }}
+            className="truncate text-caption text-white/80"
+          />
+        }
+        textos={{ reservar: d.passeio.reservar }}
       />
 
       <TopoPasseio
@@ -171,8 +155,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
             </section>
 
             <div className="entrar mt-14 grid gap-10 md:grid-cols-2">
-              <Lista titulo={d.passeio.inclui} id="inclui" itens={p.inclui[locale]} marca="sim" />
-              <Lista titulo={d.passeio.naoInclui} id="nao-inclui" itens={p.naoInclui[locale]} marca="nao" />
+              <ListaMarcada titulo={d.passeio.inclui} id="inclui" itens={p.inclui[locale]} marca="sim" />
+              <ListaMarcada titulo={d.passeio.naoInclui} id="nao-inclui" itens={p.naoInclui[locale]} marca="nao" />
             </div>
 
             <section className="entrar mt-14" aria-labelledby="roteiro">

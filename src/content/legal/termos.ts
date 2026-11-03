@@ -60,9 +60,9 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '7. Pacotes de passeio + hospedagem',
+        titulo: '7. Casas de temporada',
         paragrafos: [
-          'Os pacotes com hospedagem são vendidos sob consulta, por e-mail. Preço, condições e regras de cancelamento são enviados por escrito no orçamento, antes de qualquer pagamento.',
+          'As casas de temporada são reservadas no site, com sinal de 50% do valor. As regras de cada casa (diárias, mínimo de noites, taxa de limpeza, caução e cancelamento) aparecem na página da casa antes da reserva, e o endereço exato vai no voucher.',
         ],
       },
       {
@@ -146,9 +146,9 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '7. Tour + stay packages',
+        titulo: '7. Holiday homes',
         paragrafos: [
-          'Packages with accommodation are sold on request by email. Price, conditions and cancellation rules are sent in writing in the quote, before any payment.',
+          'Holiday homes are booked on the site with a 50% deposit. Each home’s rules (nightly rates, minimum stay, cleaning fee, security deposit and cancellation) are shown on its page before booking, and the exact address is on the voucher.',
         ],
       },
       {
@@ -234,9 +234,9 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '7. Paquetes de paseo + alojamiento',
+        titulo: '7. Casas de temporada',
         paragrafos: [
-          'Los paquetes con alojamiento se venden a consulta, por e-mail. Precio, condiciones y reglas de cancelación se envían por escrito en el presupuesto, antes de cualquier pago.',
+          'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches, tarifa de limpieza, depósito de garantía y cancelación) aparecen en la página de la casa antes de reservar, y la dirección exacta va en el voucher.',
         ],
       },
       {

@@ -1,31 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { TabelaPreco } from '@/lib/orcamento';
-import type { RotulosPessoas } from '@/lib/pessoas';
-import { PrecoGrupo } from './grupo/PrecoGrupo';
+import { useEffect, useState, type ReactNode } from 'react';
 
 /**
- * Barra de vidro fosco do celular: o preço por pessoa, o total do grupo e o atalho para a reserva.
+ * Barra de vidro fosco do celular: o preço, uma linha de detalhe (o total do grupo no passeio, o
+ * tamanho na casa) e o atalho para a reserva.
  * Some quando o cartão de reserva, os outros passeios ou o rodapé aparecem, para não cobrir nada.
  */
 export function BarraReservaMovel({
   preco,
   unidade,
-  tabela,
-  locale,
+  detalhe,
   textos,
 }: {
   preco: string;
   unidade: string;
-  tabela: TabelaPreco;
-  locale: string;
-  textos: { reservar: string; totalPara: string; rotulos: RotulosPessoas };
+  /** Já com a cor e o corte: "truncate text-caption text-white/80". */
+  detalhe?: ReactNode;
+  textos: { reservar: string };
 }) {
   const [oculta, setOculta] = useState(false);
 
   useEffect(() => {
-    const alvos = ['#reservar', '#outros-passeios', 'footer'].map((s) => document.querySelector(s)).filter(Boolean) as Element[];
+    const alvos = ['#reservar', '#outros-passeios', '#outras-casas', 'footer']
+      .map((s) => document.querySelector(s))
+      .filter(Boolean) as Element[];
     if (!alvos.length || !('IntersectionObserver' in window)) return;
     const visiveis = new Set<Element>();
     const io = new IntersectionObserver((entradas) => {
@@ -50,7 +49,7 @@ export function BarraReservaMovel({
           <p className="truncate">
             <strong className="cifra text-lead">{preco}</strong> <span className="text-small">{unidade}</span>
           </p>
-          <PrecoGrupo tabela={tabela} locale={locale} textos={textos} className="truncate text-caption text-white/80" />
+          {detalhe}
         </div>
         <a href="#reservar" className="botao shrink-0" tabIndex={oculta ? -1 : undefined}>
           {textos.reservar}

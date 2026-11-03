@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { EMPRESA } from '@/config/empresa';
-import { CASAS_ATIVO } from '@/data/casas';
+import { CASAS_NO_AR } from '@/data/casas';
 import { rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { Logo } from './Logo';
@@ -16,9 +16,8 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
     { href: rota(idioma, '/transfer'), texto: d.nav.transfer },
-    { href: rota(idioma, '/passeio-e-hospedagem'), texto: d.nav.hospedagem },
-    // a área de casas só entra no menu quando for ativada (src/data/casas.ts)
-    ...(CASAS_ATIVO ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
+    // "Casas" só entra no menu quando há casa no ar (src/data/casas.ts)
+    ...(CASAS_NO_AR ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
     { href: rota(idioma, '/contato'), texto: d.nav.contato },
   ];
   return (

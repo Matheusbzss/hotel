@@ -1121,4 +1121,31 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-clar
     margin-top: 0.15rem;
     font-weight: 600;
   }
+
+  /* a ficha da casa em vidro fosco, sobre a foto do topo: o número grande em cima, o nome embaixo */
+  .ficha-vidro {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-width: 30rem;
+    border-radius: var(--radius-cartao);
+  }
+  .ficha-vidro > div {
+    display: flex;
+    flex-direction: column-reverse;
+    padding: 0.55rem 0.7rem 0.65rem;
+  }
+  .ficha-vidro > div + div {
+    border-left: 1px solid var(--vidro-foto-borda);
+  }
+  .ficha-vidro dt {
+    font-size: 0.8125rem;
+    line-height: 1.2;
+  }
+  .ficha-vidro dd {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
 }

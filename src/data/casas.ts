@@ -1,80 +1,103 @@
+import type { TabelaDiarias } from '@/lib/diarias';
 import type { Cidade, Lista, Texto } from './passeios';
 
 /**
- * CASAS DE TEMPORADA — área separada dos passeios, desligada até fechar as primeiras parcerias.
+ * CASAS DE TEMPORADA DA ORLA NATIVA: casas nossas, de alto padrão, com 5 quartos ou mais, de frente
+ * para a praia, reservadas no site com sinal de SINAL_PORCENTO (src/lib/diarias.ts) do total.
  *
- * Como ativar:
- * 1. Cadastre as casas na lista CASAS abaixo (fotos em /public/fotos/casas/<slug>/).
- * 2. Mude CASAS_ATIVO para true.
- * Com CASAS_ATIVO = false, a página /casas-de-temporada mostra "Em breve" com o convite para
- * proprietários, fica fora do menu e do sitemap e não aparece no Google.
+ * Como cadastrar uma casa (com as fotos, as informações e o endereço que o dono mandar):
+ * 1. Fotos em /public/fotos/casas/<slug>/ (a primeira é a capa).
+ * 2. Copie o MODELO do fim deste arquivo para dentro de CASAS e preencha. Não invente nada: o que o
+ *    dono não mandou, pergunte.
+ * 3. O mapa da localização aproximada sai sozinho da foto de satélite do site (/mapa/casas/<slug>).
+ * Enquanto CASAS estiver vazia, a página mostra "Em breve", e "Casas" fica fora do menu e do Google.
  *
- * A reserva das casas é sempre por consulta de datas (e-mail), sem checkout.
+ * DIÁRIAS (as contas estão em src/lib/diarias.ts): `diaria` vale fora dos períodos; um período de
+ * `temporadas` troca a diária naquelas noites, e um de `feriados` vale por cima da temporada. Cada
+ * período pode ter o próprio mínimo de noites.
+ * As datas são da primeira e da última NOITE do período (AAAA-MM-DD).
  */
-export const CASAS_ATIVO = false;
 
-export interface Casa {
+export type CidadeCasa = Exclude<Cidade, 'rio-de-janeiro'>;
+
+export interface Casa extends TabelaDiarias {
   slug: string;
   ativo?: boolean;
-  cidade: Exclude<Cidade, 'rio-de-janeiro'>;
+  cidade: CidadeCasa;
   nome: Texto;
+  /** A praia ou o bairro, que aparece antes da reserva ("Praia de Geribá"). */
+  local: Texto;
+  /** O endereço exato: só no voucher, depois da reserva paga. */
+  endereco: string;
+  /**
+   * Um ponto PERTO da casa (por exemplo, o meio da praia), não a casa: o mapa mostra a área em volta,
+   * com um círculo.
+   */
+  pontoAproximado: { lat: number; lng: number };
   resumo: Texto;
+  descricao: Texto;
   quartos: number;
-  hospedes: number;
-  /** Diária a partir de (em reais). Deixe sem para mostrar "sob consulta". */
-  diariaAPartir?: number;
-  destaques: Lista;
+  suites: number;
+  banheiros: number;
+  /** Quantas pessoas a casa recebe. */
+  capacidade: number;
+  /** Ex.: ['3 camas de casal', '4 camas de solteiro']. */
+  camas: Lista;
+  comodidades: Lista;
+  regras: Lista;
+  /** As regras de cancelamento da casa (a política do site manda olhar aqui). */
+  cancelamento: Lista;
+  /** Horários como '15h' ou '15h30'. */
+  checkIn: string;
+  checkOut: string;
+  /** Em reais. */
+  caucao: number;
   fotos: string[];
 }
 
-export const CASAS: Casa[] = [
-  // Exemplo (copie, preencha e tire o comentário):
-  // {
-  //   slug: 'casa-geriba',
-  //   cidade: 'buzios',
-  //   nome: { pt: 'Casa Geribá', en: 'Geribá House', es: 'Casa Geribá' },
-  //   resumo: { pt: 'A 300 m da praia de Geribá, com piscina.', en: '300 m from Geribá beach, with a pool.', es: 'A 300 m de la playa de Geribá, con pileta.' },
-  //   quartos: 3,
-  //   hospedes: 8,
-  //   diariaAPartir: 900,
-  //   destaques: { pt: ['Piscina', 'Wi-Fi', '2 vagas'], en: ['Pool', 'Wi-Fi', '2 parking spaces'], es: ['Pileta', 'Wi-Fi', '2 cocheras'] },
-  //   fotos: ['/fotos/casas/casa-geriba/1.jpg'],
-  // },
-];
-
-export const casasAtivas = () => (CASAS_ATIVO ? CASAS.filter((c) => c.ativo !== false) : []);
+export const CASAS: Casa[] = [];
 
 /**
- * REGRAS DAS CASAS — o dono preenche; campo vazio (null) não aparece no site.
- * Valem para todas as casas. Diária, mínimo de noites, capacidade, caução e taxa de limpeza podem mudar
- * de casa para casa: quando cada casa tiver os seus (Etapa 7), os dela valem no lugar destes.
+ * false até existir o pagamento das casas (Fase 3): a página mostra o calendário e a conta, e no lugar
+ * do botão de reservar avisa que a reserva abre em breve.
  */
-export interface RegrasCasas {
-  /** Sinal pago na reserva, em porcentagem do total. */
-  sinalPorcento: number;
-  /** Diária em reais (muda com a temporada e os feriados). */
-  diaria: number | null;
-  minimoNoites: number | null;
-  /** Horários como '15h' ou '15h30'. */
-  checkIn: string | null;
-  checkOut: string | null;
-  capacidadeMaxima: number | null;
-  festasEBarulho: Texto | null;
-  pets: Texto | null;
-  /** Em reais. */
-  caucao: number | null;
-  taxaLimpeza: number | null;
+export const RESERVA_CASAS_ABERTA = false;
+
+export const casasAtivas = (): Casa[] => CASAS.filter((c) => c.ativo !== false);
+/** "Casas" só entra no menu, no mapa do site e no Google quando há casa no ar. */
+export const CASAS_NO_AR = casasAtivas().length > 0;
+
+export function obterCasa(slug: string): Casa | undefined {
+  return casasAtivas().find((c) => c.slug === slug);
 }
 
-export const REGRAS_CASAS: RegrasCasas = {
-  sinalPorcento: 50,
-  diaria: null,
-  minimoNoites: null,
-  checkIn: null,
-  checkOut: null,
-  capacidadeMaxima: null,
-  festasEBarulho: null,
-  pets: null,
-  caucao: null,
-  taxaLimpeza: null,
-};
+/*
+MODELO para copiar para dentro de CASAS (preencha só com o que o dono mandar):
+{
+  slug: 'nome-da-casa',
+  cidade: 'buzios',
+  nome: { pt: '', en: '', es: '' },
+  local: { pt: 'Praia de ...', en: '... beach', es: 'Playa de ...' },
+  endereco: '',
+  pontoAproximado: { lat: 0, lng: 0 },
+  resumo: { pt: '', en: '', es: '' },
+  descricao: { pt: '', en: '', es: '' },
+  quartos: 5,
+  suites: 0,
+  banheiros: 0,
+  capacidade: 0,
+  camas: { pt: [], en: [], es: [] },
+  comodidades: { pt: [], en: [], es: [] },
+  regras: { pt: [], en: [], es: [] },
+  cancelamento: { pt: [], en: [], es: [] },
+  checkIn: '',
+  checkOut: '',
+  diaria: 0,
+  minimoNoites: 0,
+  temporadas: [],
+  feriados: [],
+  taxaLimpeza: 0,
+  caucao: 0,
+  fotos: [],
+},
+*/

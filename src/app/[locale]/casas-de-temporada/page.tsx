@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { CardCasa } from '@/components/casas/CardCasa';
+import { ExploradorCasas } from '@/components/casas/ExploradorCasas';
 import { IconeEmail } from '@/components/IconeEmail';
-import { CASAS_ATIVO, casasAtivas } from '@/data/casas';
-import { CIDADES } from '@/data/passeios';
+import { CASAS_NO_AR, casasAtivas } from '@/data/casas';
+import { CIDADES, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
-import { fmt, isIdioma, rota } from '@/i18n/config';
+import { isIdioma, rota } from '@/i18n/config';
 import { linkEmail } from '@/lib/email';
-import { formatarPreco } from '@/lib/precos';
 import { alternates } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de-temporada'>): Promise<Metadata> {
@@ -19,8 +20,8 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
     description: d.casas.texto,
     alternates: alternates(locale, '/casas-de-temporada'),
     openGraph: { title: d.casas.titulo, description: d.casas.texto, url: rota(locale, '/casas-de-temporada') },
-    // enquanto a área estiver desligada, fica fora do Google
-    ...(CASAS_ATIVO ? {} : { robots: { index: false, follow: true } }),
+    // sem casa no ar, a página "Em breve" fica fora do Google
+    ...(CASAS_NO_AR ? {} : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -30,6 +31,11 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
   const d = dicionario(locale);
   const t = d.casas;
   const casas = casasAtivas();
+  // só as cidades que têm casa, na ordem de sempre
+  const cidades = (Object.keys(CIDADES) as Cidade[])
+    .filter((c) => casas.some((casa) => casa.cidade === c))
+    .sort((a, b) => CIDADES[a].ordem - CIDADES[b].ordem)
+    .map((c) => ({ valor: c, rotulo: CIDADES[c].nome[locale] }));
 
   return (
     <main id="conteudo" className="tom-fundo pb-24 md:pb-40">
@@ -41,51 +47,28 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
       </div>
 
       {casas.length > 0 ? (
-        <ul className="moldura mt-14 grid gap-x-6 gap-y-12 sm:grid-cols-2 md:mt-20 lg:grid-cols-3">
-          {casas.map((c) => (
-            <li key={c.slug}>
-              <article>
-                <div className="relative aspect-[4/5] bg-superficie">
-                  {c.fotos[0] && (
-                    <Image
-                      src={c.fotos[0]}
-                      alt={c.nome[locale]}
-                      fill
-                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
-                      className="object-cover"
-                    />
-                  )}
-                </div>
-                <p className="mt-4 text-small text-(--tinta-suave)">
-                  {CIDADES[c.cidade].nome[locale]} · {fmt(t.quartos, { n: c.quartos })} · {fmt(t.hospedes, { n: c.hospedes })}
-                </p>
-                <h2 className="mt-1 text-lead font-semibold">{c.nome[locale]}</h2>
-                <p className="mt-2">{c.resumo[locale]}</p>
-                {c.destaques[locale].length > 0 && (
-                  <p className="mt-2 text-small text-(--tinta-suave)">{c.destaques[locale].join(' · ')}</p>
-                )}
-                <p className="mt-3">
-                  {c.diariaAPartir ? (
-                    <>
-                      <span className="text-small">{t.diaria} </span>
-                      <strong className="numeros text-lead">{formatarPreco(Math.round(c.diariaAPartir * 100), locale)}</strong>
-                    </>
-                  ) : (
-                    <strong>{d.hospedagemPagina.sobConsulta}</strong>
-                  )}
-                </p>
-                <a
-                  href={linkEmail(fmt(t.assuntoCasa, { casa: c.nome[locale] }), fmt(t.msgCasa, { casa: c.nome[locale] }))}
-                  className="botao mt-5 w-full"
-                  data-evento="Contact"
-                >
-                  <IconeEmail className="size-5" />
-                  {t.consultar}
-                </a>
-              </article>
-            </li>
-          ))}
-        </ul>
+        <div className="moldura mt-10 md:mt-14">
+          <ExploradorCasas
+            itens={casas.map((c) => ({
+              slug: c.slug,
+              cidade: c.cidade,
+              capacidade: c.capacidade,
+              card: <CardCasa casa={c} idioma={locale} d={d} />,
+            }))}
+            cidades={cidades}
+            textos={{
+              cidade: t.filtroCidade,
+              pessoas: t.filtroPessoas,
+              todas: t.todas,
+              qualquer: t.qualquer,
+              nPessoas: t.pessoas,
+              nenhuma: t.nenhuma,
+              limpar: t.limparFiltros,
+              resultado: t.resultado,
+              resultados: t.resultados,
+            }}
+          />
+        </div>
       ) : (
         <section className="moldura mt-14 md:mt-20" aria-labelledby="em-breve">
           <div className="grid md:grid-cols-12">
@@ -107,19 +90,6 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
           </div>
         </section>
       )}
-
-      <section className="moldura mt-24 grid gap-6 md:mt-40 md:grid-cols-12" aria-labelledby="proprietario">
-        <h2 id="proprietario" className="titulo md:col-span-6">
-          {t.proprietarioTitulo}
-        </h2>
-        <div className="md:col-span-5 md:col-start-8">
-          <p className="text-lead">{t.proprietarioTexto}</p>
-          <a href={linkEmail(t.proprietarioAssunto, t.proprietarioMsg)} className="botao mt-8 w-full sm:w-auto" data-evento="Contact">
-            <IconeEmail className="size-5" />
-            {t.proprietarioBotao}
-          </a>
-        </div>
-      </section>
     </main>
   );
 }

@@ -78,9 +78,9 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         depois: ['Não cobramos nenhuma taxa para processar reembolsos previstos nesta política.'],
       },
       {
-        titulo: '10. Pacotes de passeio + hospedagem',
+        titulo: '10. Casas de temporada',
         paragrafos: [
-          'Pacotes com hospedagem são vendidos sob consulta. As regras de cancelamento da hospedagem dependem do hotel ou pousada e são informadas por escrito no orçamento, antes do pagamento.',
+          'As casas de temporada têm regras próprias de sinal, caução e cancelamento, mostradas na página de cada casa antes da reserva.',
         ],
       },
     ],
@@ -159,9 +159,9 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         depois: ['We do not charge any fee to process refunds under this policy.'],
       },
       {
-        titulo: '10. Tour + stay packages',
+        titulo: '10. Holiday homes',
         paragrafos: [
-          'Packages that include accommodation are sold on request. The cancellation rules for the accommodation depend on the hotel or guesthouse and are stated in writing in the quote, before payment.',
+          'Holiday homes have their own deposit, security deposit and cancellation rules, shown on each home’s page before booking.',
         ],
       },
     ],
@@ -238,9 +238,9 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         depois: ['No cobramos ninguna tasa por procesar los reembolsos previstos en esta política.'],
       },
       {
-        titulo: '10. Paquetes de paseo + alojamiento',
+        titulo: '10. Casas de temporada',
         paragrafos: [
-          'Los paquetes con alojamiento se venden a consulta. Las reglas de cancelación del alojamiento dependen del hotel o posada y se informan por escrito en el presupuesto, antes del pago.',
+          'Las casas de temporada tienen reglas propias de seña, depósito de garantía y cancelación, que se muestran en la página de cada casa antes de reservar.',
         ],
       },
     ],

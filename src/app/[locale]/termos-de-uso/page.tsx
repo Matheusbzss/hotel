@@ -13,9 +13,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/termos-d
   const doc = TERMOS[locale];
   return {
     title: doc.titulo,
-    description: doc.resumo,
+    description: doc.descricao,
     alternates: alternates(locale, '/termos-de-uso'),
-    openGraph: { title: doc.titulo, description: doc.resumo, url: rota(locale, '/termos-de-uso') },
+    openGraph: { title: doc.titulo, description: doc.descricao, url: rota(locale, '/termos-de-uso') },
   };
 }
 
@@ -23,5 +23,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/termos-de-
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
-  return <PaginaLegal doc={TERMOS[locale]} idioma={locale} d={d} titulo={d.rodape.termos} acao={d.legal.acoes.termos} />;
+  return (
+    <PaginaLegal doc={TERMOS[locale]} idioma={locale} d={d} caminho="/termos-de-uso" titulo={d.rodape.termos} acao={d.legal.acoes.termos} />
+  );
 }

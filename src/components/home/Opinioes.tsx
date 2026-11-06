@@ -25,7 +25,7 @@ function Estrelas({ nota, rotulo }: { nota: number; rotulo: string }) {
 
 /** A foto de perfil; sem ela, a inicial do nome. */
 function Retrato({ foto, nome }: { foto?: string; nome: string }) {
-  if (foto) return <Image src={foto} alt="" width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" />;
+  if (foto) return <Image src={foto} alt={nome} width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" />;
   return (
     <span
       className="grid size-12 shrink-0 place-items-center rounded-full bg-(--color-superficie) font-[family-name:var(--font-semi)] text-lead font-semibold"

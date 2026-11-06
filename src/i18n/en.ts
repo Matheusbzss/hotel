@@ -2,9 +2,16 @@ import type { Dicionario } from './pt';
 
 const en: Dicionario = {
   meta: {
-    titulo: 'Orla Nativa — Tours in Búzios, Cabo Frio and Arraial do Cabo',
+    titulo: 'Tours in Búzios, Arraial do Cabo and Cabo Frio | Orla Nativa',
     descricao:
       'Boat, buggy, quad bike and city tours in Búzios, Cabo Frio and Arraial do Cabo, Brazil. Book online, pay by Pix or card and get your voucher instantly.',
+    passeiosTitulo: 'All Tours in Búzios, Arraial and Cabo Frio',
+    passeiosDescricao:
+      '{n} boat, buggy, quad bike and diving tours in Búzios, Arraial do Cabo, Cabo Frio and Rio. Compare prices, book online and get your voucher instantly.',
+    transferTitulo: 'Private Transfer Rio–Búzios and the Lakes Region',
+    contatoDescricao:
+      'Talk to Orla Nativa: 100% online service in English, Spanish and Portuguese for tours, transfers and bookings in Búzios and the Lakes Region.',
+    chamadaPasseio: 'Book online and get your voucher instantly.',
   },
   nav: {
     inicio: 'Home',
@@ -228,6 +235,7 @@ const en: Dicionario = {
     vitrineTitulo: 'Tours and price per person',
     vitrineTexto: 'Choose the date and who’s going: each price shows your group’s total underneath.',
     mapaTitulo: 'Three towns on the same coast',
+    mapaFotoAlt: 'Satellite photo of the Lakes Region, from Búzios to Arraial do Cabo',
     mapaTexto: 'Búzios, Arraial do Cabo and Cabo Frio are less than an hour apart: stay in one and explore all three.',
     mapaToque: 'Tap a town to see its tours.',
     mapaFonte: 'Contains modified Copernicus Sentinel data 2025 · Beaches: © OpenStreetMap',

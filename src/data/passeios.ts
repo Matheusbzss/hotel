@@ -64,6 +64,8 @@ export interface Horarios {
 export interface Passeio {
   slug: string;
   ativo?: boolean;
+  /** Título da página no Google, quando o nome igual em dois idiomas repetiria o título. */
+  tituloBusca?: Partial<Texto>;
   cidade: Cidade;
   categoria: Categoria;
   /** Preço de venda em reais, o do cartão (quando há opções, use o da opção mais barata). */
@@ -961,6 +963,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'full-day-arraial-do-cabo',
+    tituloBusca: { pt: 'Full Day Arraial do Cabo: Passeio Completo', es: 'Full Day Arraial do Cabo: Paseo Completo' },
     origemPreco: 'parceiro',
     cidade: 'arraial-do-cabo',
     categoria: 'city-tour',
@@ -1858,6 +1861,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'full-day-cabo-frio',
+    tituloBusca: { pt: 'Full Day Cabo Frio: Passeio Completo', es: 'Full Day Cabo Frio: Paseo Completo' },
     // Preço médio de mercado (full day saindo de Búzios, adulto). Confirme.
     origemPreco: 'pesquisa',
     cidade: 'cabo-frio',

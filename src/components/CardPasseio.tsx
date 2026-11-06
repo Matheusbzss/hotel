@@ -28,6 +28,7 @@ export function CardPasseio({
   sizes = '(min-width: 1024px) 25vw, (min-width: 640px) 46vw, 80vw',
   prioridade = false,
   mostrarCidade = true,
+  nivelTitulo: Titulo = 'h3',
 }: {
   passeio: Passeio;
   idioma: Idioma;
@@ -36,6 +37,8 @@ export function CardPasseio({
   prioridade?: boolean;
   /** Na vitrine da página inicial os cartões já vêm agrupados por cidade: a etiqueta da cidade sobra. */
   mostrarCidade?: boolean;
+  /** Na lista de passeios não há título de seção acima do cartão: o nome vira h2, para os títulos seguirem em ordem. */
+  nivelTitulo?: 'h2' | 'h3';
 }) {
   const item = itemBoletim(p, idioma, d);
   const locale = LOCALE_INTL[idioma];
@@ -57,7 +60,7 @@ export function CardPasseio({
         </div>
       </div>
       <div className="cartao-texto" aria-hidden="true">
-        <h3 className="cartao-titulo">{item.nome}</h3>
+        <Titulo className="cartao-titulo">{item.nome}</Titulo>
         <PrecoDuplo
           tabela={item.tabela}
           idioma={idioma}

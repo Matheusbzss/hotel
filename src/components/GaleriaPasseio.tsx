@@ -18,7 +18,7 @@ const preencher = (t: string, v: Record<string, number>) => t.replace(/\{(\w+)\}
  * As fotos do passeio de borda a borda, no espaço que o pai der (o topo da página do passeio):
  * deslize para ver a próxima; tocar numa foto, ou em "Ver as fotos" no computador, abre a tela cheia.
  */
-export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt: string; textos: TextosGaleria }) {
+export function GaleriaPasseio({ fotos, alts, textos: T }: { fotos: string[]; alts: string[]; textos: TextosGaleria }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const [atual, setAtual] = useState(0);
   const [aberta, setAberta] = useState(0);
@@ -41,7 +41,6 @@ export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fotos.length]);
 
-  const altFoto = (i: number) => `${alt} — ${preencher(T.fotoDe, { i: i + 1, n: fotos.length })}`;
   const seta = (dir: 'esq' | 'dir') => (
     <svg viewBox="0 0 24 24" className="size-6" fill="currentColor" aria-hidden="true">
       <path
@@ -61,8 +60,22 @@ export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt
         onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
       >
         {fotos.map((src, i) => (
-          <button key={src} type="button" onClick={() => abrir(i)} className="relative h-full w-full shrink-0 snap-start">
-            <Image src={src} alt={altFoto(i)} fill sizes="100vw" priority={i === 0} quality={80} className="object-cover" />
+          <button
+            key={src}
+            type="button"
+            onClick={() => abrir(i)}
+            className={`relative h-full w-full shrink-0 snap-start ${i > 0 ? 'adiar' : ''}`}
+          >
+            <Image
+              src={src}
+              alt={alts[i]}
+              fill
+              sizes="100vw"
+              preload={i === 0}
+              fetchPriority={i === 0 ? 'high' : undefined}
+              quality={80}
+              className="object-cover"
+            />
           </button>
         ))}
       </div>
@@ -98,7 +111,7 @@ export function GaleriaPasseio({ fotos, alt, textos: T }: { fotos: string[]; alt
             </button>
           </div>
           <div className="relative min-h-0 flex-1">
-            <Image src={fotos[aberta]} alt={altFoto(aberta)} fill sizes="100vw" quality={85} className="object-contain" />
+            <Image src={fotos[aberta]} alt={alts[aberta]} fill sizes="100vw" quality={85} className="object-contain" />
           </div>
           {fotos.length > 1 && (
             <div className="flex justify-center gap-2 py-4">

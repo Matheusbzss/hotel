@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { migalhas } from '@/lib/dados-estruturados';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { CardPasseio } from '@/components/CardPasseio';
 import { ExploradorPasseios } from '@/components/ExploradorPasseios';
 import { ResumoGrupo } from '@/components/grupo/ResumoGrupo';
@@ -13,12 +15,12 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
   const d = dicionario(locale);
-  const descricao = fmt(d.passeios.texto, { n: passeiosAtivos().length });
+  const descricao = fmt(d.meta.passeiosDescricao, { n: passeiosAtivos().length });
   return {
-    title: d.passeios.titulo,
+    title: d.meta.passeiosTitulo,
     description: descricao,
     alternates: alternates(locale, '/passeios'),
-    openGraph: { title: d.passeios.titulo, description: descricao, url: rota(locale, '/passeios') },
+    openGraph: { title: d.meta.passeiosTitulo, description: descricao, url: rota(locale, '/passeios') },
   };
 }
 
@@ -56,7 +58,7 @@ export default async function Passeios({ params }: PageProps<'/[locale]/passeios
               slug: p.slug,
               cidade: p.cidade,
               categoria: p.categoria,
-              card: <CardPasseio passeio={p} idioma={locale} d={d} />,
+              card: <CardPasseio passeio={p} idioma={locale} d={d} nivelTitulo="h2" />,
             }))}
             cidades={(Object.keys(CIDADES) as Cidade[]).map((c) => ({ valor: c, rotulo: CIDADES[c].nome[locale] }))}
             categorias={(Object.keys(CATEGORIAS) as Categoria[]).map((c) => ({ valor: c, rotulo: CATEGORIAS[c].nome[locale] }))}
@@ -73,6 +75,7 @@ export default async function Passeios({ params }: PageProps<'/[locale]/passeios
           />
         </div>
       </div>
+      <DadosEstruturados dados={migalhas(locale, [{ nome: d.nav.passeios, caminho: '/passeios' }])} />
     </main>
   );
 }

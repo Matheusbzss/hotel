@@ -17,6 +17,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
         <Link
           key={i}
           href={rota(i, caminho)}
+          prefetch={false}
           hrefLang={i}
           lang={i}
           aria-current={i === atual ? 'true' : undefined}

@@ -9,22 +9,26 @@ import {
   VeiculosTransfer,
   textosWidgetTransfer,
 } from '@/components/transfer/SecoesTransfer';
+import { EMPRESA } from '@/config/empresa';
+import { migalhas } from '@/lib/dados-estruturados';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
+import { altDaFoto } from '@/data/fotos-alt';
 import { WidgetTransfer } from '@/components/transfer/WidgetTransfer';
-import { FOTOS_TRANSFER, FOTO_TOPO_TRANSFER } from '@/data/transfer';
+import { FOTOS_TRANSFER, FOTO_TOPO_TRANSFER, TRAJETOS, precoDoTrajeto } from '@/data/transfer';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 import { cotacaoDolar } from '@/lib/dolar';
-import { alternates } from '@/lib/site';
+import { alternates, urlDoSite } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/transfer'>): Promise<Metadata> {
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
   const d = dicionario(locale);
   return {
-    title: d.transfer.titulo,
+    title: d.meta.transferTitulo,
     description: d.transfer.resumo,
     alternates: alternates(locale, '/transfer'),
-    openGraph: { title: d.transfer.titulo, description: d.transfer.resumo, url: rota(locale, '/transfer') },
+    openGraph: { title: d.meta.transferTitulo, description: d.transfer.resumo, url: rota(locale, '/transfer') },
   };
 }
 
@@ -37,6 +41,23 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
   const T = d.transfer;
+  const precos = TRAJETOS.flatMap((t) => (['carro', 'van'] as const).map((v) => precoDoTrajeto(t, v))).filter((p) => p !== null);
+  const servico = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: T.titulo,
+    description: T.resumo,
+    url: `${urlDoSite()}${rota(locale, '/transfer')}`,
+    provider: { '@type': 'TravelAgency', name: EMPRESA.marca, url: urlDoSite() },
+    areaServed: ['Rio de Janeiro', 'Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo'],
+    offers: {
+      '@type': 'AggregateOffer',
+      lowPrice: Math.min(...precos).toFixed(2),
+      highPrice: Math.max(...precos).toFixed(2),
+      offerCount: precos.length,
+      priceCurrency: 'BRL',
+    },
+  };
 
   return (
     <main id="conteudo" className="tom-fundo">
@@ -44,9 +65,10 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
         <div className="relative h-[46svh] overflow-hidden md:absolute md:inset-0 md:h-auto">
           <Image
             src={FOTO_TOPO_TRANSFER}
-            alt={T.galeria}
+            alt={altDaFoto(FOTO_TOPO_TRANSFER, locale)}
             fill
-            priority
+            preload
+            fetchPriority="high"
             sizes="100vw"
             className="object-cover"
             style={{ objectPosition: '50% 60%' }}
@@ -67,7 +89,10 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
                 </span>
               ))}
             </div>
-            <h1 className="topo-passeio-titulo mt-3">{T.titulo}</h1>
+            {/* o h1 de verdade é o da foto, no celular; este é o mesmo nome, no vidro do computador */}
+            <p role="heading" aria-level={1} className="topo-passeio-titulo mt-3">
+              {T.titulo}
+            </p>
             <p className="mt-3 text-lead">{T.resumo}</p>
           </div>
           <div className="w-full md:w-[27rem] md:shrink-0">
@@ -92,8 +117,8 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
         <ul className="trilho entrar mt-10" aria-label={T.galeria}>
           {FOTOS_TRANSFER.map((f) => (
             <li key={f}>
-              <div className="relative aspect-[4/5] overflow-hidden rounded-[4px]">
-                <Image src={f} alt={T.galeria} fill sizes="(min-width: 1024px) 25vw, 70vw" className="object-cover" />
+              <div className="adiar relative aspect-[4/5] overflow-hidden rounded-[4px]">
+                <Image src={f} alt={altDaFoto(f, locale)} fill sizes="(min-width: 1024px) 25vw, 70vw" className="object-cover" />
               </div>
             </li>
           ))}
@@ -103,6 +128,8 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
           <RegrasTransfer d={d} className="entrar" />
         </div>
       </div>
+      <DadosEstruturados dados={servico} />
+      <DadosEstruturados dados={migalhas(locale, [{ nome: T.titulo, caminho: '/transfer' }])} />
     </main>
   );
 }

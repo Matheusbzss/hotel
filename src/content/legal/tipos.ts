@@ -8,6 +8,8 @@ export interface SecaoLegal {
 export interface DocumentoLegal {
   titulo: string;
   resumo: string;
+  /** A descrição da página no Google, com até 160 caracteres (o resumo é maior). */
+  descricao: string;
   secoes: SecaoLegal[];
 }
 

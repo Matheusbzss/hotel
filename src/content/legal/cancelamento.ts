@@ -6,6 +6,8 @@ const E = EMPRESA;
 export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   pt: {
     titulo: 'Política de Cancelamento e Reembolso',
+    descricao:
+      'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado pelo tempo ou pelo mar? Você escolhe entre reembolso ou nova data.',
     resumo:
       'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado por chuva, mau tempo ou condições do mar? Você escolhe entre reembolso integral ou nova data. Compras pelo site também têm 7 dias de direito de arrependimento.',
     secoes: [
@@ -87,6 +89,8 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   en: {
     titulo: 'Cancellation and Refund Policy',
+    descricao:
+      'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of the weather or sea conditions? You choose between a refund or a new date.',
     resumo:
       'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of rain, bad weather or sea conditions? You choose between a full refund or a new date. Online purchases also have a 7-day withdrawal right.',
     secoes: [
@@ -168,6 +172,8 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   es: {
     titulo: 'Política de Cancelación y Reembolso',
+    descricao:
+      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Elegís entre reembolso o nueva fecha.',
     resumo:
       '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento.',
     secoes: [

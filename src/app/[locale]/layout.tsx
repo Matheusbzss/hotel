@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Barlow, Barlow_Condensed, Barlow_Semi_Condensed } from 'next/font/google';
 import { notFound } from 'next/navigation';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { Cabecalho } from '@/components/Cabecalho';
 import { BarraCarrinho } from '@/components/carrinho/BarraCarrinho';
 import { CarrinhoProvider } from '@/components/carrinho/CarrinhoContexto';
@@ -18,16 +19,12 @@ import '../globals.css';
 /**
  * Barlow em três larguras, como um sistema de placas (design-dna.json > typography):
  * Regular no texto, Semi Condensed nos títulos e números, Condensed no gancho.
- * Servida pelo próprio site: o navegador do cliente não chama o Google.
+ * Servida pelo próprio site: o navegador do cliente não chama o Google. Só o alfabeto latino e os pesos em uso:
+ * cada arquivo a mais disputa a conexão do celular com a primeira foto. Português, espanhol e inglês cabem no "latin".
  */
-const barlow = Barlow({ subsets: ['latin', 'latin-ext'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
-const barlowSemi = Barlow_Semi_Condensed({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['500', '600', '700'],
-  variable: '--font-barlow-semi',
-  display: 'swap',
-});
-const barlowCond = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
+const barlow = Barlow({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
+const barlowSemi = Barlow_Semi_Condensed({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-barlow-semi', display: 'swap' });
+const barlowCond = Barlow_Condensed({ subsets: ['latin'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
 
 // sem "dynamicParams = false" aqui: ele valeria para todas as páginas de baixo, e a casa cadastrada no painel
 // não abriria até o próximo deploy. Idioma que não existe nem chega aqui: o proxy manda para o 404.
@@ -80,11 +77,14 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     '@type': 'TravelAgency',
     name: EMPRESA.marca,
     url: urlDoSite(),
+    description: d.meta.descricao,
     email: EMPRESA.email,
     logo: `${urlDoSite()}/logo/orla-nativa-emblema-512.png`,
+    image: `${urlDoSite()}/fotos/buzios/escuna-no-mar.jpg`,
     address: { '@type': 'PostalAddress', addressLocality: EMPRESA.cidade, addressRegion: EMPRESA.uf, addressCountry: 'BR' },
-    areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo'],
+    areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo', 'Rio de Janeiro'],
     availableLanguage: ['pt-BR', 'en', 'es'],
+    ...(EMPRESA.perfis.length ? { sameAs: EMPRESA.perfis } : {}),
   };
 
   return (
@@ -115,7 +115,7 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
           textos={d.cookies}
           linkPrivacidade={rota(locale, '/politica-de-privacidade')}
         />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizacao) }} />
+        <DadosEstruturados dados={organizacao} />
       </body>
     </html>
   );

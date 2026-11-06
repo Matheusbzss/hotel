@@ -30,7 +30,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: pg.frequencia,
       priority: idioma === 'pt' ? pg.prioridade : Math.max(0.1, pg.prioridade - 0.1),
       alternates: {
-        languages: Object.fromEntries(IDIOMAS.map((i) => [HREFLANG[i], `${base}${rota(i, pg.caminho)}`])),
+        languages: {
+          ...Object.fromEntries(IDIOMAS.map((i) => [HREFLANG[i], `${base}${rota(i, pg.caminho)}`])),
+          'x-default': `${base}${rota('pt', pg.caminho)}`,
+        },
       },
     })),
   );

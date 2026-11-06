@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { EMPRESA } from '@/config/empresa';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
+import { altDaFoto } from '@/data/fotos-alt';
 import { CardPasseio } from '@/components/CardPasseio';
 import { ComoFunciona, Garantias, Perguntas } from '@/components/home/BlocosHome';
 import { MapaRegiao } from '@/components/home/MapaRegiao';
@@ -15,7 +18,7 @@ import { fmt, isIdioma, rota } from '@/i18n/config';
 import { opinioesDoSite } from '@/lib/avaliacao';
 import { avaliacoesPublicadas } from '@/lib/avaliacoes';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
-import { alternates } from '@/lib/site';
+import { alternates, urlDoSite } from '@/lib/site';
 
 /** Foto real de cada cidade no cartão do mapa (das fotos dos passeios da agência). */
 const FOTO_CIDADE: Partial<Record<Cidade, string>> = {
@@ -74,13 +77,14 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
       ...p,
       nome: CIDADES[p.id].nome[locale],
       foto: FOTO_CIDADE[p.id] ?? daCidade(p.id)[0].fotos[0],
+      fotoAlt: altDaFoto(FOTO_CIDADE[p.id] ?? daCidade(p.id)[0].fotos[0], locale),
       texto: textosCidade[p.id] ?? '',
       qtd: quantos(daCidade(p.id).length),
     }));
 
   return (
     <main id="conteudo">
-      <TopoFoto d={d} />
+      <TopoFoto idioma={locale} d={d} />
 
       <div className="moldura py-12 md:py-20">
         <Vitrine
@@ -102,6 +106,7 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
         entorno={entornoMapa}
         textos={{
           titulo: H.mapaTitulo,
+          fotoAlt: H.mapaFotoAlt,
           texto: H.mapaTexto,
           toque: H.mapaToque,
           fonte: H.mapaFonte,
@@ -110,22 +115,25 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
         }}
       />
 
-      <Garantias d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
+      <Garantias idioma={locale} d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
       {/* o tutorial com os prints do site fica desligado até as telas de horário e de pagamento existirem */}
-      {TUTORIAL_ATIVO ? <Tutorial d={d} telas={[1, 2, 3, 4].map((n) => telaTutorial(locale, n))} /> : <ComoFunciona d={d} />}
+      {TUTORIAL_ATIVO ? (
+        <Tutorial idioma={locale} d={d} telas={[1, 2, 3, 4].map((n) => telaTutorial(locale, n))} />
+      ) : (
+        <ComoFunciona idioma={locale} d={d} />
+      )}
       <Opinioes itens={opinioes} idioma={locale} d={d} />
       <Perguntas d={d} />
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: d.faq.map((f) => ({ '@type': 'Question', name: f.p, acceptedAnswer: { '@type': 'Answer', text: f.r } })),
-          }),
+      <DadosEstruturados
+        dados={{
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: d.faq.map((f) => ({ '@type': 'Question', name: f.p, acceptedAnswer: { '@type': 'Answer', text: f.r } })),
         }}
       />
+      {/* o nome que o Google mostra ao lado do endereço nos resultados */}
+      <DadosEstruturados dados={{ '@context': 'https://schema.org', '@type': 'WebSite', name: EMPRESA.marca, url: `${urlDoSite()}/` }} />
     </main>
   );
 }

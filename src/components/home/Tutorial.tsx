@@ -1,4 +1,6 @@
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Dicionario } from '@/i18n';
+import type { Idioma } from '@/i18n/config';
 import { FaixaFoto } from './BlocosHome';
 import { Celular } from './Celular';
 
@@ -6,10 +8,15 @@ import { Celular } from './Celular';
  * Como funciona em 4 passos: os prints reais do site no celular, lado a lado (no celular deslizam para o
  * lado), cada um com a sua legenda em vidro, sobre a orla de Cabo Frio ao entardecer.
  */
-export function Tutorial({ d, telas }: { d: Dicionario; telas: string[] }) {
+export function Tutorial({ idioma, d, telas }: { idioma: Idioma; d: Dicionario; telas: string[] }) {
   const H = d.home;
   return (
-    <FaixaFoto src="/fotos/cabo-frio/orla-entardecer.jpg" posicao="50% 60%" aria-labelledby="como-titulo">
+    <FaixaFoto
+      src="/fotos/cabo-frio/orla-entardecer.jpg"
+      alt={altDaFoto('/fotos/cabo-frio/orla-entardecer.jpg', idioma)}
+      posicao="50% 60%"
+      aria-labelledby="como-titulo"
+    >
       <h2 id="como-titulo" className="titulo text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.35)]">
         {H.comoTitulo}
       </h2>

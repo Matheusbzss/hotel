@@ -14,6 +14,7 @@ export interface CidadeMapa {
   esquerda: number;
   topo: number;
   foto: string;
+  fotoAlt: string;
   texto: string;
   qtd: string;
 }
@@ -29,6 +30,7 @@ export interface PraiaMapa {
 
 export interface TextosMapa {
   titulo: string;
+  fotoAlt: string;
   texto: string;
   toque: string;
   fonte: string;
@@ -178,7 +180,7 @@ export function MapaRegiao({
             <div className="mapa-plano-caixa">
               <picture>
                 <source media="(min-width: 1024px)" srcSet={TEXTURAS.detalhe} />
-                <img src={TEXTURAS.detalheMenor} alt={T.titulo} className="mapa-img" loading="lazy" decoding="async" />
+                <img src={TEXTURAS.detalheMenor} alt={T.fotoAlt} className="mapa-img" loading="lazy" decoding="async" />
               </picture>
               {cidades.map((c) => (
                 <button
@@ -217,7 +219,14 @@ export function MapaRegiao({
           {cidade && (
             <div id="mapa-cartao" className="mapa-cartao vidro vidro-claro" role="region" aria-labelledby="mapa-cartao-titulo">
               <div className="mapa-cartao-foto">
-                <Image src={cidade.foto} alt="" fill sizes="(min-width: 768px) 22rem, 5.5rem" quality={72} className="object-cover" />
+                <Image
+                  src={cidade.foto}
+                  alt={cidade.fotoAlt}
+                  fill
+                  sizes="(min-width: 768px) 22rem, 5.5rem"
+                  quality={72}
+                  className="object-cover"
+                />
               </div>
               <div className="mapa-cartao-info">
                 <h3 id="mapa-cartao-titulo" ref={tituloCartao} tabIndex={-1} className="subtitulo outline-none">

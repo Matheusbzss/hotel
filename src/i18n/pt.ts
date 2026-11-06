@@ -1,8 +1,15 @@
 const pt = {
   meta: {
-    titulo: 'Orla Nativa — Passeios em Búzios, Cabo Frio e Arraial do Cabo',
+    titulo: 'Passeios em Búzios, Arraial do Cabo e Cabo Frio | Orla Nativa',
     descricao:
       'Passeios de barco, buggy, quadriciclo e city tour em Búzios, Cabo Frio e Arraial do Cabo. Reserve online, pague por Pix ou cartão e receba o voucher na hora.',
+    passeiosTitulo: 'Todos os Passeios em Búzios, Arraial e Cabo Frio',
+    passeiosDescricao:
+      '{n} passeios de barco, buggy, quadriciclo e mergulho em Búzios, Arraial do Cabo, Cabo Frio e Rio. Compare os preços, reserve online e receba o voucher na hora.',
+    transferTitulo: 'Transfer Privado Rio–Búzios e Região dos Lagos',
+    contatoDescricao:
+      'Fale com a Orla Nativa: atendimento 100% online, em português, inglês e espanhol, para passeios, transfer e reservas em Búzios e na Região dos Lagos.',
+    chamadaPasseio: 'Reserve online e receba o voucher na hora.',
   },
   nav: {
     inicio: 'Início',
@@ -227,6 +234,7 @@ const pt = {
     vitrineTitulo: 'Passeios e preço por pessoa',
     vitrineTexto: 'Escolha a data e quem vai: embaixo de cada preço aparece o total do seu grupo.',
     mapaTitulo: 'Três cidades na mesma orla',
+    mapaFotoAlt: 'Foto de satélite da Região dos Lagos, de Búzios a Arraial do Cabo',
     mapaTexto: 'Búzios, Arraial do Cabo e Cabo Frio ficam a menos de uma hora uma da outra: dá para se hospedar numa e passear nas três.',
     mapaToque: 'Toque numa cidade para ver os passeios de lá.',
     mapaFonte: 'Contém dados modificados do Copernicus Sentinel 2025 · Praias: © OpenStreetMap',

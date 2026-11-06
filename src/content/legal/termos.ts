@@ -6,6 +6,8 @@ const E = EMPRESA;
 export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   pt: {
     titulo: 'Termos de Uso',
+    descricao:
+      'As regras para usar o site e comprar passeios com a Orla Nativa. Ao fazer uma reserva, você declara que leu e concorda com elas.',
     resumo: `Estas são as regras para usar o site ${E.dominio} e comprar passeios com a ${E.marca}. Ao fazer uma reserva, você declara que leu e concorda com elas.`,
     secoes: [
       {
@@ -92,6 +94,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   en: {
     titulo: 'Terms of Use',
+    descricao:
+      'The rules for using this site and buying tours from Orla Nativa. By making a booking, you confirm that you have read and agree to them.',
     resumo: `These are the rules for using ${E.dominio} and buying tours from ${E.marca}. By making a booking, you confirm that you have read and agree to them.`,
     secoes: [
       {
@@ -180,6 +184,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   es: {
     titulo: 'Términos de Uso',
+    descricao:
+      'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.',
     resumo: `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.`,
     secoes: [
       {

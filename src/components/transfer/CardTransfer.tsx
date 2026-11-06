@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Cidade } from '@/data/passeios';
 import { menorPrecoDaZona, type Zona } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
@@ -39,7 +40,7 @@ export function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Id
         <div className="absolute inset-0">
           <Image
             src="/fotos/transfer/carro-creta-aeroporto.jpg"
-            alt=""
+            alt={altDaFoto('/fotos/transfer/carro-creta-aeroporto.jpg', idioma)}
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 46vw, 80vw"
             className="object-cover"

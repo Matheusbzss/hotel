@@ -1,19 +1,22 @@
 import Image from 'next/image';
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Dicionario } from '@/i18n';
+import type { Idioma } from '@/i18n/config';
 import { casasNoAr } from '@/lib/casas';
 import { Profundidade } from './Profundidade';
 
 /** O topo: a foto real do pôr do sol na baía de Búzios, a frase principal, o botão e as garantias em vidro. */
-export async function TopoFoto({ d }: { d: Dicionario }) {
+export async function TopoFoto({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const H = d.home;
   return (
     <section className="topo-foto flex flex-col justify-end" aria-labelledby="gancho">
       <Profundidade>
         <Image
           src="/fotos/buzios/por-do-sol-barcos-na-baia.jpg"
-          alt=""
+          alt={altDaFoto('/fotos/buzios/por-do-sol-barcos-na-baia.jpg', idioma)}
           fill
-          priority
+          preload
+          fetchPriority="high"
           sizes="100vw"
           quality={80}
           className="object-cover object-[50%_62%]"

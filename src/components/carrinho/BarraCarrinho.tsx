@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { semIdioma } from '@/i18n/config';
 import { totaisDoCarrinho } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { useBarraOculta } from '../BarraReservaMovel';
@@ -17,7 +18,7 @@ export function BarraCarrinho({ locale, hrefFinalizar, textos: T }: { locale: st
   const { itens, abrir } = useCarrinho();
   const caminho = usePathname();
   const oculta = useBarraOculta(ALVOS);
-  if (!itens.length || SEM_BARRA.test(caminho)) return null;
+  if (!itens.length || SEM_BARRA.test(semIdioma(caminho))) return null;
   const { totalPixCentavos } = totaisDoCarrinho(itens);
 
   return (

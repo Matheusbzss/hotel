@@ -14,9 +14,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/politica
   const doc = CANCELAMENTO[locale];
   return {
     title: doc.titulo,
-    description: doc.resumo,
+    description: doc.descricao,
     alternates: alternates(locale, '/politica-de-cancelamento'),
-    openGraph: { title: doc.titulo, description: doc.resumo, url: rota(locale, '/politica-de-cancelamento') },
+    openGraph: { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-cancelamento') },
   };
 }
 
@@ -29,6 +29,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
       doc={CANCELAMENTO[locale]}
       idioma={locale}
       d={d}
+      caminho="/politica-de-cancelamento"
       titulo={d.rodape.cancelamento}
       acao={d.legal.acoes.cancelamento}
       destaque={

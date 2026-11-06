@@ -3,8 +3,10 @@ import { ATUALIZADO_EM } from '@/content/legal/tipos';
 import { EMPRESA } from '@/config/empresa';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { migalhas } from '@/lib/dados-estruturados';
 import { linkEmail } from '@/lib/email';
 import type { ReactNode } from 'react';
+import { DadosEstruturados } from './DadosEstruturados';
 import { IconeEmail } from './IconeEmail';
 
 /** Âncora de cada seção, a partir do título ("3. Cancelamento com 24 horas…" → "cancelamento-com-24-horas…"). */
@@ -26,6 +28,7 @@ export function PaginaLegal({
   doc,
   idioma,
   d,
+  caminho,
   titulo,
   acao,
   destaque,
@@ -34,6 +37,8 @@ export function PaginaLegal({
   doc: DocumentoLegal;
   idioma: Idioma;
   d: Dicionario;
+  /** o endereço da página, em português */
+  caminho: string;
   /** o nome curto, o mesmo do rodapé */
   titulo: string;
   acao: { botao: string; assunto: string; msg: string };
@@ -115,6 +120,7 @@ export function PaginaLegal({
           {extra}
         </article>
       </div>
+      <DadosEstruturados dados={migalhas(idioma, [{ nome: titulo, caminho }])} />
     </main>
   );
 }

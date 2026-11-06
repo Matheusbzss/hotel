@@ -6,6 +6,8 @@ const E = EMPRESA;
 export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   pt: {
     titulo: 'Política de Privacidade',
+    descricao:
+      'Usamos seus dados apenas para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir nossos anúncios. Não vendemos dados pessoais.',
     resumo:
       'Usamos seus dados apenas para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir nossos anúncios. Não vendemos dados pessoais. Esta política segue a Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018).',
     secoes: [
@@ -107,6 +109,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   en: {
     titulo: 'Privacy Policy',
+    descricao:
+      'We use your data only to make your booking happen, to comply with the law and, if you allow it, to measure our ads. We do not sell personal data.',
     resumo:
       'We use your data only to make your booking happen, to comply with the law and, if you allow it, to measure our ads. We do not sell personal data. This policy follows the Brazilian General Data Protection Law (LGPD – Law 13,709/2018).',
     secoes: [
@@ -208,6 +212,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   },
   es: {
     titulo: 'Política de Privacidad',
+    descricao:
+      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales.',
     resumo:
       'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
     secoes: [

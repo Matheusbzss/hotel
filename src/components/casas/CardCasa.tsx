@@ -32,7 +32,7 @@ export function CardCasa({
     >
       <div className="cartao-foto">
         <div className="absolute inset-0 bg-superficie">
-          {c.fotos[0] && <Image src={c.fotos[0]} alt="" fill sizes={sizes} quality={80} className="object-cover" />}
+          {c.fotos[0] && <Image src={c.fotos[0]} alt={c.nome[idioma]} fill sizes={sizes} quality={80} className="object-cover" />}
         </div>
         <div className="etiquetas" aria-hidden="true">
           <span className="etiqueta vidro vidro-escuro">{CIDADES[c.cidade].nome[idioma]}</span>

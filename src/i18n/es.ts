@@ -2,9 +2,16 @@ import type { Dicionario } from './pt';
 
 const es: Dicionario = {
   meta: {
-    titulo: 'Orla Nativa — Paseos en Búzios, Cabo Frio y Arraial do Cabo',
+    titulo: 'Paseos en Búzios, Arraial do Cabo y Cabo Frio | Orla Nativa',
     descricao:
       'Paseos en barco, buggy, cuatriciclo y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reservá online, pagá con Pix o tarjeta y recibí el voucher al instante.',
+    passeiosTitulo: 'Todos los Paseos en Búzios, Arraial y Cabo Frio',
+    passeiosDescricao:
+      '{n} paseos en barco, buggy, cuatriciclo y buceo en Búzios, Arraial do Cabo, Cabo Frio y Río. Compará los precios, reservá online y recibí el voucher al instante.',
+    transferTitulo: 'Traslado Privado Río–Búzios y Región de los Lagos',
+    contatoDescricao:
+      'Hablá con Orla Nativa: atención 100% online, en español, portugués e inglés, para paseos, traslados y reservas en Búzios y la Región de los Lagos.',
+    chamadaPasseio: 'Reservá online y recibí el voucher al instante.',
   },
   nav: {
     inicio: 'Inicio',
@@ -229,6 +236,7 @@ const es: Dicionario = {
     vitrineTitulo: 'Paseos y precio por persona',
     vitrineTexto: 'Elegí la fecha y quiénes van: debajo de cada precio aparece el total de tu grupo.',
     mapaTitulo: 'Tres ciudades en la misma costa',
+    mapaFotoAlt: 'Foto satelital de la Región de los Lagos, de Búzios a Arraial do Cabo',
     mapaTexto: 'Búzios, Arraial do Cabo y Cabo Frio están a menos de una hora entre sí: podés alojarte en una y pasear por las tres.',
     mapaToque: 'Tocá una ciudad para ver sus paseos.',
     mapaFonte: 'Contiene datos modificados de Copernicus Sentinel 2025 · Playas: © OpenStreetMap',

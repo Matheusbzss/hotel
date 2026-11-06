@@ -1,7 +1,7 @@
 /**
  * Prints e testes rápidos com Playwright: celular (390 px) e computador (1440 px).
  * Uso: node scripts/prints.mjs [url-base] [pasta-saida] [paginas...]
- * Ex.: node scripts/prints.mjs http://localhost:3000 .impeccable/review /es /es/passeios
+ * Ex.: node scripts/prints.mjs http://localhost:3000 .impeccable/review /es /es/paseos
  * Também registra erros do console e, na página inicial, clica de verdade nos pinos do mapa
  * (se algo cobrir o pino, o clique falha e aparece no relatório).
  */
@@ -46,7 +46,9 @@ for (const [nome, opcoes] of telas) {
         palco.evaluate((el) => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 76, behavior: 'instant' }));
       await mostrarMapa();
       // o 3D carrega perto da tela; no renderizador por software dos testes pode levar um tempo
-      await page.waitForFunction(() => document.querySelector('.mapa-palco')?.getAttribute('data-3d') !== 'plano', null, { timeout: 90000 }).catch(() => {});
+      await page
+        .waitForFunction(() => document.querySelector('.mapa-palco')?.getAttribute('data-3d') !== 'plano', null, { timeout: 90000 })
+        .catch(() => {});
       const modo = await palco.getAttribute('data-3d');
       console.log(`${nome} ${caminho}: mapa ${modo}`);
       await page.waitForTimeout(2500);

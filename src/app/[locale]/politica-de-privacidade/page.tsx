@@ -13,9 +13,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/politica
   const doc = PRIVACIDADE[locale];
   return {
     title: doc.titulo,
-    description: doc.resumo,
+    description: doc.descricao,
     alternates: alternates(locale, '/politica-de-privacidade'),
-    openGraph: { title: doc.titulo, description: doc.resumo, url: rota(locale, '/politica-de-privacidade') },
+    openGraph: { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-privacidade') },
   };
 }
 
@@ -28,6 +28,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
       doc={PRIVACIDADE[locale]}
       idioma={locale}
       d={d}
+      caminho="/politica-de-privacidade"
       titulo={d.rodape.privacidade}
       acao={d.legal.acoes.privacidade}
       extra={<RedefinirCookies rotulo={d.cookies.gerenciar} />}

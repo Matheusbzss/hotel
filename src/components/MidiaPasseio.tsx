@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Icone, Passeio } from '@/data/passeios';
 import type { Idioma } from '@/i18n/config';
 import { nomeCidade } from '@/lib/passeio-view';
@@ -275,10 +276,11 @@ export function MidiaPasseio({
       {foto ? (
         <Image
           src={foto}
-          alt={decorativa ? '' : passeio.nome[idioma]}
+          alt={altDaFoto(foto, idioma, passeio.nome[idioma])}
           fill
           sizes={sizes}
-          priority={prioridade}
+          preload={prioridade}
+          fetchPriority={prioridade ? 'high' : undefined}
           quality={80}
           className="object-cover"
         />

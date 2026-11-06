@@ -23,6 +23,9 @@ export const EMPRESA = {
   uf: 'RJ',
   regiao: 'Região dos Lagos',
 
+  /** Os perfis oficiais (Instagram, Facebook, TripAdvisor): entram nos dados da empresa para o Google ligar tudo ao site. */
+  perfis: [] as string[],
+
   // Site
   /**
    * Domínio mostrado no voucher, nas políticas e nas prévias: o do endereço oficial

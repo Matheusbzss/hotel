@@ -1,7 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ComponentProps, ReactNode } from 'react';
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Dicionario } from '@/i18n';
+import type { Idioma } from '@/i18n/config';
 import { linkEmail } from '@/lib/email';
 
 /** A política de cancelamento em linhas de células: a situação, o que você recebe e o prazo. */
@@ -44,20 +46,41 @@ export function TabelaGarantias({ d, className = '' }: { d: Dicionario; classNam
 }
 
 /** Uma foto real de fundo, de borda a borda, com o conteúdo por cima em vidro (o vidro só aparece sobre foto). */
-export function FaixaFoto({ src, posicao, children, ...props }: { src: string; posicao?: string; children: ReactNode } & ComponentProps<'section'>) {
+export function FaixaFoto({
+  src,
+  alt,
+  posicao,
+  children,
+  ...props
+}: { src: string; alt: string; posicao?: string; children: ReactNode } & ComponentProps<'section'>) {
   return (
     <section className="relative isolate overflow-hidden py-14 md:py-24" {...props}>
-      <Image src={src} alt="" fill sizes="100vw" quality={70} className="-z-10 object-cover" style={posicao ? { objectPosition: posicao } : undefined} />
+      <div className="adiar absolute inset-0 -z-10">
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="100vw"
+          quality={70}
+          className="object-cover"
+          style={posicao ? { objectPosition: posicao } : undefined}
+        />
+      </div>
       <div className="moldura">{children}</div>
     </section>
   );
 }
 
 /** Regras e avisos da página inicial: um vidro claro sobre a água de Arraial vista do alto; a tabela completa fica na política. */
-export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
+export function Garantias({ idioma, d, hrefPolitica }: { idioma: Idioma; d: Dicionario; hrefPolitica: string }) {
   const H = d.home;
   return (
-    <FaixaFoto src="/fotos/arraial/lancha-agua-turquesa-do-alto.jpg" posicao="30% 40%" aria-labelledby="garantias-titulo">
+    <FaixaFoto
+      src="/fotos/arraial/lancha-agua-turquesa-do-alto.jpg"
+      alt={altDaFoto('/fotos/arraial/lancha-agua-turquesa-do-alto.jpg', idioma)}
+      posicao="30% 40%"
+      aria-labelledby="garantias-titulo"
+    >
       <div className="grid gap-4 md:ml-auto md:max-w-2xl">
         <div className="entrar vidro vidro-claro rounded-[24px] p-5 md:p-8">
           <h2 id="garantias-titulo" className="subtitulo">
@@ -70,7 +93,10 @@ export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: st
                 <dd>
                   {g.recebe}
                   {/* o prazo vem na mesma linha, preso ao ponto por um espaço que não quebra (o ponto nunca fica sozinho no fim) */}
-                  <span className="text-(--color-tinta-suave)">{' · '}{g.prazo}</span>
+                  <span className="text-(--color-tinta-suave)">
+                    {' · '}
+                    {g.prazo}
+                  </span>
                 </dd>
               </div>
             ))}
@@ -101,10 +127,15 @@ export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: st
 }
 
 /** Como funciona: os passos em vidro escuro sobre a orla de Cabo Frio ao entardecer. */
-export function ComoFunciona({ d }: { d: Dicionario }) {
+export function ComoFunciona({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const H = d.home;
   return (
-    <FaixaFoto src="/fotos/cabo-frio/orla-entardecer.jpg" posicao="50% 60%" aria-labelledby="como-titulo">
+    <FaixaFoto
+      src="/fotos/cabo-frio/orla-entardecer.jpg"
+      alt={altDaFoto('/fotos/cabo-frio/orla-entardecer.jpg', idioma)}
+      posicao="50% 60%"
+      aria-labelledby="como-titulo"
+    >
       <h2 id="como-titulo" className="titulo text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.35)]">
         {H.comoTitulo}
       </h2>
@@ -144,7 +175,11 @@ export function Perguntas({ d }: { d: Dicionario }) {
             <a href="#passeios" className="botao">
               {H.faqBotao}
             </a>
-            <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="link inline-flex min-h-11 items-center font-semibold" data-evento="Contact">
+            <a
+              href={linkEmail(d.contato.assunto, d.contato.msg)}
+              className="link inline-flex min-h-11 items-center font-semibold"
+              data-evento="Contact"
+            >
               {H.faqLink}
             </a>
           </div>
@@ -154,7 +189,11 @@ export function Perguntas({ d }: { d: Dicionario }) {
             <details key={f.p} className="celula group">
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 font-[family-name:var(--font-semi)] text-[1.0625rem] font-semibold [&::-webkit-details-marker]:hidden">
                 {f.p}
-                <svg viewBox="0 0 24 24" className="size-5 shrink-0 transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
+                  aria-hidden="true"
+                >
                   <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.75" />
                 </svg>
               </summary>

@@ -76,7 +76,7 @@ export function Profundidade({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={ref} className="foto" aria-hidden="true">
+    <div ref={ref} className="foto">
       {children}
     </div>
   );

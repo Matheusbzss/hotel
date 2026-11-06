@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { migalhas, precoNosDados } from '@/lib/dados-estruturados';
+import { CardTransfer } from '@/components/transfer/CardTransfer';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { CardPasseio } from '@/components/CardPasseio';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
 import { ListaMarcada } from '@/components/ListaMarcada';
@@ -15,8 +18,8 @@ import { formatarCifra } from '@/lib/cifra';
 import { cotacaoDolar } from '@/lib/dolar';
 import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
-import { contadoresPessoas, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
-import { formatarPreco, opcoesPasseio, precoAPartirCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
+import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
+import { opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { alternates, urlDoSite } from '@/lib/site';
 
 export const dynamicParams = false;
@@ -29,11 +32,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
   const { locale, slug } = await params;
   const p = obterPasseio(slug);
   if (!isIdioma(locale) || !p) return {};
-  const d = dicionario(locale);
-  const preco = formatarPreco(precoAPartirCentavos(p), locale);
-  const descricao = `${p.resumo[locale]} ${d.comum.aPartirDe} ${preco} ${rotuloUnidade(p, d)}.`;
+  const descricao = descricaoParaBusca(p, locale, dicionario(locale));
   return {
-    title: `${p.nome[locale]} — ${preco}`,
+    title: p.tituloBusca?.[locale] ?? p.nome[locale],
     description: descricao,
     alternates: alternates(locale, `/passeios/${p.slug}`),
     openGraph: {
@@ -57,7 +58,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const outros = passeiosAtivos()
     .filter((o) => o.cidade === p.cidade && o.slug !== p.slug)
     .sort((a, b) => Number(b.fotos.length > 0) - Number(a.fotos.length > 0))
-    .slice(0, 4);
+    .slice(0, 3);
   const unidadeSingular = p.unidade === 'veiculo' ? d.comum.veiculo : d.comum.embarcacao;
   const unidadePlural = p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes;
   const regras = regrasCriancas(p, d);
@@ -66,22 +67,38 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const dolar = locale === 'pt' ? null : await cotacaoDolar();
   const rotuloHorario = horarios.busca ? d.horario.busca : horarios.horas.length === 1 ? d.horario.saida : d.horario.saidas;
 
+  const endereco = `${urlDoSite()}${rota(locale, `/passeios/${p.slug}`)}`;
+  const precos = opcoes.map((o) => precoVendaCentavos(o.preco));
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: p.nome[locale],
     description: p.resumo[locale],
     category: nomeCategoria(p, locale),
+    sku: p.slug,
+    url: endereco,
     brand: { '@type': 'Brand', name: EMPRESA.marca },
     ...(p.fotos.length ? { image: p.fotos.map((f) => `${urlDoSite()}${f}`) } : {}),
-    offers: {
-      '@type': 'Offer',
-      price: (aPartir / 100).toFixed(2),
-      priceCurrency: 'BRL',
-      availability: 'https://schema.org/InStock',
-      url: `${urlDoSite()}${rota(locale, `/passeios/${p.slug}`)}`,
-      seller: { '@type': 'Organization', name: EMPRESA.marca },
-    },
+    // o preço do cartão, o mesmo que aparece na página; com opções de preços diferentes, vai a faixa
+    offers:
+      Math.max(...precos) > aPartir
+        ? {
+            '@type': 'AggregateOffer',
+            lowPrice: precoNosDados(aPartir),
+            highPrice: precoNosDados(Math.max(...precos)),
+            offerCount: precos.length,
+            priceCurrency: 'BRL',
+            availability: 'https://schema.org/InStock',
+            url: endereco,
+          }
+        : {
+            '@type': 'Offer',
+            price: precoNosDados(aPartir),
+            priceCurrency: 'BRL',
+            availability: 'https://schema.org/InStock',
+            url: endereco,
+            seller: { '@type': 'Organization', name: EMPRESA.marca },
+          },
   };
 
   return (
@@ -237,22 +254,30 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
           </aside>
         </div>
 
-        {outros.length > 0 && (
-          <section id="outros-passeios" className="mt-24 md:mt-32" aria-labelledby="outros">
-            <h2 id="outros" className="titulo entrar">
-              {fmt(d.passeio.outros, { cidade: nomeCidade(p, locale) })}
-            </h2>
-            <ul className="trilho mt-6 md:mt-8">
-              {outros.map((o) => (
-                <li key={o.slug}>
-                  <CardPasseio passeio={o} idioma={locale} d={d} mostrarCidade={false} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <section id="outros-passeios" className="mt-24 md:mt-32" aria-labelledby="outros">
+          <h2 id="outros" className="titulo entrar">
+            {outros.length > 0 ? fmt(d.passeio.outros, { cidade: nomeCidade(p, locale) }) : d.transfer.titulo}
+          </h2>
+          <ul className="trilho mt-6 md:mt-8">
+            {outros.map((o) => (
+              <li key={o.slug}>
+                <CardPasseio passeio={o} idioma={locale} d={d} mostrarCidade={false} />
+              </li>
+            ))}
+            {/* como na inicial, o transfer é mais uma opção da cidade */}
+            <li>
+              <CardTransfer cidade={p.cidade} idioma={locale} d={d} />
+            </li>
+          </ul>
+        </section>
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <DadosEstruturados dados={jsonLd} />
+      <DadosEstruturados
+        dados={migalhas(locale, [
+          { nome: d.nav.passeios, caminho: '/passeios' },
+          { nome: p.nome[locale], caminho: `/passeios/${p.slug}` },
+        ])}
+      />
     </main>
   );
 }

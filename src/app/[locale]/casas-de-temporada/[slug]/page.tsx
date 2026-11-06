@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { migalhas } from '@/lib/dados-estruturados';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { MapaCasa } from '@/components/casas/MapaCasa';
@@ -41,6 +43,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
       title: `${c.nome[locale]} | ${EMPRESA.marca}`,
       description: descricao,
       url: rota(locale, `/casas-de-temporada/${c.slug}`),
+      ...(c.fotos[0] ? { images: [{ url: c.fotos[0], alt: c.nome[locale] }] } : {}),
     },
   };
 }
@@ -108,7 +111,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           {c.fotos.length > 0 && (
             <GaleriaPasseio
               fotos={c.fotos}
-              alt={c.nome[locale]}
+              alts={c.fotos.map((_, i) => `${c.nome[locale]} — ${fmt(d.passeio.fotoDe, { i: i + 1, n: c.fotos.length })}`)}
               textos={{
                 galeria: t.galeria,
                 verFotos: d.passeio.verFotos,
@@ -291,6 +294,12 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           </section>
         )}
       </div>
+      <DadosEstruturados
+        dados={migalhas(locale, [
+          { nome: d.nav.casas, caminho: '/casas-de-temporada' },
+          { nome: c.nome[locale], caminho: `/casas-de-temporada/${c.slug}` },
+        ])}
+      />
     </main>
   );
 }

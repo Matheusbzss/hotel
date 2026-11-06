@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { migalhas } from '@/lib/dados-estruturados';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
+import { altDaFoto } from '@/data/fotos-alt';
 import { FormularioCotacao } from '@/components/FormularioCotacao';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
@@ -15,9 +18,9 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/contato'
   const d = dicionario(locale);
   return {
     title: d.nav.contato,
-    description: d.contato.texto,
+    description: d.meta.contatoDescricao,
     alternates: alternates(locale, '/contato'),
-    openGraph: { title: d.contato.titulo, description: d.contato.texto, url: rota(locale, '/contato') },
+    openGraph: { title: d.contato.titulo, description: d.meta.contatoDescricao, url: rota(locale, '/contato') },
   };
 }
 
@@ -42,9 +45,10 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
         <div className="relative h-[42svh] overflow-hidden md:absolute md:inset-0 md:h-auto">
           <Image
             src="/fotos/buzios/escuna-no-pier.jpg"
-            alt={d.home.legendas.escunaNoPier}
+            alt={altDaFoto('/fotos/buzios/escuna-no-pier.jpg', locale)}
             fill
-            priority
+            preload
+            fetchPriority="high"
             sizes="100vw"
             className="respira object-cover"
           />
@@ -94,14 +98,8 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
           {LUGARES.map((l) => (
             <li key={l.src}>
               <figure>
-                <div className="relative aspect-[4/5]">
-                  <Image
-                    src={l.src}
-                    alt={d.home.legendas[l.legenda]}
-                    fill
-                    sizes="(min-width: 640px) 33vw, 100vw"
-                    className="object-cover"
-                  />
+                <div className="adiar relative aspect-[4/5]">
+                  <Image src={l.src} alt={altDaFoto(l.src, locale)} fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
                 </div>
                 <figcaption className="mt-3 text-small text-(--tinta-suave)">{d.home.legendas[l.legenda]}</figcaption>
               </figure>
@@ -109,6 +107,7 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
           ))}
         </ul>
       </section>
+      <DadosEstruturados dados={migalhas(locale, [{ nome: d.nav.contato, caminho: '/contato' }])} />
     </main>
   );
 }

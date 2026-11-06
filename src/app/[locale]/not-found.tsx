@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { locale } from 'next/root-params';
+import { altDaFoto } from '@/data/fotos-alt';
 import { CATEGORIAS, type Categoria } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
@@ -41,7 +42,7 @@ export default async function NaoEncontrado() {
         <figure className="relative aspect-[4/5] overflow-hidden sm:aspect-[16/10] lg:col-span-5 lg:aspect-[4/5]">
           <Image
             src="/fotos/buzios/vista-da-escuna.jpg"
-            alt={d.home.legendas.vistaDaEscuna}
+            alt={altDaFoto('/fotos/buzios/vista-da-escuna.jpg', idioma)}
             fill
             sizes="(min-width: 1024px) 40vw, 100vw"
             className="respira object-cover"
@@ -58,7 +59,13 @@ export default async function NaoEncontrado() {
             <li key={a.tipo}>
               <Link href={`${rota(idioma, '/passeios')}?tipo=${a.tipo}`} className="group block">
                 <span className="zoom relative block aspect-[4/3] overflow-hidden">
-                  <Image src={a.foto} alt="" fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />
+                  <Image
+                    src={a.foto}
+                    alt={altDaFoto(a.foto, idioma)}
+                    fill
+                    sizes="(min-width: 640px) 33vw, 100vw"
+                    className="object-cover"
+                  />
                 </span>
                 <span className="mt-3 block text-lead font-semibold underline-offset-4 group-hover:underline">
                   {CATEGORIAS[a.tipo].nome[idioma]}

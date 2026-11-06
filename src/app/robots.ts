@@ -10,19 +10,8 @@ export default function robots(): MetadataRoute.Robots {
           {
             userAgent: '*',
             allow: '/',
-            disallow: [
-              '/admin',
-              '/api/',
-              '/checkout',
-              '/reserva/',
-              '/pedido/',
-              '/en/checkout',
-              '/es/checkout',
-              '/en/reserva/',
-              '/es/reserva/',
-              '/en/pedido/',
-              '/es/pedido/',
-            ],
+            // checkout, pedido e reserva ficam de fora de propósito: bloqueados aqui, o Google não leria o noindex deles
+            disallow: ['/admin', '/api/'],
           },
         ]
       : [{ userAgent: '*', disallow: '/' }],

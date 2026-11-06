@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { altDaFoto } from '@/data/fotos-alt';
 import { TRAJETOS, VEICULOS, precoDoTrajeto, type Idioma, type Veiculo } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL } from '@/i18n/config';
@@ -100,7 +101,13 @@ export function VeiculosTransfer({ d, idioma, className = '' }: { d: Dicionario;
             <li key={v}>
               <figure>
                 <div className="relative aspect-[4/3] overflow-hidden rounded-[4px]">
-                  <Image src={V.foto} alt={V.nome[idioma]} fill sizes="(min-width: 640px) 30vw, 100vw" className="object-cover" />
+                  <Image
+                    src={V.foto}
+                    alt={altDaFoto(V.foto, idioma, V.nome[idioma])}
+                    fill
+                    sizes="(min-width: 640px) 30vw, 100vw"
+                    className="object-cover"
+                  />
                 </div>
                 <figcaption className="mt-3">
                   <strong className="block font-[family-name:var(--font-semi)] text-lead font-semibold">{V.nome[idioma]}</strong>

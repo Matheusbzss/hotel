@@ -654,6 +654,16 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-clar
   .cartao-foto {
     position: relative;
     aspect-ratio: 4 / 3;
+    /* como .adiar: o tamanho vem do aspect-ratio, então nada muda de lugar */
+    content-visibility: auto;
+  }
+  /*
+   * Foto fora da tela: o navegador só a desenha, e só a baixa, quando ela chega perto. Sem isso, o "lazy" do navegador
+   * pede quase todas as fotos da página de uma vez e elas disputam a conexão com a primeira foto.
+   * Só em caixa com tamanho definido pelo CSS (aspect-ratio, inset, altura): sem o conteúdo, ela não pode encolher.
+   */
+  .adiar {
+    content-visibility: auto;
   }
   .cartao-foto .etiquetas {
     position: absolute;
@@ -778,6 +788,8 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-clar
     position: relative;
     isolation: isolate;
     overflow: hidden;
+    /* a foto de satélite é a maior da inicial: só baixa quando o mapa chega perto (ver .adiar) */
+    content-visibility: auto;
     height: 76svh;
     min-height: 30rem;
     max-height: 52rem;

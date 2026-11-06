@@ -1,3 +1,4 @@
+import { altDaFoto } from '@/data/fotos-alt';
 import type { Passeio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
@@ -20,14 +21,24 @@ const PONTO: Record<string, string> = {
  * O topo da página do passeio: as fotos de borda a borda, por baixo da cápsula do menu, com a duração,
  * a cidade e o nome por cima; logo abaixo, o preço por pessoa, o total do grupo e as garantias.
  */
-export function TopoPasseio({ passeio: p, idioma, d, textosGaleria }: { passeio: Passeio; idioma: Idioma; d: Dicionario; textosGaleria: TextosGaleria }) {
+export function TopoPasseio({
+  passeio: p,
+  idioma,
+  d,
+  textosGaleria,
+}: {
+  passeio: Passeio;
+  idioma: Idioma;
+  d: Dicionario;
+  textosGaleria: TextosGaleria;
+}) {
   const item = itemBoletim(p, idioma, d);
   return (
     <>
       <section className="topo-passeio" aria-labelledby="passeio-titulo">
         <div className="topo-passeio-fotos">
           {p.fotos.length > 0 ? (
-            <GaleriaPasseio fotos={p.fotos} alt={p.nome[idioma]} textos={textosGaleria} />
+            <GaleriaPasseio fotos={p.fotos} alts={p.fotos.map((f) => altDaFoto(f, idioma, p.nome[idioma]))} textos={textosGaleria} />
           ) : (
             <MidiaPasseio passeio={p} idioma={idioma} sizes="100vw" prioridade className="absolute inset-0 size-full" />
           )}

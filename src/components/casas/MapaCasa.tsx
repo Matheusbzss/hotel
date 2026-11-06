@@ -25,7 +25,14 @@ export function MapaCasa({
       <figure className="mt-4">
         <div className="relative aspect-[4/3] overflow-hidden rounded-[4px] bg-(--color-superficie)">
           {/* eslint-disable-next-line @next/next/no-img-element -- a imagem já sai pronta e leve da rota do mapa */}
-          <img src={`/mapa/casas/${slug}.webp`} alt="" width={800} height={600} loading="lazy" className="size-full object-cover" />
+          <img
+            src={`/mapa/casas/${slug}.webp`}
+            alt={`${T.mapaTitulo}: ${local}`}
+            width={800}
+            height={600}
+            loading="lazy"
+            className="size-full object-cover"
+          />
           <span
             className="absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/90 bg-white/15 shadow-[0_0_0_1px_rgb(0_0_0/0.25)]"
             style={{ width: diametro }}

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { migalhas } from '@/lib/dados-estruturados';
+import { DadosEstruturados } from '@/components/DadosEstruturados';
+import { altDaFoto } from '@/data/fotos-alt';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { ExploradorCasas } from '@/components/casas/ExploradorCasas';
 import { FormularioCotacao } from '@/components/FormularioCotacao';
@@ -73,7 +76,13 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
         <section className="moldura mt-14 md:mt-20" aria-labelledby="em-breve">
           <div className="grid md:grid-cols-12">
             <div className="relative aspect-[4/3] md:col-span-6 md:aspect-auto md:min-h-[30rem]">
-              <Image src="/fotos/buzios/vista-da-escuna.jpg" alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+              <Image
+                src="/fotos/buzios/vista-da-escuna.jpg"
+                alt={altDaFoto('/fotos/buzios/vista-da-escuna.jpg', locale)}
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                className="object-cover"
+              />
             </div>
             <div className="tom-campo flex flex-col justify-between gap-8 p-6 md:col-span-6 md:p-12">
               <div>
@@ -95,6 +104,7 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
           </div>
         </section>
       )}
+      <DadosEstruturados dados={migalhas(locale, [{ nome: d.nav.casas, caminho: '/casas-de-temporada' }])} />
     </main>
   );
 }

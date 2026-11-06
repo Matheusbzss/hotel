@@ -155,6 +155,25 @@ const en: Dicionario = {
     sucessoTexto: 'We’ll reply through the contact you left.',
     erro: 'Couldn’t send it right now. Try again in a few minutes.',
   },
+  opinioes: {
+    titulo: 'What travellers say',
+    nota: 'Rated {n} out of 5',
+    lerMais: 'Read more',
+    lerMenos: 'Read less',
+    original: {
+      pt: 'Original review in Portuguese',
+      es: 'Original review in Spanish',
+      en: 'Original review in English',
+    },
+    ver: {
+      google: 'See on Google',
+      tripadvisor: 'See on TripAdvisor',
+      instagram: 'See on Instagram',
+      whatsapp: 'See the message',
+      email: 'See the message',
+      site: 'See the original',
+    },
+  },
   pedido: {
     codigo: 'Order code',
     itens: 'Items in your order',

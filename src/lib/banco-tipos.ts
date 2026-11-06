@@ -19,46 +19,55 @@ export type Database = {
     Tables: {
       avaliacoes: {
         Row: {
+          cidade: string | null
           criado_em: string
           data_avaliacao: string
+          foto: string | null
           id: string
           idioma: string | null
           nome: string
           nota: number | null
           origem: string
-          origem_url: string
+          origem_url: string | null
           pais: string | null
           produto_slug: string | null
           publicada: boolean
           texto: string
+          titulo: string | null
         }
         Insert: {
+          cidade?: string | null
           criado_em?: string
           data_avaliacao: string
+          foto?: string | null
           id?: string
           idioma?: string | null
           nome: string
           nota?: number | null
           origem: string
-          origem_url: string
+          origem_url?: string | null
           pais?: string | null
           produto_slug?: string | null
           publicada?: boolean
           texto: string
+          titulo?: string | null
         }
         Update: {
+          cidade?: string | null
           criado_em?: string
           data_avaliacao?: string
+          foto?: string | null
           id?: string
           idioma?: string | null
           nome?: string
           nota?: number | null
           origem?: string
-          origem_url?: string
+          origem_url?: string | null
           pais?: string | null
           produto_slug?: string | null
           publicada?: boolean
           texto?: string
+          titulo?: string | null
         }
         Relationships: []
       }

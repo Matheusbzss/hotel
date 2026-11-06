@@ -153,6 +153,25 @@ const pt = {
     sucessoTexto: 'A gente responde pelo contato que você deixou.',
     erro: 'Não deu para enviar agora. Tente de novo em alguns minutos.',
   },
+  opinioes: {
+    titulo: 'Opiniões de quem já foi',
+    nota: 'Nota {n} de 5',
+    lerMais: 'Ler mais',
+    lerMenos: 'Ler menos',
+    original: {
+      pt: 'Avaliação original em português',
+      es: 'Avaliação original em espanhol',
+      en: 'Avaliação original em inglês',
+    },
+    ver: {
+      google: 'Ver no Google',
+      tripadvisor: 'Ver no TripAdvisor',
+      instagram: 'Ver no Instagram',
+      whatsapp: 'Ver a mensagem',
+      email: 'Ver a mensagem',
+      site: 'Ver o original',
+    },
+  },
   pedido: {
     codigo: 'Código do pedido',
     itens: 'Itens do pedido',

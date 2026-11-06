@@ -155,6 +155,25 @@ const es: Dicionario = {
     sucessoTexto: 'Te respondemos por el contacto que dejaste.',
     erro: 'No se pudo enviar ahora. Intentá de nuevo en unos minutos.',
   },
+  opinioes: {
+    titulo: 'Opiniones de quienes ya fueron',
+    nota: 'Puntaje {n} de 5',
+    lerMais: 'Leer más',
+    lerMenos: 'Leer menos',
+    original: {
+      pt: 'Opinión original en portugués',
+      es: 'Opinión original en español',
+      en: 'Opinión original en inglés',
+    },
+    ver: {
+      google: 'Ver en Google',
+      tripadvisor: 'Ver en TripAdvisor',
+      instagram: 'Ver en Instagram',
+      whatsapp: 'Ver el mensaje',
+      email: 'Ver el mensaje',
+      site: 'Ver el original',
+    },
+  },
   pedido: {
     codigo: 'Código del pedido',
     itens: 'Ítems del pedido',

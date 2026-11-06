@@ -229,6 +229,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <a href="/admin/cotacoes" className="min-h-10 bg-white px-4 py-2 font-semibold">
             Cotações
           </a>
+          <a href="/admin/avaliacoes" className="min-h-10 bg-white px-4 py-2 font-semibold">
+            Avaliações
+          </a>
           <form method="post" action="/api/admin/logout">
             <button type="submit" className="min-h-10 bg-white px-4 font-semibold">
               Sair

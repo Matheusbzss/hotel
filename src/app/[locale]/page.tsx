@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CardPasseio } from '@/components/CardPasseio';
 import { ComoFunciona, Garantias, Perguntas } from '@/components/home/BlocosHome';
 import { MapaRegiao } from '@/components/home/MapaRegiao';
+import { Opinioes } from '@/components/home/Opinioes';
 import { TopoFoto } from '@/components/home/TopoFoto';
 import { Tutorial } from '@/components/home/Tutorial';
 import { Vitrine } from '@/components/home/Vitrine';
@@ -11,6 +12,8 @@ import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
 import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
+import { opinioesDoSite } from '@/lib/avaliacao';
+import { avaliacoesPublicadas } from '@/lib/avaliacoes';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
 import { alternates } from '@/lib/site';
 
@@ -39,6 +42,8 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const d = dicionario(locale);
   const H = d.home;
   const passeios = passeiosAtivos();
+  // sem o banco, a página abre sem a seção: as opiniões nunca podem derrubar a inicial
+  const opinioes = opinioesDoSite(await avaliacoesPublicadas().catch(() => []), locale);
   const quantos = (n: number) => (n === 1 ? H.destinosUm : fmt(H.destinosQtd, { n }));
   const daCidade = (c: Cidade) => passeios.filter((p) => p.cidade === c);
   const cidades = (Object.keys(CIDADES) as Cidade[])
@@ -108,6 +113,7 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
       <Garantias d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
       {/* o tutorial com os prints do site fica desligado até as telas de horário e de pagamento existirem */}
       {TUTORIAL_ATIVO ? <Tutorial d={d} telas={[1, 2, 3, 4].map((n) => telaTutorial(locale, n))} /> : <ComoFunciona d={d} />}
+      <Opinioes itens={opinioes} idioma={locale} d={d} />
       <Perguntas d={d} />
 
       <script

@@ -6,6 +6,10 @@ As fotos em `public/fotos/` são dos passeios e parceiros da agência, exceto as
 | --- | --- | --- | --- |
 | `buzios/por-do-sol-barcos-na-baia.jpg` | [Unsplash](https://unsplash.com/photos/landscape-photography-of-sailing-boats-during-golden-hour-oOFN-dSZRaE) | Tadeu Jnr | [Unsplash License](https://unsplash.com/license): uso comercial gratuito, sem atribuição obrigatória |
 
+## Fotos de perfil das avaliações
+
+`public/avaliacoes/`: as fotos de perfil de quem avaliou, recortadas dos prints do Tripadvisor que o dono mandou. Não têm licença comercial: o dono decidiu usar por conta dele, em 2026-11-06, sabendo que o certo é ter a autorização de cada pessoa.
+
 ## Mapa da página inicial
 
 | Arquivo | Origem | Licença |

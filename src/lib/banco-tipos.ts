@@ -122,11 +122,14 @@ export type Database = {
         Row: {
           ativo: boolean
           atualizado_em: string
-          bairro: string | null
+          bairro: Json | null
           banheiros: number | null
           camas: Json
+          cancelamento: Json
           capacidade: number
           caucao_centavos: number | null
+          check_in: string | null
+          check_out: string | null
           cidade: string
           comodidades: Json
           criado_em: string
@@ -134,7 +137,9 @@ export type Database = {
           diaria_base_centavos: number | null
           endereco: string | null
           fotos: Json
+          ical_erro: string | null
           ical_sincronizado_em: string | null
+          ical_token: string
           ical_url: string | null
           id: string
           lat_aprox: number | null
@@ -151,11 +156,14 @@ export type Database = {
         Insert: {
           ativo?: boolean
           atualizado_em?: string
-          bairro?: string | null
+          bairro?: Json | null
           banheiros?: number | null
           camas?: Json
+          cancelamento?: Json
           capacidade: number
           caucao_centavos?: number | null
+          check_in?: string | null
+          check_out?: string | null
           cidade: string
           comodidades?: Json
           criado_em?: string
@@ -163,7 +171,9 @@ export type Database = {
           diaria_base_centavos?: number | null
           endereco?: string | null
           fotos?: Json
+          ical_erro?: string | null
           ical_sincronizado_em?: string | null
+          ical_token?: string
           ical_url?: string | null
           id?: string
           lat_aprox?: number | null
@@ -180,11 +190,14 @@ export type Database = {
         Update: {
           ativo?: boolean
           atualizado_em?: string
-          bairro?: string | null
+          bairro?: Json | null
           banheiros?: number | null
           camas?: Json
+          cancelamento?: Json
           capacidade?: number
           caucao_centavos?: number | null
+          check_in?: string | null
+          check_out?: string | null
           cidade?: string
           comodidades?: Json
           criado_em?: string
@@ -192,7 +205,9 @@ export type Database = {
           diaria_base_centavos?: number | null
           endereco?: string | null
           fotos?: Json
+          ical_erro?: string | null
           ical_sincronizado_em?: string | null
+          ical_token?: string
           ical_url?: string | null
           id?: string
           lat_aprox?: number | null
@@ -259,30 +274,33 @@ export type Database = {
       casas_tarifas: {
         Row: {
           casa_id: string
-          descricao: string | null
           diaria_centavos: number
           fim: string
           id: string
           inicio: string
           minimo_noites: number | null
+          nome: Json | null
+          tipo: string
         }
         Insert: {
           casa_id: string
-          descricao?: string | null
           diaria_centavos: number
           fim: string
           id?: string
           inicio: string
           minimo_noites?: number | null
+          nome?: Json | null
+          tipo?: string
         }
         Update: {
           casa_id?: string
-          descricao?: string | null
           diaria_centavos?: number
           fim?: string
           id?: string
           inicio?: string
           minimo_noites?: number | null
+          nome?: Json | null
+          tipo?: string
         }
         Relationships: [
           {
@@ -563,6 +581,10 @@ export type Database = {
       criar_reserva: {
         Args: { p_historico: Json; p_item: Json; p_pedido: Json }
         Returns: boolean
+      }
+      trocar_bloqueios_airbnb: {
+        Args: { p_bloqueios: Json; p_casa: string }
+        Returns: undefined
       }
     }
     Enums: {

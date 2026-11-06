@@ -29,8 +29,8 @@ const barlowSemi = Barlow_Semi_Condensed({
 });
 const barlowCond = Barlow_Condensed({ subsets: ['latin', 'latin-ext'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
 
-export const dynamicParams = false;
-
+// sem "dynamicParams = false" aqui: ele valeria para todas as páginas de baixo, e a casa cadastrada no painel
+// não abriria até o próximo deploy. Idioma que não existe nem chega aqui: o proxy manda para o 404.
 export function generateStaticParams() {
   return IDIOMAS.map((locale) => ({ locale }));
 }

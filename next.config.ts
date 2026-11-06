@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // o mapa de cada casa é recortado da foto de satélite na hora, no servidor
+  outputFileTracingIncludes: { '/mapa/casas/*': ['./public/mapa/satelite-2880.webp'] },
   // o pacote de passeio + hospedagem saiu do site (Fase 2): quem tiver o link antigo vai para o início
   async redirects() {
     return [

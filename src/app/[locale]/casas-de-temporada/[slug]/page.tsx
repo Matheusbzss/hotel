@@ -7,24 +7,29 @@ import { ReservaCasa } from '@/components/casas/ReservaCasa';
 import { GaleriaPasseio } from '@/components/GaleriaPasseio';
 import { ListaMarcada } from '@/components/ListaMarcada';
 import { EMPRESA } from '@/config/empresa';
-import { RESERVA_CASAS_ABERTA, casasAtivas, obterCasa } from '@/data/casas';
+import { RESERVA_CASAS_ABERTA } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { noitesOcupadas } from '@/lib/casa';
+import { casasAtivas, obterCasa, periodosOcupados } from '@/lib/casas';
 import { formatarCifra } from '@/lib/cifra';
 import { SINAL_PORCENTO, menorDiaria } from '@/lib/diarias';
 import { alternates } from '@/lib/site';
 import { hojeEmBuzios } from '@/lib/validacao';
 
-export const dynamicParams = false;
+// a página é refeita uma vez por dia, para os dias e os períodos que já passaram saírem dela; a casa nova
+// abre na primeira visita
+export const revalidate = 86400;
 
-export function generateStaticParams() {
-  return IDIOMAS.flatMap((locale) => casasAtivas().map((c) => ({ locale, slug: c.slug })));
+export async function generateStaticParams() {
+  const casas = await casasAtivas();
+  return IDIOMAS.flatMap((locale) => casas.map((c) => ({ locale, slug: c.slug })));
 }
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de-temporada/[slug]'>): Promise<Metadata> {
   const { locale, slug } = await params;
-  const c = obterCasa(slug);
+  const c = await obterCasa(slug);
   if (!isIdioma(locale) || !c) return {};
   const d = dicionario(locale);
   const descricao = `${c.resumo[locale]} ${d.casas.diariaAPartir} ${formatarCifra(menorDiaria(c) * 100, LOCALE_INTL[locale])}.`;
@@ -61,7 +66,7 @@ function ListaPontos({ titulo, id, itens }: { titulo: string; id: string; itens:
 
 export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-de-temporada/[slug]'>) {
   const { locale, slug } = await params;
-  const c = obterCasa(slug);
+  const c = await obterCasa(slug);
   if (!isIdioma(locale) || !c) notFound();
   const d = dicionario(locale);
   const t = d.casas;
@@ -71,7 +76,6 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
   const data = (iso: string) => formatoData.format(new Date(`${iso}T12:00:00Z`));
   const minimo = (n: number) => (n > 1 ? fmt(t.minimoDe, { n }) : '');
   const tamanho = `${fmt(t.quartos, { n: c.quartos })} · ${fmt(t.capacidade, { n: c.capacidade })}`;
-  // a página é refeita a cada publicação: o período que já acabou sai da tabela
   const hoje = hojeEmBuzios();
   const periodos = [...c.temporadas, ...c.feriados].filter((p) => p.ate >= hoje).sort((a, b) => a.de.localeCompare(b.de));
   // cada linha da tabela: o nome, o valor e as notas embaixo (as datas e o mínimo de noites)
@@ -86,9 +90,8 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
     ...(c.taxaLimpeza > 0 ? [{ chave: 'limpeza', titulo: t.taxaLimpeza, notas: [], valor: c.taxaLimpeza }] : []),
     ...(c.caucao > 0 ? [{ chave: 'caucao', titulo: t.caucao, notas: [], valor: c.caucao }] : []),
   ].map((v) => ({ ...v, notas: v.notas.filter(Boolean) }));
-  const outras = casasAtivas()
-    .filter((o) => o.slug !== c.slug)
-    .slice(0, 4);
+  const outras = (await casasAtivas()).filter((o) => o.slug !== c.slug).slice(0, 4);
+  const ocupadas = noitesOcupadas(await periodosOcupados(c.id), hoje);
 
   return (
     <main id="conteudo" className="tom-fundo">
@@ -240,7 +243,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
                   taxaLimpeza: c.taxaLimpeza,
                 }}
                 capacidade={c.capacidade}
-                ocupadas={[]}
+                ocupadas={ocupadas}
                 reservaAberta={RESERVA_CASAS_ABERTA}
                 hrefReserva={rota(locale, `/casas-de-temporada/${c.slug}/reservar`)}
                 locale={intl}

@@ -1,4 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 /**
  * Sessão do /admin: cookie assinado com HMAC.
@@ -46,4 +48,20 @@ export function sessaoValida(valor: string | undefined): boolean {
   if (!base || !assinatura) return false;
   if (!iguais(assinatura, assinar(base, chave))) return false;
   return Number(base) > Date.now();
+}
+
+/** As rotas do painel: só com a sessão do admin e vindo do próprio site. Devolve a recusa, ou null se puder seguir. */
+export async function pedidoRecusado(req: Request): Promise<NextResponse | null> {
+  const loja = await cookies();
+  if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value)) return NextResponse.json({ ok: false }, { status: 401 });
+  const origem = req.headers.get('origin');
+  if (origem && new URL(origem).host !== new URL(req.url).host) return NextResponse.json({ ok: false }, { status: 403 });
+  return null;
+}
+
+/** O agendamento da Vercel (vercel.json) manda "Authorization: Bearer CRON_SECRET". */
+export function chamadaDoAgendamento(req: Request): boolean {
+  const segredo = process.env.CRON_SECRET;
+  const recebido = req.headers.get('authorization');
+  return Boolean(segredo && recebido) && iguais(recebido as string, `Bearer ${segredo}`);
 }

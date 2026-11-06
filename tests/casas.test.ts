@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CASAS, type Casa } from '../src/data/casas.ts';
+import type { Casa } from '../src/data/casas.ts';
 import { SINAL_PORCENTO, diariaDaNoite, faixasDaEstadia, menorDiaria, noitesEntre, orcamentoCasa } from '../src/lib/diarias.ts';
 
 // casa fictícia, só para conferir as contas (o site não tem casas inventadas)
@@ -33,10 +33,6 @@ const TESTE: Casa = {
   caucao: 2000,
   fotos: [],
 };
-
-test('o site não tem casas inventadas', () => {
-  assert.equal(CASAS.length, 0);
-});
 
 test('as noites vão da chegada até a véspera da saída', () => {
   assert.deepEqual(noitesEntre('2026-11-10', '2026-11-13'), ['2026-11-10', '2026-11-11', '2026-11-12']);

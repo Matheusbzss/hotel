@@ -4,10 +4,10 @@ import { notFound } from 'next/navigation';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { ExploradorCasas } from '@/components/casas/ExploradorCasas';
 import { FormularioCotacao } from '@/components/FormularioCotacao';
-import { CASAS_NO_AR, casasAtivas } from '@/data/casas';
 import { CIDADES, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
+import { casasAtivas, casasNoAr } from '@/lib/casas';
 import { textosCotacao } from '@/lib/cotacao';
 import { alternates } from '@/lib/site';
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
     alternates: alternates(locale, '/casas-de-temporada'),
     openGraph: { title: d.casas.titulo, description: d.casas.texto, url: rota(locale, '/casas-de-temporada') },
     // sem casa no ar, a página "Em breve" fica fora do Google
-    ...(CASAS_NO_AR ? {} : { robots: { index: false, follow: true } }),
+    ...((await casasNoAr()) ? {} : { robots: { index: false, follow: true } }),
   };
 }
 
@@ -30,7 +30,7 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
   const t = d.casas;
-  const casas = casasAtivas();
+  const casas = await casasAtivas();
   // só as cidades que têm casa, na ordem de sempre
   const cidades = (Object.keys(CIDADES) as Cidade[])
     .filter((c) => casas.some((casa) => casa.cidade === c))

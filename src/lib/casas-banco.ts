@@ -1,0 +1,119 @@
+import type { CidadeCasa } from '@/data/casas';
+import type { Lista, Texto } from '@/data/passeios';
+import type { Json, Tables, TablesInsert } from './banco-tipos';
+import type { Bloqueio, CasaPainel, DadosCasa, OrigemBloqueio, Tarifa, TipoTarifa } from './casa';
+import { somarDias } from './validacao.ts';
+
+/**
+ * A casa como o site usa ↔ as linhas do banco. No banco os valores ficam em centavos, e o fim da tarifa
+ * é o dia seguinte à última noite, como nos bloqueios. Aqui só se traduz, sem tocar no banco: assim dá
+ * para testar (tests/casa.test.ts).
+ */
+
+export type LinhaCasa = Tables<'casas'>;
+export type LinhaTarifa = Tables<'casas_tarifas'>;
+export type LinhaBloqueio = Tables<'casas_bloqueios'>;
+
+const json = (v: unknown) => v as Json;
+const VAZIO: Texto = { pt: '', es: '', en: '' };
+const textoDe = (v: Json | null) => ({ ...VAZIO, ...(v as Partial<Texto> | null) });
+const listaDe = (v: Json) => ({ pt: [], es: [], en: [], ...(v as Partial<Lista>) }) as Lista;
+const emReais = (centavos: number | null) => (centavos ?? 0) / 100;
+const emCentavos = (reais: number) => Math.round(reais * 100);
+
+export const tarifaDeLinha = (l: LinhaTarifa): Tarifa => ({
+  id: l.id,
+  tipo: l.tipo as TipoTarifa,
+  nome: textoDe(l.nome),
+  de: l.inicio,
+  ate: somarDias(l.fim, -1),
+  diaria: emReais(l.diaria_centavos),
+  ...(l.minimo_noites !== null ? { minimoNoites: l.minimo_noites } : {}),
+});
+
+export const linhaDeTarifa = (casaId: string, t: Omit<Tarifa, 'id'>): TablesInsert<'casas_tarifas'> => ({
+  casa_id: casaId,
+  tipo: t.tipo,
+  nome: json(t.nome),
+  inicio: t.de,
+  fim: somarDias(t.ate, 1),
+  diaria_centavos: emCentavos(t.diaria),
+  minimo_noites: t.minimoNoites ?? null,
+});
+
+export const bloqueioDeLinha = (l: LinhaBloqueio): Bloqueio => ({
+  id: l.id,
+  inicio: l.inicio,
+  fim: l.fim,
+  origem: l.origem as OrigemBloqueio,
+  ...(l.referencia ? { referencia: l.referencia } : {}),
+});
+
+export function deLinhas(c: LinhaCasa, tarifas: LinhaTarifa[], bloqueios: LinhaBloqueio[]): CasaPainel {
+  const lista = tarifas.map(tarifaDeLinha).sort((a, b) => a.de.localeCompare(b.de));
+  const periodos = (tipo: TipoTarifa) => lista.filter((t) => t.tipo === tipo);
+  return {
+    id: c.id,
+    ativo: c.ativo,
+    slug: c.slug,
+    cidade: c.cidade as CidadeCasa,
+    nome: textoDe(c.nome),
+    local: textoDe(c.bairro),
+    endereco: c.endereco ?? '',
+    pontoAproximado: { lat: c.lat_aprox ?? 0, lng: c.lng_aprox ?? 0 },
+    resumo: textoDe(c.resumo),
+    descricao: textoDe(c.descricao),
+    quartos: c.quartos,
+    suites: c.suites ?? 0,
+    banheiros: c.banheiros ?? 0,
+    capacidade: c.capacidade,
+    camas: listaDe(c.camas),
+    comodidades: listaDe(c.comodidades),
+    regras: listaDe(c.regras),
+    cancelamento: listaDe(c.cancelamento),
+    checkIn: c.check_in ?? '',
+    checkOut: c.check_out ?? '',
+    diaria: emReais(c.diaria_base_centavos),
+    minimoNoites: c.minimo_noites,
+    temporadas: periodos('temporada'),
+    feriados: periodos('feriado'),
+    taxaLimpeza: emReais(c.taxa_limpeza_centavos),
+    caucao: emReais(c.caucao_centavos),
+    fotos: (c.fotos as string[]) ?? [],
+    icalUrl: c.ical_url ?? '',
+    icalToken: c.ical_token,
+    ...(c.ical_sincronizado_em ? { icalSincronizadoEm: new Date(c.ical_sincronizado_em).toISOString() } : {}),
+    ...(c.ical_erro ? { icalErro: c.ical_erro } : {}),
+    tarifas: lista,
+    bloqueios: bloqueios.map(bloqueioDeLinha).sort((a, b) => a.inicio.localeCompare(b.inicio)),
+  };
+}
+
+/** Os dados do formulário → as colunas da tabela. */
+export const paraLinha = (d: DadosCasa): TablesInsert<'casas'> => ({
+  slug: d.slug,
+  cidade: d.cidade,
+  nome: json(d.nome),
+  bairro: json(d.local),
+  endereco: d.endereco || null,
+  lat_aprox: d.pontoAproximado.lat || null,
+  lng_aprox: d.pontoAproximado.lng || null,
+  resumo: json(d.resumo),
+  descricao: json(d.descricao),
+  quartos: d.quartos,
+  suites: d.suites,
+  banheiros: d.banheiros,
+  capacidade: d.capacidade,
+  camas: json(d.camas),
+  comodidades: json(d.comodidades),
+  regras: json(d.regras),
+  cancelamento: json(d.cancelamento),
+  check_in: d.checkIn || null,
+  check_out: d.checkOut || null,
+  diaria_base_centavos: emCentavos(d.diaria),
+  minimo_noites: d.minimoNoites,
+  taxa_limpeza_centavos: emCentavos(d.taxaLimpeza),
+  caucao_centavos: emCentavos(d.caucao),
+  fotos: json(d.fotos),
+  ical_url: d.icalUrl || null,
+});

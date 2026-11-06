@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
-import { CASAS_NO_AR } from '@/data/casas';
 import { passeiosAtivos } from '@/data/passeios';
 import { HREFLANG, IDIOMAS, rota } from '@/i18n/config';
+import { casasAtivas } from '@/lib/casas';
 import { urlDoSite } from '@/lib/site';
 
 const PAGINAS: { caminho: string; prioridade: number; frequencia: MetadataRoute.Sitemap[number]['changeFrequency'] }[] = [
@@ -14,12 +14,14 @@ const PAGINAS: { caminho: string; prioridade: number; frequencia: MetadataRoute.
   { caminho: '/politica-de-privacidade', prioridade: 0.3, frequencia: 'yearly' },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = urlDoSite();
+  const casas = await casasAtivas();
   const todas = [
     ...PAGINAS,
-    // casas de temporada só entram quando a área for ativada (src/data/casas.ts)
-    ...(CASAS_NO_AR ? [{ caminho: '/casas-de-temporada', prioridade: 0.6, frequencia: 'weekly' as const }] : []),
+    // as casas de temporada só entram quando há casa no ar (src/lib/casas.ts)
+    ...(casas.length ? [{ caminho: '/casas-de-temporada', prioridade: 0.6, frequencia: 'weekly' as const }] : []),
+    ...casas.map((c) => ({ caminho: `/casas-de-temporada/${c.slug}`, prioridade: 0.7, frequencia: 'weekly' as const })),
     ...passeiosAtivos().map((p) => ({ caminho: `/passeios/${p.slug}`, prioridade: 0.8, frequencia: 'weekly' as const })),
   ];
   return todas.flatMap((pg) =>

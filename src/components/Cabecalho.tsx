@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { EMPRESA } from '@/config/empresa';
-import { CASAS_NO_AR } from '@/data/casas';
 import { rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { casasNoAr } from '@/lib/casas';
 import { CarrinhoIcone } from './carrinho/CarrinhoIcone';
 import { Logo } from './Logo';
 import { MenuMovel } from './MenuMovel';
@@ -13,12 +13,12 @@ import { VigiaRolagem } from './VigiaRolagem';
  * Cápsula de vidro fosco presa no topo (estilo iPhone): logo, poucos links e idioma.
  * Sobre a foto da página inicial ela é translúcida com texto branco; ao rolar, vira vidro claro.
  */
-export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
+export async function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const links = [
     { href: rota(idioma, '/passeios'), texto: d.nav.passeios },
     { href: rota(idioma, '/transfer'), texto: d.nav.transfer },
-    // "Casas" só entra no menu quando há casa no ar (src/data/casas.ts)
-    ...(CASAS_NO_AR ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
+    // "Casas" só entra no menu quando há casa no ar (src/lib/casas.ts)
+    ...((await casasNoAr()) ? [{ href: rota(idioma, '/casas-de-temporada'), texto: d.nav.casas }] : []),
     { href: rota(idioma, '/contato'), texto: d.nav.contato },
   ];
   return (

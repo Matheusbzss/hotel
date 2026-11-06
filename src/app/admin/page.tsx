@@ -344,6 +344,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <a href="/admin/estatisticas" className="min-h-10 bg-white px-4 py-2 font-semibold">
             Estatísticas
           </a>
+          <a href="/admin/casas" className="min-h-10 bg-white px-4 py-2 font-semibold">
+            Casas
+          </a>
           <a href="/admin/cotacoes" className="min-h-10 bg-white px-4 py-2 font-semibold">
             Cotações
           </a>

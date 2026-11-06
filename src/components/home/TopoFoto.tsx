@@ -1,10 +1,10 @@
 import Image from 'next/image';
-import { CASAS_NO_AR } from '@/data/casas';
 import type { Dicionario } from '@/i18n';
+import { casasNoAr } from '@/lib/casas';
 import { Profundidade } from './Profundidade';
 
 /** O topo: a foto real do pôr do sol na baía de Búzios, a frase principal, o botão e as garantias em vidro. */
-export function TopoFoto({ d }: { d: Dicionario }) {
+export async function TopoFoto({ d }: { d: Dicionario }) {
   const H = d.home;
   return (
     <section className="topo-foto flex flex-col justify-end" aria-labelledby="gancho">
@@ -23,7 +23,7 @@ export function TopoFoto({ d }: { d: Dicionario }) {
         <h1 id="gancho" className="gancho">
           {H.gancho}
         </h1>
-        <p className="mt-4 max-w-[42ch] text-lead">{CASAS_NO_AR ? H.ganchoTexto : H.ganchoTextoSemCasas}</p>
+        <p className="mt-4 max-w-[42ch] text-lead">{(await casasNoAr()) ? H.ganchoTexto : H.ganchoTextoSemCasas}</p>
         <a href="#passeios" className="botao mt-6">
           {H.ganchoCta}
         </a>

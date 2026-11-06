@@ -10,7 +10,7 @@ import { formatarHora } from '@/lib/horarios';
 import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
 import { textoMalas } from '@/lib/transfer-view';
 import { DDIS, emailValido, formatarDataIso, telefoneValido } from '@/lib/validacao';
-import { Campo, descricao } from '../FormularioCheckout';
+import { Campo, descricao } from '../Campo';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
 

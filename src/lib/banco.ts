@@ -16,6 +16,11 @@ export function supabaseConfigurado(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
 }
 
+/** No banco de dados: sempre na Vercel (com o Supabase configurado); no computador, só com RESERVAS_NO_BANCO=1. */
+export function usarBanco(): boolean {
+  return supabaseConfigurado() && (Boolean(process.env.VERCEL) || process.env.RESERVAS_NO_BANCO === '1');
+}
+
 // sem resposta em 10 s, desiste (o banco fora do ar não pode travar a página nem o checkout)
 const comPrazo: typeof fetch = (url, init) => {
   const prazo = AbortSignal.timeout(10_000);

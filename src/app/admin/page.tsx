@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
+import { contarCotacoesNovas } from '@/lib/cotacoes';
 import { pagarmeConfigurado } from '@/lib/pagarme';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
@@ -206,6 +207,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           c.toLowerCase().includes(busca),
         )),
   );
+  const cotacoesNovas = await contarCotacoesNovas().catch(() => 0);
   const pagas = todas.filter((r) => r.status === 'pago');
   const receita = pagas.reduce((s, r) => s + r.totalCentavos, 0);
 
@@ -223,12 +225,23 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
             </p>
           </div>
         </div>
-        <form method="post" action="/api/admin/logout">
-          <button type="submit" className="min-h-10 bg-white px-4 font-semibold">
-            Sair
-          </button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <a href="/admin/cotacoes" className="min-h-10 bg-white px-4 py-2 font-semibold">
+            Cotações
+          </a>
+          <form method="post" action="/api/admin/logout">
+            <button type="submit" className="min-h-10 bg-white px-4 font-semibold">
+              Sair
+            </button>
+          </form>
+        </div>
       </header>
+
+      {cotacoesNovas > 0 && (
+        <a href="/admin/cotacoes?status=nova" className="mt-6 block bg-sol px-5 py-3 font-semibold text-mar">
+          {cotacoesNovas === 1 ? '1 cotação nova' : `${cotacoesNovas} cotações novas`} para responder →
+        </a>
+      )}
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2" aria-label="Resumo">
         <div className="bg-white px-5 py-4">

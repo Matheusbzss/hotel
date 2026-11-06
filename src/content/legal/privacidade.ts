@@ -18,7 +18,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         paragrafos: ['Coletamos apenas o necessário:'],
         lista: [
           'Identificação: nome completo e número do CPF (brasileiros) ou do passaporte (estrangeiros).',
-          'Contato: e-mail e telefone/WhatsApp.',
+          'Contato: e-mail e telefone/WhatsApp, inclusive quando você pede uma cotação ou manda uma mensagem pelo site.',
           'Reserva: passeio, data, quantidade de adultos e crianças, cidade e nome do hotel ou pousada e as observações que você escrever.',
           'Carrinho: os itens que você escolheu e, se digitar no checkout, o seu e-mail, mesmo que você não termine a reserva.',
           'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O número completo do cartão é enviado direto à Pagar.me e nunca passa pelos nossos servidores.',
@@ -116,7 +116,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         paragrafos: ['We collect only what is needed:'],
         lista: [
           'Identification: full name and CPF number (Brazilian citizens) or passport number (foreign visitors).',
-          'Contact: email and phone/WhatsApp.',
+          'Contact: email and phone/WhatsApp, including when you request a quote or send a message through the website.',
           'Booking: tour, date, number of adults and children, town and name of your hotel or guesthouse, and any notes you write.',
           'Cart: the items you chose and, if you type it at checkout, your email, even if you do not finish the booking.',
           'Payment: payment method, status and, for cards, only the brand and last four digits. The full card number is sent straight to Pagar.me and never passes through our servers.',
@@ -214,7 +214,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         paragrafos: ['Recopilamos solo lo necesario:'],
         lista: [
           'Identificación: nombre completo y número de CPF (brasileños) o de pasaporte (extranjeros).',
-          'Contacto: e-mail y teléfono/WhatsApp.',
+          'Contacto: e-mail y teléfono/WhatsApp, también cuando pedís una cotización o mandás un mensaje por el sitio.',
           'Reserva: paseo, fecha, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas.',
           'Carrito: los ítems que elegiste y, si lo escribís en el checkout, tu e-mail, aunque no termines la reserva.',
           'Pago: forma de pago, estado y, en el caso de tarjeta, solo la marca y los cuatro últimos dígitos. El número completo de la tarjeta se envía directo a Pagar.me y nunca pasa por nuestros servidores.',

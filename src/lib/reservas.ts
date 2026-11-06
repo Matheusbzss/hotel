@@ -3,7 +3,7 @@ import path from 'node:path';
 import { BlobPreconditionFailedError, del, get, head, list, put } from '@vercel/blob';
 import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
 import type { Idioma } from '@/i18n/config';
-import { supabase, supabaseConfigurado } from './banco';
+import { supabase, usarBanco } from './banco';
 import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
 import { deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
@@ -323,14 +323,9 @@ const bancoDeDados: Armazenamento = {
   },
 };
 
-/** No banco de dados: sempre na Vercel (com o Supabase configurado); no computador, só com RESERVAS_NO_BANCO=1. */
-function noBanco(): boolean {
-  return supabaseConfigurado() && (Boolean(process.env.VERCEL) || process.env.RESERVAS_NO_BANCO === '1');
-}
-
 /** Onde as reservas novas são gravadas e procuradas primeiro. */
 function principal(): Armazenamento {
-  if (noBanco()) return bancoDeDados;
+  if (usarBanco()) return bancoDeDados;
   if (process.env.BLOB_READ_WRITE_TOKEN) return blob;
   if (!process.env.VERCEL) return arquivoLocal;
   throw new Error('Banco de reservas não configurado: faltam SUPABASE_URL e SUPABASE_SECRET_KEY na Vercel.');
@@ -338,18 +333,18 @@ function principal(): Armazenamento {
 
 /** Onde as reservas moravam antes do banco (o Blob; no computador, os arquivos): só para as que ainda não vieram. */
 function anterior(): Armazenamento | null {
-  if (!noBanco()) return null;
+  if (!usarBanco()) return null;
   if (process.env.BLOB_READ_WRITE_TOKEN) return blob;
   return process.env.VERCEL ? null : arquivoLocal;
 }
 
 export function bancoConfigurado(): boolean {
-  return noBanco() || Boolean(process.env.BLOB_READ_WRITE_TOKEN) || !process.env.VERCEL;
+  return usarBanco() || Boolean(process.env.BLOB_READ_WRITE_TOKEN) || !process.env.VERCEL;
 }
 
 /** Para o painel: onde as reservas estão sendo gravadas agora. */
 export function ondeFicamAsReservas(): string {
-  if (noBanco()) return 'banco de dados (Supabase)';
+  if (usarBanco()) return 'banco de dados (Supabase)';
   if (process.env.BLOB_READ_WRITE_TOKEN) return 'Vercel Blob';
   return process.env.VERCEL ? 'NÃO configurado' : 'arquivos no computador';
 }

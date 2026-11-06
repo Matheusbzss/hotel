@@ -3,12 +3,12 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { ExploradorCasas } from '@/components/casas/ExploradorCasas';
-import { IconeEmail } from '@/components/IconeEmail';
+import { FormularioCotacao } from '@/components/FormularioCotacao';
 import { CASAS_NO_AR, casasAtivas } from '@/data/casas';
 import { CIDADES, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
-import { linkEmail } from '@/lib/email';
+import { textosCotacao } from '@/lib/cotacao';
 import { alternates } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de-temporada'>): Promise<Metadata> {
@@ -82,10 +82,15 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
                 </h2>
                 <p className="mt-5 max-w-[42ch] text-lead">{t.emBreveTexto}</p>
               </div>
-              <a href={linkEmail(t.assunto, t.msg)} className="botao w-full sm:w-auto" data-evento="Contact">
-                <IconeEmail className="size-5" />
-                {t.pedir}
-              </a>
+              <div>
+                <FormularioCotacao
+                  tipo="casa"
+                  idioma={locale}
+                  rotuloMensagem={d.cotacao.casaMensagem}
+                  botao={t.pedir}
+                  textos={textosCotacao(d)}
+                />
+              </div>
             </div>
           </div>
         </section>

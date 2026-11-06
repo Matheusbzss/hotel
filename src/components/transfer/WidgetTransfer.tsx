@@ -16,13 +16,14 @@ import {
   type Veiculo,
 } from '@/data/transfer';
 import type { TrechoEscolhido } from '@/lib/carrinho';
+import type { PontaCotacao, TextosCotacao } from '@/lib/cotacao';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
-import { linkEmail } from '@/lib/email';
 import { rastrear } from '@/lib/pixel';
-import { formatarDataIso, hojeEmBuzios, somarDias } from '@/lib/validacao';
+import { hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
+import { FormularioCotacao } from '../FormularioCotacao';
 import { useCarrinho } from '../carrinho/CarrinhoContexto';
 import { Cifra } from '../Cifra';
 import { Contador } from '../grupo/Contador';
@@ -68,9 +69,7 @@ export interface TextosTransfer {
   sobCotacaoTexto: string;
   grupoGrande: string;
   pedirCotacao: string;
-  cotacaoAssunto: string;
-  cotacaoMsg: string;
-  cotacaoVolta: string;
+  cotacao: TextosCotacao;
   diminuir: string;
   aumentar: string;
   noPix: string;
@@ -303,22 +302,12 @@ export function WidgetTransfer({
     const base = p.lugar === 'outra-cidade' ? p.cidade || LUGARES[p.lugar].nome[idioma] : LUGARES[p.lugar].nome[idioma];
     return p.endereco ? `${base}, ${p.endereco}` : base;
   };
-  const dataHoraTexto = (d: string, h: string) => [d ? formatarDataIso(d, locale) : '', h].filter(Boolean).join(', ');
-  const textoMalas = `${malas.grandes} ${T.malasGrandes.toLowerCase()}, ${malas.medias} ${T.malasMedias.toLowerCase()}, ${malas.mao} ${T.malasMao.toLowerCase()}`;
-  const mensagemCotacao = T.cotacaoMsg
-    .replace('{saida}', nomePonta(saida))
-    .replace('{destino}', nomePonta(destino))
-    .replace('{data}', dataHoraTexto(data, hora) || '—')
-    .replace(
-      '{volta}',
-      idaVolta
-        ? T.cotacaoVolta
-            .replace('{trajeto}', `${nomePonta(vSaida)} → ${nomePonta(vDestino)}`)
-            .replace('{data}', dataHoraTexto(dataVolta, horaVolta) || '—')
-        : '',
-    )
-    .replace('{pessoas}', String(pessoas))
-    .replace('{malas}', textoMalas);
+  // o que vai para o pedido de cotação: "Outra cidade" leva o nome que o cliente digitou
+  const pontaCotacao = (p: Ponta): PontaCotacao => ({
+    lugar: p.lugar,
+    ...(p.endereco.trim() ? { endereco: p.endereco.trim() } : {}),
+    ...(p.lugar === 'outra-cidade' && p.cidade.trim() ? { cidade: p.cidade.trim() } : {}),
+  });
 
   const primeiroDia = hoje ? primeiroDiaTransfer(hoje) : '';
   // fora dos aeroportos, cada ponta precisa do hotel, da pousada ou do endereço
@@ -610,13 +599,26 @@ export function WidgetTransfer({
           </div>
         </>
       ) : (
-        // sem preço fixo (ou grupo maior que a van): o pedido de cotação vai por e-mail, já com os dados
+        // sem preço fixo (ou grupo maior que a van): o pedido de cotação vai para o painel, já com o trajeto
         <div className="mt-5 border-t border-(--color-borda) pt-4">
           <p className="font-semibold">{T.sobCotacaoTitulo}</p>
           <p className="mt-1 text-small">{veiculo ? T.sobCotacaoTexto : T.grupoGrande}</p>
-          <a href={linkEmail(T.cotacaoAssunto, mensagemCotacao)} className="botao mt-4 w-full" data-evento="Contact">
-            {T.pedirCotacao}
-          </a>
+          <FormularioCotacao
+            tipo="transfer"
+            idioma={idioma}
+            trajeto={{
+              ida: { saida: pontaCotacao(saida), destino: pontaCotacao(destino), data, hora },
+              ...(idaVolta
+                ? { volta: { saida: pontaCotacao(vSaida), destino: pontaCotacao(vDestino), data: dataVolta, hora: horaVolta } }
+                : {}),
+              passageiros: pessoas,
+              malas,
+            }}
+            telefoneObrigatorio
+            rotuloMensagem={T.cotacao.mensagemOpcional}
+            botao={T.pedirCotacao}
+            textos={T.cotacao}
+          />
         </div>
       )}
     </div>

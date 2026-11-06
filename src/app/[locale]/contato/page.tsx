@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { IconeEmail } from '@/components/IconeEmail';
+import { FormularioCotacao } from '@/components/FormularioCotacao';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
+import { textosCotacao } from '@/lib/cotacao';
 import { linkEmail } from '@/lib/email';
 import { alternates } from '@/lib/site';
 
@@ -55,10 +56,14 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
             </h1>
             <p className="mt-4">{c.texto}</p>
             <p className="mt-3 text-small font-semibold">{d.comum.avisoWhatsapp}</p>
-            <a href={email} className="botao mt-6 w-full" data-evento="Contact">
-              <IconeEmail className="size-5" />
-              {c.botao}
-            </a>
+            <FormularioCotacao
+              tipo="outro"
+              idioma={locale}
+              mensagemObrigatoria
+              rotuloMensagem={d.cotacao.mensagem}
+              botao={d.cotacao.enviar}
+              textos={textosCotacao(d)}
+            />
             <dl className="mt-8 space-y-4">
               <div>
                 <dt className="text-small text-(--tinta-suave)">{c.email}</dt>

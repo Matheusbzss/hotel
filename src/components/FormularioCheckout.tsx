@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Horarios } from '@/data/passeios';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { calcular, formatarCentavos, normalizarPessoas, totalPixCentavos, type Pessoas } from '@/lib/orcamento';
@@ -26,6 +26,7 @@ import {
   validadeCartaoValida,
   type CidadeHospedagem,
 } from '@/lib/validacao';
+import { Campo, descricao } from './Campo';
 import { CampoData } from './CampoData';
 import { Contador } from './grupo/Contador';
 import { IconeWhatsApp } from './IconeWhatsApp';
@@ -116,44 +117,6 @@ type Textos = {
 const PAISES = ['BR', 'AR', 'UY', 'CL', 'PY', 'BO', 'PE', 'CO', 'MX', 'US', 'CA', 'PT', 'ES', 'FR', 'DE', 'IT', 'GB', 'NL', 'CH', 'IL'];
 
 type Erros = Partial<Record<string, string>>;
-
-/** Um campo do checkout: o rótulo, o controle e a ajuda ou o erro embaixo. */
-export function Campo({
-  id,
-  rotulo,
-  erro,
-  ajuda,
-  children,
-  className = '',
-}: {
-  id: string;
-  rotulo: string;
-  erro?: string;
-  ajuda?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label htmlFor={id} className="rotulo">
-        {rotulo}
-      </label>
-      {children}
-      {ajuda && !erro && (
-        <span id={`${id}-ajuda`} className="ajuda">
-          {ajuda}
-        </span>
-      )}
-      {erro && (
-        <span id={`${id}-erro`} className="erro-campo" role="alert">
-          {erro}
-        </span>
-      )}
-    </div>
-  );
-}
-
-export const descricao = (id: string, erro?: string, ajuda?: string) => (erro ? `${id}-erro` : ajuda ? `${id}-ajuda` : undefined);
 
 export function FormularioCheckout({
   idioma,

@@ -254,6 +254,8 @@ img {
 
   /* Campos */
   .campo {
+    /* sempre claro, mesmo sobre o painel escuro: sem isso, o select do iPhone fica escuro com texto escuro */
+    color-scheme: light;
     display: block;
     width: 100%;
     min-height: 3.25rem;

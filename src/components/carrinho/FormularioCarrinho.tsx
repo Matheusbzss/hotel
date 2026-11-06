@@ -8,7 +8,7 @@ import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { rastrear } from '@/lib/pixel';
 import { CIDADES_HOSPEDAGEM, DDIS, NOME_CIDADE_HOSPEDAGEM, emailValido, telefoneValido, type CidadeHospedagem } from '@/lib/validacao';
-import { Campo, descricao } from '../FormularioCheckout';
+import { Campo, descricao } from '../Campo';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
 import { useCarrinho } from './CarrinhoContexto';

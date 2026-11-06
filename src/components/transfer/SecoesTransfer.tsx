@@ -3,6 +3,7 @@ import { TRAJETOS, VEICULOS, precoDoTrajeto, type Idioma, type Veiculo } from '@
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { textosCotacao } from '@/lib/cotacao';
 import { precoPixCentavos } from '@/lib/orcamento';
 
 /** Os textos do cartão de reserva do transfer. */
@@ -20,6 +21,7 @@ export function textosWidgetTransfer(d: Dicionario) {
     adicionando: d.carrinho.adicionando,
     erroAdicionar: d.carrinho.erroAdicionar,
     cheio: d.carrinho.cheio,
+    cotacao: textosCotacao(d),
   };
 }
 

@@ -10,7 +10,7 @@ export const EMPRESA = {
   slogan: 'Viagens & Passeios',
 
   // Contato
-  email: 'suporte@orlanativa.com.br',
+  email: 'financeiro@orlanativa.com',
   telefoneExibicao: '+55 21 99050-2377',
   /**
    * Só números, com DDI e DDD. O WhatsApp aparece só no fim da reserva

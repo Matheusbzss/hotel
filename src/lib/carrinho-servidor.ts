@@ -8,7 +8,7 @@ import { MAXIMO_SUGESTOES, sugestoesDoCarrinho } from '@/data/sugestoes';
 import { IDS_LUGARES, LUGARES, VEICULOS, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
-import { supabase, supabaseConfigurado } from './banco';
+import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
 import {
   MAXIMO_ITENS,
@@ -284,7 +284,6 @@ export const novoCodigoCarrinho = () => randomBytes(18).toString('base64url');
 export const codigoCarrinhoValido = (c: string | undefined): c is string => !!c && /^[A-Za-z0-9_-]{20,40}$/.test(c);
 
 // No banco na Vercel (ou no computador com RESERVAS_NO_BANCO=1); senão, arquivos em .data/carrinhos/.
-const noBanco = () => supabaseConfigurado() && (Boolean(process.env.VERCEL) || process.env.RESERVAS_NO_BANCO === '1');
 const PASTA = path.join(process.cwd(), '.data', 'carrinhos');
 
 /** Os itens ficam guardados depois do pedido, mas para o cliente o carrinho que virou pedido está vazio. */
@@ -292,7 +291,7 @@ const semOQueVirouPedido = (c: CarrinhoGuardado): CarrinhoGuardado => (c.pedidoI
 
 export async function lerCarrinho(codigo: string | undefined): Promise<CarrinhoGuardado> {
   if (!codigoCarrinhoValido(codigo)) return { itens: [] };
-  if (noBanco()) {
+  if (usarBanco()) {
     const { data, error } = await supabase().from('carrinhos').select('itens, email, pedido_id').eq('token', codigo).maybeSingle();
     if (error) throw new Error(`Banco de dados: ${error.message}`);
     if (!data) return { itens: [] };
@@ -315,7 +314,7 @@ export async function gravarCarrinho(
   mudanca: { itens?: ItemCarrinho[]; email?: string; idioma?: Idioma; pedidoId?: string },
 ): Promise<void> {
   if (mudanca.itens && mudanca.itens.length > MAXIMO_ITENS) throw new Error('Carrinho cheio');
-  if (noBanco()) {
+  if (usarBanco()) {
     const linha = {
       token: codigo,
       ...(mudanca.itens ? { itens: mudanca.itens as unknown as Json } : {}),

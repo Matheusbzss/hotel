@@ -12,6 +12,7 @@ import {
   itensQueValem,
   itensVisiveis,
   lerCarrinho,
+  marcarCheckout,
   novoCodigoCarrinho,
   sugestoesVisiveis,
 } from '@/lib/carrinho-servidor';
@@ -97,15 +98,23 @@ export async function DELETE(req: Request) {
   }
 }
 
-/** Guarda o e-mail que o cliente digitou no checkout (para lembrar quem não terminou, na Fase 5). */
+/**
+ * Guarda que o cliente abriu o checkout (para o funil das estatísticas) ou o e-mail que ele digitou lá
+ * (para lembrar quem não terminou, na Fase 5).
+ */
 export async function PATCH(req: Request) {
-  const corpo = (await req.json().catch(() => null)) as { email?: unknown } | null;
+  const corpo = (await req.json().catch(() => null)) as { email?: unknown; checkout?: unknown } | null;
+  const abriuCheckout = corpo?.checkout === true;
   const email = typeof corpo?.email === 'string' ? corpo.email.trim().toLowerCase() : '';
-  if (!emailValido(email)) return falha('email', 400);
+  if (!abriuCheckout && !emailValido(email)) return falha('email', 400);
   try {
     const codigo = (await cookies()).get(COOKIE_CARRINHO)?.value;
-    const atual = await lerCarrinho(codigo);
-    if (codigo && atual.itens.length && !atual.pedidoId) await gravarCarrinho(codigo, { email });
+    if (abriuCheckout) {
+      await marcarCheckout(codigo);
+    } else {
+      const atual = await lerCarrinho(codigo);
+      if (codigo && atual.itens.length && !atual.pedidoId) await gravarCarrinho(codigo, { email });
+    }
     return NextResponse.json({ ok: true }, { headers: SEM_CACHE });
   } catch (e) {
     return falha('banco', 503, e);

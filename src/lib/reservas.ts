@@ -5,6 +5,7 @@ import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
 import type { Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
+import { quandoAcontece } from './pedidos-painel';
 import { deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
 
@@ -42,6 +43,8 @@ interface ReservaBase {
   totalPixCentavos?: number;
   /** Só no voucher de um pedido do carrinho com vários itens: aqui, os totais acima são os deste item. */
   pedido?: { codigo: string; totalCentavos: number; totalPixCentavos?: number };
+  /** De onde o cliente veio, pelos links dos anúncios. */
+  origem?: { utm_source?: string; utm_medium?: string; utm_campaign?: string };
   cliente: { nome: string; email: string; telefone: string };
   observacoes?: string;
   pagamento: {
@@ -406,8 +409,7 @@ export async function criarPedido(itens: NovaReserva[]): Promise<{ id: string; c
 /** Os vouchers de um pedido com vários itens, na ordem em que acontecem. Nenhum, se o pedido não existir. */
 export async function obterPedido(codigo: string): Promise<Reserva[]> {
   if (!codigoValido(codigo)) return [];
-  const quando = (r: Reserva) => `${r.data} ${ehTransfer(r) ? r.transfer.ida.hora : (r.horario?.hora ?? '')}`;
-  return (await principal().lerPedido(codigo)).sort((a, b) => quando(a).localeCompare(quando(b)));
+  return (await principal().lerPedido(codigo)).sort((a, b) => quandoAcontece(a).localeCompare(quandoAcontece(b)));
 }
 
 export async function obterReserva(codigo: string): Promise<Reserva | null> {

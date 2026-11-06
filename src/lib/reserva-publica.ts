@@ -4,6 +4,7 @@ import { dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
+import { valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { ehTransfer, type Reserva, type StatusReserva } from './reservas';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
@@ -54,7 +55,8 @@ export function tokenConfere(reserva: Reserva, token: string | undefined | null)
 export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const d = dicionario(idioma);
   const pagamento = {
-    totalCentavos: r.totalCentavos,
+    // pago no Pix, o cliente vê o que pagou, com o desconto
+    totalCentavos: valorRecebido(r),
     totalPixCentavos: r.status === 'aguardando_whatsapp' ? r.totalPixCentavos : undefined,
     nome: r.cliente.nome,
     metodo: r.pagamento.metodo,

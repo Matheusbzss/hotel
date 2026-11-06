@@ -6,6 +6,7 @@ import { LOCALE_INTL, fmt } from '@/i18n/config';
 import { dicionario, type Dicionario } from '@/i18n';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
+import { valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
 import { ehTransfer, type Reserva, type ReservaPasseio, type ReservaTransfer } from './reservas';
@@ -118,7 +119,7 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
       [d.reserva.nome, [reserva.cliente.nome]],
       [d.reserva.pessoas, [pessoas]],
       [d.reserva.hotel, [`${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`]],
-      [d.reserva.total, [formatarPreco(reserva.totalCentavos, idioma)]],
+      [d.reserva.total, [formatarPreco(valorRecebido(reserva), idioma)]],
     ],
     mensagem: fmt(d.reserva.msgVoucher, {
       codigo: reserva.codigo,
@@ -149,7 +150,7 @@ function conteudoTransfer(reserva: ReservaTransfer, d: Dicionario): ConteudoVouc
       [T.passageiros, [v.passageiros]],
       [T.malas, [v.malas]],
       ...(v.cadeirinhas ? [[T.cadeirinhas, [v.cadeirinhas]] as [string, string[]]] : []),
-      [d.reserva.total, [formatarPreco(reserva.totalCentavos, idioma)]],
+      [d.reserva.total, [formatarPreco(valorRecebido(reserva), idioma)]],
     ],
     mensagem: fmt(T.msgVoucherTransfer, {
       codigo: reserva.codigo,

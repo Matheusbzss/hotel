@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
-import { atualizarReserva, registrar, type StatusReserva } from '@/lib/reservas';
+import { atualizarReserva, registrar, type MetodoPagamento, type StatusReserva } from '@/lib/reservas';
 
 export const runtime = 'nodejs';
 
-const ACOES: Record<string, { status: StatusReserva; evento: string }> = {
+const ACOES: Record<string, { status: StatusReserva; evento: string; metodo?: MetodoPagamento }> = {
   marcar_pago: { status: 'pago', evento: 'Marcada como paga no admin' },
+  // no WhatsApp, a forma de pagamento só se decide agora: ela define quanto entrou
+  pago_pix: { status: 'pago', evento: 'Marcada como paga no Pix, no admin', metodo: 'pix' },
+  pago_cartao: { status: 'pago', evento: 'Marcada como paga no cartão, no admin', metodo: 'cartao' },
   cancelar: { status: 'cancelado', evento: 'Cancelada no admin' },
   reembolsado: { status: 'reembolsado', evento: 'Marcada como reembolsada no admin' },
 };
@@ -23,6 +26,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   if (!acao) return NextResponse.json({ ok: false }, { status: 400 });
   await atualizarReserva(codigo, (r) => {
     r.status = acao.status;
+    if (acao.metodo) r.pagamento.metodo = acao.metodo;
     if (acao.status === 'pago' && !r.pagamento.pagoEm) r.pagamento.pagoEm = new Date().toISOString();
     return registrar(r, acao.evento);
   });

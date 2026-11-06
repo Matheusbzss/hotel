@@ -84,6 +84,16 @@ function peloBanco(l: LinhasReserva): LinhasReserva {
   return volta;
 }
 
+test('a origem do anúncio vai e volta com o pedido', () => {
+  const origem = { utm_source: 'meta', utm_medium: 'pago', utm_campaign: 'verao' };
+  const linhas = paraLinhas({ ...PASSEIO, origem });
+  assert.deepEqual(linhas.pedido.origem_utm, origem);
+  assert.deepEqual(deLinhas(linhas.pedido, linhas.item, linhas.historico).origem, origem);
+  // sem origem, a reserva volta igual, sem o campo
+  const sem = paraLinhas(PASSEIO);
+  assert.equal('origem' in deLinhas(sem.pedido, sem.item, sem.historico), false);
+});
+
 test('passeio: vai para o banco e volta igual, com opção, horário, crianças, Pix e observação', () => {
   const l = peloBanco(paraLinhas(PASSEIO));
   assert.deepEqual(deLinhas(l.pedido, l.item, l.historico), PASSEIO);

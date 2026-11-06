@@ -46,7 +46,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const esperando = status === 'aguardando_whatsapp';
   const brl = (c: number) => formatarCifra(c, intl);
   const noPix = pedido.totalPixCentavos ?? pedido.totalCentavos;
-  const total = esperando ? `${brl(noPix)} ${d.preco.noPix} · ${brl(pedido.totalCentavos)} ${d.preco.noCartao}` : brl(pedido.totalCentavos);
+  // pago no Pix, o cliente vê o que pagou, com o desconto
+  const fechado = primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos;
+  const total = esperando ? `${brl(noPix)} ${d.preco.noPix} · ${brl(pedido.totalCentavos)} ${d.preco.noCartao}` : brl(fechado);
 
   const nomeItem = (r: ReservaPublica) =>
     r.transfer
@@ -78,7 +80,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
 
   return (
     <main id="conteudo" className="tom-fundo moldura pb-24 pt-8 md:pb-32 md:pt-12">
-      {pago && <CompraPedido codigo={codigo} centavos={pedido.totalCentavos} produtos={itens.map((r) => r.passeioSlug)} />}
+      {pago && <CompraPedido codigo={codigo} centavos={fechado} produtos={itens.map((r) => r.passeioSlug)} />}
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-6">
           <h1 className="display text-head">{titulo}</h1>
@@ -141,7 +143,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
             <div className="tom-campo px-6 py-5 md:px-8">
               <p className="font-semibold">{d.status[status]}</p>
               <p className="numeros mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
-                <span className="text-lead font-semibold">{esperando ? `${brl(noPix)} ${d.preco.noPix}` : brl(pedido.totalCentavos)}</span>
+                <span className="text-lead font-semibold">{esperando ? `${brl(noPix)} ${d.preco.noPix}` : brl(fechado)}</span>
                 {esperando && (
                   <span className="text-small">
                     {brl(pedido.totalCentavos)} {d.preco.noCartao}

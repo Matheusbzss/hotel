@@ -7,6 +7,7 @@ import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
+import { agruparPedidos, valorRecebido, type PedidoPainel } from '@/lib/pedidos-painel';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
@@ -47,10 +48,10 @@ const DICIONARIO_PT = dicionario('pt');
 const ROTULOS_PESSOAS = DICIONARIO_PT.comum.rotulos;
 
 const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[] }[] = [
-  { valor: '', rotulo: 'Todas' },
-  { valor: 'pagas', rotulo: 'Pagas', status: ['pago'] },
+  { valor: '', rotulo: 'Todos' },
+  { valor: 'pagas', rotulo: 'Pagos', status: ['pago'] },
   { valor: 'abertas', rotulo: 'Em aberto', status: ['pendente', 'aguardando_whatsapp'] },
-  { valor: 'outras', rotulo: 'Recusadas / canceladas', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
+  { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
 ];
 
 const dataHora = (iso?: string) =>
@@ -158,27 +159,138 @@ function textosDaBusca(r: Reserva): string[] {
   );
 }
 
-function Acoes({ r, filtro }: { r: Reserva; filtro: string }) {
-  const acoes: { acao: string; rotulo: string; confirmar?: boolean }[] = [];
-  if (r.status === 'aguardando_whatsapp' || r.status === 'pendente' || r.status === 'expirado' || r.status === 'recusado') {
-    acoes.push({ acao: 'marcar_pago', rotulo: 'Marcar como pago' });
+/** O status é do pedido inteiro, com todos os vouchers: um pagamento só. */
+function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+  const r = p.itens[0];
+  const acoes: { acao: string; rotulo: string }[] = [];
+  if (p.status === 'aguardando_whatsapp' || p.status === 'pendente' || p.status === 'expirado' || p.status === 'recusado') {
+    if (p.metodo === 'whatsapp') {
+      // a forma de pagamento define quanto entrou
+      acoes.push(
+        { acao: 'pago_pix', rotulo: `Pago no Pix (${formatarPreco(p.totalPixCentavos ?? p.totalCentavos)})` },
+        { acao: 'pago_cartao', rotulo: `Pago no cartão (${formatarPreco(p.totalCentavos)})` },
+      );
+    } else {
+      acoes.push({ acao: 'marcar_pago', rotulo: 'Marcar como pago' });
+    }
   }
-  if (r.status !== 'cancelado' && r.status !== 'reembolsado') acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
-  if (r.status === 'pago' || r.status === 'cancelado') acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
+  // marcou errado: dá para trocar, menos no pagamento online, que veio do sistema de pagamento
+  if (p.status === 'pago' && !r.pagamento.pedidoId) {
+    if (p.metodo !== 'pix') acoes.push({ acao: 'pago_pix', rotulo: 'Corrigir: foi no Pix' });
+    if (p.metodo !== 'cartao') acoes.push({ acao: 'pago_cartao', rotulo: 'Corrigir: foi no cartão' });
+  }
+  if (p.status !== 'cancelado' && p.status !== 'reembolsado') acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
+  if (p.status === 'pago' || p.status === 'cancelado') acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
   return (
     <div className="flex flex-wrap gap-2">
-      {/* um pagamento só: o status é do pedido, com todos os vouchers */}
-      {r.pedido && <p className="w-full text-small text-tinta-suave">Vale para o pedido {r.pedido.codigo} inteiro:</p>}
       {acoes.map((a) => (
         <form key={a.acao} method="post" action={`/api/admin/reservas/${r.codigo}`}>
           <input type="hidden" name="acao" value={a.acao} />
           <input type="hidden" name="filtro" value={filtro} />
-          <button type="submit" className="min-h-10 bg-white px-4 text-small font-semibold text-mar hover:bg-areia-2">
+          <button type="submit" className="min-h-10 bg-superficie px-4 text-small font-semibold text-mar hover:bg-borda">
             {a.rotulo}
           </button>
         </form>
       ))}
     </div>
+  );
+}
+
+/** A forma de pagamento e o valor: em aberto, os dois preços; depois de pago, o que entrou. */
+function ValorDoPedido({ p }: { p: PedidoPainel }) {
+  const r = p.itens[0];
+  if (p.metodo === 'whatsapp' && p.status !== 'pago' && p.totalPixCentavos !== undefined) {
+    return (
+      <>
+        <p className="text-xl font-bold">{formatarPreco(p.totalPixCentavos)}</p>
+        <p className="text-small text-tinta-suave">no Pix</p>
+        <p className="mt-1 font-semibold">{formatarPreco(p.totalCentavos)}</p>
+        <p className="text-small text-tinta-suave">no cartão</p>
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="text-xl font-bold">{formatarPreco(p.recebidoCentavos)}</p>
+      <p className="text-small text-tinta-suave">
+        {p.metodo === 'pix'
+          ? 'Pix'
+          : p.metodo === 'cartao'
+            ? `Cartão ${r.pagamento.cartaoBandeira ?? ''} ${r.pagamento.cartaoFinal ? `•••• ${r.pagamento.cartaoFinal}` : ''}`
+            : 'WhatsApp'}
+      </p>
+      {r.pagamento.pedidoId && <p className="break-all text-small text-tinta-suave">{r.pagamento.pedidoId}</p>}
+    </>
+  );
+}
+
+/** Um pedido: o cliente uma vez só, um bloco para cada voucher, o total e as ações. */
+function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+  const r = p.itens[0];
+  const varios = p.itens.length > 1;
+  const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
+  const documento = p.itens.find((i) => !ehTransfer(i) && i.cliente.documento) as ReservaPasseio | undefined;
+  return (
+    <li className="grid gap-4 bg-white p-5 lg:grid-cols-12">
+      <div className="lg:col-span-3">
+        <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
+        <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
+        {varios && <p className="mt-2 text-small font-semibold">{p.itens.length} itens</p>}
+        <p className="mt-2 text-small text-tinta-suave">Criado {dataHora(p.criadoEm)}</p>
+        {p.pagoEm && <p className="text-small text-tinta-suave">Pago {dataHora(p.pagoEm)}</p>}
+      </div>
+      <ul className="divide-y divide-borda lg:col-span-4">
+        {p.itens.map((i) => (
+          <li key={i.codigo} className="py-3 first:pt-0 last:pb-0">
+            {varios && (
+              <p className="mb-1 text-small font-semibold">
+                Voucher {i.codigo} · {formatarPreco(valorRecebido(i))}
+                {p.metodo === 'whatsapp' && i.totalPixCentavos !== undefined ? ` (${formatarPreco(i.totalPixCentavos)} no Pix)` : ''}
+              </p>
+            )}
+            {ehTransfer(i) ? <DetalhesTransfer r={i} /> : <DetalhesPasseio r={i} />}
+            {!ehTransfer(i) && i.sugestao && <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>}
+          </li>
+        ))}
+        {r.observacoes && <li className="py-3 text-small last:pb-0">Obs.: {r.observacoes}</li>}
+      </ul>
+      <div className="lg:col-span-3">
+        <p className="font-semibold">{r.cliente.nome}</p>
+        {documento && (
+          <p className="text-small">
+            {documento.cliente.documentoTipo === 'cpf' ? 'CPF' : 'Passaporte'} {documento.cliente.documento}
+          </p>
+        )}
+        <p>
+          <a href={whats} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+            {r.cliente.telefone}
+          </a>
+        </p>
+        <p className="break-all">
+          <a href={`mailto:${r.cliente.email}`} className="underline underline-offset-4">
+            {r.cliente.email}
+          </a>
+        </p>
+        <p className="text-small text-tinta-suave">Idioma: {r.idioma.toUpperCase()}</p>
+      </div>
+      <div className="lg:col-span-2 lg:text-right">
+        <ValorDoPedido p={p} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-12">
+        <Acoes p={p} filtro={filtro} />
+        <details className="text-small">
+          <summary className="cursor-pointer font-semibold">Histórico</summary>
+          <ul className="mt-2 space-y-1">
+            {r.historico.map((h, n) => (
+              <li key={n}>
+                {dataHora(h.em)} — {h.evento}
+              </li>
+            ))}
+            {r.pagamento.motivo && <li>Motivo: {r.pagamento.motivo}</li>}
+          </ul>
+        </details>
+      </div>
+    </li>
   );
 }
 
@@ -199,17 +311,20 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
     erroBanco = String(e instanceof Error ? e.message : e);
   }
   const filtro = FILTROS.find((f) => f.valor === filtroAtual) ?? FILTROS[0];
-  const reservas = todas.filter(
-    (r) =>
-      (!filtro.status || filtro.status.includes(r.status)) &&
+  const pedidos = agruparPedidos(todas);
+  const lista = pedidos.filter(
+    (p) =>
+      (!filtro.status || filtro.status.includes(p.status)) &&
       (!busca ||
-        [r.codigo, r.pedido?.codigo ?? '', r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) =>
-          c.toLowerCase().includes(busca),
+        p.itens.some((r) =>
+          [p.codigo, r.codigo, r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) =>
+            c.toLowerCase().includes(busca),
+          ),
         )),
   );
   const cotacoesNovas = await contarCotacoesNovas().catch(() => 0);
-  const pagas = todas.filter((r) => r.status === 'pago');
-  const receita = pagas.reduce((s, r) => s + r.totalCentavos, 0);
+  const pagos = pedidos.filter((p) => p.status === 'pago');
+  const receita = pagos.reduce((s, p) => s + p.recebidoCentavos, 0);
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -218,14 +333,17 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo/orla-nativa-emblema.svg" alt="" width={48} height={48} className="size-12" />
           <div>
-            <h1 className="text-2xl font-bold">Reservas</h1>
+            <h1 className="text-2xl font-bold">Pedidos</h1>
             <p className="text-small text-tinta-suave">
-              Pagamento online: {pagarmeConfigurado() ? 'ativo (Pagar.me)' : 'desativado — reservas finalizadas pelo WhatsApp'} · Reservas
-              em: {ondeFicamAsReservas()}
+              Pagamento online: {pagarmeConfigurado() ? 'ativo (Pagar.me)' : 'desativado — pedidos finalizados pelo WhatsApp'} · Pedidos em:{' '}
+              {ondeFicamAsReservas()}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <a href="/admin/estatisticas" className="min-h-10 bg-white px-4 py-2 font-semibold">
+            Estatísticas
+          </a>
           <a href="/admin/cotacoes" className="min-h-10 bg-white px-4 py-2 font-semibold">
             Cotações
           </a>
@@ -248,11 +366,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2" aria-label="Resumo">
         <div className="bg-white px-5 py-4">
-          <p className="text-small text-tinta-suave">Reservas pagas</p>
-          <p className="text-2xl font-bold">{pagas.length}</p>
+          <p className="text-small text-tinta-suave">Pedidos pagos</p>
+          <p className="text-2xl font-bold">{pagos.length}</p>
         </div>
         <div className="bg-white px-5 py-4">
-          <p className="text-small text-tinta-suave">Vendido (pagas)</p>
+          <p className="text-small text-tinta-suave">Vendido (pagos)</p>
           <p className="text-2xl font-bold">{formatarPreco(receita)}</p>
         </div>
       </section>
@@ -275,7 +393,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <label htmlFor="q" className="sr-only">
             Buscar
           </label>
-          <input id="q" name="q" defaultValue={busca} placeholder="Buscar voucher, nome, hotel…" className="campo min-h-11 w-64 py-2" />
+          <input id="q" name="q" defaultValue={busca} placeholder="Buscar pedido, voucher, nome, hotel…" className="campo min-h-11 w-64 py-2" />
           <button type="submit" className="min-h-11 bg-mar px-5 font-semibold text-white">
             Buscar
           </button>
@@ -285,75 +403,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
       {erroBanco && <p className="mt-6 bg-erro-claro px-4 py-3 font-semibold">Erro ao ler o banco: {erroBanco}</p>}
 
       <p className="mt-6 text-small text-tinta-suave">
-        {reservas.length} reserva{reservas.length === 1 ? '' : 's'}
+        {lista.length} pedido{lista.length === 1 ? '' : 's'}
       </p>
       <ul className="mt-3 space-y-3">
-        {reservas.map((r) => {
-          const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
-          return (
-            <li key={r.codigo} className="grid gap-4 bg-white p-5 lg:grid-cols-12">
-              <div className="lg:col-span-3">
-                <p className="text-xl font-bold tracking-tight">{r.codigo}</p>
-                <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[r.status]}`}>{ROTULO[r.status]}</span>
-                {r.pedido && (
-                  <p className="mt-2 text-small font-semibold">
-                    Pedido {r.pedido.codigo} · {formatarPreco(r.pedido.totalCentavos)}
-                  </p>
-                )}
-                <p className="mt-2 text-small text-tinta-suave">Criada {dataHora(r.criadaEm)}</p>
-                {r.pagamento.pagoEm && <p className="text-small text-tinta-suave">Paga {dataHora(r.pagamento.pagoEm)}</p>}
-              </div>
-              <div className="lg:col-span-4">
-                {ehTransfer(r) ? <DetalhesTransfer r={r} /> : <DetalhesPasseio r={r} />}
-                {r.observacoes && <p className="mt-1 text-small">Obs.: {r.observacoes}</p>}
-              </div>
-              <div className="lg:col-span-3">
-                <p className="font-semibold">{r.cliente.nome}</p>
-                {!ehTransfer(r) && r.cliente.documento && (
-                  <p className="text-small">
-                    {r.cliente.documentoTipo === 'cpf' ? 'CPF' : 'Passaporte'} {r.cliente.documento}
-                  </p>
-                )}
-                <p>
-                  <a href={whats} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
-                    {r.cliente.telefone}
-                  </a>
-                </p>
-                <p className="break-all">
-                  <a href={`mailto:${r.cliente.email}`} className="underline underline-offset-4">
-                    {r.cliente.email}
-                  </a>
-                </p>
-                <p className="text-small text-tinta-suave">Idioma: {r.idioma.toUpperCase()}</p>
-              </div>
-              <div className="lg:col-span-2 lg:text-right">
-                <p className="text-xl font-bold">{formatarPreco(r.totalCentavos)}</p>
-                <p className="text-small text-tinta-suave">
-                  {r.pagamento.metodo === 'pix'
-                    ? 'Pix'
-                    : r.pagamento.metodo === 'cartao'
-                      ? `Cartão ${r.pagamento.cartaoBandeira ?? ''} ${r.pagamento.cartaoFinal ? `•••• ${r.pagamento.cartaoFinal}` : ''}`
-                      : 'WhatsApp'}
-                </p>
-                {r.pagamento.pedidoId && <p className="break-all text-small text-tinta-suave">{r.pagamento.pedidoId}</p>}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-12">
-                <Acoes r={r} filtro={filtro.valor} />
-                <details className="text-small">
-                  <summary className="cursor-pointer font-semibold">Histórico</summary>
-                  <ul className="mt-2 space-y-1">
-                    {r.historico.map((h, i) => (
-                      <li key={i}>
-                        {dataHora(h.em)} — {h.evento}
-                      </li>
-                    ))}
-                    {r.pagamento.motivo && <li>Motivo: {r.pagamento.motivo}</li>}
-                  </ul>
-                </details>
-              </div>
-            </li>
-          );
-        })}
+        {lista.map((p) => (
+          <CartaoPedido key={p.codigo} p={p} filtro={filtro.valor} />
+        ))}
       </ul>
     </main>
   );

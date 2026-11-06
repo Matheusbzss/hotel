@@ -94,7 +94,7 @@ export default async function Avaliacoes({ searchParams }: { searchParams: Promi
           </p>
         </div>
         <a href="/admin" className="min-h-10 bg-white px-4 py-2 font-semibold">
-          Voltar às reservas
+          Voltar aos pedidos
         </a>
       </header>
 

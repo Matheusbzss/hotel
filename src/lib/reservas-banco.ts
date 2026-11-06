@@ -56,7 +56,7 @@ export function paraLinhas(
     total_centavos: totalPedido,
     total_pix_centavos: (r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos) ?? null,
     moeda: 'BRL',
-    origem_utm: {},
+    origem_utm: json(r.origem ?? {}),
     observacoes: r.observacoes ?? null,
     pago_em: r.pagamento.pagoEm ?? null,
     criado_em: r.criadaEm,
@@ -130,6 +130,7 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
   // o voucher com código próprio é um dos itens de um pedido do carrinho
   const voucher = i.voucher_codigo && i.voucher_codigo !== p.codigo ? i.voucher_codigo : null;
   const pix = voucher ? (i.detalhes as { pixCentavos?: number }).pixCentavos : (p.total_pix_centavos ?? undefined);
+  const origem = p.origem_utm as NonNullable<Reserva['origem']>;
   const base = {
     codigo: voucher ?? p.codigo,
     token: p.token,
@@ -149,6 +150,7 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
           },
         }
       : {}),
+    ...(Object.keys(origem).length ? { origem } : {}),
     ...(p.observacoes !== null ? { observacoes: p.observacoes } : {}),
     pagamento: p.pagamento as unknown as Reserva['pagamento'],
     historico: historico.map(({ em, evento }) => ({ em: iso(em), evento })).sort((a, b) => a.em.localeCompare(b.em)),

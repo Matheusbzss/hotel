@@ -96,6 +96,12 @@ export function FormularioCarrinho({
       currency: 'BRL',
       num_items: inicial.length,
     });
+    // o funil das estatísticas: este carrinho chegou ao checkout
+    fetch('/api/carrinho', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkout: true }),
+    }).catch(() => null);
     // só na abertura do checkout
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

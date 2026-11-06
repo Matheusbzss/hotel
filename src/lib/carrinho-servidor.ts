@@ -10,6 +10,7 @@ import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
+import type { CarrinhoNoFunil } from './estatisticas';
 import {
   MAXIMO_ITENS,
   type EscolhaPasseio,
@@ -24,6 +25,7 @@ import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type O
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
 import { obterOpcao, opcoesPasseio, regraCriancas, tabelaPreco, temOpcoes } from './precos';
+import { listarReservas } from './reservas';
 import { textoPassageiros } from './transfer-view';
 import { dataPasseioValida, formatarDataIso, hojeEmBuzios, somarDias } from './validacao';
 
@@ -278,6 +280,9 @@ export interface CarrinhoGuardado {
   itens: ItemCarrinho[];
   email?: string;
   pedidoId?: string | null;
+  /** Só nos arquivos do computador: no banco, são as colunas criado_em e checkout_em. */
+  criadoEm?: string;
+  checkoutEm?: string;
 }
 
 export const novoCodigoCarrinho = () => randomBytes(18).toString('base64url');
@@ -335,11 +340,64 @@ export async function gravarCarrinho(
         itens: mudanca.itens ?? atual.itens,
         email: mudanca.email ?? atual.email,
         pedidoId: mudanca.pedidoId ?? atual.pedidoId,
+        criadoEm: atual.criadoEm ?? new Date().toISOString(),
+        checkoutEm: atual.checkoutEm,
       },
       null,
       2,
     ),
   );
+}
+
+/** Marca a primeira vez que o carrinho abriu o checkout, para o funil das estatísticas. */
+export async function marcarCheckout(codigo: string | undefined): Promise<void> {
+  if (!codigoCarrinhoValido(codigo)) return;
+  const agora = new Date().toISOString();
+  if (usarBanco()) {
+    const { error } = await supabase().from('carrinhos').update({ checkout_em: agora }).eq('token', codigo).is('checkout_em', null);
+    if (error) throw new Error(`Banco de dados: ${error.message}`);
+    return;
+  }
+  const atual = await lerCarrinho(codigo);
+  if (!atual.itens.length || atual.checkoutEm) return;
+  await fs.writeFile(path.join(PASTA, `${codigo}.json`), JSON.stringify({ ...atual, checkoutEm: agora }, null, 2));
+}
+
+/** Os carrinhos criados a partir de uma data (ou todos), só com o que o funil das estatísticas usa. */
+export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[]> {
+  if (usarBanco()) {
+    const lista: CarrinhoNoFunil[] = [];
+    for (let de = 0; ; de += 1000) {
+      let consulta = supabase().from('carrinhos').select('criado_em, checkout_em, pedido_id, pedidos(status)');
+      if (desde) consulta = consulta.gte('criado_em', desde);
+      const { data, error } = await consulta.order('criado_em', { ascending: false }).range(de, de + 999);
+      if (error) throw new Error(`Banco de dados: ${error.message}`);
+      for (const c of data) {
+        lista.push({
+          criadoEm: c.criado_em,
+          ...(c.checkout_em ? { checkoutEm: c.checkout_em } : {}),
+          fezPedido: c.pedido_id !== null,
+          pagou: c.pedidos?.status === 'pago',
+        });
+      }
+      if (data.length < 1000) return lista;
+    }
+  }
+  const nomes = (await fs.readdir(PASTA).catch(() => [] as string[])).filter((n) => n.endsWith('.json'));
+  const status = new Map((await listarReservas()).map((r) => [r.pedido?.codigo ?? r.codigo, r.status]));
+  const lista = await Promise.all(
+    nomes.map(async (nome) => {
+      const arquivo = path.join(PASTA, nome);
+      const c = JSON.parse(await fs.readFile(arquivo, 'utf8')) as CarrinhoGuardado;
+      return {
+        criadoEm: c.criadoEm ?? (await fs.stat(arquivo)).mtime.toISOString(),
+        ...(c.checkoutEm ? { checkoutEm: c.checkoutEm } : {}),
+        fezPedido: Boolean(c.pedidoId),
+        pagou: Boolean(c.pedidoId) && status.get(c.pedidoId as string) === 'pago',
+      };
+    }),
+  );
+  return desde ? lista.filter((c) => c.criadoEm >= desde) : lista;
 }
 
 /** Os itens que ainda valem, já com o texto e o preço no idioma. */

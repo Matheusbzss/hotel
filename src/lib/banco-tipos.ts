@@ -74,6 +74,7 @@ export type Database = {
       carrinhos: {
         Row: {
           atualizado_em: string
+          checkout_em: string | null
           criado_em: string
           email: string | null
           id: string
@@ -85,6 +86,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          checkout_em?: string | null
           criado_em?: string
           email?: string | null
           id?: string
@@ -96,6 +98,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          checkout_em?: string | null
           criado_em?: string
           email?: string | null
           id?: string

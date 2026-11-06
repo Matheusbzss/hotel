@@ -107,7 +107,8 @@ function conferirPagina(url, html) {
   if (!canonica) avisar(`sem canônica: ${pagina}`);
   else if (naBase(limpar(canonica)).replace(/\/$/, '') !== url.replace(/\/$/, ''))
     avisar(`canônica aponta para outro lugar: ${pagina} → ${canonica}`);
-  for (const idioma of ['pt-BR', 'en', 'es', 'x-default']) {
+  // os guias só existem em espanhol
+  for (const idioma of pagina.startsWith('/es/guias') ? [] : ['pt-BR', 'en', 'es', 'x-default']) {
     if (!new RegExp(`hrefLang="${idioma}"`, 'i').test(html)) avisar(`sem hreflang ${idioma}: ${pagina}`);
   }
   const titulo = html.match(/<title>([^<]*)<\/title>/)?.[1];

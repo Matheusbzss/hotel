@@ -16,7 +16,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
       {ORDEM.filter((i) => IDIOMAS.includes(i)).map((i) => (
         <Link
           key={i}
-          href={rota(i, caminho)}
+          href={rota(i, caminho.startsWith('/guias') && i !== 'es' ? '/' : caminho)}
           prefetch={false}
           hrefLang={i}
           lang={i}

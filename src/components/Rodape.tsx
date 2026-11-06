@@ -33,6 +33,13 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         </div>
         <div className="space-y-3 md:text-right">
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-small md:justify-end">
+            {idioma === 'es' && (
+              <li>
+                <Link href={rota('es', '/guias')} className="link">
+                  Guías de viaje
+                </Link>
+              </li>
+            )}
             {politicas.map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className="link">

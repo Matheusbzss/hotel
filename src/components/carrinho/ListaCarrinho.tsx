@@ -1,0 +1,79 @@
+'use client';
+
+import Image from 'next/image';
+import type { ItemVisivel } from '@/lib/carrinho';
+import { formatarCifra } from '@/lib/cifra';
+
+export interface TextosLista {
+  mudar: string;
+  remover: string;
+  noPix: string;
+  noCartao: string;
+}
+
+/** Os itens do carrinho: foto, nome, data e quem vai, o preço no Pix e no cartão, mudar e tirar. */
+export function ListaCarrinho({
+  itens,
+  locale,
+  textos: T,
+  aoRemover,
+}: {
+  itens: ItemVisivel[];
+  locale: string;
+  textos: TextosLista;
+  aoRemover: (id: string) => void;
+}) {
+  const brl = (c: number) => formatarCifra(c, locale);
+  return (
+    <ul className="divide-y divide-(--color-borda)">
+      {itens.map((i) => (
+        <li key={i.id} className="flex gap-3.5 py-4 first:pt-0">
+          <div className="relative size-[4.5rem] shrink-0 overflow-hidden rounded-[8px] bg-(--color-superficie)">
+            {i.foto && <Image src={i.foto} alt="" fill sizes="72px" className="object-cover" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{i.titulo}</p>
+              <button
+                type="button"
+                onClick={() => aoRemover(i.id)}
+                aria-label={`${T.remover}: ${i.titulo}`}
+                title={T.remover}
+                className="-mr-1.5 -mt-1 grid size-8 shrink-0 place-items-center rounded-full text-(--color-tinta-suave) transition-colors duration-200 hover:bg-(--color-superficie) hover:text-(--color-tinta)"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+            {i.detalhes.map((d) => (
+              <p key={d} className="text-small text-(--color-tinta-suave)">
+                {d}
+              </p>
+            ))}
+            <p className="mt-1.5">
+              <span className="cifra font-semibold">{brl(i.totalPixCentavos)}</span>{' '}
+              <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+            </p>
+            <div className="flex items-baseline justify-between gap-3 text-small">
+              <p className="text-(--color-tinta-suave)">
+                <span className="numeros">{brl(i.totalCentavos)}</span> {T.noCartao}
+              </p>
+              <a href={i.href} className="link">
+                {T.mudar}
+              </a>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}

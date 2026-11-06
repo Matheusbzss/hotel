@@ -1,0 +1,23 @@
+{
+  "fonte": "Copernicus Sentinel-2 (ESA), cor real, 10 m",
+  "passagens": [
+    "2025-02-18",
+    "2025-02-16"
+  ],
+  "detalhe": {
+    "x0": -15903,
+    "x1": 16954,
+    "y0": -22131,
+    "y1": 22119
+  },
+  "entorno": {
+    "x0": -40000,
+    "x1": 50000,
+    "y0": -40000,
+    "y1": 50000
+  },
+  "vazios": {
+    "detalhe": 0,
+    "entorno": 0
+  }
+}

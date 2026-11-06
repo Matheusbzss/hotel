@@ -1,0 +1,7 @@
+.next
+node_modules
+package-lock.json
+public/logo
+src/lib/logo-voucher.ts
+.data
+.taste-skill

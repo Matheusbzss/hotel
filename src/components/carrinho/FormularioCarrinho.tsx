@@ -14,6 +14,7 @@ import { IconeWhatsApp } from '../IconeWhatsApp';
 import { useCarrinho } from './CarrinhoContexto';
 import { textoQuantidade } from './GavetaCarrinho';
 import { ListaCarrinho } from './ListaCarrinho';
+import { SugestoesCarrinho } from './SugestoesCarrinho';
 
 type Erros = Partial<Record<string, string>>;
 
@@ -50,6 +51,9 @@ export function FormularioCarrinho({
     preco: Dicionario['preco'];
     diminuir: string;
     aumentar: string;
+    dataPasseio: string;
+    escolhaData: string;
+    aPartirDe: string;
   };
   links: { termos: string; politica: string; reserva: string; pedido: string; passeios: string };
 }) {
@@ -193,10 +197,7 @@ export function FormularioCarrinho({
   const seuPedido = (
     <section className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pt-5 sm:px-6">
       <h2 className="text-lead font-semibold">
-        {K.seuPedido}{' '}
-        <span className="text-small font-normal text-(--color-tinta-suave)">
-          · {textoQuantidade({ ...K, ...textos.preco }, itens.length)}
-        </span>
+        {K.seuPedido} <span className="text-small font-normal text-(--color-tinta-suave)">· {textoQuantidade(K, itens.length)}</span>
       </h2>
       <div className="mt-4">
         <ListaCarrinho
@@ -469,6 +470,19 @@ export function FormularioCarrinho({
       <aside className="lg:col-span-5">
         <div className="space-y-5 lg:sticky lg:top-24">
           <div className="hidden lg:block">{seuPedido}</div>
+          {/* logo acima do total: no celular, as sugestões não empurram os dados do cliente para baixo */}
+          <SugestoesCarrinho
+            className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pb-2 pt-5 sm:px-6"
+            locale={locale}
+            textos={{
+              ...K,
+              noPix: textos.preco.noPix,
+              dataPasseio: textos.dataPasseio,
+              escolhaData: textos.escolhaData,
+              opcao: C.opcao,
+              aPartirDe: textos.aPartirDe,
+            }}
+          />
           <div className="tom-campo px-6 py-5">
             <div className="flex items-center justify-between gap-4">
               <span className="font-semibold">

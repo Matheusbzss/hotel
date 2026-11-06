@@ -16,6 +16,8 @@ export type EscolhaPasseio = {
   adultos: number;
   meia: number;
   gratis: number;
+  /** O cliente pegou pela sugestão do carrinho (para medir quanto as sugestões vendem). */
+  sugestao?: true;
 };
 
 export type TrechoEscolhido = {
@@ -65,6 +67,24 @@ export interface ItemVisivel {
     voos: { trecho: 'ida' | 'volta'; rotulo: string }[];
     passageiros: number;
   };
+}
+
+/** Um passeio sugerido, já com o preço para o grupo do carrinho. */
+export interface SugestaoVisivel {
+  slug: string;
+  nome: string;
+  foto: string;
+  href: string;
+  /** Os horários do passeio ("HH:MM") e o rótulo: saída ou busca na hospedagem. */
+  horas: string[];
+  rotuloHorario: string;
+  /** Uma só, quando o passeio não tem opções. O id só vai para o carrinho quando há mais de uma. */
+  opcoes: { id: string; nome: string; totalCentavos: number; totalPixCentavos: number }[];
+  /** O mesmo grupo do último item do carrinho, nas regras deste passeio. */
+  pessoas: { adultos: number; meia: number; gratis: number };
+  pessoasTexto: string;
+  /** A data que já vem marcada: o dia seguinte ao do último item (AAAA-MM-DD). */
+  data: string;
 }
 
 export function totaisDoCarrinho(itens: ItemVisivel[]) {

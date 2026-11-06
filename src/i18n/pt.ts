@@ -137,6 +137,10 @@ const pt = {
     seuPedido: 'Seu pedido',
     hospedagemAjuda: 'Vale para todos os passeios deste pedido.',
     mudou: 'Um item do carrinho mudou ou não está mais disponível. Confira o pedido e envie de novo.',
+    sugestoesTitulo: 'Combina com a sua viagem',
+    sugestaoAdicionar: 'Adicionar',
+    sugestaoAgoraNao: 'Agora não',
+    sugestaoVer: 'Ver o passeio',
   },
   pedido: {
     codigo: 'Código do pedido',

@@ -115,6 +115,7 @@ export function paraLinhas(
             unidade: r.passeio.unidade,
             hospedagem: r.hospedagem,
             ...(r.horario ? { horario: r.horario } : {}),
+            ...(r.sugestao ? { sugestao: true } : {}),
             ...pix,
           }),
         };
@@ -177,6 +178,7 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
     unidade: ReservaPasseio['passeio']['unidade'];
     hospedagem: ReservaPasseio['hospedagem'];
     horario?: ReservaPasseio['horario'];
+    sugestao?: boolean;
   };
   const passeio: ReservaPasseio = {
     ...base,
@@ -202,6 +204,7 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
         : {}),
     },
     hospedagem: d.hospedagem,
+    ...(d.sugestao ? { sugestao: true } : {}),
   };
   return passeio;
 }

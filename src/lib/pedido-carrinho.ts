@@ -56,6 +56,7 @@ export function reservaDoItem(c: Extract<Conferida, { ok: true }>, dados: DadosD
       criancasGratis: e.gratis,
       unidades: orc.unidades,
       hospedagem: dados.hospedagem,
+      ...(e.sugestao ? { sugestao: true } : {}),
     };
   }
 

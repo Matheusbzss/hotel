@@ -13,6 +13,7 @@ import {
   itensVisiveis,
   lerCarrinho,
   novoCodigoCarrinho,
+  sugestoesVisiveis,
 } from '@/lib/carrinho-servidor';
 import { emailValido } from '@/lib/validacao';
 
@@ -33,7 +34,11 @@ const OPCOES_COOKIE = {
 
 async function resposta(codigo: string | undefined, idioma: Idioma) {
   const { itens } = await lerCarrinho(codigo);
-  return NextResponse.json({ ok: true, itens: itensVisiveis(itens, idioma, dicionario(idioma)) }, { headers: SEM_CACHE });
+  const d = dicionario(idioma);
+  return NextResponse.json(
+    { ok: true, itens: itensVisiveis(itens, idioma, d), sugestoes: sugestoesVisiveis(itens, idioma, d) },
+    { headers: SEM_CACHE },
+  );
 }
 
 function falha(erro: string, status: number, e?: unknown) {

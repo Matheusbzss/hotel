@@ -2,10 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Idioma } from '@/i18n/config';
-import type { EscolhaItem, ItemVisivel } from '@/lib/carrinho';
+import type { EscolhaItem, ItemVisivel, SugestaoVisivel } from '@/lib/carrinho';
 
 interface Carrinho {
   itens: ItemVisivel[];
+  /** Os passeios que combinam com o carrinho (no máximo 3). */
+  sugestoes: SugestaoVisivel[];
   /** O carrinho guardado já chegou do servidor. */
   carregado: boolean;
   /** A gaveta está aberta. */
@@ -22,6 +24,9 @@ interface Carrinho {
   recarregar: () => Promise<void>;
 }
 
+/** O que a rota do carrinho responde. */
+type Resposta = { ok?: boolean; erro?: string; itens?: ItemVisivel[]; sugestoes?: SugestaoVisivel[] };
+
 const Contexto = createContext<Carrinho | null>(null);
 
 export function useCarrinho(): Carrinho {
@@ -33,21 +38,27 @@ export function useCarrinho(): Carrinho {
 /** O carrinho guardado no servidor (pelo cookie), com a gaveta que abre por cima da página. */
 export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; children: ReactNode }) {
   const [itens, setItens] = useState<ItemVisivel[]>([]);
+  const [sugestoes, setSugestoes] = useState<SugestaoVisivel[]>([]);
   const [carregado, setCarregado] = useState(false);
   const [aberto, setAberto] = useState(false);
+
+  const aplicar = useCallback((j: Resposta) => {
+    setItens(j.itens ?? []);
+    setSugestoes(j.sugestoes ?? []);
+  }, []);
 
   const recarregar = useCallback(async () => {
     try {
       const r = await fetch(`/api/carrinho?idioma=${idioma}`);
-      const j = (await r.json()) as { ok?: boolean; itens?: ItemVisivel[] };
+      const j = (await r.json()) as Resposta;
       if (j.ok) {
-        setItens(j.itens ?? []);
+        aplicar(j);
         setCarregado(true);
       }
     } catch {
       // sem rede: fica como está
     }
-  }, [idioma]);
+  }, [idioma, aplicar]);
 
   useEffect(() => {
     recarregar();
@@ -77,16 +88,16 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ escolha, idioma, substituir: opcoes.substituir }),
         });
-        const j = (await r.json().catch(() => null)) as { ok?: boolean; erro?: string; itens?: ItemVisivel[] } | null;
+        const j = (await r.json().catch(() => null)) as Resposta | null;
         if (!r.ok || !j?.ok) return { ok: false, erro: j?.erro ?? 'rede' };
-        setItens(j.itens ?? []);
+        aplicar(j);
         if (opcoes.abrir !== false) setAberto(true);
         return { ok: true };
       } catch {
         return { ok: false, erro: 'rede' };
       }
     },
-    [idioma],
+    [idioma, aplicar],
   );
 
   const remover = useCallback(
@@ -94,15 +105,15 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
       setItens((lista) => lista.filter((i) => i.id !== id));
       fetch(`/api/carrinho?id=${encodeURIComponent(id)}&idioma=${idioma}`, { method: 'DELETE' })
         .then((r) => r.json())
-        .then((j: { ok?: boolean; itens?: ItemVisivel[] }) => j.ok && setItens(j.itens ?? []))
+        .then((j: Resposta) => j.ok && aplicar(j))
         .catch(() => null);
     },
-    [idioma],
+    [idioma, aplicar],
   );
 
   const valor = useMemo(
-    () => ({ itens, carregado, aberto, abrir, fechar, adicionar, remover, recarregar }),
-    [itens, carregado, aberto, abrir, fechar, adicionar, remover, recarregar],
+    () => ({ itens, sugestoes, carregado, aberto, abrir, fechar, adicionar, remover, recarregar }),
+    [itens, sugestoes, carregado, aberto, abrir, fechar, adicionar, remover, recarregar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

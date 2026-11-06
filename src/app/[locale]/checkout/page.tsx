@@ -35,6 +35,9 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
               preco: d.preco,
               diminuir: d.comum.diminuir,
               aumentar: d.comum.aumentar,
+              dataPasseio: d.passeio.data,
+              escolhaData: d.grupo.escolhaData,
+              aPartirDe: d.comum.aPartirDe,
             }}
             links={{
               termos: rota(locale, '/termos-de-uso'),

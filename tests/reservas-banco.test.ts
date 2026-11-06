@@ -126,6 +126,11 @@ test('pedido do carrinho: cada voucher volta com o seu código e o seu preço, e
   }
 });
 
+test('o passeio pego pela sugestão do carrinho volta marcado', () => {
+  const l = peloBanco(paraLinhas({ ...PASSEIO, sugestao: true }));
+  assert.deepEqual(deLinhas(l.pedido, l.item, l.historico), { ...PASSEIO, sugestao: true });
+});
+
 test('reserva do carrinho sem documento: o checkout pede só nome, e-mail e WhatsApp', () => {
   const { documentoTipo: _t, documento: _d, ...cliente } = PASSEIO.cliente;
   const semDocumento: ReservaPasseio = { ...PASSEIO, cliente };

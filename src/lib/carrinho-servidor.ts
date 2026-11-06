@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { horariosDoPasseio, obterPasseio, type Passeio } from '@/data/passeios';
+import { MAXIMO_SUGESTOES, sugestoesDoCarrinho } from '@/data/sugestoes';
 import { IDS_LUGARES, LUGARES, VEICULOS, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
@@ -15,13 +16,14 @@ import {
   type EscolhaTransfer,
   type ItemCarrinho,
   type ItemVisivel,
+  type SugestaoVisivel,
   type TrechoEscolhido,
 } from './carrinho';
 import { formatarHora, horasDisponiveis } from './horarios';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Orcamento } from './orcamento';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
-import { obterOpcao, tabelaPreco, temOpcoes } from './precos';
+import { obterOpcao, opcoesPasseio, regraCriancas, tabelaPreco, temOpcoes } from './precos';
 import { textoPassageiros } from './transfer-view';
 import { dataPasseioValida, formatarDataIso, hojeEmBuzios, somarDias } from './validacao';
 
@@ -57,6 +59,7 @@ export const EsquemaEscolha = z.discriminatedUnion('tipo', [
     adultos: z.number().int().min(0).max(40),
     meia: z.number().int().min(0).max(30).default(0),
     gratis: z.number().int().min(0).max(30).default(0),
+    sugestao: z.literal(true).optional(),
   }),
   z.object({
     tipo: z.literal('transfer'),
@@ -112,6 +115,7 @@ export function conferirEscolha(bruta: unknown, agora: Date = new Date()): Confe
       adultos: pessoas.adultos,
       meia: pessoas.criancasMeia,
       gratis: pessoas.criancasGratis,
+      ...(e.sugestao ? { sugestao: true as const } : {}),
     };
     return {
       ok: true,
@@ -160,6 +164,9 @@ export function conferirEscolha(bruta: unknown, agora: Date = new Date()): Confe
     totalPixCentavos: trechosCentavos.reduce((s, c) => s + precoPixCentavos(c), 0),
   };
 }
+
+/** O que ainda vale: o item cuja data ou horário passou sai da conta. */
+export const itensQueValem = (itens: ItemCarrinho[], agora?: Date) => itens.filter((i) => conferirEscolha(i.escolha, agora).ok);
 
 /* ------------------------------------------------------------------ */
 /* Como cada item aparece                                              */
@@ -222,6 +229,46 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
       passageiros: t.passageiros,
     },
   };
+}
+
+/**
+ * As sugestões do carrinho (src/data/sugestoes.ts), com o preço para o grupo do último item e a data do dia
+ * seguinte. Com criança no grupo, o passeio com idade mínima (mergulho) não aparece.
+ */
+export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, agora?: Date): SugestaoVisivel[] {
+  const escolhas = itensQueValem(itens, agora).map((i) => i.escolha);
+  const ultimo = escolhas.at(-1);
+  if (!ultimo) return [];
+  const grupo =
+    ultimo.tipo === 'passeio'
+      ? { adultos: ultimo.adultos, criancasMeia: ultimo.meia, criancasGratis: ultimo.gratis }
+      : { adultos: ultimo.passageiros, criancasMeia: 0, criancasGratis: 0 };
+  const data = somarDias(ultimo.tipo === 'passeio' ? ultimo.data : ultimo.ida.data, 1);
+
+  const lista: SugestaoVisivel[] = [];
+  for (const slug of sugestoesDoCarrinho(escolhas)) {
+    const p = obterPasseio(slug);
+    if (!p || (grupo.criancasMeia + grupo.criancasGratis > 0 && regraCriancas(p).idadeMinima)) continue;
+    const horarios = horariosDoPasseio(p);
+    const pessoas = normalizarPessoas(tabelaPreco(p), grupo);
+    lista.push({
+      slug,
+      nome: p.nome[idioma],
+      foto: p.fotos[0] ?? '',
+      href: rota(idioma, `/passeios/${slug}`),
+      horas: horarios.horas,
+      rotuloHorario: horarios.busca ? d.horario.busca : d.horario.saida,
+      opcoes: opcoesPasseio(p).map((o) => {
+        const orc = calcular(tabelaPreco(p, o), grupo);
+        return { id: o.id, nome: o.nome[idioma], totalCentavos: orc.totalCentavos, totalPixCentavos: totalPixCentavos(orc) };
+      }),
+      pessoas: { adultos: pessoas.adultos, meia: pessoas.criancasMeia, gratis: pessoas.criancasGratis },
+      pessoasTexto: textoPessoas(pessoas, d.comum.rotulos, semFaixas(p)),
+      data,
+    });
+    if (lista.length === MAXIMO_SUGESTOES) break;
+  }
+  return lista;
 }
 
 /* ------------------------------------------------------------------ */
@@ -295,9 +342,6 @@ export async function gravarCarrinho(
     ),
   );
 }
-
-/** O que ainda vale: o item cuja data ou horário passou sai da conta. */
-export const itensQueValem = (itens: ItemCarrinho[], agora?: Date) => itens.filter((i) => conferirEscolha(i.escolha, agora).ok);
 
 /** Os itens que ainda valem, já com o texto e o preço no idioma. */
 export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario): ItemVisivel[] {

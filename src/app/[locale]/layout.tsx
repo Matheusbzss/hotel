@@ -65,6 +65,15 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
+  const textosCarrinho = {
+    ...d.carrinho,
+    noPix: d.preco.noPix,
+    noCartao: d.preco.noCartao,
+    dataPasseio: d.passeio.data,
+    escolhaData: d.grupo.escolhaData,
+    opcao: d.checkout.opcao,
+    aPartirDe: d.comum.aPartirDe,
+  };
 
   const organizacao = {
     '@context': 'https://schema.org',
@@ -95,13 +104,9 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
             locale={LOCALE_INTL[locale]}
             hrefFinalizar={rota(locale, '/checkout')}
             hrefPasseios={rota(locale, '/passeios')}
-            textos={{ ...d.carrinho, noPix: d.preco.noPix, noCartao: d.preco.noCartao }}
+            textos={textosCarrinho}
           />
-          <BarraCarrinho
-            locale={LOCALE_INTL[locale]}
-            hrefFinalizar={rota(locale, '/checkout')}
-            textos={{ ...d.carrinho, noPix: d.preco.noPix, noCartao: d.preco.noCartao }}
-          />
+          <BarraCarrinho locale={LOCALE_INTL[locale]} hrefFinalizar={rota(locale, '/checkout')} textos={textosCarrinho} />
         </CarrinhoProvider>
         <Revelar />
         <Rastreamento

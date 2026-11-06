@@ -5,10 +5,11 @@ import type { Dicionario } from '@/i18n';
 import { useCarrinho } from './CarrinhoContexto';
 import { ListaCarrinho } from './ListaCarrinho';
 import { ResumoCarrinho } from './ResumoCarrinho';
+import { SugestoesCarrinho, type TextosSugestoes } from './SugestoesCarrinho';
 
-export type TextosCarrinho = Dicionario['carrinho'] & Pick<Dicionario['preco'], 'noPix' | 'noCartao'>;
+export type TextosCarrinho = Dicionario['carrinho'] & Pick<Dicionario['preco'], 'noPix' | 'noCartao'> & TextosSugestoes;
 
-export const textoQuantidade = (T: TextosCarrinho, n: number) => (n === 1 ? T.item : T.itens.replace('{n}', String(n)));
+export const textoQuantidade = (T: { item: string; itens: string }, n: number) => (n === 1 ? T.item : T.itens.replace('{n}', String(n)));
 
 /**
  * O carrinho por cima da página, em vidro claro: no computador entra pela direita; no celular sobe de
@@ -79,7 +80,10 @@ export function GavetaCarrinho({
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-1">
           {n ? (
-            <ListaCarrinho itens={itens} locale={locale} textos={T} aoRemover={remover} />
+            <>
+              <ListaCarrinho itens={itens} locale={locale} textos={T} aoRemover={remover} />
+              <SugestoesCarrinho locale={locale} textos={T} />
+            </>
           ) : (
             <div className="py-10 text-center">
               <p>{T.vazio}</p>

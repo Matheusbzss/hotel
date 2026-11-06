@@ -139,6 +139,10 @@ const es: Dicionario = {
     seuPedido: 'Tu pedido',
     hospedagemAjuda: 'Vale para todos los paseos de este pedido.',
     mudou: 'Un ítem del carrito cambió o ya no está disponible. Revisá el pedido y envialo de nuevo.',
+    sugestoesTitulo: 'Combina con tu viaje',
+    sugestaoAdicionar: 'Agregar',
+    sugestaoAgoraNao: 'Ahora no',
+    sugestaoVer: 'Ver el paseo',
   },
   pedido: {
     codigo: 'Código del pedido',

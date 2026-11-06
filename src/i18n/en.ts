@@ -139,6 +139,10 @@ const en: Dicionario = {
     seuPedido: 'Your order',
     hospedagemAjuda: 'Applies to every tour in this order.',
     mudou: 'An item in your cart changed or is no longer available. Check your order and send it again.',
+    sugestoesTitulo: 'Goes well with your trip',
+    sugestaoAdicionar: 'Add',
+    sugestaoAgoraNao: 'Not now',
+    sugestaoVer: 'See the tour',
   },
   pedido: {
     codigo: 'Order code',

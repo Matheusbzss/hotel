@@ -84,6 +84,8 @@ export interface ReservaPasseio extends ReservaBase {
   /** O documento não vem nas reservas do carrinho, que pedem só nome, e-mail e WhatsApp. */
   cliente: ReservaBase['cliente'] & { documentoTipo?: 'cpf' | 'passaporte'; documento?: string };
   hospedagem: { cidade: CidadeHospedagem; hotel: string };
+  /** O cliente pegou pela sugestão do carrinho. */
+  sugestao?: boolean;
 }
 
 /** Uma ponta do trecho: o lugar da lista e, fora dos aeroportos, o hotel, a pousada ou o endereço. */

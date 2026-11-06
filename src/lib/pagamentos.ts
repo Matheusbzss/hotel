@@ -1,3 +1,4 @@
+import { avisarCompra } from './avisar-compra';
 import { interpretarPedido, obterPedido, pagarmeConfigurado } from './pagarme';
 import { atualizarReserva, registrar, type Reserva, type StatusReserva } from './reservas';
 
@@ -28,5 +29,6 @@ export async function sincronizarReserva(reserva: Reserva, origem: 'webhook' | '
     if (info.motivo && info.status === 'recusado') r.pagamento.motivo = info.motivo;
     return registrar(r, `Status ${info.status} (${origem === 'webhook' ? 'webhook Pagar.me' : 'consulta à Pagar.me'})`);
   });
+  if (atualizada?.status === 'pago' && reserva.status !== 'pago') await avisarCompra(atualizada);
   return atualizada ?? reserva;
 }

@@ -123,6 +123,8 @@ export interface Estatisticas {
   porPais: Fatia[];
   porPagamento: Fatia[];
   porOrigem: Fatia[];
+  /** Só os pedidos que vieram de uma campanha. */
+  porCampanha: Fatia[];
   itensPorPedido: { rotulo: string; pedidos: number }[];
   sugestoes: { centavos: number; itens: number; pedidos: number; porPasseio: Fatia[] };
   funil: Funil;
@@ -274,6 +276,12 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
     porPais: juntar(vendidos.map((p) => ({ ...paisDoTelefone(p.itens[0].cliente.telefone), centavos: p.recebidoCentavos }))),
     porPagamento: juntar(vendidos.map((p) => ({ chave: p.metodo, rotulo: FORMA_DE_PAGAMENTO[p.metodo], centavos: p.recebidoCentavos }))),
     porOrigem: juntar(vendidos.map((p) => ({ ...origemDoPedido(p), centavos: p.recebidoCentavos }))),
+    porCampanha: juntar(
+      vendidos.flatMap((p) => {
+        const campanha = p.itens[0].origem?.utm_campaign;
+        return campanha ? [{ chave: campanha, rotulo: campanha, centavos: p.recebidoCentavos }] : [];
+      }),
+    ),
     itensPorPedido: [
       { rotulo: '1 item', pedidos: quantosItens(1) },
       { rotulo: '2 itens', pedidos: quantosItens(2) },

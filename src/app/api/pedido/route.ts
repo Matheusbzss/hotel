@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { IDIOMAS } from '@/i18n/config';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
+import { origemDaVisita } from '@/lib/origem-servidor';
 import { reservaDoItem } from '@/lib/pedido-carrinho';
 import { criarPedido } from '@/lib/reservas';
 import { CIDADES_HOSPEDAGEM, emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
   const loja = await cookies();
   const codigoCarrinho = loja.get(COOKIE_CARRINHO)?.value;
   try {
-    const { itens } = await lerCarrinho(codigoCarrinho);
+    const { itens, origem } = await lerCarrinho(codigoCarrinho);
     const conferidas = itens.flatMap((i) => {
       const c = conferirEscolha(i.escolha);
       return c.ok ? [{ id: i.id, c }] : [];
@@ -78,6 +79,8 @@ export async function POST(req: Request) {
       },
       hospedagem: e.hospedagem,
       observacoes: e.observacoes || undefined,
+      // a campanha guardada no carrinho vale se o cookie da visita já tiver vencido
+      origem: { ...origem, ...(await origemDaVisita()) },
     };
     const novas = [];
     for (const { id, c } of conferidas) {

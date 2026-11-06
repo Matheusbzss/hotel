@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { LUGARES } from '@/data/transfer';
 import { EsquemaCotacao, faltaNaCotacao } from '@/lib/cotacao';
 import { criarCotacao } from '@/lib/cotacoes';
+import { soCampanha } from '@/lib/origem';
+import { origemDaVisita } from '@/lib/origem-servidor';
 import { emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
 
 export const runtime = 'nodejs';
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
       ...(e.telefone ? { telefone: `+${soDigitos(e.ddi)} ${soDigitos(e.telefone)}` } : {}),
       ...(e.mensagem ? { mensagem: e.mensagem } : {}),
       ...(e.trajeto ? { trajeto: e.trajeto } : {}),
+      origem: soCampanha(await origemDaVisita()),
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

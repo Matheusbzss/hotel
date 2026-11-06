@@ -59,9 +59,10 @@ export async function pedidoRecusado(req: Request): Promise<NextResponse | null>
   return null;
 }
 
+/** Confere um segredo sem deixar pista pelo tempo de resposta. Sem o segredo cadastrado, nada confere. */
+export const segredoConfere = (recebido: string | null, esperado: string | undefined) =>
+  Boolean(recebido && esperado) && iguais(recebido as string, esperado as string);
+
 /** O agendamento da Vercel (vercel.json) manda "Authorization: Bearer CRON_SECRET". */
-export function chamadaDoAgendamento(req: Request): boolean {
-  const segredo = process.env.CRON_SECRET;
-  const recebido = req.headers.get('authorization');
-  return Boolean(segredo && recebido) && iguais(recebido as string, `Bearer ${segredo}`);
-}
+export const chamadaDoAgendamento = (req: Request) =>
+  Boolean(process.env.CRON_SECRET) && segredoConfere(req.headers.get('authorization'), `Bearer ${process.env.CRON_SECRET}`);

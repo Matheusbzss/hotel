@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
+import { avisarCompra } from '@/lib/avisar-compra';
 import { atualizarReserva, registrar, type MetodoPagamento, type StatusReserva } from '@/lib/reservas';
 
 export const runtime = 'nodejs';
@@ -24,12 +25,15 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   const form = await req.formData();
   const acao = ACOES[String(form.get('acao'))];
   if (!acao) return NextResponse.json({ ok: false }, { status: 400 });
-  await atualizarReserva(codigo, (r) => {
+  let virouPago = false;
+  const atualizada = await atualizarReserva(codigo, (r) => {
+    virouPago = acao.status === 'pago' && r.status !== 'pago';
     r.status = acao.status;
     if (acao.metodo) r.pagamento.metodo = acao.metodo;
     if (acao.status === 'pago' && !r.pagamento.pagoEm) r.pagamento.pagoEm = new Date().toISOString();
     return registrar(r, acao.evento);
   });
+  if (virouPago && atualizada) await avisarCompra(atualizada);
   const volta = new URL('/admin', req.url);
   const filtro = form.get('filtro');
   if (filtro) volta.searchParams.set('status', String(filtro));

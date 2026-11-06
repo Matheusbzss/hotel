@@ -24,6 +24,7 @@ import { formatarHora, horasDisponiveis } from './horarios';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Orcamento } from './orcamento';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
+import type { Origem } from './origem';
 import { obterOpcao, opcoesPasseio, regraCriancas, tabelaPreco, temOpcoes } from './precos';
 import { listarReservas } from './reservas';
 import { textoPassageiros } from './transfer-view';
@@ -280,6 +281,8 @@ export interface CarrinhoGuardado {
   itens: ItemCarrinho[];
   email?: string;
   pedidoId?: string | null;
+  /** A campanha do anúncio de onde o cliente veio. */
+  origem?: Origem;
   /** Só nos arquivos do computador: no banco, são as colunas criado_em e checkout_em. */
   criadoEm?: string;
   checkoutEm?: string;
@@ -297,13 +300,14 @@ const semOQueVirouPedido = (c: CarrinhoGuardado): CarrinhoGuardado => (c.pedidoI
 export async function lerCarrinho(codigo: string | undefined): Promise<CarrinhoGuardado> {
   if (!codigoCarrinhoValido(codigo)) return { itens: [] };
   if (usarBanco()) {
-    const { data, error } = await supabase().from('carrinhos').select('itens, email, pedido_id').eq('token', codigo).maybeSingle();
+    const { data, error } = await supabase().from('carrinhos').select('itens, email, pedido_id, origem_utm').eq('token', codigo).maybeSingle();
     if (error) throw new Error(`Banco de dados: ${error.message}`);
     if (!data) return { itens: [] };
     return semOQueVirouPedido({
       itens: (data.itens as unknown as ItemCarrinho[]) ?? [],
       email: data.email ?? undefined,
       pedidoId: data.pedido_id,
+      origem: data.origem_utm as Origem,
     });
   }
   try {
@@ -316,7 +320,7 @@ export async function lerCarrinho(codigo: string | undefined): Promise<CarrinhoG
 /** Grava os itens (e o e-mail, se veio), criando o carrinho na primeira vez. */
 export async function gravarCarrinho(
   codigo: string,
-  mudanca: { itens?: ItemCarrinho[]; email?: string; idioma?: Idioma; pedidoId?: string },
+  mudanca: { itens?: ItemCarrinho[]; email?: string; idioma?: Idioma; pedidoId?: string; origem?: Origem },
 ): Promise<void> {
   if (mudanca.itens && mudanca.itens.length > MAXIMO_ITENS) throw new Error('Carrinho cheio');
   if (usarBanco()) {
@@ -326,6 +330,8 @@ export async function gravarCarrinho(
       ...(mudanca.email !== undefined ? { email: mudanca.email } : {}),
       ...(mudanca.idioma ? { idioma: mudanca.idioma } : {}),
       ...(mudanca.pedidoId ? { pedido_id: mudanca.pedidoId } : {}),
+      // o último anúncio é o que vale; sem anúncio nesta visita, fica o que já estava
+      ...(mudanca.origem && Object.keys(mudanca.origem).length ? { origem_utm: mudanca.origem as Json } : {}),
     };
     const { error } = await supabase().from('carrinhos').upsert(linha, { onConflict: 'token' });
     if (error) throw new Error(`Banco de dados: ${error.message}`);
@@ -340,6 +346,7 @@ export async function gravarCarrinho(
         itens: mudanca.itens ?? atual.itens,
         email: mudanca.email ?? atual.email,
         pedidoId: mudanca.pedidoId ?? atual.pedidoId,
+        origem: mudanca.origem && Object.keys(mudanca.origem).length ? mudanca.origem : atual.origem,
         criadoEm: atual.criadoEm ?? new Date().toISOString(),
         checkoutEm: atual.checkoutEm,
       },

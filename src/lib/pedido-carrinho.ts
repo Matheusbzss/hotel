@@ -2,6 +2,7 @@ import 'server-only';
 import type { Idioma } from '@/i18n/config';
 import type { Conferida } from './carrinho-servidor';
 import type { TrechoEscolhido } from './carrinho';
+import type { Origem } from './origem';
 import { obterOpcao, temOpcoes } from './precos';
 import type { NovaReserva, ReservaPasseio, TrechoTransfer } from './reservas';
 
@@ -11,6 +12,7 @@ export interface DadosDoPedido {
   cliente: { nome: string; email: string; telefone: string };
   hospedagem?: ReservaPasseio['hospedagem'];
   observacoes?: string;
+  origem: Origem;
 }
 
 /** O que o checkout pergunta de cada transfer. */
@@ -33,6 +35,7 @@ export function reservaDoItem(c: Extract<Conferida, { ok: true }>, dados: DadosD
     cliente: dados.cliente,
     observacoes: dados.observacoes,
     pagamento: { metodo: 'whatsapp' as const },
+    ...(Object.keys(dados.origem).length ? { origem: dados.origem } : {}),
   };
 
   if ('passeio' in c) {

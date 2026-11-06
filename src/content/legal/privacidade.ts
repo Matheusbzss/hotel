@@ -21,8 +21,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Contato: e-mail e telefone/WhatsApp, inclusive quando você pede uma cotação ou manda uma mensagem pelo site.',
           'Reserva: passeio, data, quantidade de adultos e crianças, cidade e nome do hotel ou pousada e as observações que você escrever.',
           'Carrinho: os itens que você escolheu e, se digitar no checkout, o seu e-mail, mesmo que você não termine a reserva.',
+          'Origem da visita: o nome da campanha do anúncio de onde você veio, quando o link tem essa marca.',
           'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O número completo do cartão é enviado direto à Pagar.me e nunca passa pelos nossos servidores.',
-          'Navegação: endereço IP, tipo de dispositivo e páginas visitadas, registrados pelos nossos provedores para segurança e funcionamento do site; e, só com o seu consentimento, dados de navegação para o Pixel da Meta.',
+          'Navegação: endereço IP, tipo de dispositivo e páginas visitadas, registrados pelos nossos provedores para segurança e funcionamento do site; e, só com o seu consentimento, dados de navegação para o Pixel da Meta e para a tag do Google Ads.',
         ],
         depois: [
           'Evite escrever informações de saúde nas observações, a não ser que sejam necessárias para a sua segurança no passeio (por exemplo, restrições para mergulho). Se você escrever, usaremos apenas para esse fim.',
@@ -37,7 +38,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Guardar registros fiscais, contábeis e de consumo — cumprimento de obrigação legal e exercício regular de direitos (art. 7º, II e VI).',
           'Atender você pelo WhatsApp e por e-mail — execução de contrato e legítimo interesse.',
           'Guardar o seu carrinho e lembrar você de uma reserva que ficou sem terminar — legítimo interesse (art. 7º, IX). Você pode pedir para não receber esse lembrete.',
-          'Medir e melhorar nossos anúncios no Facebook e Instagram (Pixel da Meta) — consentimento (art. 7º, I), que você pode recusar ou revogar a qualquer momento.',
+          'Saber de qual campanha veio cada reserva, para medir o resultado dos anúncios — legítimo interesse (art. 7º, IX).',
+          'Medir e melhorar nossos anúncios no Facebook, no Instagram e no Google (Pixel da Meta, API de Conversões e tag do Google Ads), inclusive avisar essas plataformas quando uma reserva é paga, com o valor, o código do clique no anúncio e, para a Meta, o e-mail e o telefone embaralhados (hash) — consentimento (art. 7º, I), que você pode recusar ou revogar a qualquer momento.',
         ],
       },
       {
@@ -48,6 +50,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Pagar.me (Stone): processamento dos pagamentos por Pix e cartão.',
           'Vercel e Supabase: hospedagem do site e armazenamento seguro das reservas.',
           'Meta (WhatsApp, Facebook e Instagram): atendimento pelo WhatsApp e, com o seu consentimento, medição de anúncios.',
+          'Google: com o seu consentimento, medição de anúncios.',
           'Autoridades públicas, quando exigido por lei ou ordem judicial.',
         ],
         depois: [
@@ -55,9 +58,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '5. Cookies e Pixel da Meta',
+        titulo: '5. Cookies, Pixel da Meta e Google',
         paragrafos: [
-          'O site usa um cookie para guardar o seu carrinho e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta, que mede o resultado dos nossos anúncios, só é carregado se você clicar em “Aceitar” no aviso de cookies.',
+          'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
           'Você pode mudar sua escolha a qualquer momento pelo botão no fim desta página.',
         ],
       },
@@ -119,8 +122,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Contact: email and phone/WhatsApp, including when you request a quote or send a message through the website.',
           'Booking: tour, date, number of adults and children, town and name of your hotel or guesthouse, and any notes you write.',
           'Cart: the items you chose and, if you type it at checkout, your email, even if you do not finish the booking.',
+          'Visit source: the name of the ad campaign you came from, when the link carries it.',
           'Payment: payment method, status and, for cards, only the brand and last four digits. The full card number is sent straight to Pagar.me and never passes through our servers.',
-          'Browsing: IP address, device type and pages visited, logged by our providers for security and to keep the website running; and, only with your consent, browsing data for the Meta Pixel.',
+          'Browsing: IP address, device type and pages visited, logged by our providers for security and to keep the website running; and, only with your consent, browsing data for the Meta Pixel and the Google Ads tag.',
         ],
         depois: [
           'Please avoid writing health information in the notes unless it is needed for your safety on the tour (for example, diving restrictions). If you do, we will use it only for that purpose.',
@@ -135,7 +139,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'To keep tax, accounting and consumer records — legal obligation and exercise of rights (art. 7, II and VI).',
           'To assist you on WhatsApp and by email — performance of a contract and legitimate interest.',
           'To keep your cart and remind you of a booking you did not finish — legitimate interest (art. 7, IX). You can ask not to receive this reminder.',
-          'To measure and improve our ads on Facebook and Instagram (Meta Pixel) — consent (art. 7, I), which you can refuse or withdraw at any time.',
+          'To know which campaign each booking came from, so we can measure our ads — legitimate interest (art. 7, IX).',
+          'To measure and improve our ads on Facebook, Instagram and Google (Meta Pixel, Conversions API and Google Ads tag), including telling these platforms when a booking is paid, with the amount, the ad click code and, for Meta, your email and phone number scrambled (hashed) — consent (art. 7, I), which you can refuse or withdraw at any time.',
         ],
       },
       {
@@ -146,6 +151,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Pagar.me (Stone): processing Pix and card payments.',
           'Vercel and Supabase: website hosting and secure storage of bookings.',
           'Meta (WhatsApp, Facebook and Instagram): customer service on WhatsApp and, with your consent, ad measurement.',
+          'Google: with your consent, ad measurement.',
           'Public authorities, when required by law or court order.',
         ],
         depois: [
@@ -153,9 +159,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '5. Cookies and the Meta Pixel',
+        titulo: '5. Cookies, the Meta Pixel and Google',
         paragrafos: [
-          'The website uses a cookie to keep your cart and local storage to remember your cookie choice. The Meta Pixel, which measures the results of our ads, is loaded only if you click “Accept” on the cookie notice.',
+          'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
           'You can change your choice at any time with the button at the end of this page.',
         ],
       },
@@ -217,8 +223,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Contacto: e-mail y teléfono/WhatsApp, también cuando pedís una cotización o mandás un mensaje por el sitio.',
           'Reserva: paseo, fecha, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas.',
           'Carrito: los ítems que elegiste y, si lo escribís en el checkout, tu e-mail, aunque no termines la reserva.',
+          'Origen de la visita: el nombre de la campaña del anuncio del que viniste, cuando el enlace lo indica.',
           'Pago: forma de pago, estado y, en el caso de tarjeta, solo la marca y los cuatro últimos dígitos. El número completo de la tarjeta se envía directo a Pagar.me y nunca pasa por nuestros servidores.',
-          'Navegación: dirección IP, tipo de dispositivo y páginas visitadas, registrados por nuestros proveedores por seguridad y para el funcionamiento del sitio; y, solo con tu consentimiento, datos de navegación para el Píxel de Meta.',
+          'Navegación: dirección IP, tipo de dispositivo y páginas visitadas, registrados por nuestros proveedores por seguridad y para el funcionamiento del sitio; y, solo con tu consentimiento, datos de navegación para el Píxel de Meta y la etiqueta de Google Ads.',
         ],
         depois: [
           'Evitá escribir información de salud en las observaciones, salvo que sea necesaria para tu seguridad en el paseo (por ejemplo, restricciones para bucear). Si la escribís, la usaremos solo para ese fin.',
@@ -233,7 +240,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Guardar registros fiscales, contables y de consumo — obligación legal y ejercicio regular de derechos (art. 7, II y VI).',
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',
           'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Podés pedir no recibir ese recordatorio.',
-          'Medir y mejorar nuestros anuncios en Facebook e Instagram (Píxel de Meta) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
+          'Saber de qué campaña vino cada reserva, para medir el resultado de los anuncios — interés legítimo (art. 7, IX).',
+          'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
         ],
       },
       {
@@ -244,6 +252,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Pagar.me (Stone): procesamiento de pagos con Pix y tarjeta.',
           'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
           'Meta (WhatsApp, Facebook e Instagram): atención por WhatsApp y, con tu consentimiento, medición de anuncios.',
+          'Google: con tu consentimiento, medición de anuncios.',
           'Autoridades públicas, cuando lo exija la ley o una orden judicial.',
         ],
         depois: [
@@ -251,9 +260,9 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
       },
       {
-        titulo: '5. Cookies y Píxel de Meta',
+        titulo: '5. Cookies, Píxel de Meta y Google',
         paragrafos: [
-          'El sitio usa una cookie para guardar tu carrito y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta, que mide el resultado de nuestros anuncios, solo se carga si hacés clic en “Aceptar” en el aviso de cookies.',
+          'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
           'Podés cambiar tu elección en cualquier momento con el botón al final de esta página.',
         ],
       },

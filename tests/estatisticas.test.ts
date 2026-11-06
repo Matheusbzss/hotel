@@ -206,6 +206,11 @@ test('os rankings contam os itens, e o país e a origem contam os pedidos', () =
       ['Meta (Instagram e Facebook)', 1],
     ],
   );
+  // só a venda que veio de campanha entra na lista de campanhas
+  assert.deepEqual(
+    e.porCampanha.map((f) => [f.rotulo, f.centavos]),
+    [['verao', 10000]],
+  );
   assert.equal(e.resumo.pedidos, 2);
   assert.equal(e.resumo.itens, 3);
   assert.equal(e.resumo.itensPorPedido, 1.5);

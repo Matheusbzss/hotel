@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { BotaoCopiar } from '@/components/admin/BotaoCopiar';
 import { CORES_ETAPAS, COR_SERIE } from '@/components/admin/cores-graficos';
 import { GraficoColunas, type Coluna } from '@/components/admin/GraficoColunas';
 import { CIDADES } from '@/data/passeios';
@@ -19,6 +20,7 @@ import {
 } from '@/lib/estatisticas';
 import { formatarPreco } from '@/lib/precos';
 import { listarReservas, type Reserva } from '@/lib/reservas';
+import { urlDoSite } from '@/lib/site';
 import { formatarDataIso, hojeEmBuzios } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
@@ -149,6 +151,40 @@ function BlocoFunil({ f, anterior }: { f: Funil; anterior?: Funil }) {
           <Linha key={e.nome} nome={e.nome} valor={String(e.n)} nota={e.nota} largura={parte(e.n, f.carrinhos)} cor={CORES_ETAPAS[i]} />
         ))}
       </ul>
+    </>
+  );
+}
+
+/** O que já está ligado para a Meta e o Google aprenderem com as vendas. Cada item liga com uma variável na Vercel. */
+function Medicao() {
+  const segredo = process.env.GOOGLE_ARQUIVO_SEGREDO;
+  const itens: [string, boolean][] = [
+    ['Pixel da Meta', Boolean(process.env.NEXT_PUBLIC_META_PIXEL_ID)],
+    ['API de Conversões da Meta', Boolean(process.env.NEXT_PUBLIC_META_PIXEL_ID && process.env.META_CAPI_TOKEN)],
+    ['Tag do Google Ads', Boolean(process.env.NEXT_PUBLIC_GOOGLE_ADS_ID)],
+    ['Arquivo de vendas para o Google', Boolean(segredo)],
+  ];
+  return (
+    <>
+      <ul className="divide-y divide-superficie">
+        {itens.map(([nome, ligado]) => (
+          <li key={nome} className="flex items-center justify-between gap-3 py-2">
+            <span>{nome}</span>
+            <span className={`shrink-0 text-small font-semibold ${ligado ? 'text-sucesso' : 'text-tinta-suave'}`}>
+              {ligado ? '● Ligado' : '○ Desligado'}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {segredo && (
+        <div className="mt-3">
+          <p className="text-small text-tinta-suave">Endereço do arquivo, para colar no Google Ads:</p>
+          <div className="mt-1 flex gap-2">
+            <input readOnly aria-label="Endereço do arquivo" value={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`} className="campo min-w-0 flex-1" />
+            <BotaoCopiar texto={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`} />
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -399,6 +435,19 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
         </Cartao>
         <Cartao titulo="Origem" nota="Pelos links dos anúncios; quem chega sem link marcado entra em Direto">
           <Ranking fatias={e.porOrigem} um="pedido" varios="pedidos" />
+        </Cartao>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <Cartao titulo="Campanhas" nota="Só as vendas que vieram de um anúncio com o nome da campanha no link">
+          {e.porCampanha.length ? (
+            <Ranking fatias={e.porCampanha} um="pedido" varios="pedidos" />
+          ) : (
+            <p className="text-tinta-suave">Nenhuma venda de campanha neste período.</p>
+          )}
+        </Cartao>
+        <Cartao titulo="Medição dos anúncios" nota="O que já está ligado para a Meta e o Google aprenderem com as vendas">
+          <Medicao />
         </Cartao>
       </div>
     </main>

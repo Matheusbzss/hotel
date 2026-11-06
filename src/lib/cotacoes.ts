@@ -6,6 +6,7 @@ import type { Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import type { Json, Tables } from './banco-tipos';
 import type { StatusCotacao, TipoCotacao, TrajetoCotacao } from './cotacao';
+import type { Origem } from './origem';
 
 /** As cotações: no banco (tabela cotacoes) na Vercel; no computador, arquivos em .data/cotacoes/. */
 
@@ -18,6 +19,8 @@ export interface Cotacao {
   idioma: Idioma;
   mensagem?: string;
   trajeto?: TrajetoCotacao;
+  /** A campanha do anúncio de onde o cliente veio. */
+  origem?: Origem;
   status: StatusCotacao;
   criadaEm: string;
 }
@@ -36,6 +39,7 @@ const deLinha = (l: Tables<'cotacoes'>): Cotacao => ({
   idioma: l.idioma as Idioma,
   mensagem: l.mensagem ?? undefined,
   trajeto: (l.dados as { trajeto?: TrajetoCotacao }).trajeto,
+  origem: l.origem_utm as Origem,
   status: l.status as StatusCotacao,
   criadaEm: new Date(l.criado_em).toISOString(),
 });
@@ -47,10 +51,16 @@ async function dosArquivos(): Promise<Cotacao[]> {
 
 export async function criarCotacao(nova: NovaCotacao): Promise<void> {
   if (usarBanco()) {
-    const { trajeto, telefone, mensagem, ...resto } = nova;
+    const { trajeto, telefone, mensagem, origem, ...resto } = nova;
     const { error } = await supabase()
       .from('cotacoes')
-      .insert({ ...resto, telefone: telefone ?? null, mensagem: mensagem ?? null, dados: (trajeto ? { trajeto } : {}) as Json });
+      .insert({
+        ...resto,
+        telefone: telefone ?? null,
+        mensagem: mensagem ?? null,
+        dados: (trajeto ? { trajeto } : {}) as Json,
+        origem_utm: (origem ?? {}) as Json,
+      });
     if (error) throw erroDoBanco(error);
     return;
   }

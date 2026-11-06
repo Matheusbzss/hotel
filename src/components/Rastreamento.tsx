@@ -3,22 +3,28 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { carregarPixel, rastrear } from '@/lib/pixel';
+import { carregarGoogle, carregarPixel, guardarOrigem, marcarMedicao, rastrear, soltarEventos } from '@/lib/pixel';
 
 const CHAVE = 'vh_consentimento_cookies';
 
-/** Pixel da Meta (ID em NEXT_PUBLIC_META_PIXEL_ID) carregado só após o aceite dos cookies (LGPD). */
+/**
+ * Pixel da Meta (NEXT_PUBLIC_META_PIXEL_ID) e tag do Google Ads (NEXT_PUBLIC_GOOGLE_ADS_ID), carregados só
+ * após o aceite dos cookies (LGPD). Sem nenhum dos dois, o aviso de cookies nem aparece.
+ */
 export function Rastreamento({
   pixelId,
+  googleId,
   textos,
   linkPrivacidade,
 }: {
   pixelId?: string;
+  googleId?: string;
   textos: { texto: string; aceitar: string; recusar: string; saibaMais: string };
   linkPrivacidade: string;
 }) {
   const [consentimento, setConsentimento] = useState<'sim' | 'nao' | null | undefined>(undefined);
   const caminho = usePathname();
+  const medeAnuncios = Boolean(pixelId || googleId);
 
   useEffect(() => {
     let valor: string | null = null;
@@ -29,12 +35,22 @@ export function Rastreamento({
   }, []);
 
   useEffect(() => {
-    if (consentimento === 'sim' && pixelId) carregarPixel(pixelId);
-  }, [consentimento, pixelId]);
+    if (consentimento === undefined) return;
+    marcarMedicao(consentimento === 'sim');
+    guardarOrigem(consentimento === 'sim');
+  }, [caminho, consentimento]);
 
   useEffect(() => {
-    if (consentimento === 'sim' && pixelId) rastrear('PageView');
-  }, [caminho, consentimento, pixelId]);
+    if (consentimento !== 'sim') return;
+    if (pixelId) carregarPixel(pixelId);
+    if (googleId) carregarGoogle(googleId);
+  }, [consentimento, pixelId, googleId]);
+
+  useEffect(() => {
+    if (consentimento !== 'sim' || !medeAnuncios) return;
+    rastrear('PageView');
+    soltarEventos();
+  }, [caminho, consentimento, medeAnuncios]);
 
   // Cliques no WhatsApp viram o evento "Contact"
   useEffect(() => {
@@ -46,7 +62,7 @@ export function Rastreamento({
     return () => document.removeEventListener('click', aoClicar);
   }, []);
 
-  if (!pixelId || consentimento !== null) return null;
+  if (!medeAnuncios || consentimento !== null) return null;
 
   const escolher = (v: 'sim' | 'nao') => {
     try {

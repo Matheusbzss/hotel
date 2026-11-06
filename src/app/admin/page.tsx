@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { contarCotacoesNovas } from '@/lib/cotacoes';
+import { textoDaOrigem } from '@/lib/origem';
 import { pagarmeConfigurado } from '@/lib/pagarme';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
@@ -272,6 +273,7 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
           </a>
         </p>
         <p className="text-small text-tinta-suave">Idioma: {r.idioma.toUpperCase()}</p>
+        {textoDaOrigem(r.origem) && <p className="text-small text-tinta-suave">Veio de: {textoDaOrigem(r.origem)}</p>}
       </div>
       <div className="lg:col-span-2 lg:text-right">
         <ValorDoPedido p={p} />

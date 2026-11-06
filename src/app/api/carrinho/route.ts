@@ -16,6 +16,8 @@ import {
   novoCodigoCarrinho,
   sugestoesVisiveis,
 } from '@/lib/carrinho-servidor';
+import { soCampanha } from '@/lib/origem';
+import { origemDaVisita } from '@/lib/origem-servidor';
 import { emailValido } from '@/lib/validacao';
 
 export const runtime = 'nodejs';
@@ -75,7 +77,7 @@ export async function POST(req: Request) {
     const lugar = atuais.findIndex((i) => i.id === corpo?.substituir);
     if (lugar < 0 && atuais.length >= MAXIMO_ITENS) return falha('cheio', 400);
     const itens = lugar < 0 ? [...atuais, novo] : atuais.map((i, n) => (n === lugar ? novo : i));
-    await gravarCarrinho(codigo, { itens, idioma });
+    await gravarCarrinho(codigo, { itens, idioma, origem: soCampanha(await origemDaVisita()) });
     loja.set(COOKIE_CARRINHO, codigo, OPCOES_COOKIE);
     return await resposta(codigo, idioma);
   } catch (e) {

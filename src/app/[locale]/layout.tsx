@@ -111,6 +111,7 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
         <Revelar />
         <Rastreamento
           pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}
+          googleId={process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}
           textos={d.cookies}
           linkPrivacidade={rota(locale, '/politica-de-privacidade')}
         />

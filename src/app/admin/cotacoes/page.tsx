@@ -4,6 +4,7 @@ import { dicionario } from '@/i18n';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { STATUS_COTACAO, type PontaCotacao, type StatusCotacao, type TipoCotacao, type TrajetoCotacao } from '@/lib/cotacao';
 import { listarCotacoes, type Cotacao } from '@/lib/cotacoes';
+import { textoDaOrigem } from '@/lib/origem';
 import { formatarHora } from '@/lib/horarios';
 import { nomePonta, textoMalas, textoPassageiros } from '@/lib/transfer-view';
 import { formatarDataIso } from '@/lib/validacao';
@@ -135,6 +136,7 @@ export default async function Cotacoes({ searchParams }: { searchParams: Promise
                 {STATUS[c.status].rotulo}
               </span>
               <p className="mt-2 text-small text-tinta-suave">Recebida {dataHora(c.criadaEm)}</p>
+              {textoDaOrigem(c.origem) && <p className="text-small text-tinta-suave">Veio de: {textoDaOrigem(c.origem)}</p>}
             </div>
             <div className="lg:col-span-5">
               {c.trajeto && <Trajeto t={c.trajeto} />}

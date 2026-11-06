@@ -22,5 +22,5 @@ export function Logo({ fundo = 'claro', className = '' }: { fundo?: Fundo; class
 /** O emblema redondo, com o nome no desenho. */
 export function Emblema({ titulo, className = '' }: { titulo: string; className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element -- SVG pronto, nítido em qualquer tela
-  return <img src="/logo/orla-nativa-emblema.svg" alt={titulo} width={96} height={96} className={className} />;
+  return <img src="/logo/orla-nativa-emblema.svg" alt={titulo} width={96} height={96} loading="lazy" className={className} />;
 }

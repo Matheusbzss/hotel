@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { Archivo } from 'next/font/google';
 import { EMPRESA } from '@/config/empresa';
 import '../globals.css';
-
-const archivo = Archivo({ subsets: ['latin', 'latin-ext'], variable: '--font-archivo', display: 'swap' });
 
 export const metadata: Metadata = {
   title: `Admin — ${EMPRESA.marca}`,
@@ -12,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function LayoutAdmin({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={archivo.variable}>
+    <html lang="pt-BR">
       <body className="tom-fundo min-h-dvh">{children}</body>
     </html>
   );

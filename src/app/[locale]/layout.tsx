@@ -83,7 +83,7 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     image: `${urlDoSite()}/fotos/buzios/escuna-no-mar.jpg`,
     address: { '@type': 'PostalAddress', addressLocality: EMPRESA.cidade, addressRegion: EMPRESA.uf, addressCountry: 'BR' },
     areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo', 'Rio de Janeiro'],
-    availableLanguage: ['pt-BR', 'en', 'es'],
+    knowsLanguage: ['pt-BR', 'en', 'es'],
     ...(EMPRESA.perfis.length ? { sameAs: EMPRESA.perfis } : {}),
   };
 

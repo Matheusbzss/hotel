@@ -74,7 +74,7 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
             <WidgetTransfer
               idioma={locale}
               locale={LOCALE_INTL[locale]}
-              checkoutHref={rota(locale, '/transfer/checkout')}
+              finalizarHref={rota(locale, '/checkout')}
               dolar={locale === 'pt' ? null : await cotacaoDolar()}
               textos={textosWidgetTransfer(d)}
             />

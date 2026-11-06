@@ -3,6 +3,7 @@ import { EMPRESA } from '@/config/empresa';
 import { CASAS_NO_AR } from '@/data/casas';
 import { rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { CarrinhoIcone } from './carrinho/CarrinhoIcone';
 import { Logo } from './Logo';
 import { MenuMovel } from './MenuMovel';
 import { SeletorIdioma } from './SeletorIdioma';
@@ -38,8 +39,9 @@ export function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <SeletorIdioma atual={idioma} rotulo={d.nav.idioma} />
+          <CarrinhoIcone textos={d.carrinho} />
           <MenuMovel links={links} rotuloAbrir={d.nav.menu} rotuloFechar={d.nav.fechar} />
         </div>
       </div>

@@ -544,6 +544,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      criar_pedido: {
+        Args: { p_historico: Json; p_itens: Json; p_pedido: Json }
+        Returns: boolean
+      }
       criar_reserva: {
         Args: { p_historico: Json; p_item: Json; p_pedido: Json }
         Returns: boolean

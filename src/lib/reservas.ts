@@ -10,12 +10,14 @@ import type { CidadeHospedagem } from './validacao';
 
 /**
  * Banco de reservas.
- * - Na Vercel: o banco de dados (Supabase, src/lib/banco.ts). Cada reserva é um pedido com um item (o
- *   voucher) e o histórico. As reservas de antes continuam no Vercel Blob (reservas/<VOUCHER>.json), como
+ * - Na Vercel: o banco de dados (Supabase, src/lib/banco.ts). Cada reserva é um item de um pedido (o
+ *   voucher), com o histórico do pedido; o pedido do carrinho tem vários itens e um pagamento só, e o status
+ *   vale para todos. As reservas de antes continuam no Vercel Blob (reservas/<VOUCHER>.json), como
  *   cópia de segurança: uma reserva que ainda não estiver no banco é lida de lá e, se alguém mexer nela,
  *   vem para o banco antes. Nada é apagado do Blob.
- * - No computador (npm run dev): arquivos em .data/reservas/. Com RESERVAS_NO_BANCO=1 no comando, usa o
- *   banco de verdade (para testar), e os arquivos fazem o papel do Blob.
+ * - No computador (npm run dev): arquivos em .data/reservas/, um por voucher (ali, o status muda voucher
+ *   a voucher). Com RESERVAS_NO_BANCO=1 no comando, usa o banco de verdade (para testar), e os arquivos
+ *   fazem o papel do Blob.
  */
 
 export type StatusReserva = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'expirado' | 'aguardando_whatsapp' | 'reembolsado';
@@ -38,6 +40,8 @@ interface ReservaBase {
    * não está escolhida, e a equipe cobra este valor no Pix ou o `totalCentavos` no cartão.
    */
   totalPixCentavos?: number;
+  /** Só no voucher de um pedido do carrinho com vários itens: aqui, os totais acima são os deste item. */
+  pedido?: { codigo: string; totalCentavos: number; totalPixCentavos?: number };
   cliente: { nome: string; email: string; telefone: string };
   observacoes?: string;
   pagamento: {
@@ -77,7 +81,8 @@ export interface ReservaPasseio extends ReservaBase {
   criancasMeia?: number;
   criancasGratis?: number;
   unidades: number;
-  cliente: ReservaBase['cliente'] & { documentoTipo: 'cpf' | 'passaporte'; documento: string };
+  /** O documento não vem nas reservas do carrinho, que pedem só nome, e-mail e WhatsApp. */
+  cliente: ReservaBase['cliente'] & { documentoTipo?: 'cpf' | 'passaporte'; documento?: string };
   hospedagem: { cidade: CidadeHospedagem; hotel: string };
 }
 
@@ -123,12 +128,27 @@ interface Armazenamento {
   ler(codigo: string): Promise<{ reserva: Reserva; versao?: string } | null>;
   /** Cria a reserva; retorna false se o código já existir. */
   criar(reserva: Reserva): Promise<boolean>;
+  /** Cria os vouchers de um pedido de uma vez; retorna o id do pedido, ou null se algum código já existir. */
+  criarPedido(reservas: Reserva[]): Promise<string | null>;
+  /** Os vouchers de um pedido com vários itens (nenhum, se o pedido não existir). */
+  lerPedido(codigo: string): Promise<Reserva[]>;
   /** Grava por cima, desde que a versão não tenha mudado (quando informada). */
   gravar(reserva: Reserva, versao?: string): Promise<boolean>;
   listar(): Promise<Reserva[]>;
 }
 
 const caminhoBlob = (codigo: string) => `reservas/${codigo}.json`;
+
+/** Sem o banco, cada voucher é um arquivo à parte, e o pedido é o código que eles guardam. */
+const umArquivoPorVoucher = (a: Pick<Armazenamento, 'criar' | 'listar'>): Pick<Armazenamento, 'criarPedido' | 'lerPedido'> => ({
+  async criarPedido(reservas) {
+    for (const r of reservas) if (!(await a.criar(r))) return null;
+    return reservas[0].pedido?.codigo ?? reservas[0].codigo;
+  },
+  async lerPedido(codigo) {
+    return (await a.listar()).filter((r) => r.pedido?.codigo === codigo);
+  },
+});
 
 const blob: Armazenamento = {
   async ler(codigo) {
@@ -182,6 +202,8 @@ const blob: Armazenamento = {
     }
     return reservas;
   },
+  criarPedido: (reservas) => umArquivoPorVoucher(blob).criarPedido(reservas),
+  lerPedido: (codigo) => umArquivoPorVoucher(blob).lerPedido(codigo),
 };
 
 const PASTA_LOCAL = path.join(process.cwd(), '.data', 'reservas');
@@ -224,34 +246,52 @@ const arquivoLocal: Armazenamento = {
       return [];
     }
   },
+  criarPedido: (reservas) => umArquivoPorVoucher(arquivoLocal).criarPedido(reservas),
+  lerPedido: (codigo) => umArquivoPorVoucher(arquivoLocal).lerPedido(codigo),
 };
 
-/** O pedido com o item e o histórico, numa consulta só. */
+/** O pedido com os itens e o histórico, numa consulta só. */
 type PedidoCompleto = LinhaPedido & { itens_pedido: LinhaItem[]; pedidos_historico: EventoHistorico[] };
 const PEDIDO_COMPLETO = '*, itens_pedido(*), pedidos_historico(em, evento)';
+/** Um voucher com o pedido e o histórico. */
+type ItemCompleto = LinhaItem & { pedidos: LinhaPedido & { pedidos_historico: EventoHistorico[] } };
+const ITEM_COMPLETO = '*, pedidos!inner(*, pedidos_historico(em, evento))';
 
-function daLinha(p: PedidoCompleto): Reserva {
-  // hoje cada pedido tem um item só, com o mesmo código do pedido (o carrinho da Etapa 3 muda isso)
-  const item = p.itens_pedido.find((i) => i.voucher_codigo === p.codigo) ?? p.itens_pedido[0];
-  return deLinhas(p, item, p.pedidos_historico);
-}
+/** Um pedido vira uma reserva por voucher. */
+const vouchers = (p: PedidoCompleto): Reserva[] => p.itens_pedido.map((i) => deLinhas(p, i, p.pedidos_historico));
 
 const erroDoBanco = (e: { message: string }) => new Error(`Banco de dados: ${e.message}`);
 
 const bancoDeDados: Armazenamento = {
   async ler(codigo) {
-    const { data, error } = await supabase().from('pedidos').select(PEDIDO_COMPLETO).eq('codigo', codigo).maybeSingle();
+    const { data, error } = await supabase().from('itens_pedido').select(ITEM_COMPLETO).eq('voucher_codigo', codigo).maybeSingle();
     if (error) throw erroDoBanco(error);
     if (!data) return null;
-    const p = data as unknown as PedidoCompleto;
+    const { pedidos: p, ...item } = data as unknown as ItemCompleto;
     // a versão é o "atualizado_em" exato do banco: a função atualizar_reserva só grava se ele não mudou
-    return { reserva: daLinha(p), versao: p.atualizado_em };
+    return { reserva: deLinhas(p, item, p.pedidos_historico), versao: p.atualizado_em };
   },
   async criar(reserva) {
     const l = paraLinhas(reserva);
     const { data, error } = await supabase().rpc('criar_reserva', { p_pedido: l.pedido, p_item: l.item, p_historico: l.historico });
     if (error) throw erroDoBanco(error);
     return data === true;
+  },
+  async criarPedido(reservas) {
+    const pedido = crypto.randomUUID();
+    const linhas = reservas.map((r) => paraLinhas(r, { pedido, item: crypto.randomUUID() }));
+    const { data, error } = await supabase().rpc('criar_pedido', {
+      p_pedido: linhas[0].pedido,
+      p_itens: linhas.map((l) => l.item),
+      p_historico: linhas[0].historico,
+    });
+    if (error) throw erroDoBanco(error);
+    return data === true ? pedido : null;
+  },
+  async lerPedido(codigo) {
+    const { data, error } = await supabase().from('pedidos').select(PEDIDO_COMPLETO).eq('codigo', codigo).maybeSingle();
+    if (error) throw erroDoBanco(error);
+    return data ? vouchers(data as unknown as PedidoCompleto) : [];
   },
   async gravar(reserva, versao) {
     const l = paraLinhas(reserva);
@@ -275,7 +315,7 @@ const bancoDeDados: Armazenamento = {
         .range(de, de + 999);
       if (error) throw erroDoBanco(error);
       const pagina = data as unknown as PedidoCompleto[];
-      reservas.push(...pagina.map(daLinha));
+      reservas.push(...pagina.flatMap(vouchers));
       if (pagina.length < 1000) return reservas;
     }
   },
@@ -333,6 +373,44 @@ export async function criarReserva<T extends NovaReserva>(dados: T): Promise<T &
     if (await principal().criar(reserva)) return reserva;
   }
   throw new Error('Não foi possível gerar um código de reserva único.');
+}
+
+/**
+ * Cria o pedido do carrinho: um pagamento e um voucher para cada item, com o mesmo link secreto. Com um
+ * item só, o voucher é o próprio pedido, igual a uma reserva avulsa.
+ */
+export async function criarPedido(itens: NovaReserva[]): Promise<{ id: string; codigo: string; token: string }> {
+  const agora = new Date().toISOString();
+  const totalCentavos = itens.reduce((s, i) => s + i.totalCentavos, 0);
+  const totalPixCentavos = itens.reduce((s, i) => s + (i.totalPixCentavos ?? i.totalCentavos), 0);
+  const varios = itens.length > 1;
+  for (let tentativa = 0; tentativa < 8; tentativa++) {
+    const codigo = gerarCodigo();
+    const token = gerarToken();
+    const reservas = itens.map(
+      (dados) =>
+        ({
+          ...dados,
+          codigo: varios ? gerarCodigo() : codigo,
+          token,
+          criadaEm: agora,
+          atualizadaEm: agora,
+          historico: [{ em: agora, evento: varios ? `Pedido criado com ${itens.length} itens` : 'Reserva criada' }],
+          ...(varios ? { pedido: { codigo, totalCentavos, totalPixCentavos } } : {}),
+        }) as Reserva,
+    );
+    // A gravação falha se algum código já existir: assim nenhum voucher se repete.
+    const id = await principal().criarPedido(reservas);
+    if (id) return { id, codigo, token };
+  }
+  throw new Error('Não foi possível gerar um código de pedido único.');
+}
+
+/** Os vouchers de um pedido com vários itens, na ordem em que acontecem. Nenhum, se o pedido não existir. */
+export async function obterPedido(codigo: string): Promise<Reserva[]> {
+  if (!codigoValido(codigo)) return [];
+  const quando = (r: Reserva) => `${r.data} ${ehTransfer(r) ? r.transfer.ida.hora : (r.horario?.hora ?? '')}`;
+  return (await principal().lerPedido(codigo)).sort((a, b) => quando(a).localeCompare(quando(b)));
 }
 
 export async function obterReserva(codigo: string): Promise<Reserva | null> {

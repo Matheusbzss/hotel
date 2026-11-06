@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deLinhas, paraLinhas, type LinhasReserva } from '../src/lib/reservas-banco.ts';
-import type { ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
+import type { Reserva, ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
 
 // reservas fictícias, só para conferir a tradução (nenhuma é de cliente)
 const PASSEIO: ReservaPasseio = {
@@ -22,7 +22,13 @@ const PASSEIO: ReservaPasseio = {
     { em: '2026-11-03T11:30:00.000Z', evento: 'Marcada como paga no admin' },
   ],
   tipo: 'passeio',
-  passeio: { slug: 'lancha-buzios', nome: 'Lancha em Búzios', cidade: 'Búzios', unidade: 'embarcacao', opcao: { id: '2h', nome: '2 horas' } },
+  passeio: {
+    slug: 'lancha-buzios',
+    nome: 'Lancha em Búzios',
+    cidade: 'Búzios',
+    unidade: 'embarcacao',
+    opcao: { id: '2h', nome: '2 horas' },
+  },
   horario: { hora: '09:30', busca: true },
   adultos: 2,
   criancas: 1,
@@ -101,6 +107,32 @@ test('as linhas vão completas: nenhuma coluna fica de fora (o banco preencheria
     assert.equal(Object.keys(item).length, 18);
     for (const [coluna, valor] of Object.entries({ ...pedido, ...item })) assert.notEqual(valor, undefined, coluna);
   }
+});
+
+test('pedido do carrinho: cada voucher volta com o seu código e o seu preço, e o pedido guarda os totais', () => {
+  const pedido = { codigo: 'ON-PEDIDO', totalCentavos: 183100, totalPixCentavos: 164790 };
+  const comPix = { ...TRANSFER, totalPixCentavos: 144000 };
+  for (const voucher of [
+    { ...PASSEIO, pedido },
+    { ...comPix, pedido },
+  ] as Reserva[]) {
+    const l = peloBanco(paraLinhas(voucher));
+    assert.equal(l.pedido.codigo, 'ON-PEDIDO');
+    assert.equal(l.pedido.total_centavos, 183100);
+    assert.equal(l.pedido.total_pix_centavos, 164790);
+    assert.equal(l.item.voucher_codigo, voucher.codigo);
+    assert.equal(l.item.preco_centavos, voucher.totalCentavos);
+    assert.deepEqual(deLinhas(l.pedido, l.item, l.historico), voucher);
+  }
+});
+
+test('reserva do carrinho sem documento: o checkout pede só nome, e-mail e WhatsApp', () => {
+  const { documentoTipo: _t, documento: _d, ...cliente } = PASSEIO.cliente;
+  const semDocumento: ReservaPasseio = { ...PASSEIO, cliente };
+  const l = peloBanco(paraLinhas(semDocumento));
+  assert.equal(l.pedido.cliente_documento, null);
+  assert.equal(l.pedido.cliente_documento_tipo, null);
+  assert.deepEqual(deLinhas(l.pedido, l.item, l.historico), semDocumento);
 });
 
 test('o voucher acompanha o pedido: cancelado e reembolsado valem para o item; o resto fica ativo', () => {

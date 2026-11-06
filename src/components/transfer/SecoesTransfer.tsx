@@ -15,6 +15,11 @@ export function textosWidgetTransfer(d: Dicionario) {
     noPix: d.preco.noPix,
     noCartao: d.preco.noCartao,
     dolar: d.preco.dolar,
+    adicionar: d.carrinho.adicionar,
+    reservarAgora: d.carrinho.reservarAgora,
+    adicionando: d.carrinho.adicionando,
+    erroAdicionar: d.carrinho.erroAdicionar,
+    cheio: d.carrinho.cheio,
   };
 }
 

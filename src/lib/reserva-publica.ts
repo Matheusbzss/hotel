@@ -37,6 +37,8 @@ export interface ReservaPublica {
   /** Só no transfer: veículo, trechos, malas e cadeirinhas, já no idioma da página. */
   transfer?: TransferVisivel;
   metodo: Reserva['pagamento']['metodo'];
+  /** Só no voucher de um pedido do carrinho com vários itens. */
+  pedidoCodigo?: string;
   pixCopiaECola?: string;
   pixExpiraEm?: string;
   cartaoFinal?: string;
@@ -56,6 +58,7 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     totalPixCentavos: r.status === 'aguardando_whatsapp' ? r.totalPixCentavos : undefined,
     nome: r.cliente.nome,
     metodo: r.pagamento.metodo,
+    pedidoCodigo: r.pedido?.codigo,
     pixCopiaECola: r.status === 'pendente' ? r.pagamento.pixCopiaECola : undefined,
     pixExpiraEm: r.status === 'pendente' ? r.pagamento.pixExpiraEm : undefined,
     cartaoFinal: r.pagamento.cartaoFinal,

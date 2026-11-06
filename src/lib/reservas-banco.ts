@@ -4,8 +4,10 @@ import type { Reserva, ReservaPasseio, ReservaTransfer, StatusReserva } from './
 
 /**
  * A reserva como o site usa (o mesmo JSON que ficava no Blob) ↔ as linhas do banco: um pedido, um item
- * (o voucher, com o mesmo código do pedido) e o histórico. Aqui só se traduz, sem tocar no banco:
- * assim dá para testar que nada se perde na ida e na volta (tests/reservas-banco.test.ts).
+ * (o voucher) e o histórico. Com um item só, o voucher tem o código do pedido; no pedido do carrinho com
+ * vários itens, cada voucher tem o seu código e a reserva guarda os dados do pedido em `pedido`.
+ * Aqui só se traduz, sem tocar no banco: assim dá para testar que nada se perde na ida e na volta
+ * (tests/reservas-banco.test.ts).
  */
 
 export type LinhaPedido = Tables<'pedidos'>;
@@ -34,24 +36,25 @@ export function paraLinhas(
   r: Reserva,
   ids: { pedido: string; item: string } = { pedido: crypto.randomUUID(), item: crypto.randomUUID() },
 ): LinhasReserva {
+  const totalPedido = r.pedido?.totalCentavos ?? r.totalCentavos;
   const pedido: LinhaPedido = {
     id: ids.pedido,
-    codigo: r.codigo,
+    codigo: r.pedido?.codigo ?? r.codigo,
     token: r.token,
     status: r.status,
     idioma: r.idioma,
     cliente_nome: r.cliente.nome,
     cliente_email: r.cliente.email,
     cliente_telefone: r.cliente.telefone,
-    cliente_documento_tipo: r.tipo === 'transfer' ? null : r.cliente.documentoTipo,
-    cliente_documento: r.tipo === 'transfer' ? null : r.cliente.documento,
+    cliente_documento_tipo: r.tipo === 'transfer' ? null : (r.cliente.documentoTipo ?? null),
+    cliente_documento: r.tipo === 'transfer' ? null : (r.cliente.documento ?? null),
     cliente_pais: null,
     metodo_pagamento: r.pagamento.metodo,
     pagamento: json(r.pagamento),
-    subtotal_centavos: r.totalCentavos,
+    subtotal_centavos: totalPedido,
     desconto_centavos: 0,
-    total_centavos: r.totalCentavos,
-    total_pix_centavos: r.totalPixCentavos ?? null,
+    total_centavos: totalPedido,
+    total_pix_centavos: (r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos) ?? null,
     moeda: 'BRL',
     origem_utm: {},
     observacoes: r.observacoes ?? null,
@@ -70,6 +73,8 @@ export function paraLinhas(
     status: statusDoItem(r.status),
     criado_em: r.criadaEm,
   };
+  // no pedido com vários itens, o preço do item no Pix (o total do pedido fica na linha do pedido)
+  const pix = r.pedido && r.totalPixCentavos !== undefined ? { pixCentavos: r.totalPixCentavos } : {};
   const item: LinhaItem =
     r.tipo === 'transfer'
       ? {
@@ -88,6 +93,7 @@ export function paraLinhas(
             ...(r.transfer.volta ? { volta: r.transfer.volta } : {}),
             malas: r.transfer.malas,
             cadeirinhas: r.transfer.cadeirinhas,
+            ...pix,
           }),
         }
       : {
@@ -109,6 +115,7 @@ export function paraLinhas(
             unidade: r.passeio.unidade,
             hospedagem: r.hospedagem,
             ...(r.horario ? { horario: r.horario } : {}),
+            ...pix,
           }),
         };
   return { pedido, item, historico: (r.historico ?? []).map(({ em, evento }) => ({ em, evento })) };
@@ -119,16 +126,28 @@ const iso = (t: string) => new Date(t).toISOString();
 
 /** Linhas do banco → reserva. As reservas de passeio antigas, sem "tipo", voltam com tipo "passeio". */
 export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistorico[]): Reserva {
+  // o voucher com código próprio é um dos itens de um pedido do carrinho
+  const voucher = i.voucher_codigo && i.voucher_codigo !== p.codigo ? i.voucher_codigo : null;
+  const pix = voucher ? (i.detalhes as { pixCentavos?: number }).pixCentavos : (p.total_pix_centavos ?? undefined);
   const base = {
-    codigo: p.codigo,
+    codigo: voucher ?? p.codigo,
     token: p.token,
     criadaEm: iso(p.criado_em),
     atualizadaEm: iso(p.atualizado_em),
     idioma: p.idioma as Idioma,
     status: p.status as StatusReserva,
     data: i.data,
-    totalCentavos: p.total_centavos,
-    ...(p.total_pix_centavos !== null ? { totalPixCentavos: p.total_pix_centavos } : {}),
+    totalCentavos: voucher ? i.preco_centavos : p.total_centavos,
+    ...(pix !== undefined ? { totalPixCentavos: pix } : {}),
+    ...(voucher
+      ? {
+          pedido: {
+            codigo: p.codigo,
+            totalCentavos: p.total_centavos,
+            ...(p.total_pix_centavos !== null ? { totalPixCentavos: p.total_pix_centavos } : {}),
+          },
+        }
+      : {}),
     ...(p.observacoes !== null ? { observacoes: p.observacoes } : {}),
     pagamento: p.pagamento as unknown as Reserva['pagamento'],
     historico: historico.map(({ em, evento }) => ({ em: iso(em), evento })).sort((a, b) => a.em.localeCompare(b.em)),
@@ -177,8 +196,10 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
     unidades: i.unidades,
     cliente: {
       ...cliente,
-      documentoTipo: p.cliente_documento_tipo as ReservaPasseio['cliente']['documentoTipo'],
-      documento: p.cliente_documento ?? '',
+      // o checkout do carrinho pede só nome, e-mail e WhatsApp
+      ...(p.cliente_documento !== null
+        ? { documentoTipo: p.cliente_documento_tipo as ReservaPasseio['cliente']['documentoTipo'], documento: p.cliente_documento }
+        : {}),
     },
     hospedagem: d.hospedagem,
   };

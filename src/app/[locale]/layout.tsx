@@ -2,13 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import { Barlow, Barlow_Condensed, Barlow_Semi_Condensed } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import { Cabecalho } from '@/components/Cabecalho';
+import { BarraCarrinho } from '@/components/carrinho/BarraCarrinho';
+import { CarrinhoProvider } from '@/components/carrinho/CarrinhoContexto';
+import { GavetaCarrinho } from '@/components/carrinho/GavetaCarrinho';
 import { GrupoProvider } from '@/components/grupo/GrupoContexto';
 import { Rastreamento } from '@/components/Rastreamento';
 import { Revelar } from '@/components/Revelar';
 import { Rodape } from '@/components/Rodape';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
-import { HREFLANG, IDIOMAS, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
+import { HREFLANG, IDIOMAS, LOCALE_INTL, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
 import { urlDoSite } from '@/lib/site';
 import '../globals.css';
 
@@ -84,9 +87,22 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
         >
           {d.nav.pularConteudo}
         </a>
-        <Cabecalho idioma={locale} d={d} />
-        <GrupoProvider>{children}</GrupoProvider>
-        <Rodape idioma={locale} d={d} />
+        <CarrinhoProvider idioma={locale}>
+          <Cabecalho idioma={locale} d={d} />
+          <GrupoProvider>{children}</GrupoProvider>
+          <Rodape idioma={locale} d={d} />
+          <GavetaCarrinho
+            locale={LOCALE_INTL[locale]}
+            hrefFinalizar={rota(locale, '/checkout')}
+            hrefPasseios={rota(locale, '/passeios')}
+            textos={{ ...d.carrinho, noPix: d.preco.noPix, noCartao: d.preco.noCartao }}
+          />
+          <BarraCarrinho
+            locale={LOCALE_INTL[locale]}
+            hrefFinalizar={rota(locale, '/checkout')}
+            textos={{ ...d.carrinho, noPix: d.preco.noPix, noCartao: d.preco.noCartao }}
+          />
+        </CarrinhoProvider>
         <Revelar />
         <Rastreamento
           pixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}

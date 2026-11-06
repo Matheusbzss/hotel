@@ -14,7 +14,7 @@ export function Logo({ fundo = 'claro', className = '' }: { fundo?: Fundo; class
       alt=""
       width={711}
       height={172}
-      className={`block h-[2.375rem] w-auto md:h-11 ${className}`}
+      className={`block h-[2.125rem] w-auto sm:h-[2.375rem] md:h-11 ${className}`}
     />
   );
 }

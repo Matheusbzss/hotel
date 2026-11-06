@@ -2,14 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
-import { primeiroDiaComHorario } from '@/lib/horarios';
+import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { textoDolar } from '@/lib/dolar';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from './CampoData';
+import { useCarrinho } from './carrinho/CarrinhoContexto';
 import { Cifra } from './Cifra';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
@@ -24,7 +26,6 @@ export interface TextosWidget {
   titulo: string;
   data: string;
   total: string;
-  reservar: string;
   escolhaData: string;
   escolhaOpcao: string;
   unidadesAviso: string;
@@ -42,6 +43,14 @@ export interface TextosWidget {
   noCartao: string;
   /** "≈ US$ {v}" */
   dolar: string;
+  /** "Horário de saída" ou "Horário de busca na hospedagem". */
+  rotuloHorario: string;
+  escolhaHorario: string;
+  adicionar: string;
+  reservarAgora: string;
+  adicionando: string;
+  erroAdicionar: string;
+  cheio: string;
 }
 
 /**
@@ -57,7 +66,7 @@ export function WidgetReserva({
   contadores,
   regras,
   locale,
-  checkoutHref,
+  finalizarHref,
   garantias,
   dolar = null,
   textos: T,
@@ -71,7 +80,8 @@ export function WidgetReserva({
   contadores: FaixaContador[];
   regras: string[];
   locale: string;
-  checkoutHref: string;
+  /** O checkout único, para onde o "Reservar agora" leva com o item já no carrinho. */
+  finalizarHref: string;
   /** As garantias (cancelamento, chuva, voucher, pagamento) logo abaixo do botão. */
   garantias?: ReactNode;
   /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
@@ -85,8 +95,17 @@ export function WidgetReserva({
   const [primeiroDia, setPrimeiroDia] = useState('');
   const [pessoas, setPessoas] = useState<Pessoas>(() => normalizarPessoas(opcoes[0].tabela, { adultos: 2 }));
   const [erroData, setErroData] = useState(false);
+  const [hora, setHora] = useState(horas.length === 1 ? horas[0] : '');
+  const [erroHora, setErroHora] = useState(false);
+  const [enviando, setEnviando] = useState<'' | 'agora' | 'carrinho'>('');
+  const [erroEnvio, setErroEnvio] = useState('');
+  const { itens, carregado, adicionar } = useCarrinho();
+  // o item do carrinho que o cliente está mudando (?mudar=): o cartão abre com o que ele tinha escolhido
+  const [mudando, setMudando] = useState('');
   const dataRef = useRef<HTMLInputElement>(null);
   const idData = useId();
+  const idHora = useId();
+  const idioma = locale.slice(0, 2) as Idioma;
   const opcao = opcoes.find((o) => o.id === opcaoId) ?? opcoes[0];
 
   // quando o grupo salvo na sessão é lido, a reserva começa com ele
@@ -96,6 +115,20 @@ export function WidgetReserva({
     aplicado.current = true;
     setPessoas(pessoasDoGrupo(grupo, opcoes[0].tabela));
   }, [pronto, grupo, opcoes]);
+
+  const mudarLido = useRef(false);
+  useEffect(() => {
+    if (!pronto || !carregado || mudarLido.current) return;
+    mudarLido.current = true;
+    const id = new URLSearchParams(window.location.search).get('mudar');
+    const e = itens.find((i) => i.id === id)?.escolha;
+    if (!id || e?.tipo !== 'passeio' || e.slug !== slug) return;
+    setMudando(id);
+    if (e.opcao) setOpcaoId(e.opcao);
+    alterar({ data: e.data });
+    setHora(e.hora);
+    setPessoas({ adultos: e.adultos, criancasMeia: e.meia, criancasGratis: e.gratis });
+  }, [pronto, carregado, itens, slug, alterar]);
 
   useEffect(() => {
     setHoje(hojeEmBuzios());
@@ -120,21 +153,51 @@ export function WidgetReserva({
   const totalPessoas = pessoas.adultos + pessoas.criancasMeia + pessoas.criancasGratis;
   // a data do grupo é hoje, mas os horários de hoje já passaram
   const semHorarioHoje = Boolean(primeiroDia) && grupo.data === hoje && hoje < primeiroDia;
+  // no dia de hoje, os horários que já passaram ficam apagados
+  const livres = hoje ? horasDisponiveis(horas, grupo.data) : horas;
 
-  const reservar = () => {
+  /** Põe no carrinho: "Adicionar" abre a gaveta; "Reservar agora" segue direto para o checkout. */
+  const colocar = async (destino: 'agora' | 'carrinho') => {
+    setErroEnvio('');
     if (!dataPasseioValida(grupo.data) || semHorarioHoje) {
       setErroData(true);
       dataRef.current?.focus();
       return;
     }
-    const q = new URLSearchParams({
-      data: grupo.data,
-      adultos: String(pessoas.adultos),
-      meia: String(pessoas.criancasMeia),
-      gratis: String(pessoas.criancasGratis),
-    });
-    if (mostrarOpcoes) q.set('opcao', opcao.id);
-    router.push(`${checkoutHref}?${q.toString()}`);
+    if (!hora || !livres.includes(hora)) {
+      setErroHora(true);
+      return;
+    }
+    setEnviando(destino);
+    const r = await adicionar(
+      {
+        tipo: 'passeio',
+        slug,
+        ...(mostrarOpcoes ? { opcao: opcao.id } : {}),
+        data: grupo.data,
+        hora,
+        adultos: pessoas.adultos,
+        meia: pessoas.criancasMeia,
+        gratis: pessoas.criancasGratis,
+      },
+      { abrir: destino === 'carrinho', ...(mudando ? { substituir: mudando } : {}) },
+    );
+    if (r.ok) {
+      setMudando('');
+      rastrear('AddToCart', {
+        content_ids: [slug],
+        content_name: nome,
+        content_type: 'product',
+        value: orc.totalCentavos / 100,
+        currency: 'BRL',
+      });
+      if (destino === 'agora') {
+        // fica "adicionando" até a página do checkout abrir
+        router.push(finalizarHref);
+        return;
+      }
+    } else setErroEnvio(r.erro === 'cheio' ? T.cheio : T.erroAdicionar);
+    setEnviando('');
   };
 
   return (
@@ -200,6 +263,37 @@ export function WidgetReserva({
           </span>
         )}
 
+        {horas.length > 1 && (
+          <fieldset className="mt-5 min-w-0" aria-describedby={erroHora ? `${idHora}-erro` : undefined}>
+            <legend className="rotulo">{T.rotuloHorario}</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {horas.map((h) => {
+                const passou = !livres.includes(h);
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    aria-pressed={hora === h}
+                    disabled={passou}
+                    onClick={() => {
+                      setHora(h);
+                      setErroHora(false);
+                    }}
+                    className="filtro numeros min-w-[4.5rem] justify-center disabled:opacity-40"
+                  >
+                    {formatarHora(h, idioma)}
+                  </button>
+                );
+              })}
+            </div>
+            {erroHora && (
+              <span id={`${idHora}-erro`} className="erro-campo">
+                {T.escolhaHorario}
+              </span>
+            )}
+          </fieldset>
+        )}
+
         <div className="mt-5 space-y-4">
           {contadores.map((c) => (
             <Contador
@@ -245,9 +339,31 @@ export function WidgetReserva({
               .replace('{unidade}', orc.unidades === 1 ? T.unidadeSingular : T.unidadePlural)}
           </p>
         )}
-        <button type="button" onClick={reservar} className="botao mt-5 w-full">
-          {T.reservar}
-        </button>
+        {erroEnvio && (
+          <p className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
+            {erroEnvio}
+          </p>
+        )}
+        <div className="mt-5 grid gap-2">
+          <button
+            type="button"
+            onClick={() => colocar('agora')}
+            disabled={Boolean(enviando)}
+            aria-busy={enviando === 'agora'}
+            className="botao w-full"
+          >
+            {enviando === 'agora' ? T.adicionando : T.reservarAgora}
+          </button>
+          <button
+            type="button"
+            onClick={() => colocar('carrinho')}
+            disabled={Boolean(enviando)}
+            aria-busy={enviando === 'carrinho'}
+            className="botao botao-vazado w-full"
+          >
+            {enviando === 'carrinho' ? T.adicionando : T.adicionar}
+          </button>
+        </div>
         {garantias && <div className="mt-5">{garantias}</div>}
       </div>
       <p className="pt-3 text-small text-(--color-tinta-suave)">{T.revisao}</p>

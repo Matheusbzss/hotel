@@ -201,14 +201,13 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 contadores={contadoresPessoas(tabelaPreco(p), d)}
                 regras={regras}
                 locale={intl}
-                checkoutHref={rota(locale, `/checkout/${p.slug}`)}
+                finalizarHref={rota(locale, '/checkout')}
                 garantias={<Confianca d={d} />}
                 dolar={dolar}
                 textos={{
                   titulo: d.passeio.reservarTitulo,
                   data: d.passeio.data,
                   total: d.passeio.total,
-                  reservar: d.passeio.reservar,
                   escolhaData: d.passeio.escolhaData,
                   escolhaOpcao: d.passeio.escolhaOpcao,
                   unidadesAviso: d.passeio.unidadesAviso,
@@ -225,6 +224,13 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   noPix: d.preco.noPix,
                   noCartao: d.preco.noCartao,
                   dolar: d.preco.dolar,
+                  rotuloHorario: horarios.busca ? d.horario.busca : d.horario.saida,
+                  escolhaHorario: d.carrinho.escolhaHorario,
+                  adicionar: d.carrinho.adicionar,
+                  reservarAgora: d.carrinho.reservarAgora,
+                  adicionando: d.carrinho.adicionando,
+                  erroAdicionar: d.carrinho.erroAdicionar,
+                  cheio: d.carrinho.cheio,
                 }}
               />
             </div>

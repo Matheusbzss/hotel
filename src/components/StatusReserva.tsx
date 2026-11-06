@@ -79,9 +79,9 @@ export function StatusReserva({
     return () => window.clearInterval(id);
   }, [r.status, r.pixExpiraEm]);
 
-  // Evento de compra no Pixel da Meta, uma única vez por voucher
+  // Evento de compra no Pixel da Meta, uma única vez por voucher (no pedido com vários itens, a página do pedido conta)
   useEffect(() => {
-    if (r.status !== 'pago' || enviadoPixel.current) return;
+    if (r.status !== 'pago' || r.pedidoCodigo || enviadoPixel.current) return;
     enviadoPixel.current = true;
     const chave = `vh_compra_${r.codigo}`;
     try {
@@ -99,7 +99,7 @@ export function StatusReserva({
       },
       r.codigo,
     );
-  }, [r.status, r.codigo, r.totalCentavos, r.passeioSlug, r.adultos, r.criancas]);
+  }, [r.status, r.pedidoCodigo, r.codigo, r.totalCentavos, r.passeioSlug, r.adultos, r.criancas]);
 
   // esperando o pagamento pelo WhatsApp: os dois valores, o do Pix (com desconto) e o do cartão
   const brl = r.totalPixCentavos

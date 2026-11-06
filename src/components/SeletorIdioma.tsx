@@ -21,7 +21,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
           lang={i}
           aria-current={i === atual ? 'true' : undefined}
           title={NOMES[i]}
-          className={`flex h-10 min-w-10 items-center justify-center rounded-full px-1.5 font-[family-name:var(--font-semi)] text-[0.875rem] font-semibold uppercase tracking-[0.06em] transition-[box-shadow,background-color] duration-200 ${
+          className={`flex h-10 min-w-9 items-center justify-center rounded-full px-1 font-[family-name:var(--font-semi)] sm:min-w-10 sm:px-1.5 text-[0.875rem] font-semibold uppercase tracking-[0.06em] transition-[box-shadow,background-color] duration-200 ${
             i === atual ? 'shadow-[inset_0_0_0_2px_currentColor]' : 'hover:shadow-[inset_0_0_0_1px_currentColor]'
           }`}
         >

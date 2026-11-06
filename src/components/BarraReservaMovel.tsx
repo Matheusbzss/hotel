@@ -2,6 +2,30 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 
+/** Verdadeiro enquanto algum dos alvos aparece na tela: a barra do celular some, para não cobrir nada. */
+export function useBarraOculta(seletores: string[]) {
+  const [oculta, setOculta] = useState(false);
+
+  useEffect(() => {
+    const alvos = seletores.map((s) => document.querySelector(s)).filter(Boolean) as Element[];
+    if (!alvos.length || !('IntersectionObserver' in window)) return;
+    const visiveis = new Set<Element>();
+    const io = new IntersectionObserver((entradas) => {
+      for (const e of entradas) {
+        if (e.isIntersecting) visiveis.add(e.target);
+        else visiveis.delete(e.target);
+      }
+      setOculta(visiveis.size > 0);
+    });
+    alvos.forEach((a) => io.observe(a));
+    return () => io.disconnect();
+  }, [seletores]);
+
+  return oculta;
+}
+
+const ALVOS = ['#reservar', '#outros-passeios', '#outras-casas', 'footer'];
+
 /**
  * Barra de vidro fosco do celular: o preço, uma linha de detalhe (o total do grupo no passeio, o
  * tamanho na casa) e o atalho para a reserva.
@@ -19,24 +43,7 @@ export function BarraReservaMovel({
   detalhe?: ReactNode;
   textos: { reservar: string };
 }) {
-  const [oculta, setOculta] = useState(false);
-
-  useEffect(() => {
-    const alvos = ['#reservar', '#outros-passeios', '#outras-casas', 'footer']
-      .map((s) => document.querySelector(s))
-      .filter(Boolean) as Element[];
-    if (!alvos.length || !('IntersectionObserver' in window)) return;
-    const visiveis = new Set<Element>();
-    const io = new IntersectionObserver((entradas) => {
-      for (const e of entradas) {
-        if (e.isIntersecting) visiveis.add(e.target);
-        else visiveis.delete(e.target);
-      }
-      setOculta(visiveis.size > 0);
-    });
-    alvos.forEach((a) => io.observe(a));
-    return () => io.disconnect();
-  }, []);
+  const oculta = useBarraOculta(ALVOS);
 
   return (
     <div

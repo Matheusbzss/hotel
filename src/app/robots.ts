@@ -10,7 +10,19 @@ export default function robots(): MetadataRoute.Robots {
           {
             userAgent: '*',
             allow: '/',
-            disallow: ['/admin', '/api/', '/checkout/', '/reserva/', '/en/checkout/', '/es/checkout/', '/en/reserva/', '/es/reserva/'],
+            disallow: [
+              '/admin',
+              '/api/',
+              '/checkout',
+              '/reserva/',
+              '/pedido/',
+              '/en/checkout',
+              '/es/checkout',
+              '/en/reserva/',
+              '/es/reserva/',
+              '/en/pedido/',
+              '/es/pedido/',
+            ],
           },
         ]
       : [{ userAgent: '*', disallow: '/' }],

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import QRCode from 'qrcode';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { StatusReserva } from '@/components/StatusReserva';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
-import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
+import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { linkEmail } from '@/lib/email';
 import { sincronizarReserva } from '@/lib/pagamentos';
 import { paraPublico, tokenConfere } from '@/lib/reserva-publica';
@@ -34,6 +35,9 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
       </main>
     );
   }
+  // um voucher de pedido do carrinho só existe depois do pagamento: antes disso, o que conta é o pedido
+  const linkPedido = reserva.pedido ? `${rota(locale, `/pedido/${reserva.pedido.codigo}`)}?t=${encodeURIComponent(token)}` : '';
+  if (linkPedido && reserva.status !== 'pago') redirect(linkPedido);
   if (reserva.status === 'pendente') {
     reserva = await sincronizarReserva(reserva, 'consulta').catch(() => reserva!);
   }
@@ -44,6 +48,11 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
 
   return (
     <main id="conteudo" className="tom-fundo moldura pb-24 pt-8 md:pb-32 md:pt-12">
+      {reserva.pedido && (
+        <Link href={linkPedido} className="link mb-6 inline-flex min-h-11 items-center gap-2 font-semibold">
+          <span aria-hidden="true">←</span> {fmt(d.pedido.voltar, { codigo: reserva.pedido.codigo })}
+        </Link>
+      )}
       <StatusReserva
         inicial={publica}
         token={token}

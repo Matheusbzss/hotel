@@ -116,7 +116,8 @@ export async function criarPedido(
   pagamento: { metodo: 'pix' } | { metodo: 'cartao'; cartao: DadosCobrancaCartao },
 ): Promise<Pedido> {
   const cliente = reserva.cliente;
-  const documento = cliente.documentoTipo === 'cpf' ? soDigitos(cliente.documento) : cliente.documento.replace(/[\s-]/g, '').toUpperCase();
+  const numero = cliente.documento ?? '';
+  const documento = cliente.documentoTipo === 'cpf' ? soDigitos(numero) : numero.replace(/[\s-]/g, '').toUpperCase();
 
   const pagamentoPagarme =
     pagamento.metodo === 'pix'

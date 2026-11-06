@@ -166,6 +166,8 @@ function Acoes({ r, filtro }: { r: Reserva; filtro: string }) {
   if (r.status === 'pago' || r.status === 'cancelado') acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
   return (
     <div className="flex flex-wrap gap-2">
+      {/* um pagamento só: o status é do pedido, com todos os vouchers */}
+      {r.pedido && <p className="w-full text-small text-tinta-suave">Vale para o pedido {r.pedido.codigo} inteiro:</p>}
       {acoes.map((a) => (
         <form key={a.acao} method="post" action={`/api/admin/reservas/${r.codigo}`}>
           <input type="hidden" name="acao" value={a.acao} />
@@ -200,7 +202,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
     (r) =>
       (!filtro.status || filtro.status.includes(r.status)) &&
       (!busca ||
-        [r.codigo, r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) => c.toLowerCase().includes(busca))),
+        [r.codigo, r.pedido?.codigo ?? '', r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) =>
+          c.toLowerCase().includes(busca),
+        )),
   );
   const pagas = todas.filter((r) => r.status === 'pago');
   const receita = pagas.reduce((s, r) => s + r.totalCentavos, 0);
@@ -275,6 +279,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
               <div className="lg:col-span-3">
                 <p className="text-xl font-bold tracking-tight">{r.codigo}</p>
                 <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[r.status]}`}>{ROTULO[r.status]}</span>
+                {r.pedido && (
+                  <p className="mt-2 text-small font-semibold">
+                    Pedido {r.pedido.codigo} · {formatarPreco(r.pedido.totalCentavos)}
+                  </p>
+                )}
                 <p className="mt-2 text-small text-tinta-suave">Criada {dataHora(r.criadaEm)}</p>
                 {r.pagamento.pagoEm && <p className="text-small text-tinta-suave">Paga {dataHora(r.pagamento.pagoEm)}</p>}
               </div>
@@ -284,7 +293,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
               </div>
               <div className="lg:col-span-3">
                 <p className="font-semibold">{r.cliente.nome}</p>
-                {!ehTransfer(r) && (
+                {!ehTransfer(r) && r.cliente.documento && (
                   <p className="text-small">
                     {r.cliente.documentoTipo === 'cpf' ? 'CPF' : 'Passaporte'} {r.cliente.documento}
                   </p>

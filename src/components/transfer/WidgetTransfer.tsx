@@ -15,12 +15,15 @@ import {
   type Malas,
   type Veiculo,
 } from '@/data/transfer';
+import type { TrechoEscolhido } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { linkEmail } from '@/lib/email';
+import { rastrear } from '@/lib/pixel';
 import { formatarDataIso, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
+import { useCarrinho } from '../carrinho/CarrinhoContexto';
 import { Cifra } from '../Cifra';
 import { Contador } from '../grupo/Contador';
 import { useGrupo } from '../grupo/GrupoContexto';
@@ -56,7 +59,6 @@ export interface TextosTransfer {
   sobCotacao: string;
   total: string;
   totalIdaVolta: string;
-  reservar: string;
   escolhaTrajeto: string;
   trajetoIncompleto: string;
   erroData: string;
@@ -75,6 +77,11 @@ export interface TextosTransfer {
   noCartao: string;
   /** "≈ US$ {v}" */
   dolar: string;
+  adicionar: string;
+  reservarAgora: string;
+  adicionando: string;
+  erroAdicionar: string;
+  cheio: string;
 }
 
 interface Ponta {
@@ -169,13 +176,14 @@ function CampoPonta({
 export function WidgetTransfer({
   idioma,
   locale,
-  checkoutHref,
+  finalizarHref,
   dolar = null,
   textos: T,
 }: {
   idioma: Idioma;
   locale: string;
-  checkoutHref: string;
+  /** O checkout único, para onde o "Reservar agora" leva com o transfer já no carrinho. */
+  finalizarHref: string;
   /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
   dolar?: number | null;
   textos: TextosTransfer;
@@ -198,6 +206,10 @@ export function WidgetTransfer({
   const [pessoas, setPessoas] = useState(2);
   const [malas, setMalas] = useState<Malas>({ grandes: 0, medias: 0, mao: 0 });
   const [escolhido, setEscolhido] = useState<Veiculo | null>(null);
+  const [enviando, setEnviando] = useState<'' | 'agora' | 'carrinho'>('');
+  const { itens, carregado, adicionar } = useCarrinho();
+  // o item do carrinho que o cliente está mudando (?mudar=): o cartão abre com o que ele tinha escolhido
+  const [mudando, setMudando] = useState('');
   const idData = useId();
   const idHora = useId();
   const idDataVolta = useId();
@@ -219,6 +231,33 @@ export function WidgetTransfer({
     // transfer só a partir de amanhã: a data do grupo entra se ainda der
     if (grupo.data && grupo.data >= primeiroDiaTransfer(hojeEmBuzios())) setData(grupo.data);
   }, [pronto, grupo]);
+
+  const mudarLido = useRef(false);
+  useEffect(() => {
+    if (!pronto || !carregado || mudarLido.current) return;
+    mudarLido.current = true;
+    const id = new URLSearchParams(window.location.search).get('mudar');
+    const e = itens.find((i) => i.id === id)?.escolha;
+    if (!id || e?.tipo !== 'transfer') return;
+    const ponta = (p: TrechoEscolhido['saida']): Ponta => ({ ...PONTA_VAZIA, lugar: p.lugar, endereco: p.endereco ?? '' });
+    setMudando(id);
+    setSaida(ponta(e.ida.saida));
+    setDestino(ponta(e.ida.destino));
+    setData(e.ida.data);
+    setHora(e.ida.hora);
+    setVoltaMexida(true);
+    setIdaVolta(Boolean(e.volta));
+    if (e.volta) {
+      setVoltaEditada(true);
+      setVoltaSaida(ponta(e.volta.saida));
+      setVoltaDestino(ponta(e.volta.destino));
+      setDataVolta(e.volta.data);
+      setHoraVolta(e.volta.hora);
+    }
+    setPessoas(e.passageiros);
+    setMalas(e.malas);
+    setEscolhido(e.veiculo);
+  }, [pronto, carregado, itens]);
 
   // ida e volta: marcada quando sai de um aeroporto (quem chega, volta); desmarcada quando vai para um
   useEffect(() => {
@@ -298,38 +337,37 @@ export function WidgetTransfer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saida, destino, vSaida, vDestino, data, hora, idaVolta, dataVolta, horaVolta]);
 
-  const reservar = () => {
+  /** Põe no carrinho: "Adicionar" abre a gaveta; "Reservar agora" segue direto para o checkout. */
+  const colocar = async (para: 'agora' | 'carrinho') => {
     if (!veiculo || precoEscolhido === null) return;
     const p = problema();
     if (p) {
       setErro(p);
       return;
     }
-    const q = new URLSearchParams({
-      saida: saida.lugar,
-      saidaEndereco: saida.endereco,
-      saidaCidade: saida.cidade,
-      destino: destino.lugar,
-      destinoEndereco: destino.endereco,
-      destinoCidade: destino.cidade,
-      data,
-      hora,
-      pessoas: String(pessoas),
-      grandes: String(malas.grandes),
-      medias: String(malas.medias),
-      mao: String(malas.mao),
-      veiculo,
-    });
-    if (idaVolta) {
-      q.set('volta', '1');
-      q.set('dataVolta', dataVolta);
-      q.set('horaVolta', horaVolta);
-      q.set('voltaSaida', vSaida.lugar);
-      q.set('voltaSaidaEndereco', vSaida.endereco);
-      q.set('voltaDestino', vDestino.lugar);
-      q.set('voltaDestinoEndereco', vDestino.endereco);
-    }
-    router.push(`${checkoutHref}?${q.toString()}`);
+    const ponta = (x: Ponta) => ({ lugar: x.lugar as IdLugar, ...(x.endereco.trim() ? { endereco: x.endereco.trim() } : {}) });
+    setEnviando(para);
+    const r = await adicionar(
+      {
+        tipo: 'transfer',
+        veiculo,
+        ida: { saida: ponta(saida), destino: ponta(destino), data, hora },
+        ...(idaVolta ? { volta: { saida: ponta(vSaida), destino: ponta(vDestino), data: dataVolta, hora: horaVolta } } : {}),
+        passageiros: pessoas,
+        malas,
+      },
+      { abrir: para === 'carrinho', ...(mudando ? { substituir: mudando } : {}) },
+    );
+    if (r.ok) {
+      setMudando('');
+      rastrear('AddToCart', { content_ids: ['transfer'], content_type: 'product', value: precoEscolhido, currency: 'BRL' });
+      if (para === 'agora') {
+        // fica "adicionando" até a página do checkout abrir
+        router.push(finalizarHref);
+        return;
+      }
+    } else setErro(r.erro === 'cheio' ? T.cheio : T.erroAdicionar);
+    setEnviando('');
   };
 
   const inverter = () => {
@@ -550,9 +588,26 @@ export function WidgetTransfer({
               {erro}
             </p>
           )}
-          <button type="button" onClick={reservar} className="botao mt-5 w-full">
-            {T.reservar}
-          </button>
+          <div className="mt-5 grid gap-2">
+            <button
+              type="button"
+              onClick={() => colocar('agora')}
+              disabled={Boolean(enviando)}
+              aria-busy={enviando === 'agora'}
+              className="botao w-full"
+            >
+              {enviando === 'agora' ? T.adicionando : T.reservarAgora}
+            </button>
+            <button
+              type="button"
+              onClick={() => colocar('carrinho')}
+              disabled={Boolean(enviando)}
+              aria-busy={enviando === 'carrinho'}
+              className="botao botao-vazado w-full"
+            >
+              {enviando === 'carrinho' ? T.adicionando : T.adicionar}
+            </button>
+          </div>
         </>
       ) : (
         // sem preço fixo (ou grupo maior que a van): o pedido de cotação vai por e-mail, já com os dados

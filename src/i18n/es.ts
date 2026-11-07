@@ -266,7 +266,7 @@ const es: Dicionario = {
       { inicio: 'Elegí el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
       {
         inicio: 'Pagá con Pix o tarjeta.',
-        texto: 'Siempre el valor total, en la misma página, sin cargos escondidos.',
+        texto: 'Siempre el valor total, sin cargos escondidos.',
       },
       {
         inicio: 'Embarcá con el voucher en el celular.',
@@ -277,7 +277,7 @@ const es: Dicionario = {
     tutorial: [
       { titulo: 'Elegí el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
       { titulo: 'Elegí el horario.', texto: 'Ves los horarios de salida del paseo y elegís el tuyo.' },
-      { titulo: 'Pagá con Pix o tarjeta.', texto: 'Siempre el valor total, en la misma página, sin cargos escondidos.' },
+      { titulo: 'Pagá con Pix o tarjeta.', texto: 'Siempre el valor total, sin cargos escondidos.' },
       { titulo: 'Embarcá con el voucher en el celular.', texto: 'El voucher ya viene con el horario, tiene número único y PDF.' },
     ],
     tutorialTelas: [
@@ -294,12 +294,12 @@ const es: Dicionario = {
       {
         se: 'Te arrepentís de la compra',
         recebe: 'Reembolso total, por el Código de Defensa del Consumidor de Brasil',
-        prazo: 'Hasta 7 días después de comprar',
+        prazo: 'Hasta 7 días después de comprar, antes del servicio',
       },
       { se: 'Querés cambiar la fecha', recebe: 'Nueva fecha sin costo, según disponibilidad', prazo: 'Hasta 24 h antes' },
       { se: 'Nosotros o el operador cancelamos', recebe: 'Reembolso total o nueva fecha', prazo: 'Sin costo' },
       {
-        se: 'Cancelás con menos de 24 horas o no te presentás',
+        se: 'Cancelás con menos de 24 horas, pasados los 7 días de la compra, o no te presentás',
         recebe: 'Sin reembolso: el lugar ya se pagó al operador',
         prazo: 'No aplica',
       },
@@ -355,7 +355,7 @@ const es: Dicionario = {
     },
     {
       p: '¿Puedo cancelar la reserva?',
-      r: 'Sí. Cancelando con al menos 24 horas de anticipación, el reembolso es total. Las compras online también tienen el derecho de arrepentimiento de 7 días del Código de Defensa del Consumidor de Brasil.',
+      r: 'Sí. Cancelando con al menos 24 horas de anticipación, el reembolso es total. Las compras online también tienen el derecho de arrepentimiento de 7 días del Código de Defensa del Consumidor de Brasil, siempre que el servicio todavía no se haya realizado.',
     },
     {
       p: '¿Nos buscan en el hotel?',
@@ -371,11 +371,11 @@ const es: Dicionario = {
     },
     {
       p: 'Soy extranjero. ¿Puedo reservar?',
-      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, ingresá tu número de pasaporte y tu teléfono con el código del país.',
+      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, ingresá tu teléfono con el código del país.',
     },
     {
       p: '¿Es seguro pagar en el sitio?',
-      r: 'Sí. El sitio usa conexión cifrada y los pagos los procesa Pagar.me. Los datos de la tarjeta van directo a la procesadora y no quedan con nosotros.',
+      r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
     },
   ],
   passeios: {
@@ -566,7 +566,7 @@ const es: Dicionario = {
     pagarCartao: 'Pagar {valor}',
     processando: 'Procesando…',
     avisoTotal: 'El pago es siempre por el valor total de la reserva.',
-    seguro: 'Pago procesado de forma segura por Pagar.me. Los datos de la tarjeta van directo al procesador.',
+    seguro: 'Tarjeta procesada de forma segura por Stripe. Los datos de la tarjeta van directo a Stripe y no quedan con nosotros.',
     resumo: 'Resumen de la reserva',
     total: 'Total',
     indisponivelTitulo: 'Pago online en activación',

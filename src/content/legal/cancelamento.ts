@@ -9,20 +9,20 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     descricao:
       'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado pelo tempo ou pelo mar? Você escolhe entre reembolso ou nova data.',
     resumo:
-      'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado por chuva, mau tempo ou condições do mar? Você escolhe entre reembolso integral ou nova data. Compras pelo site também têm 7 dias de direito de arrependimento.',
+      'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado por chuva, mau tempo ou condições do mar? Você escolhe entre reembolso integral ou nova data. Compras pelo site também têm 7 dias de direito de arrependimento, desde que o serviço ainda não tenha acontecido.',
     secoes: [
       {
         titulo: '1. A quem se aplica',
         paragrafos: [
-          `Esta política vale para todos os passeios comprados no site ${E.dominio}, operado por ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
+          `Esta política vale para todos os passeios e transfers comprados no site ${E.dominio}, operado por ${E.marca}, sediada em ${E.cidade} – ${E.uf}. O que ela diz sobre o passeio vale também para o transfer. As casas de temporada têm regras próprias (veja o item 10).`,
           'Ela segue o Código de Defesa do Consumidor (Lei nº 8.078/1990) e o Decreto nº 7.962/2013, que trata do comércio eletrônico. Nada nesta política reduz os direitos que a lei garante a você.',
         ],
       },
       {
         titulo: '2. Direito de arrependimento (7 dias)',
         paragrafos: [
-          'Como a compra é feita pela internet, você pode desistir dela em até 7 (sete) dias corridos contados da data da compra, sem precisar explicar o motivo, conforme o art. 49 do Código de Defesa do Consumidor.',
-          'Nesse caso, devolvemos imediatamente todos os valores pagos, com atualização monetária, desde que o passeio ainda não tenha acontecido. O pedido pode ser feito pelos mesmos canais usados na compra (veja o item 8).',
+          'Como a compra é feita pela internet, você pode desistir dela em até 7 (sete) dias corridos contados da data da compra, sem precisar explicar o motivo, conforme o art. 49 do Código de Defesa do Consumidor. Esse direito vale para todas as compras, de brasileiros e de estrangeiros.',
+          'Nesse caso, devolvemos imediatamente todos os valores pagos, com atualização monetária, desde que o serviço ainda não tenha acontecido. O pedido pode ser feito pelos mesmos canais usados na compra (veja o item 8).',
         ],
       },
       {
@@ -82,7 +82,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '10. Casas de temporada',
         paragrafos: [
-          'As casas de temporada têm regras próprias de sinal, caução e cancelamento, mostradas na página de cada casa antes da reserva.',
+          'As casas de temporada têm regras próprias de sinal e cancelamento, mostradas na página de cada casa antes da reserva.',
         ],
       },
     ],
@@ -92,20 +92,20 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     descricao:
       'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of the weather or sea conditions? You choose between a refund or a new date.',
     resumo:
-      'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of rain, bad weather or sea conditions? You choose between a full refund or a new date. Online purchases also have a 7-day withdrawal right.',
+      'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of rain, bad weather or sea conditions? You choose between a full refund or a new date. Online purchases also have a 7-day withdrawal right, provided the service has not yet taken place.',
     secoes: [
       {
         titulo: '1. Scope',
         paragrafos: [
-          `This policy applies to all tours purchased on ${E.dominio}, operated by ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `This policy applies to all tours and transfers purchased on ${E.dominio}, operated by ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil. What it says about tours also applies to transfers. Holiday homes have their own rules (see item 10).`,
           'It follows the Brazilian Consumer Protection Code (Law 8,078/1990) and Decree 7,962/2013 on e-commerce. Nothing in this policy limits the rights the law gives you.',
         ],
       },
       {
         titulo: '2. Right of withdrawal (7 days)',
         paragrafos: [
-          'Because the purchase is made online, you may withdraw from it within 7 (seven) calendar days of the purchase date, without giving any reason, under article 49 of the Consumer Protection Code.',
-          'In that case we immediately refund everything you paid, adjusted for inflation, provided the tour has not yet taken place. You can make the request through the same channels used for the purchase (see item 8).',
+          'Because the purchase is made online, you may withdraw from it within 7 (seven) calendar days of the purchase date, without giving any reason, under article 49 of the Consumer Protection Code. This right applies to all purchases, by Brazilians and foreigners alike.',
+          'In that case we immediately refund everything you paid, adjusted for inflation, provided the service has not yet taken place. You can make the request through the same channels used for the purchase (see item 8).',
         ],
       },
       {
@@ -165,7 +165,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '10. Holiday homes',
         paragrafos: [
-          'Holiday homes have their own deposit, security deposit and cancellation rules, shown on each home’s page before booking.',
+          'Holiday homes have their own deposit and cancellation rules, shown on each home’s page before booking.',
         ],
       },
     ],
@@ -175,20 +175,20 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     descricao:
       '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Elegís entre reembolso o nueva fecha.',
     resumo:
-      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento.',
+      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
     secoes: [
       {
         titulo: '1. Alcance',
         paragrafos: [
-          `Esta política se aplica a todos los paseos comprados en el sitio ${E.dominio}, operado por ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `Esta política se aplica a todos los paseos y traslados comprados en el sitio ${E.dominio}, operado por ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil. Lo que dice sobre el paseo vale también para el traslado. Las casas de temporada tienen reglas propias (ver el punto 10).`,
           'Sigue el Código de Defensa del Consumidor de Brasil (Ley 8.078/1990) y el Decreto 7.962/2013 sobre comercio electrónico. Nada en esta política reduce los derechos que la ley te garantiza.',
         ],
       },
       {
         titulo: '2. Derecho de arrepentimiento (7 días)',
         paragrafos: [
-          'Como la compra se hace por internet, podés desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor.',
-          'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el paseo todavía no se haya realizado. El pedido se puede hacer por los mismos canales usados en la compra (ver el punto 8).',
+          'Como la compra se hace por internet, podés desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor. Este derecho vale para todas las compras, de brasileños y de extranjeros.',
+          'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el servicio todavía no se haya realizado. El pedido se puede hacer por los mismos canales usados en la compra (ver el punto 8).',
         ],
       },
       {
@@ -246,7 +246,7 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '10. Casas de temporada',
         paragrafos: [
-          'Las casas de temporada tienen reglas propias de seña, depósito de garantía y cancelación, que se muestran en la página de cada casa antes de reservar.',
+          'Las casas de temporada tienen reglas propias de seña y cancelación, que se muestran en la página de cada casa antes de reservar.',
         ],
       },
     ],

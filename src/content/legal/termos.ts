@@ -1,4 +1,4 @@
-import { EMPRESA } from '@/config/empresa';
+import { EMPRESA, enderecoCompleto } from '@/config/empresa';
 import type { DocumentoLegal } from './tipos';
 
 const E = EMPRESA;
@@ -13,15 +13,15 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quem somos',
         paragrafos: [
-          `O site ${E.dominio} é operado por ${E.marca}, sediada em ${E.cidade} – ${E.uf}.`,
+          `O site ${E.dominio} é operado por ${E.razaoSocial}, CNPJ ${E.cnpj}, com sede na ${enderecoCompleto}.`,
           `Contato: e-mail ${E.email}. Depois da reserva, o atendimento também é feito pelo WhatsApp.`,
         ],
       },
       {
         titulo: '2. O que vendemos',
         paragrafos: [
-          'Somos uma agência de turismo que vende, pela internet, passeios em Búzios, Cabo Frio, Arraial do Cabo e região, executados por operadores locais parceiros (donos das embarcações, veículos e equipes).',
-          'Cuidamos da venda, do atendimento, da emissão do voucher e dos reembolsos. A execução do passeio é feita pelo operador parceiro. Perante você, respondemos nos termos do Código de Defesa do Consumidor.',
+          'Somos uma agência de turismo que vende, pela internet, passeios e transfers em Búzios, Cabo Frio, Arraial do Cabo e região, executados por operadores locais parceiros (donos das embarcações, veículos e equipes).',
+          'Cuidamos da venda, do atendimento, da emissão do voucher e dos reembolsos. A execução do passeio e do transfer é feita pelo operador parceiro. Perante você, respondemos nos termos do Código de Defesa do Consumidor.',
         ],
       },
       {
@@ -30,7 +30,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'A reserva é confirmada quando o pagamento é aprovado. Nesse momento emitimos um voucher com número único, que é o seu comprovante.',
         ],
         lista: [
-          'Você é responsável por informar dados corretos (nome, contato, documento, data, número de pessoas e hospedagem).',
+          'Você é responsável por informar dados corretos (nome, contato, data, número de pessoas e hospedagem).',
           'O horário é escolhido na compra e consta no voucher, mas pode mudar por causa da maré, do clima ou da temporada. Nos passeios sem busca na hospedagem, a equipe envia o ponto de encontro pelo WhatsApp após a compra.',
           'Se não houver disponibilidade na data escolhida, avisaremos e você escolhe entre nova data ou reembolso integral.',
           'Menores de 18 anos devem estar acompanhados por um responsável.',
@@ -40,14 +40,14 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Preços e pagamento',
         paragrafos: [
           'Os preços estão em reais (R$) e indicam se são por pessoa, por veículo ou por embarcação. O total aparece antes do pagamento.',
-          'O pagamento é sempre do valor total da reserva, por Pix ou cartão de crédito, processado pela Pagar.me. Os dados do cartão são enviados diretamente à processadora e não ficam armazenados conosco.',
+          'O pagamento é do valor total da reserva, por Pix ou cartão de crédito (nas casas de temporada, vale o item 7). Enquanto o pagamento online é ativado, você registra a reserva no site e finaliza o pagamento com a nossa equipe pelo WhatsApp. O site não guarda os dados do seu cartão.',
           'Taxas cobradas no local por terceiros (como taxas municipais ou de embarque), alimentação e itens opcionais não estão incluídos, salvo quando indicado na página do passeio.',
         ],
       },
       {
         titulo: '5. Cancelamento, remarcação e reembolso',
         paragrafos: [
-          'As regras estão na Política de Cancelamento e Reembolso, que faz parte destes termos. Em resumo: reembolso integral com 24 horas ou mais de antecedência; em caso de chuva, mau tempo ou condições do mar, reembolso integral ou nova data, à sua escolha; e direito de arrependimento de 7 dias para compras online (art. 49 do CDC).',
+          'As regras estão na Política de Cancelamento e Reembolso, que faz parte destes termos. Em resumo: nos passeios e no transfer, reembolso integral com 24 horas ou mais de antecedência e, em caso de chuva, mau tempo ou condições do mar, reembolso integral ou nova data, à sua escolha; e, em todas as compras online, direito de arrependimento de 7 dias (art. 49 do CDC), desde que o serviço ainda não tenha acontecido.',
         ],
       },
       {
@@ -64,7 +64,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Casas de temporada',
         paragrafos: [
-          'As casas de temporada são reservadas no site, com sinal de 50% do valor. As regras de cada casa (diárias, mínimo de noites, taxa de limpeza, caução e cancelamento) aparecem na página da casa antes da reserva, e o endereço exato vai no voucher.',
+          'As casas de temporada são reservadas no site, com sinal de 50% do valor. As regras de cada casa (diárias, mínimo de noites e cancelamento) aparecem na página da casa antes da reserva, e a localização exata é enviada pela nossa equipe pelo WhatsApp, depois do pagamento confirmado.',
         ],
       },
       {
@@ -101,15 +101,15 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Who we are',
         paragrafos: [
-          `${E.dominio} is operated by ${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`,
+          `${E.dominio} is operated by ${E.razaoSocial}, CNPJ (Brazilian company registration number) ${E.cnpj}, with its registered office at ${enderecoCompleto}, Brazil.`,
           `Contact: email ${E.email}. After booking, we also assist you on WhatsApp.`,
         ],
       },
       {
         titulo: '2. What we sell',
         paragrafos: [
-          'We are a travel agency that sells, online, tours in Búzios, Cabo Frio, Arraial do Cabo and the surrounding area, run by local partner operators (the owners of the boats, vehicles and crews).',
-          'We handle the sale, customer service, the voucher and refunds. The tour itself is run by the partner operator. Towards you, we are responsible under the Brazilian Consumer Protection Code.',
+          'We are a travel agency that sells, online, tours and transfers in Búzios, Cabo Frio, Arraial do Cabo and the surrounding area, run by local partner operators (the owners of the boats, vehicles and crews).',
+          'We handle the sale, customer service, the voucher and refunds. The tour or transfer itself is run by the partner operator. Towards you, we are responsible under the Brazilian Consumer Protection Code.',
         ],
       },
       {
@@ -118,7 +118,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Your booking is confirmed when the payment is approved. At that moment we issue a voucher with a unique number, which is your proof of purchase.',
         ],
         lista: [
-          'You are responsible for providing correct details (name, contact, ID document, date, number of people and accommodation).',
+          'You are responsible for providing correct details (name, contact, date, number of people and accommodation).',
           'The time is chosen at purchase and shown on the voucher, but it may change with the tide, the weather or the season. For tours without hotel pick-up, our team sends the meeting point on WhatsApp after purchase.',
           'If there is no availability on the chosen date, we will let you know and you choose between a new date or a full refund.',
           'Under-18s must be accompanied by a responsible adult.',
@@ -128,14 +128,14 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Prices and payment',
         paragrafos: [
           'Prices are in Brazilian reais (R$) and state whether they are per person, per vehicle or per boat. The total is shown before payment.',
-          'Payment is always for the full amount of the booking, by Pix or credit card, processed by Pagar.me. Card details are sent directly to the payment processor and are not stored by us.',
+          'Payment is for the full amount of the booking, by Pix or credit card (for holiday homes, see item 7). While online payment is being activated, you register the booking on the website and complete the payment with our team on WhatsApp. The website does not store your card details.',
           'Fees charged on site by third parties (such as municipal or boarding fees), food and optional extras are not included unless stated on the tour page.',
         ],
       },
       {
         titulo: '5. Cancellations, date changes and refunds',
         paragrafos: [
-          'The rules are set out in the Cancellation and Refund Policy, which is part of these terms. In short: full refund 24 hours or more in advance; in case of rain, bad weather or sea conditions, a full refund or a new date, your choice; and a 7-day withdrawal right for online purchases (article 49 of the Consumer Protection Code).',
+          'The rules are set out in the Cancellation and Refund Policy, which is part of these terms. In short: for tours and transfers, a full refund 24 hours or more in advance and, in case of rain, bad weather or sea conditions, a full refund or a new date, your choice; and, for all online purchases, a 7-day withdrawal right (article 49 of the Consumer Protection Code), provided the service has not yet taken place.',
         ],
       },
       {
@@ -152,7 +152,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Holiday homes',
         paragrafos: [
-          'Holiday homes are booked on the site with a 50% deposit. Each home’s rules (nightly rates, minimum stay, cleaning fee, security deposit and cancellation) are shown on its page before booking, and the exact address is on the voucher.',
+          'Holiday homes are booked on the site with a 50% deposit. Each home’s rules (nightly rates, minimum stay and cancellation) are shown on its page before booking, and our team sends the exact location on WhatsApp once the payment is confirmed.',
         ],
       },
       {
@@ -191,15 +191,15 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '1. Quiénes somos',
         paragrafos: [
-          `El sitio ${E.dominio} es operado por ${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`,
+          `El sitio ${E.dominio} es operado por ${E.razaoSocial}, CNPJ (registro de empresas de Brasil) ${E.cnpj}, con sede en ${enderecoCompleto}, Brasil.`,
           `Contacto: e-mail ${E.email}. Después de la reserva, también te atendemos por WhatsApp.`,
         ],
       },
       {
         titulo: '2. Qué vendemos',
         paragrafos: [
-          'Somos una agencia de turismo que vende por internet paseos en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos).',
-          'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo lo realiza el operador asociado. Frente a vos, respondemos según el Código de Defensa del Consumidor de Brasil.',
+          'Somos una agencia de turismo que vende por internet paseos y traslados en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos).',
+          'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a vos, respondemos según el Código de Defensa del Consumidor de Brasil.',
         ],
       },
       {
@@ -208,7 +208,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'La reserva se confirma cuando se aprueba el pago. En ese momento emitimos un voucher con número único, que es tu comprobante.',
         ],
         lista: [
-          'Sos responsable de informar datos correctos (nombre, contacto, documento, fecha, cantidad de personas y alojamiento).',
+          'Sos responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
           'El horario se elige en la compra y figura en el voucher, pero puede cambiar según la marea, el clima o la temporada. En los paseos sin búsqueda en el alojamiento, el equipo envía el punto de encuentro por WhatsApp después de la compra.',
           'Si no hay disponibilidad en la fecha elegida, te avisamos y elegís entre una nueva fecha o el reembolso total.',
           'Los menores de 18 años deben estar acompañados por un adulto responsable.',
@@ -218,14 +218,14 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Precios y pago',
         paragrafos: [
           'Los precios están en reales (R$) e indican si son por persona, por vehículo o por embarcación. El total aparece antes del pago.',
-          'El pago es siempre por el valor total de la reserva, con Pix o tarjeta de crédito, procesado por Pagar.me. Los datos de la tarjeta se envían directamente al procesador y no quedan guardados con nosotros.',
+          'El pago es por el valor total de la reserva, con Pix o tarjeta de crédito (en las casas de temporada, rige el punto 7). Mientras se activa el pago online, la reserva se registra en el sitio y el pago se completa con nuestro equipo por WhatsApp. El sitio no guarda los datos de tu tarjeta.',
           'Las tasas cobradas en el lugar por terceros (como tasas municipales o de embarque), las comidas y los opcionales no están incluidos, salvo que la página del paseo lo indique.',
         ],
       },
       {
         titulo: '5. Cancelación, cambio de fecha y reembolso',
         paragrafos: [
-          'Las reglas están en la Política de Cancelación y Reembolso, que forma parte de estos términos. En resumen: reembolso total con 24 horas o más de anticipación; en caso de lluvia, mal tiempo o condiciones del mar, reembolso total o nueva fecha, a tu elección; y derecho de arrepentimiento de 7 días para compras online (art. 49 del Código de Defensa del Consumidor).',
+          'Las reglas están en la Política de Cancelación y Reembolso, que forma parte de estos términos. En resumen: en los paseos y traslados, reembolso total con 24 horas o más de anticipación y, en caso de lluvia, mal tiempo o condiciones del mar, reembolso total o nueva fecha, a tu elección; y, en todas las compras online, derecho de arrepentimiento de 7 días (art. 49 del Código de Defensa del Consumidor), siempre que el servicio todavía no se haya realizado.',
         ],
       },
       {
@@ -242,7 +242,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '7. Casas de temporada',
         paragrafos: [
-          'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches, tarifa de limpieza, depósito de garantía y cancelación) aparecen en la página de la casa antes de reservar, y la dirección exacta va en el voucher.',
+          'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
         ],
       },
       {

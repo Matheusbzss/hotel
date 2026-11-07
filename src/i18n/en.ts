@@ -265,7 +265,7 @@ const en: Dicionario = {
       { inicio: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
       {
         inicio: 'Pay by Pix or card.',
-        texto: 'Always the full amount, on the same page, with no hidden fees.',
+        texto: 'Always the full amount, with no hidden fees.',
       },
       {
         inicio: 'Board with the voucher on your phone.',
@@ -276,7 +276,7 @@ const en: Dicionario = {
     tutorial: [
       { titulo: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
       { titulo: 'Pick the time.', texto: 'You see the tour’s departure times and choose yours.' },
-      { titulo: 'Pay by Pix or card.', texto: 'Always the full amount, on the same page, with no hidden fees.' },
+      { titulo: 'Pay by Pix or card.', texto: 'Always the full amount, with no hidden fees.' },
       { titulo: 'Board with the voucher on your phone.', texto: 'The voucher already shows the time, with a unique number and a PDF.' },
     ],
     tutorialTelas: [
@@ -293,12 +293,12 @@ const en: Dicionario = {
       {
         se: 'You change your mind about the purchase',
         recebe: 'A full refund, under Brazilian consumer law',
-        prazo: 'Within 7 days of buying',
+        prazo: 'Within 7 days of buying, before the service',
       },
       { se: 'You want another date', recebe: 'A new date at no cost, subject to availability', prazo: 'Up to 24 h before' },
       { se: 'We or the operator cancel', recebe: 'A full refund or a new date', prazo: 'At no cost' },
       {
-        se: 'You cancel less than 24 hours ahead or don’t show up',
+        se: 'You cancel less than 24 hours ahead, more than 7 days after buying, or don’t show up',
         recebe: 'No refund: the seat has already been paid to the operator',
         prazo: 'Does not apply',
       },
@@ -354,7 +354,7 @@ const en: Dicionario = {
     },
     {
       p: 'Can I cancel my booking?',
-      r: 'Yes. Cancel at least 24 hours in advance for a full refund. Online purchases also have the 7-day right of withdrawal under the Brazilian Consumer Protection Code.',
+      r: 'Yes. Cancel at least 24 hours in advance for a full refund. Online purchases also have the 7-day right of withdrawal under the Brazilian Consumer Protection Code, provided the service has not yet taken place.',
     },
     {
       p: 'Do you pick us up at the hotel?',
@@ -370,11 +370,11 @@ const en: Dicionario = {
     },
     {
       p: 'I’m not Brazilian. Can I book?',
-      r: 'Of course. We speak English, Spanish and Portuguese. At checkout, enter your passport number and your phone with the country code.',
+      r: 'Of course. We speak English, Spanish and Portuguese. At checkout, enter your phone with the country code.',
     },
     {
       p: 'Is it safe to pay on the website?',
-      r: 'Yes. The website uses an encrypted connection and payments are processed by Pagar.me. Card details go straight to the processor and are never stored by us.',
+      r: 'Yes. The website uses an encrypted connection and does not store your card details.',
     },
   ],
   passeios: {
@@ -565,7 +565,7 @@ const en: Dicionario = {
     pagarCartao: 'Pay {valor}',
     processando: 'Processing…',
     avisoTotal: 'Payment is always for the full amount of the booking.',
-    seguro: 'Payment securely processed by Pagar.me. Card details go straight to the payment processor.',
+    seguro: 'Card payments are securely processed by Stripe. Your card details go straight to Stripe and are never stored by us.',
     resumo: 'Booking summary',
     total: 'Total',
     indisponivelTitulo: 'Online payment being activated',

@@ -34,7 +34,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 - Preço unitário visível sem precisar escolher o grupo.
 - Mapa com vida: relevo real, praias, fotos de cada cidade; Búzios clicável no computador.
 - "Sin letra chica" vira "Reglas y avisos", menor.
-- Sem CNPJ na página de contato.
+- CNPJ só no rodapé: no cartão de contato, não.
 
 ## Unresolved
 

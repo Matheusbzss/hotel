@@ -1,4 +1,4 @@
-import { EMPRESA } from '@/config/empresa';
+import { EMPRESA, enderecoCompleto } from '@/config/empresa';
 import type { DocumentoLegal } from './tipos';
 
 const E = EMPRESA;
@@ -13,18 +13,18 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     secoes: [
       {
         titulo: '1. Quem é o controlador dos dados',
-        paragrafos: [`${E.marca}, sediada em ${E.cidade} – ${E.uf}.`, `Canal do titular de dados (encarregado): ${E.email}.`],
+        paragrafos: [`${E.razaoSocial}, CNPJ ${E.cnpj}, com sede na ${enderecoCompleto}.`, `Canal do titular de dados (encarregado): ${E.email}.`],
       },
       {
         titulo: '2. Quais dados coletamos',
         paragrafos: ['Coletamos apenas o necessário:'],
         lista: [
-          'Identificação: nome completo e número do CPF (brasileiros) ou do passaporte (estrangeiros).',
+          'Identificação: nome completo e, quando pedimos, o número do CPF (brasileiros) ou do passaporte (estrangeiros).',
           'Contato: e-mail e telefone/WhatsApp, inclusive quando você pede uma cotação ou manda uma mensagem pelo site.',
-          'Reserva: passeio, data, quantidade de adultos e crianças, cidade e nome do hotel ou pousada e as observações que você escrever.',
+          'Reserva: passeio ou transfer, data, horário, quantidade de adultos e crianças, cidade e nome do hotel ou pousada e as observações que você escrever. No transfer, também o trajeto, os voos, as malas e a idade das crianças que vão de cadeirinha.',
           'Carrinho: os itens que você escolheu e, se digitar no checkout, o seu e-mail, mesmo que você não termine a reserva.',
           'Origem da visita: o nome da campanha do anúncio de onde você veio, quando o link tem essa marca.',
-          'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O número completo do cartão é enviado direto à Pagar.me e nunca passa pelos nossos servidores.',
+          'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O site não recebe nem guarda o número completo do cartão.',
           'Navegação: endereço IP, tipo de dispositivo e páginas visitadas, registrados pelos nossos provedores para segurança e funcionamento do site; e, só com o seu consentimento, dados de navegação para o Pixel da Meta e para a tag do Google Ads.',
         ],
         depois: [
@@ -35,7 +35,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Para que usamos e com qual base legal',
         paragrafos: [],
         lista: [
-          'Fazer e gerenciar a sua reserva, emitir o voucher com o horário, enviar o ponto de encontro e repassar ao operador os dados necessários para o passeio — execução de contrato (art. 7º, V, da LGPD).',
+          'Fazer e gerenciar a sua reserva, emitir o voucher com o horário, enviar o ponto de encontro e repassar ao operador os dados necessários para o serviço — execução de contrato (art. 7º, V, da LGPD).',
           'Processar pagamentos, reembolsos e prevenir fraudes — execução de contrato e legítimo interesse (art. 7º, V e IX).',
           'Guardar registros fiscais, contábeis e de consumo — cumprimento de obrigação legal e exercício regular de direitos (art. 7º, II e VI).',
           'Atender você pelo WhatsApp e por e-mail — execução de contrato e legítimo interesse.',
@@ -48,8 +48,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Com quem compartilhamos',
         paragrafos: ['Compartilhamos dados somente quando necessário:'],
         lista: [
-          'Operadores dos passeios (embarcações, veículos, guias): nome, quantidade de pessoas, hospedagem e contato, para realizar o passeio.',
-          'Pagar.me (Stone): processamento dos pagamentos por Pix e cartão.',
+          'Operadores dos passeios e do transfer (embarcações, veículos, motoristas, guias): nome, quantidade de pessoas, hospedagem e contato e, no transfer, também o trajeto, os voos, as malas e a idade das crianças que vão de cadeirinha, para realizar o serviço.',
+          'Bancos e empresas de pagamento: processamento dos pagamentos por Pix e cartão.',
           'Vercel e Supabase: hospedagem do site e armazenamento seguro das reservas.',
           'Meta (WhatsApp, Facebook e Instagram): atendimento pelo WhatsApp e, com o seu consentimento, medição de anúncios.',
           'Google: com o seu consentimento, medição de anúncios.',
@@ -69,7 +69,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '6. Por quanto tempo guardamos',
         paragrafos: [
-          'Os dados das reservas são guardados por 5 (cinco) anos após o passeio, prazo relacionado às obrigações fiscais e aos direitos do consumidor. Dados usados com base no consentimento são mantidos até você revogá-lo. Depois disso, os dados são apagados ou anonimizados.',
+          'Os dados das reservas são guardados por 5 (cinco) anos após o serviço, prazo relacionado às obrigações fiscais e aos direitos do consumidor. Dados usados com base no consentimento são mantidos até você revogá-lo. Depois disso, os dados são apagados ou anonimizados.',
         ],
       },
       {
@@ -90,13 +90,13 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '8. Segurança',
         paragrafos: [
-          'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas por área administrativa protegida por senha, e os dados de cartão são tokenizados no seu navegador e processados apenas pela Pagar.me.',
+          'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas por área administrativa protegida por senha, e o site não guarda dados de cartão.',
         ],
       },
       {
         titulo: '9. Crianças e adolescentes',
         paragrafos: [
-          'Dados de crianças e adolescentes são informados pelo adulto responsável pela reserva, apenas na medida necessária para o passeio (por exemplo, a quantidade de crianças), em seu melhor interesse (art. 14 da LGPD).',
+          'Dados de crianças e adolescentes são informados pelo adulto responsável pela reserva, apenas na medida necessária para o passeio ou o transfer (por exemplo, a quantidade de crianças e, no transfer, a idade das que vão de cadeirinha), em seu melhor interesse (art. 14 da LGPD).',
         ],
       },
       {
@@ -116,18 +116,18 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     secoes: [
       {
         titulo: '1. Data controller',
-        paragrafos: [`${E.marca}, based in ${E.cidade} – ${E.uf}, Brazil.`, `Data subject contact (data protection officer): ${E.email}.`],
+        paragrafos: [`${E.razaoSocial}, CNPJ (Brazilian company registration number) ${E.cnpj}, with its registered office at ${enderecoCompleto}, Brazil.`, `Data subject contact (data protection officer): ${E.email}.`],
       },
       {
         titulo: '2. What data we collect',
         paragrafos: ['We collect only what is needed:'],
         lista: [
-          'Identification: full name and CPF number (Brazilian citizens) or passport number (foreign visitors).',
+          'Identification: full name and, when we ask for it, CPF number (Brazilian citizens) or passport number (foreign visitors).',
           'Contact: email and phone/WhatsApp, including when you request a quote or send a message through the website.',
-          'Booking: tour, date, number of adults and children, town and name of your hotel or guesthouse, and any notes you write.',
+          'Booking: tour or transfer, date, time, number of adults and children, town and name of your hotel or guesthouse, and any notes you write. For transfers, also the route, flights, luggage and the age of children travelling in a child seat.',
           'Cart: the items you chose and, if you type it at checkout, your email, even if you do not finish the booking.',
           'Visit source: the name of the ad campaign you came from, when the link carries it.',
-          'Payment: payment method, status and, for cards, only the brand and last four digits. The full card number is sent straight to Pagar.me and never passes through our servers.',
+          'Payment: payment method, status and, for cards, only the brand and last four digits. The website does not receive or store the full card number.',
           'Browsing: IP address, device type and pages visited, logged by our providers for security and to keep the website running; and, only with your consent, browsing data for the Meta Pixel and the Google Ads tag.',
         ],
         depois: [
@@ -138,7 +138,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Why we use it and on what legal basis',
         paragrafos: [],
         lista: [
-          'To make and manage your booking, issue the voucher with the time, send the meeting point and pass the necessary details to the tour operator — performance of a contract (LGPD art. 7, V).',
+          'To make and manage your booking, issue the voucher with the time, send the meeting point and pass the necessary details to the operator — performance of a contract (LGPD art. 7, V).',
           'To process payments and refunds and prevent fraud — performance of a contract and legitimate interest (art. 7, V and IX).',
           'To keep tax, accounting and consumer records — legal obligation and exercise of rights (art. 7, II and VI).',
           'To assist you on WhatsApp and by email — performance of a contract and legitimate interest.',
@@ -151,8 +151,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Who we share it with',
         paragrafos: ['We share data only when necessary:'],
         lista: [
-          'Tour operators (boats, vehicles, guides): name, number of people, accommodation and contact, to run the tour.',
-          'Pagar.me (Stone): processing Pix and card payments.',
+          'Tour and transfer operators (boats, vehicles, drivers, guides): name, number of people, accommodation and contact and, for transfers, also the route, flights, luggage and the age of children travelling in a child seat, to run the service.',
+          'Banks and payment companies: processing Pix and card payments.',
           'Vercel and Supabase: website hosting and secure storage of bookings.',
           'Meta (WhatsApp, Facebook and Instagram): customer service on WhatsApp and, with your consent, ad measurement.',
           'Google: with your consent, ad measurement.',
@@ -172,7 +172,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '6. How long we keep it',
         paragrafos: [
-          'Booking data is kept for 5 (five) years after the tour, in line with tax obligations and consumer rights. Data used on the basis of consent is kept until you withdraw it. After that, the data is deleted or anonymised.',
+          'Booking data is kept for 5 (five) years after the service, in line with tax obligations and consumer rights. Data used on the basis of consent is kept until you withdraw it. After that, the data is deleted or anonymised.',
         ],
       },
       {
@@ -193,13 +193,13 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '8. Security',
         paragrafos: [
-          'The website uses an encrypted connection (HTTPS). Bookings are kept in private storage, accessible only through a password-protected admin area, and card details are tokenised in your browser and processed only by Pagar.me.',
+          'The website uses an encrypted connection (HTTPS). Bookings are kept in private storage, accessible only through a password-protected admin area, and the website does not store card details.',
         ],
       },
       {
         titulo: '9. Children and teenagers',
         paragrafos: [
-          'Data about children and teenagers is provided by the adult responsible for the booking, only as far as needed for the tour (for example, the number of children), in their best interest (LGPD art. 14).',
+          'Data about children and teenagers is provided by the adult responsible for the booking, only as far as needed for the tour or transfer (for example, the number of children and, for transfers, the age of those travelling in a child seat), in their best interest (LGPD art. 14).',
         ],
       },
       {
@@ -219,18 +219,18 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     secoes: [
       {
         titulo: '1. Responsable de los datos',
-        paragrafos: [`${E.marca}, con sede en ${E.cidade} – ${E.uf}, Brasil.`, `Canal del titular de datos (encargado): ${E.email}.`],
+        paragrafos: [`${E.razaoSocial}, CNPJ (registro de empresas de Brasil) ${E.cnpj}, con sede en ${enderecoCompleto}, Brasil.`, `Canal del titular de datos (delegado de protección de datos): ${E.email}.`],
       },
       {
         titulo: '2. Qué datos recopilamos',
         paragrafos: ['Recopilamos solo lo necesario:'],
         lista: [
-          'Identificación: nombre completo y número de CPF (brasileños) o de pasaporte (extranjeros).',
+          'Identificación: nombre completo y, cuando lo pedimos, número de CPF (brasileños) o de pasaporte (extranjeros).',
           'Contacto: e-mail y teléfono/WhatsApp, también cuando pedís una cotización o mandás un mensaje por el sitio.',
-          'Reserva: paseo, fecha, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas.',
+          'Reserva: paseo o traslado, fecha, horario, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas. En el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla.',
           'Carrito: los ítems que elegiste y, si lo escribís en el checkout, tu e-mail, aunque no termines la reserva.',
           'Origen de la visita: el nombre de la campaña del anuncio del que viniste, cuando el enlace lo indica.',
-          'Pago: forma de pago, estado y, en el caso de tarjeta, solo la marca y los cuatro últimos dígitos. El número completo de la tarjeta se envía directo a Pagar.me y nunca pasa por nuestros servidores.',
+          'Pago: forma de pago, estado y, en el caso de tarjeta, solo la marca y los cuatro últimos dígitos. El sitio no recibe ni guarda el número completo de la tarjeta.',
           'Navegación: dirección IP, tipo de dispositivo y páginas visitadas, registrados por nuestros proveedores por seguridad y para el funcionamiento del sitio; y, solo con tu consentimiento, datos de navegación para el Píxel de Meta y la etiqueta de Google Ads.',
         ],
         depois: [
@@ -241,7 +241,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '3. Para qué los usamos y con qué base legal',
         paragrafos: [],
         lista: [
-          'Hacer y gestionar tu reserva, emitir el voucher con el horario, enviar el punto de encuentro y pasar al operador los datos necesarios para el paseo — ejecución de contrato (art. 7, V, de la LGPD).',
+          'Hacer y gestionar tu reserva, emitir el voucher con el horario, enviar el punto de encuentro y pasar al operador los datos necesarios para el servicio — ejecución de contrato (art. 7, V, de la LGPD).',
           'Procesar pagos y reembolsos y prevenir fraudes — ejecución de contrato e interés legítimo (art. 7, V y IX).',
           'Guardar registros fiscales, contables y de consumo — obligación legal y ejercicio regular de derechos (art. 7, II y VI).',
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',
@@ -254,8 +254,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '4. Con quién los compartimos',
         paragrafos: ['Compartimos datos solo cuando es necesario:'],
         lista: [
-          'Operadores de los paseos (embarcaciones, vehículos, guías): nombre, cantidad de personas, alojamiento y contacto, para realizar el paseo.',
-          'Pagar.me (Stone): procesamiento de pagos con Pix y tarjeta.',
+          'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla, para realizar el servicio.',
+          'Bancos y empresas de pago: procesamiento de pagos con Pix y tarjeta.',
           'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
           'Meta (WhatsApp, Facebook e Instagram): atención por WhatsApp y, con tu consentimiento, medición de anuncios.',
           'Google: con tu consentimiento, medición de anuncios.',
@@ -275,7 +275,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '6. Por cuánto tiempo los guardamos',
         paragrafos: [
-          'Los datos de las reservas se guardan por 5 (cinco) años después del paseo, plazo relacionado con las obligaciones fiscales y los derechos del consumidor. Los datos usados con base en el consentimiento se mantienen hasta que lo revoques. Después, se eliminan o se anonimizan.',
+          'Los datos de las reservas se guardan por 5 (cinco) años después del servicio, plazo relacionado con las obligaciones fiscales y los derechos del consumidor. Los datos usados con base en el consentimiento se mantienen hasta que lo revoques. Después, se eliminan o se anonimizan.',
         ],
       },
       {
@@ -296,13 +296,13 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '8. Seguridad',
         paragrafos: [
-          'El sitio usa conexión cifrada (HTTPS). Las reservas quedan en un almacenamiento privado, accesible solo desde un área administrativa protegida con contraseña, y los datos de la tarjeta se tokenizan en tu navegador y los procesa solo Pagar.me.',
+          'El sitio usa conexión cifrada (HTTPS). Las reservas quedan en un almacenamiento privado, accesible solo desde un área administrativa protegida con contraseña, y el sitio no guarda datos de tarjetas.',
         ],
       },
       {
         titulo: '9. Niños y adolescentes',
         paragrafos: [
-          'Los datos de niños y adolescentes los informa el adulto responsable de la reserva, solo en la medida necesaria para el paseo (por ejemplo, la cantidad de niños), en su mejor interés (art. 14 de la LGPD).',
+          'Los datos de niños y adolescentes los informa el adulto responsable de la reserva, solo en la medida necesaria para el paseo o el traslado (por ejemplo, la cantidad de niños y, en el traslado, la edad de los que van en silla), en su mejor interés (art. 14 de la LGPD).',
         ],
       },
       {

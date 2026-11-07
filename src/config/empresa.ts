@@ -1,13 +1,19 @@
 /**
- * DADOS DA EMPRESA — único lugar para trocar nome, e-mail e telefone.
+ * DADOS DA EMPRESA — único lugar para trocar nome, endereço, e-mail e telefone.
  *
- * Rodapé, políticas, termos, voucher em PDF e checkout leem tudo daqui.
- * Nenhum CNPJ aparece no site (regra do CLAUDE.md). Quando chegar o CNPJ novo, ele volta só no
- * rodapé e nos termos, e o teste tests/sem-cnpj.test.ts muda junto.
+ * Rodapé, políticas, termos e voucher em PDF leem tudo daqui.
+ * Razão social, CNPJ e endereço aparecem no rodapé, nos termos de uso e na política de privacidade
+ * (Decreto 7.962/2013). Em outro lugar, só se o dono pedir: quem confere é tests/sem-cnpj.test.ts.
  */
 export const EMPRESA = {
   marca: 'Orla Nativa',
   slogan: 'Viagens & Passeios',
+
+  // Dados legais
+  razaoSocial: 'ORLA NATIVA LTDA',
+  cnpj: '69.664.651/0001-82',
+  enderecoRua: 'Travessa dos Pescadores, 326',
+  enderecoCidade: 'Búzios - RJ, CEP 28950-000',
 
   // Contato
   email: 'financeiro@orlanativa.com',
@@ -15,6 +21,7 @@ export const EMPRESA = {
   /**
    * Só números, com DDI e DDD. O WhatsApp aparece só no fim da reserva
    * (finalizar o pagamento e falar sobre o voucher), nunca antes.
+   * O ícone do rodapé é só enfeite e não usa este número.
    */
   whatsapp: '5521990502377',
 
@@ -37,4 +44,4 @@ export const EMPRESA = {
   descricaoFatura: 'ORLANATIVA',
 } as const;
 
-export const enderecoCurto = `${EMPRESA.cidade} – ${EMPRESA.uf}`;
+export const enderecoCompleto = `${EMPRESA.enderecoRua}, ${EMPRESA.enderecoCidade}`;

@@ -264,7 +264,7 @@ const pt = {
       { inicio: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
       {
         inicio: 'Pague por Pix ou cartão.',
-        texto: 'Sempre o valor total, na mesma página, sem taxa escondida.',
+        texto: 'Sempre o valor total, sem taxa escondida.',
       },
       {
         inicio: 'Embarque com o voucher no celular.',
@@ -275,7 +275,7 @@ const pt = {
     tutorial: [
       { titulo: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
       { titulo: 'Escolha o horário.', texto: 'Você vê os horários de saída do passeio e escolhe o seu.' },
-      { titulo: 'Pague por Pix ou cartão.', texto: 'Sempre o valor total, na mesma página, sem taxa escondida.' },
+      { titulo: 'Pague por Pix ou cartão.', texto: 'Sempre o valor total, sem taxa escondida.' },
       { titulo: 'Embarque com o voucher no celular.', texto: 'O voucher já vem com o horário, tem número único e PDF.' },
     ],
     tutorialTelas: [
@@ -292,12 +292,12 @@ const pt = {
       {
         se: 'Você desistir da compra',
         recebe: 'Reembolso integral, pelo Código de Defesa do Consumidor',
-        prazo: 'Até 7 dias após a compra',
+        prazo: 'Até 7 dias após a compra, antes do serviço',
       },
       { se: 'Você quiser trocar a data', recebe: 'Nova data sem custo, conforme a disponibilidade', prazo: 'Até 24 h antes' },
       { se: 'Nós ou o operador cancelarmos', recebe: 'Reembolso integral ou nova data', prazo: 'Sem custo' },
       {
-        se: 'Você cancelar com menos de 24 horas ou não comparecer',
+        se: 'Você cancelar com menos de 24 horas, passados os 7 dias da compra, ou não comparecer',
         recebe: 'Sem reembolso: a vaga já foi paga ao operador',
         prazo: 'Não se aplica',
       },
@@ -353,7 +353,7 @@ const pt = {
     },
     {
       p: 'Posso cancelar a reserva?',
-      r: 'Sim. Cancelando com pelo menos 24 horas de antecedência, o reembolso é integral. Compras online também têm o direito de arrependimento de 7 dias previsto no Código de Defesa do Consumidor.',
+      r: 'Sim. Cancelando com pelo menos 24 horas de antecedência, o reembolso é integral. Compras online também têm o direito de arrependimento de 7 dias previsto no Código de Defesa do Consumidor, desde que o serviço ainda não tenha acontecido.',
     },
     {
       p: 'Vocês buscam no hotel?',
@@ -369,11 +369,11 @@ const pt = {
     },
     {
       p: 'Sou estrangeiro. Posso reservar?',
-      r: 'Pode, sim. Atendemos em português, inglês e espanhol. No checkout, informe o número do seu passaporte e o telefone com o código do país.',
+      r: 'Pode, sim. Atendemos em português, inglês e espanhol. No checkout, informe o telefone com o código do país.',
     },
     {
       p: 'É seguro pagar pelo site?',
-      r: 'Sim. O site usa conexão criptografada e os pagamentos são processados pela Pagar.me. Os dados do cartão vão direto para a processadora e não ficam com a gente.',
+      r: 'Sim. O site usa conexão criptografada e não guarda os dados do seu cartão.',
     },
   ],
   passeios: {
@@ -564,7 +564,7 @@ const pt = {
     pagarCartao: 'Pagar {valor}',
     processando: 'Processando…',
     avisoTotal: 'O pagamento é sempre do valor total da reserva.',
-    seguro: 'Pagamento processado com segurança pela Pagar.me. Os dados do cartão vão direto para a processadora.',
+    seguro: 'Cartão processado com segurança pela Stripe. Os dados do cartão vão direto para ela e não ficam com a gente.',
     resumo: 'Resumo da reserva',
     total: 'Total',
     indisponivelTitulo: 'Pagamento online em ativação',

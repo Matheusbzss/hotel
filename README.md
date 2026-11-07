@@ -1,6 +1,6 @@
 # Orla Nativa — Viagens & Passeios
 
-Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento por Pix ou cartão (Pagar.me API v5), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês e espanhol.
+Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento finalizado pelo WhatsApp (cartão pela Stripe e Pix manual entram nas Etapas 4 e 5 da Fase 4), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês e espanhol.
 
 ## Onde mudar cada coisa
 
@@ -70,6 +70,8 @@ Veja `.env.example`. Resumo:
 Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e registra a reserva para finalizar pelo WhatsApp. Com chaves de teste (`sk_test_…`/`pk_test_…`), o fluxo completo funciona em modo de teste.
 
 ## Como funciona o pagamento
+
+Hoje a Pagar.me está parada, sem chaves em produção: o pedido é registrado no site e a equipe fecha o pagamento pelo WhatsApp. O código abaixo fica até a Stripe e o Pix manual entrarem no ar.
 
 1. O cliente escolhe data e pessoas; o total é recalculado no servidor (o navegador nunca define o preço).
 2. **Pix**: o servidor cria o pedido na Pagar.me e mostra QR Code + copia e cola. A página consulta o status a cada 4 s e o webhook confirma o pagamento.

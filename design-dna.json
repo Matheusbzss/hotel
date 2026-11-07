@@ -732,7 +732,7 @@
       "negative_space_role": "pausa calma depois de cada bloco denso"
     },
     "imagery": {
-      "photo_treatment": "fotos reais em cor natural, sem filtro; o topo é o pôr do sol com barcos na baía de Búzios; cada passeio usa a própria foto; fotos de terceiros só com licença de uso comercial e crédito registrado em public/fotos/CREDITOS.md",
+      "photo_treatment": "fotos reais em cor natural, sem filtro; o topo é o pôr do sol com barcos na baía de Búzios; cada passeio usa a própria foto; fotos de terceiros só com licença de uso comercial e crédito registrado em docs/CREDITOS.md",
       "illustration_style": "nenhuma; só ícones de linha próprios",
       "graphic_elements": "células com cor de dado, linha do horizonte",
       "pattern_usage": "none",

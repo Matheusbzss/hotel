@@ -21,7 +21,7 @@ test('ajuste geral de preços e preço no Pix', () => {
   assert.equal(precoPixCentavos(29150, 10), 26235);
 });
 
-test('os 19 passeios da lista do parceiro mantêm o preço de venda de antes', () => {
+test('os 19 passeios mantêm o preço de venda de antes', () => {
   const esperado: Record<string, number> = {
     'full-day-buzios': 264,
     'city-tour-buzios': 209,

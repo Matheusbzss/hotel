@@ -23,3 +23,8 @@ material-recebido/
 
 # fontes baixadas para gerar a logo (Cinzel, licença OFL)
 .impeccable/fontes/
+
+# documentos de trabalho do dono: nunca vão para o git
+/CLAUDE.md
+/FASE-*.md
+/.claude/launch.json

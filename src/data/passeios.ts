@@ -706,8 +706,6 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'lancha-buzios',
-    // Lista do parceiro: "Aluguel de Lancha R$ 400" — interpretado como valor por hora
-    // (2 h = R$ 800, 4 h = R$ 1.600). Confirme com o parceiro.
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'lancha',
@@ -783,8 +781,7 @@ export const PASSEIOS: Passeio[] = [
   },
   {
     slug: 'jet-ski-buzios',
-    // Lista do parceiro: "Jet Ski R$ 700" — interpretado como 1 hora. A opção de 30 minutos
-    // usa o preço médio de mercado (pesquisa). Confirme com o parceiro.
+    // A opção de 30 minutos usa o preço médio de mercado (pesquisa). Confirme com o parceiro.
     origemPreco: 'parceiro',
     cidade: 'buzios',
     categoria: 'aventura',

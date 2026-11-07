@@ -37,7 +37,7 @@ Barlow (texto), Barlow Semi Condensed (títulos, preços, etiquetas), Barlow Con
 
 ## Fotos
 
-Fotos reais dos passeios em `public/fotos/`. Fotos de terceiros só com licença comercial, registradas em `public/fotos/CREDITOS.md`.
+Fotos reais dos passeios em `public/fotos/`. Fotos de terceiros só com licença comercial, registradas em `docs/CREDITOS.md`.
 
 ## Movimento e 3D
 

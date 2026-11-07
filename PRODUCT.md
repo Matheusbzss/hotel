@@ -26,7 +26,7 @@ Praticidade e organização: os passeios da viagem ficam resolvidos de casa, ant
 
 - O cliente vê o anúncio no celular, entra direto em espanhol e compara passeios, datas e preços antes da viagem.
 - Pagamento por Pix ou cartão (hoje Pagar.me; a troca de provedor é decisão futura do dono). Depois de pagar, recebe voucher com código único, em PDF.
-- Preço de venda = preço do parceiro + `MARGEM_PERCENTUAL` (10%). Unidades por pessoa, veículo ou embarcação, com regras de criança por passeio (`src/data/passeios.ts`).
+- Cada passeio guarda o preço de venda, com unidades por pessoa, veículo ou embarcação e regras de criança (`src/data/passeios.ts`). O ajuste geral e o desconto do Pix ficam em `src/config/precos.ts`.
 - Existe área administrativa (`/admin`) para acompanhar e marcar reservas.
 
 ## Capabilities and Constraints

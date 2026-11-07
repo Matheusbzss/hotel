@@ -7,8 +7,8 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 | O que                                                                                                               | Arquivo                                       |
 | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | Nome, e-mail, WhatsApp (só no fim da reserva), domínio                                                              | `src/config/empresa.ts`                       |
-| Passeios (nome, cidade, categoria, preço do parceiro, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                        |
-| Margem sobre o preço do parceiro (hoje 10%)                                                                         | `MARGEM_PERCENTUAL` em `src/data/passeios.ts` |
+| Passeios (nome, cidade, categoria, preço de venda, opções, unidade, crianças, duração, inclusos, roteiro, fotos)    | `src/data/passeios.ts`                        |
+| Ajuste de todos os preços e desconto do Pix                                                                         | `src/config/precos.ts`                        |
 | Regra padrão de crianças (até 5 anos grátis)                                                                        | `CRIANCAS_PADRAO` em `src/data/passeios.ts`   |
 | Pacotes Passeio + Hospedagem (sob consulta)                                                                         | `src/data/pacotes.ts`                         |
 | Casas de temporada (desligada até as parcerias)                                                                     | `src/data/casas.ts`                           |
@@ -18,14 +18,13 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pa
 
 ### Preço
 
-O site guarda o **preço do parceiro** (`precoParceiro`) e calcula o preço de venda somando a margem:
-R$ 100 → R$ 110,00 · R$ 265 → R$ 291,50. Para mudar a margem de todos os passeios, altere só `MARGEM_PERCENTUAL`.
+Cada passeio guarda o **preço de venda** (`preco`): o que o cliente paga no cartão. Para subir ou baixar todos os preços de uma vez e para o desconto do Pix, altere `src/config/precos.ts`.
 
 Unidades de preço: `'pessoa'`, `'veiculo'` ou `'embarcacao'` (com `capacidadePorUnidade`). Ex.: quadriciclo para até 2 pessoas, reserva de 3 pessoas = 2 quadriciclos.
 
 `origemPreco` marca de onde veio o valor: `'parceiro'` (lista do parceiro) ou `'pesquisa'` (preço médio de mercado — confirme com o parceiro antes de vender).
 
-**Opções**: passeios com mais de um formato usam `opcoes`, cada uma com o próprio `precoParceiro` (ex.: lancha 2 h ou 4 h, jet ski 30 min ou 1 h). O "a partir de" usa a mais barata.
+**Opções**: passeios com mais de um formato usam `opcoes`, cada uma com o próprio `preco` (ex.: lancha 2 h ou 4 h, jet ski 30 min ou 1 h). O "a partir de" usa a mais barata.
 
 **Crianças** (`criancas` em cada passeio):
 
@@ -85,7 +84,7 @@ Vercel Blob em modo **privado**: cada reserva é um JSON em `reservas/<VOUCHER>.
 
 ## Área administrativa
 
-`/admin` (senha em `ADMIN_PASSWORD`): lista as reservas com status, voucher, data, hotel e contato; filtros, busca, total vendido e margem; botões para marcar como pago (reservas finalizadas pelo WhatsApp), cancelar ou marcar reembolso.
+`/admin` (senha em `ADMIN_PASSWORD`): lista as reservas com status, voucher, data, hotel e contato; filtros, busca e total vendido; botões para marcar como pago (reservas finalizadas pelo WhatsApp), cancelar ou marcar reembolso.
 
 ## Rodar no computador
 

@@ -5,6 +5,7 @@ import { menorPrecoDaZona, type Zona } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, rota, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { cotacaoDolar, textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { CartaoInclinavel } from '../Inclinar';
 
@@ -18,15 +19,18 @@ const ZONA: Record<Cidade, Zona> = {
 
 /**
  * O transfer como mais uma opção no trilho de cada cidade: a foto real do carro no aeroporto, o preço
- * "a partir de" por veículo (no Pix em destaque e no cartão) e o atalho para a página do transfer com a
- * cidade já no destino.
+ * "a partir de" por veículo (no Pix em destaque e no cartão, com o aproximado em dólar ao lado em espanhol
+ * e inglês, como no cartão do passeio) e o atalho para a página do transfer com a cidade já no destino.
  */
-export function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Idioma; d: Dicionario }) {
+export async function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Idioma; d: Dicionario }) {
   const T = d.transfer;
   const menor = menorPrecoDaZona(ZONA[cidade]);
   const centavos = menor === null ? null : Math.round(menor * 100);
   const preco = centavos === null ? null : formatarCifra(centavos, LOCALE_INTL[idioma]);
   const pix = centavos === null ? null : formatarCifra(precoPixCentavos(centavos), LOCALE_INTL[idioma]);
+  const cotacao = idioma === 'pt' || centavos === null ? null : await cotacaoDolar();
+  const usdPix = centavos === null ? '' : textoDolar(precoPixCentavos(centavos), cotacao, d.preco.dolar, LOCALE_INTL[idioma]);
+  const usdCartao = centavos === null ? '' : textoDolar(centavos, cotacao, d.preco.dolar, LOCALE_INTL[idioma]);
   const rotulo = [
     T.titulo,
     T.cartaoTexto,
@@ -59,10 +63,12 @@ export function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idioma: Id
               <span className="text-small text-(--color-tinta-suave)">{d.comum.aPartirDe}</span>
               <strong className="cifra text-figure">{pix}</strong>
               <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+              {usdPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usdPix}</span>}
               <span className="text-small text-(--color-tinta-suave)">{T.porVeiculo}</span>
             </p>
             <p className="text-small text-(--color-tinta-suave)">
               <span className="numeros font-semibold text-(--color-tinta)">{preco}</span> {d.preco.noCartao}
+              {usdCartao && <span className="whitespace-nowrap"> · {usdCartao}</span>}
             </p>
           </>
         )}

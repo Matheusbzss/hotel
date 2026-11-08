@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { fmt } from '@/i18n/config';
+import { textoDolar } from '@/lib/dolar';
 import { formatarCentavos } from '@/lib/orcamento';
 import { rastrear } from '@/lib/pixel';
 import type { ReservaPublica } from '@/lib/reserva-publica';
@@ -25,6 +26,7 @@ export function StatusReserva({
   idioma,
   locale,
   qrSvg,
+  dolar = null,
   textos,
   statusTextos,
   linkWhatsApp,
@@ -37,6 +39,8 @@ export function StatusReserva({
   idioma: string;
   locale: string;
   qrSvg?: string;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
   textos: T;
   statusTextos: T;
   linkWhatsApp: string;
@@ -105,6 +109,26 @@ export function StatusReserva({
   const brl = r.totalPixCentavos
     ? `${formatarCentavos(r.totalPixCentavos, locale)} ${textos.noPix} · ${formatarCentavos(r.totalCentavos, locale)} ${textos.noCartao}`
     : formatarCentavos(r.totalCentavos, locale);
+  // na tela, cada valor ganha o aproximado em dólar (espanhol e inglês), que nunca quebra no meio da linha;
+  // as mensagens vão só em real
+  const valorTela = (centavos: number, rotulo?: string) => {
+    const parte = rotulo ? `${formatarCentavos(centavos, locale)} ${rotulo}` : formatarCentavos(centavos, locale);
+    const u = textoDolar(centavos, dolar, textos.dolar ?? '', locale);
+    return u ? (
+      <>
+        {parte} <span className="whitespace-nowrap">({u})</span>
+      </>
+    ) : (
+      parte
+    );
+  };
+  const brlTela = r.totalPixCentavos ? (
+    <>
+      {valorTela(r.totalPixCentavos, textos.noPix)} · {valorTela(r.totalCentavos, textos.noCartao)}
+    </>
+  ) : (
+    valorTela(r.totalCentavos)
+  );
   const dataTexto = formatarDataIso(r.data, locale);
   // nas mensagens, a data vai junto com a hora: "sáb., 14 de nov. de 2026 às 9h"
   const dataHora = r.horario ? fmt(textos.dataHora, { data: dataTexto, hora: r.horario.texto }) : dataTexto;
@@ -248,9 +272,9 @@ export function StatusReserva({
           {t && <p className="mt-3 text-small">{textos.transferDemais}</p>}
         </div>
       )}
-      <div className="tom-campo flex items-center justify-between gap-4 px-6 py-5 md:px-8">
+      <div className="tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">
         <span className="font-semibold">{statusTextos[r.status]}</span>
-        <span className="numeros text-lead font-semibold">{brl}</span>
+        <span className="numeros text-lead font-semibold">{brlTela}</span>
       </div>
     </div>
   );

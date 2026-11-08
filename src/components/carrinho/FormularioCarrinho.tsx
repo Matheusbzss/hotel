@@ -6,6 +6,7 @@ import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
 import { rastrear } from '@/lib/pixel';
 import { CIDADES_HOSPEDAGEM, DDIS, NOME_CIDADE_HOSPEDAGEM, emailValido, telefoneValido, type CidadeHospedagem } from '@/lib/validacao';
 import { Campo, descricao } from '../Campo';
@@ -37,6 +38,8 @@ export function FormularioCarrinho({
   idioma,
   locale,
   inicial,
+  dolar = null,
+  notaCambio = '',
   textos,
   links,
 }: {
@@ -44,6 +47,10 @@ export function FormularioCarrinho({
   locale: string;
   /** O carrinho lido no servidor, para a página já abrir com os itens. */
   inicial: ItemVisivel[];
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
+  /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
+  notaCambio?: string;
   textos: {
     checkout: Dicionario['checkout'];
     transfer: Dicionario['transfer'];
@@ -82,6 +89,7 @@ export function FormularioCarrinho({
   const transfers = itens.filter((i) => i.transfer);
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   const brl = (c: number) => formatarCifra(c, locale);
+  const usd = (c: number) => textoDolar(c, dolar, textos.preco.dolar, locale);
   const extrasDe = (id: string) => extras[id] ?? SEM_EXTRAS;
   const mudarExtras = (id: string, m: Partial<ExtrasItem>) => setExtras((e) => ({ ...e, [id]: { ...(e[id] ?? SEM_EXTRAS), ...m } }));
   const nomeIdade = (n: number) => (n === 0 ? T.menosDeUmAno : n === 1 ? T.umAno : fmt(T.nAnos, { n }));
@@ -209,7 +217,14 @@ export function FormularioCarrinho({
         <ListaCarrinho
           itens={itens}
           locale={locale}
-          textos={{ mudar: K.mudar, remover: K.remover, noPix: textos.preco.noPix, noCartao: textos.preco.noCartao }}
+          dolar={dolar}
+          textos={{
+            mudar: K.mudar,
+            remover: K.remover,
+            noPix: textos.preco.noPix,
+            noCartao: textos.preco.noCartao,
+            dolar: textos.preco.dolar,
+          }}
           aoRemover={remover}
         />
       </div>
@@ -480,9 +495,11 @@ export function FormularioCarrinho({
           <SugestoesCarrinho
             className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pb-2 pt-5 sm:px-6"
             locale={locale}
+            dolar={dolar}
             textos={{
               ...K,
               noPix: textos.preco.noPix,
+              dolar: textos.preco.dolar,
               dataPasseio: textos.dataPasseio,
               escolhaData: textos.escolhaData,
               opcao: C.opcao,
@@ -493,15 +510,21 @@ export function FormularioCarrinho({
             <div className="flex items-center justify-between gap-4">
               <span className="font-semibold">
                 {C.total} <span className="text-(--color-d2)">{textos.preco.noPix}</span>
+                {usd(totalPixCentavos) && (
+                  <span className="whitespace-nowrap text-small font-normal text-(--tinta-suave)"> · {usd(totalPixCentavos)}</span>
+                )}
               </span>
               <span className="numeros titulo leading-none">{brl(totalPixCentavos)}</span>
             </div>
             <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
               <span>
                 {C.total} {textos.preco.noCartao}
+                {usd(totalCentavos) && <span className="whitespace-nowrap"> · {usd(totalCentavos)}</span>}
               </span>
               <span className="numeros font-semibold">{brl(totalCentavos)}</span>
             </p>
+            {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
+            {dolar && notaCambio && <p className="mt-2 text-caption text-(--tinta-suave)">{notaCambio}</p>}
           </div>
           <div className="space-y-3">
             {(erroGeral || (tentou && temErros)) && (

@@ -6,6 +6,7 @@ import { StatusReserva } from '@/components/StatusReserva';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { linkEmail } from '@/lib/email';
 import { sincronizarReserva } from '@/lib/pagamentos';
 import { paraPublico, tokenConfere } from '@/lib/reserva-publica';
@@ -42,6 +43,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
     reserva = await sincronizarReserva(reserva, 'consulta').catch(() => reserva!);
   }
   const publica = paraPublico(reserva, locale);
+  // o aproximado em dólar ao lado do total (inclusive na tela do Pix), só em espanhol e inglês
+  const cambio = await cambioParaTela(locale);
   const qrSvg = publica.pixCopiaECola
     ? await QRCode.toString(publica.pixCopiaECola, { type: 'svg', margin: 1, color: { dark: '#082F3F', light: '#FFFFFF' } })
     : undefined;
@@ -59,6 +62,7 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         idioma={locale}
         locale={LOCALE_INTL[locale]}
         qrSvg={qrSvg}
+        dolar={cambio.taxa}
         numeroWhatsApp={EMPRESA.whatsapp}
         telefoneExibicao={EMPRESA.telefoneExibicao}
         linkWhatsApp={linkWhatsApp(`${d.contato.msg} (${publica.codigo})`)}
@@ -84,6 +88,7 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           transferConfirmado: d.transfer.confirmadoTexto,
           noPix: d.preco.noPix,
           noCartao: d.preco.noCartao,
+          dolar: d.preco.dolar,
         }}
       />
     </main>

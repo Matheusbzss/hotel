@@ -2,11 +2,14 @@
 
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
 
 export interface TextosResumo {
   total: string;
   noPix: string;
   noCartao: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
   umPagamento: string;
   finalizar: string;
   continuar: string;
@@ -17,32 +20,45 @@ export function ResumoCarrinho({
   itens,
   locale,
   hrefFinalizar,
+  dolar = null,
+  notaCambio = '',
   textos: T,
   aoContinuar,
 }: {
   itens: ItemVisivel[];
   locale: string;
   hrefFinalizar: string;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
+  /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
+  notaCambio?: string;
   textos: TextosResumo;
   /** Fecha a gaveta. */
   aoContinuar?: () => void;
 }) {
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   const brl = (c: number) => formatarCifra(c, locale);
+  const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
   return (
     <div>
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-semibold">
           {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+          {usd(totalPixCentavos) && (
+            <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)"> · {usd(totalPixCentavos)}</span>
+          )}
         </span>
         <strong className="cifra text-figure">{brl(totalPixCentavos)}</strong>
       </div>
       <p className="flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)">
         <span>
           {T.total} {T.noCartao}
+          {usd(totalCentavos) && <span className="whitespace-nowrap"> · {usd(totalCentavos)}</span>}
         </span>
         <span className="numeros font-semibold text-(--color-tinta)">{brl(totalCentavos)}</span>
       </p>
+      {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
+      {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
       <p className="mt-3 text-small text-(--color-tinta-suave)">{T.umPagamento}</p>
       <a
         href={hrefFinalizar}

@@ -28,3 +28,6 @@ material-recebido/
 /CLAUDE.md
 /FASE-*.md
 /.claude/launch.json
+
+# capturas da ferramenta Playwright MCP (só no computador)
+.playwright-mcp/

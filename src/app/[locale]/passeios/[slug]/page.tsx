@@ -7,15 +7,17 @@ import { CardPasseio } from '@/components/CardPasseio';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
 import { ListaMarcada } from '@/components/ListaMarcada';
 import { Confianca } from '@/components/passeio/Confianca';
+import { OpinioesPasseio } from '@/components/passeio/OpinioesPasseio';
 import { TopoPasseio } from '@/components/passeio/TopoPasseio';
 import { WidgetReserva } from '@/components/WidgetReserva';
 import { EMPRESA } from '@/config/empresa';
 import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { avaliacoesDoSite } from '@/lib/avaliacao';
 import { itemBoletim } from '@/lib/boletim';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { formatarCifra } from '@/lib/cifra';
-import { cotacaoDolar } from '@/lib/dolar';
 import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
@@ -63,8 +65,10 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const unidadePlural = p.unidade === 'veiculo' ? d.comum.veiculos : d.comum.embarcacoes;
   const regras = regrasCriancas(p, d);
   const horarios = horariosDoPasseio(p);
-  // o aproximado em dólar só nas páginas em espanhol e inglês
-  const dolar = locale === 'pt' ? null : await cotacaoDolar();
+  // o aproximado em dólar e a nota da cotação, só nas páginas em espanhol e inglês
+  const cambio = await cambioParaTela(locale);
+  // sem banco, a página abre sem o cartão de opiniões: as avaliações nunca derrubam o passeio
+  const avaliacoes = await avaliacoesDoSite().catch(() => []);
   const rotuloHorario = horarios.busca ? d.horario.busca : horarios.horas.length === 1 ? d.horario.saida : d.horario.saidas;
 
   const endereco = `${urlDoSite()}${rota(locale, `/passeios/${p.slug}`)}`;
@@ -220,7 +224,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 locale={intl}
                 finalizarHref={rota(locale, '/checkout')}
                 garantias={<Confianca d={d} />}
-                dolar={dolar}
+                dolar={cambio.taxa}
+                notaCambio={cambio.nota}
                 textos={{
                   titulo: d.passeio.reservarTitulo,
                   data: d.passeio.data,
@@ -236,7 +241,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   aPartirDe: d.comum.aPartirDe,
                   diminuir: d.comum.diminuir,
                   aumentar: d.comum.aumentar,
-                  revisao: d.passeio.revisao,
+                  semCobranca: d.carrinho.semCobranca,
                   semHorarioHoje: d.checkout.erros.semHorarioHoje,
                   noPix: d.preco.noPix,
                   noCartao: d.preco.noCartao,
@@ -250,6 +255,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   cheio: d.carrinho.cheio,
                 }}
               />
+              {/* no celular, logo abaixo do cartão de reserva; no computador, preso junto com ele na coluna */}
+              <OpinioesPasseio avaliacoes={avaliacoes} slug={p.slug} idioma={locale} d={d} className="mt-5" />
             </div>
           </aside>
         </div>

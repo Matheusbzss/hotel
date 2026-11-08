@@ -5,6 +5,7 @@ import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import { textosCotacao } from '@/lib/cotacao';
+import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
 
 /** Os textos do cartão de reserva do transfer. */
@@ -19,6 +20,7 @@ export function textosWidgetTransfer(d: Dicionario) {
     dolar: d.preco.dolar,
     adicionar: d.carrinho.adicionar,
     reservarAgora: d.carrinho.reservarAgora,
+    semCobranca: d.carrinho.semCobranca,
     adicionando: d.carrinho.adicionando,
     erroAdicionar: d.carrinho.erroAdicionar,
     cheio: d.carrinho.cheio,
@@ -43,19 +45,38 @@ export function FichaTransfer({ d, className = '' }: { d: Dicionario; className?
   );
 }
 
-/** Os trajetos com preço fixo, com o preço do carro e da van por trecho: no Pix em destaque e no cartão. */
-export function PrecosTransfer({ d, idioma, className = '' }: { d: Dicionario; idioma: Idioma; className?: string }) {
+/**
+ * Os trajetos com preço fixo, com o preço do carro e da van por trecho: no Pix em destaque e no cartão,
+ * cada um com o aproximado em dólar ao lado nas páginas em espanhol e inglês.
+ */
+export function PrecosTransfer({
+  d,
+  idioma,
+  dolar = null,
+  className = '',
+}: {
+  d: Dicionario;
+  idioma: Idioma;
+  /** Reais por dólar, para o "≈ US$" (null no português e sem cotação). */
+  dolar?: number | null;
+  className?: string;
+}) {
   const T = d.transfer;
   const locale = LOCALE_INTL[idioma];
+  const usd = (centavos: number) => textoDolar(centavos, dolar, d.preco.dolar, locale);
   const preco = (reais: number | null) => {
     if (reais === null) return <span className="cifra text-lead font-semibold">{T.sobCotacao}</span>;
     const centavos = Math.round(reais * 100);
+    const usdPix = usd(precoPixCentavos(centavos));
+    const usdCartao = usd(centavos);
     return (
       <>
         <span className="cifra text-lead font-semibold">{formatarCifra(precoPixCentavos(centavos), locale)}</span>{' '}
         <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+        {usdPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)"> · {usdPix}</span>}
         <span className="block text-small text-(--color-tinta-suave)">
           <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(centavos, locale)}</span> {d.preco.noCartao}
+          {usdCartao && <span className="whitespace-nowrap"> · {usdCartao}</span>}
         </span>
       </>
     );
@@ -66,11 +87,13 @@ export function PrecosTransfer({ d, idioma, className = '' }: { d: Dicionario; i
         {T.precosTitulo}
       </h2>
       <p className="mt-2 max-w-[60ch] text-(--color-tinta-suave)">{T.precosTexto}</p>
+      {/* o nome em cima e os dois veículos embaixo em qualquer largura: com o ≈ US$ ao lado de cada preço,
+          a coluna de preços ao lado do nome espremia o nome no computador */}
       <ul className="mt-5 grid gap-(--vao-celula)">
         {TRAJETOS.map((t) => (
-          <li key={t.de} className="celula grid gap-3 px-4 py-3.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-6">
+          <li key={t.de} className="celula grid gap-3 px-4 py-3.5">
             <p className="font-semibold">{t.nome[idioma]}</p>
-            <dl className="flex gap-6">
+            <dl className="flex flex-wrap gap-x-8 gap-y-3">
               {VEICULOS_EM_ORDEM.map((v) => (
                 <div key={v}>
                   <dt className="text-small text-(--color-tinta-suave)">{VEICULOS[v].nome[idioma]}</dt>

@@ -114,6 +114,8 @@ const pt = {
     cartao: 'Cartão',
     descontoPix: '{p}% de desconto no Pix',
     dolar: '≈ US$ {v}',
+    // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
+    notaCambio: 'Você paga em reais. O ≈ US$ é aproximado: cotação do Banco Central do Brasil de {data}.',
   },
   carrinho: {
     titulo: 'Seu carrinho',
@@ -132,7 +134,9 @@ const pt = {
     adicionado: 'Adicionado ao carrinho',
     verCarrinho: 'Ver carrinho',
     adicionar: 'Adicionar ao carrinho',
-    reservarAgora: 'Reservar agora',
+    reservarAgora: 'Reservar',
+    // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
+    semCobranca: 'Ainda não cobramos nada: você confere tudo antes de pagar.',
     horario: 'Horário',
     escolhaHorario: 'Escolha o horário',
     umPagamento: 'Um pagamento só e um voucher para cada item.',
@@ -394,7 +398,7 @@ const pt = {
     reservarTitulo: 'Reserve o seu',
     data: 'Data do passeio',
     total: 'Total',
-    reservar: 'Reservar e pagar',
+    reservar: 'Reservar',
     unidadesAviso: '{pessoas} → {n} {unidade}',
     politica: 'Cancelamento grátis até 24h antes. Choveu ou o mar fechou? Reembolso ou nova data.',
     escolhaData: 'Escolha a data',
@@ -404,7 +408,6 @@ const pt = {
     fotoAnterior: 'Foto anterior',
     proximaFoto: 'Próxima foto',
     fotoDe: 'Foto {i} de {n}',
-    revisao: 'Você confere tudo na próxima página, antes de pagar.',
     semFotos: 'Fotos deste passeio em breve.',
     precoPorPessoa: 'por pessoa',
     escolhaOpcao: 'Escolha a duração',
@@ -412,6 +415,11 @@ const pt = {
     pagoSeguro: 'Pagamento seguro por Pix ou cartão',
     encontro: 'Ponto de encontro',
     encontroTexto: 'A equipe envia pelo WhatsApp depois da reserva',
+    // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio
+    opinioesTitulo: 'Opiniões sobre a Orla Nativa',
+    opinioesContagem: '{n} opiniões',
+    opinioesContagemUma: '1 opinião',
+    opinioesVerTodas: 'Ver todas as opiniões',
   },
   horario: {
     saida: 'Horário de saída',

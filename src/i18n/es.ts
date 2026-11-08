@@ -116,6 +116,8 @@ const es: Dicionario = {
     cartao: 'Tarjeta',
     descontoPix: '{p}% de descuento con Pix',
     dolar: '≈ US$ {v}',
+    // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
+    notaCambio: 'Pagás en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',
   },
   carrinho: {
     titulo: 'Tu carrito',
@@ -134,7 +136,9 @@ const es: Dicionario = {
     adicionado: 'Agregado al carrito',
     verCarrinho: 'Ver carrito',
     adicionar: 'Agregar al carrito',
-    reservarAgora: 'Reservar ahora',
+    reservarAgora: 'Reservar',
+    // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
+    semCobranca: 'Todavía no te cobramos nada: revisás todo antes de pagar.',
     horario: 'Horario',
     escolhaHorario: 'Elegí el horario',
     umPagamento: 'Un solo pago y un voucher para cada ítem.',
@@ -396,7 +400,7 @@ const es: Dicionario = {
     reservarTitulo: 'Reservá el tuyo',
     data: 'Fecha del paseo',
     total: 'Total',
-    reservar: 'Reservar y pagar',
+    reservar: 'Reservar',
     unidadesAviso: '{pessoas} → {n} {unidade}',
     politica: 'Cancelación gratis hasta 24 h antes. ¿Llovió o el mar cerró? Reembolso o nueva fecha.',
     escolhaData: 'Elegí la fecha',
@@ -406,7 +410,6 @@ const es: Dicionario = {
     fotoAnterior: 'Foto anterior',
     proximaFoto: 'Foto siguiente',
     fotoDe: 'Foto {i} de {n}',
-    revisao: 'Revisás todo en la página siguiente, antes de pagar.',
     semFotos: 'Pronto, fotos de este paseo.',
     precoPorPessoa: 'por persona',
     escolhaOpcao: 'Elegí la duración',
@@ -414,6 +417,11 @@ const es: Dicionario = {
     pagoSeguro: 'Pago seguro con Pix o tarjeta',
     encontro: 'Punto de encuentro',
     encontroTexto: 'Te lo envía el equipo por WhatsApp después de reservar',
+    // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio
+    opinioesTitulo: 'Opiniones sobre Orla Nativa',
+    opinioesContagem: '{n} opiniones',
+    opinioesContagemUma: '1 opinión',
+    opinioesVerTodas: 'Ver todas las opiniones',
   },
   horario: {
     saida: 'Horario de salida',

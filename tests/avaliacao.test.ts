@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EsquemaAvaliacao, MAXIMO_NO_SITE, opinioesDoSite, type Avaliacao } from '../src/lib/avaliacao.ts';
+import {
+  EsquemaAvaliacao,
+  MAXIMO_NO_SITE,
+  notaDaAgencia,
+  opinioesDoSite,
+  ordenarParaPasseio,
+  trechoDaAvaliacao,
+  trechosDoCartao,
+  type Avaliacao,
+} from '../src/lib/avaliacao.ts';
 
 const nova = {
   nome: 'Ana',
@@ -62,4 +71,91 @@ test('primeiro as do idioma da página, das mais novas para as mais antigas, e n
   );
   const muitas = Array.from({ length: 9 }, (_, i) => avaliacao(String(i), `2026-10-0${i + 1}`));
   assert.equal(opinioesDoSite(muitas, 'pt').length, MAXIMO_NO_SITE);
+});
+
+/** Uma avaliação completa, mudando só o que o caso precisa. */
+const avaliacaoCom = (muda: Partial<Avaliacao> & { id: string }): Avaliacao => ({
+  nome: 'Ana',
+  nota: 5,
+  texto: 'Texto de exemplo',
+  origem: 'tripadvisor',
+  data: '2026-10-20',
+  publicada: true,
+  ...muda,
+});
+
+test('a nota da agência conta só as avaliações da agência e arredonda para baixo', () => {
+  const lista = [
+    avaliacaoCom({ id: 'sem-campo', nota: 5 }), // sem o campo "sobre": é da agência (o padrão do banco)
+    avaliacaoCom({ id: 'agencia', nota: 5, sobre: 'agencia' }),
+    avaliacaoCom({ id: 'agencia-4', nota: 4, sobre: 'agencia' }),
+    avaliacaoCom({ id: 'cidade', nota: 1, sobre: 'destino', lugar: 'Rua das Pedras' }), // da cidade: fora da nota
+    avaliacaoCom({ id: 'sem-nota', nota: undefined, sobre: 'agencia' }), // sem nota: fora da média e da contagem
+  ];
+  // 14 / 3 = 4,666…: para baixo, nunca para cima
+  assert.deepEqual(notaDaAgencia(lista), { media: 4.6, total: 3 });
+  // o exemplo da decisão: 4,96 vira 4,9, nunca 5,0
+  const vinteCinco = [
+    ...Array.from({ length: 24 }, (_, i) => avaliacaoCom({ id: `cinco-${i}`, nota: 5 })),
+    avaliacaoCom({ id: 'quatro', nota: 4 }),
+  ];
+  assert.deepEqual(notaDaAgencia(vinteCinco), { media: 4.9, total: 25 });
+  // sem avaliação da agência com nota, não há o que mostrar
+  assert.deepEqual(notaDaAgencia([]), { media: 0, total: 0 });
+  assert.deepEqual(notaDaAgencia([avaliacaoCom({ id: 'so-cidade', nota: 5, sobre: 'destino' })]), { media: 0, total: 0 });
+});
+
+test('no cartão do passeio: quem cita o passeio vem primeiro e es-ar conta como es', () => {
+  const lista = [
+    avaliacaoCom({ id: 'es-geral', idioma: 'es', data: '2026-10-01' }),
+    avaliacaoCom({ id: 'pt-cita', idioma: 'pt', produtoSlug: 'escuna-buzios', data: '2026-09-01' }),
+    avaliacaoCom({ id: 'en-nota-baixa', idioma: 'en', nota: 2, data: '2026-08-01' }),
+    avaliacaoCom({ id: 'cidade', sobre: 'destino', lugar: 'Orla Bardot', idioma: 'es', data: '2026-10-10' }),
+    avaliacaoCom({ id: 'es-cita', idioma: 'es', produtoSlug: 'escuna-buzios', data: '2026-07-01' }),
+  ];
+  // página em es-ar: cita o passeio primeiro (e, entre elas, a do idioma da página); a da cidade fica fora
+  assert.deepEqual(
+    ordenarParaPasseio(lista, 'escuna-buzios', 'es-ar').map((a) => a.id),
+    ['es-cita', 'pt-cita', 'es-geral', 'en-nota-baixa'],
+  );
+  // página em inglês: entre as que citam vale a mais nova; depois a do idioma, mesmo com nota baixa
+  assert.deepEqual(
+    ordenarParaPasseio(lista, 'escuna-buzios', 'en').map((a) => a.id),
+    ['pt-cita', 'es-cita', 'en-nota-baixa', 'es-geral'],
+  );
+  // a nota baixa nunca some da lista
+  assert.ok(ordenarParaPasseio(lista, 'outro-passeio', 'pt').some((a) => a.id === 'en-nota-baixa'));
+});
+
+test('o trecho do cartão é a primeira frase, cortada sem reescrever', () => {
+  assert.equal(trechoDaAvaliacao('Passeio incrível. A equipe foi ótima.'), 'Passeio incrível.');
+  assert.equal(trechoDaAvaliacao('Recomendo muito!'), 'Recomendo muito!');
+  assert.equal(trechoDaAvaliacao('Tudo certo'), 'Tudo certo'); // sem pontuação: o texto inteiro
+  const longa = `${'palavra '.repeat(30)}fim.`;
+  const trecho = trechoDaAvaliacao(longa);
+  assert.ok(trecho.length <= 141 && trecho.endsWith('…'));
+  // só corta: o começo é idêntico ao original
+  assert.ok(longa.startsWith(trecho.slice(0, -1)));
+});
+
+test('no cartão do passeio, frase inteira vem antes de frase cortada (decisão do dono, 08/11/2026)', () => {
+  const base = { nome: 'A', origem: 'tripadvisor' as const, publicada: true, nota: 5, idioma: 'es' as const };
+  const longa = `${'palabra '.repeat(30)}fin. Otra frase.`;
+  const lista: Avaliacao[] = [
+    { ...base, id: 'cita-longa', produtoSlug: 'escuna-buzios', texto: longa, data: '2026-10-01' },
+    { ...base, id: 'curta-1', texto: 'Excelente paseo. Volveremos.', data: '2026-09-01' },
+    { ...base, id: 'curta-2', texto: 'Muy recomendable!', data: '2026-08-01' },
+  ];
+  // a que cita o passeio seria a primeira, mas a frase dela não cabe inteira: as inteiras passam na frente
+  assert.deepEqual(
+    trechosDoCartao(lista, 'escuna-buzios', 'es').map((a) => a.id),
+    ['curta-1', 'curta-2'],
+  );
+  // sem duas inteiras, a cortada completa a lista (na ordem de sempre)
+  assert.deepEqual(
+    trechosDoCartao(lista.slice(0, 2), 'escuna-buzios', 'es').map((a) => a.id),
+    ['curta-1', 'cita-longa'],
+  );
+  // a cortada continua só cortada, nunca reescrita
+  assert.ok(trechoDaAvaliacao(longa).endsWith('…'));
 });

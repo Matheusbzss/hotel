@@ -17,7 +17,7 @@ import { WidgetTransfer } from '@/components/transfer/WidgetTransfer';
 import { FOTOS_TRANSFER, FOTO_TOPO_TRANSFER, TRAJETOS, precoDoTrajeto } from '@/data/transfer';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
-import { cotacaoDolar } from '@/lib/dolar';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { alternates, urlDoSite } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/transfer'>): Promise<Metadata> {
@@ -41,6 +41,8 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
   const T = d.transfer;
+  // o aproximado em dólar e a nota da cotação, só nas páginas em espanhol e inglês
+  const cambio = await cambioParaTela(locale);
   const precos = TRAJETOS.flatMap((t) => (['carro', 'van'] as const).map((v) => precoDoTrajeto(t, v))).filter((p) => p !== null);
   const servico = {
     '@context': 'https://schema.org',
@@ -100,7 +102,8 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
               idioma={locale}
               locale={LOCALE_INTL[locale]}
               finalizarHref={rota(locale, '/checkout')}
-              dolar={locale === 'pt' ? null : await cotacaoDolar()}
+              dolar={cambio.taxa}
+              notaCambio={cambio.nota}
               textos={textosWidgetTransfer(d)}
             />
           </div>
@@ -110,7 +113,7 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
       <div className="moldura pb-24">
         <p className="max-w-[52ch] text-lead md:hidden">{T.resumo}</p>
         <div className="mt-8 grid gap-14 md:mt-0 lg:grid-cols-2 lg:gap-16">
-          <PrecosTransfer d={d} idioma={locale} className="entrar" />
+          <PrecosTransfer d={d} idioma={locale} dolar={cambio.taxa} className="entrar" />
           <ComoFuncionaTransfer d={d} className="entrar" />
         </div>
         <VeiculosTransfer d={d} idioma={locale} className="entrar mt-14" />

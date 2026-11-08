@@ -46,7 +46,8 @@ export function Opinioes({ itens, idioma, d }: { itens: Avaliacao[]; idioma: Idi
   const mes = new Intl.DateTimeFormat(LOCALE_INTL[idioma], { month: 'long', year: 'numeric', timeZone: 'UTC' });
   return (
     <section className="moldura py-16 md:py-24" aria-labelledby="opinioes-titulo">
-      <h2 id="opinioes-titulo" className="titulo entrar">
+      {/* chegando pelo "ver todas as opiniões" do passeio, o título para abaixo da cápsula do menu */}
+      <h2 id="opinioes-titulo" className="titulo entrar scroll-mt-24">
         {O.titulo}
       </h2>
       <ul className="trilho entrar mt-6 md:mt-8 lg:grid-cols-3">

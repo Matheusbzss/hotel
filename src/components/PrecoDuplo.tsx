@@ -7,8 +7,8 @@ import { PrecoGrupo } from './grupo/PrecoGrupo';
 
 /**
  * O preço do passeio nos dois jeitos de pagar: o do Pix (com desconto) em destaque, o do cartão embaixo
- * e o total do grupo escolhido no site, no Pix. Nas páginas em espanhol e inglês, o preço do cartão
- * ganha o aproximado em dólar.
+ * e o total do grupo escolhido no site, no Pix. Nas páginas em espanhol e inglês, os dois preços
+ * ganham o aproximado em dólar ao lado.
  */
 export async function PrecoDuplo({
   tabela,
@@ -31,7 +31,10 @@ export async function PrecoDuplo({
 }) {
   const locale = LOCALE_INTL[idioma];
   const P = d.preco;
-  const usd = idioma === 'pt' ? '' : textoDolar(tabela.precoCentavos, await cotacaoDolar(), P.dolar, locale);
+  const cotacao = idioma === 'pt' ? null : await cotacaoDolar();
+  const usd = (centavos: number) => textoDolar(centavos, cotacao, P.dolar, locale);
+  const usdPix = usd(precoPixCentavos(tabela.precoCentavos));
+  const usdCartao = usd(tabela.precoCentavos);
   const suave = 'text-small text-(--color-tinta-suave)';
   return (
     <div className={className}>
@@ -41,17 +44,19 @@ export async function PrecoDuplo({
           {formatarCifra(precoPixCentavos(tabela.precoCentavos), locale)}
         </strong>
         <span className="text-small font-semibold text-(--color-sucesso)">{P.noPix}</span>
+        {usdPix && <span className={`whitespace-nowrap ${suave}`}>· {usdPix}</span>}
         <span className={suave}>{paraQuem}</span>
       </p>
       <p className={suave}>
         <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(tabela.precoCentavos, locale)}</span> {P.noCartao}
-        {usd && ` · ${usd}`}
+        {usdCartao && <span className="whitespace-nowrap"> · {usdCartao}</span>}
       </p>
       <PrecoGrupo
         tabela={tabela}
         locale={locale}
         modo="pix"
-        textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos, noPix: P.noPix, noCartao: P.noCartao }}
+        dolar={cotacao}
+        textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos, noPix: P.noPix, noCartao: P.noCartao, dolar: P.dolar }}
         className={tamanho === 'pagina' ? `mt-1 ${suave}` : 'mt-1 text-caption text-(--color-tinta-suave)'}
       />
     </div>

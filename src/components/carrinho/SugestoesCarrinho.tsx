@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { SugestaoVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
@@ -22,6 +23,8 @@ export interface TextosSugestoes {
   cheio: string;
   escolhaHorario: string;
   noPix: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
   dataPasseio: string;
   escolhaData: string;
   opcao: string;
@@ -29,7 +32,7 @@ export interface TextosSugestoes {
 }
 
 /** Um passeio sugerido: o preço para o grupo e, ao tocar em "Adicionar", a data e o horário ali mesmo. */
-function Sugestao({ s, locale, textos: T }: { s: SugestaoVisivel; locale: string; textos: TextosSugestoes }) {
+function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale: string; dolar: number | null; textos: TextosSugestoes }) {
   const { adicionar } = useCarrinho();
   const [aberta, setAberta] = useState(false);
   const [data, setData] = useState(s.data);
@@ -43,6 +46,8 @@ function Sugestao({ s, locale, textos: T }: { s: SugestaoVisivel; locale: string
   const varias = s.opcoes.length > 1;
   const livres = horasDisponiveis(s.horas, data);
   const brl = (c: number) => formatarCifra(c, locale);
+  // o aproximado em dólar só no preço "desde"; os botões de opção ficam sem, por decisão do dono
+  const usdDesde = textoDolar(s.opcoes[0].totalPixCentavos, dolar, T.dolar, locale);
 
   async function confirmar() {
     setErro('');
@@ -90,6 +95,7 @@ function Sugestao({ s, locale, textos: T }: { s: SugestaoVisivel; locale: string
             {varias && <span className="text-(--color-tinta-suave)">{T.aPartirDe} </span>}
             <span className="cifra font-semibold">{brl(s.opcoes[0].totalPixCentavos)}</span>{' '}
             <span className="font-semibold text-(--color-sucesso)">{T.noPix}</span>
+            {usdDesde && <span className="whitespace-nowrap text-(--color-tinta-suave)"> · {usdDesde}</span>}
           </p>
           <p className="text-small text-(--color-tinta-suave)">{s.pessoasTexto}</p>
         </div>
@@ -178,10 +184,13 @@ function Sugestao({ s, locale, textos: T }: { s: SugestaoVisivel; locale: string
 /** As sugestões do carrinho e do checkout: passeios que combinam, sem pressa e sem contagem regressiva. */
 export function SugestoesCarrinho({
   locale,
+  dolar = null,
   textos: T,
   className = 'border-t border-(--color-borda) pt-4',
 }: {
   locale: string;
+  /** Reais por dólar, para o "≈ US$" (null no português e sem cotação). */
+  dolar?: number | null;
   textos: TextosSugestoes;
   className?: string;
 }) {
@@ -192,7 +201,7 @@ export function SugestoesCarrinho({
       <h3 className="font-semibold">{T.sugestoesTitulo}</h3>
       <ul className="mt-1 divide-y divide-(--color-borda)">
         {sugestoes.map((s) => (
-          <Sugestao key={s.slug} s={s} locale={locale} textos={T} />
+          <Sugestao key={s.slug} s={s} locale={locale} dolar={dolar} textos={T} />
         ))}
       </ul>
     </section>

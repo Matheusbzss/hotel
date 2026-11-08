@@ -25,6 +25,7 @@ export type Database = {
           foto: string | null
           id: string
           idioma: string | null
+          lugar: string | null
           nome: string
           nota: number | null
           origem: string
@@ -32,6 +33,7 @@ export type Database = {
           pais: string | null
           produto_slug: string | null
           publicada: boolean
+          sobre: string
           texto: string
           titulo: string | null
         }
@@ -42,6 +44,7 @@ export type Database = {
           foto?: string | null
           id?: string
           idioma?: string | null
+          lugar?: string | null
           nome: string
           nota?: number | null
           origem: string
@@ -49,6 +52,7 @@ export type Database = {
           pais?: string | null
           produto_slug?: string | null
           publicada?: boolean
+          sobre?: string
           texto: string
           titulo?: string | null
         }
@@ -59,6 +63,7 @@ export type Database = {
           foto?: string | null
           id?: string
           idioma?: string | null
+          lugar?: string | null
           nome?: string
           nota?: number | null
           origem?: string
@@ -66,8 +71,33 @@ export type Database = {
           pais?: string | null
           produto_slug?: string | null
           publicada?: boolean
+          sobre?: string
           texto?: string
           titulo?: string | null
+        }
+        Relationships: []
+      }
+      cambio_dolar: {
+        Row: {
+          buscado_em: string
+          data_ptax: string
+          fonte: string
+          id: string
+          taxa: number
+        }
+        Insert: {
+          buscado_em?: string
+          data_ptax: string
+          fonte: string
+          id?: string
+          taxa: number
+        }
+        Update: {
+          buscado_em?: string
+          data_ptax?: string
+          fonte?: string
+          id?: string
+          taxa?: number
         }
         Relationships: []
       }

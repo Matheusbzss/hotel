@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Idioma } from '@/i18n/config';
-import type { Avaliacao, Origem } from './avaliacao';
+import type { Avaliacao, Origem, Sobre } from './avaliacao';
 import { supabase, usarBanco } from './banco';
 import type { Tables } from './banco-tipos';
 
@@ -22,6 +22,8 @@ const deLinha = (l: Tables<'avaliacoes'>): Avaliacao => ({
   foto: l.foto ?? undefined,
   titulo: l.titulo ?? undefined,
   produtoSlug: l.produto_slug ?? undefined,
+  sobre: l.sobre as Sobre,
+  lugar: l.lugar ?? undefined,
   nota: l.nota ?? undefined,
   texto: l.texto,
   idioma: (l.idioma as Idioma | null) ?? undefined,
@@ -49,6 +51,8 @@ export async function criarAvaliacao(nova: NovaAvaliacao): Promise<void> {
         foto: nova.foto ?? null,
         titulo: nova.titulo ?? null,
         produto_slug: nova.produtoSlug ?? null,
+        sobre: nova.sobre ?? 'agencia',
+        lugar: nova.lugar ?? null,
         nota: nova.nota ?? null,
         texto: nova.texto,
         idioma: nova.idioma ?? null,

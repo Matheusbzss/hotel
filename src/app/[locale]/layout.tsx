@@ -13,6 +13,7 @@ import { Rodape } from '@/components/Rodape';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { HREFLANG, IDIOMAS, LOCALE_INTL, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { urlDoSite } from '@/lib/site';
 import '../globals.css';
 
@@ -62,10 +63,13 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
+  // o aproximado em dólar do total da gaveta do carrinho, só em espanhol e inglês
+  const cambio = await cambioParaTela(locale);
   const textosCarrinho = {
     ...d.carrinho,
     noPix: d.preco.noPix,
     noCartao: d.preco.noCartao,
+    dolar: d.preco.dolar,
     dataPasseio: d.passeio.data,
     escolhaData: d.grupo.escolhaData,
     opcao: d.checkout.opcao,
@@ -104,6 +108,8 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
             locale={LOCALE_INTL[locale]}
             hrefFinalizar={rota(locale, '/checkout')}
             hrefPasseios={rota(locale, '/passeios')}
+            dolar={cambio.taxa}
+            notaCambio={cambio.nota}
             textos={textosCarrinho}
           />
           <BarraCarrinho locale={LOCALE_INTL[locale]} hrefFinalizar={rota(locale, '/checkout')} textos={textosCarrinho} />

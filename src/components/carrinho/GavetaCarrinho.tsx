@@ -7,7 +7,7 @@ import { ListaCarrinho } from './ListaCarrinho';
 import { ResumoCarrinho } from './ResumoCarrinho';
 import { SugestoesCarrinho, type TextosSugestoes } from './SugestoesCarrinho';
 
-export type TextosCarrinho = Dicionario['carrinho'] & Pick<Dicionario['preco'], 'noPix' | 'noCartao'> & TextosSugestoes;
+export type TextosCarrinho = Dicionario['carrinho'] & Pick<Dicionario['preco'], 'noPix' | 'noCartao' | 'dolar'> & TextosSugestoes;
 
 export const textoQuantidade = (T: { item: string; itens: string }, n: number) => (n === 1 ? T.item : T.itens.replace('{n}', String(n)));
 
@@ -19,11 +19,17 @@ export function GavetaCarrinho({
   locale,
   hrefFinalizar,
   hrefPasseios,
+  dolar = null,
+  notaCambio = '',
   textos: T,
 }: {
   locale: string;
   hrefFinalizar: string;
   hrefPasseios: string;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
+  /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
+  notaCambio?: string;
   textos: TextosCarrinho;
 }) {
   const { itens, aberto, fechar, remover } = useCarrinho();
@@ -81,8 +87,8 @@ export function GavetaCarrinho({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-1">
           {n ? (
             <>
-              <ListaCarrinho itens={itens} locale={locale} textos={T} aoRemover={remover} />
-              <SugestoesCarrinho locale={locale} textos={T} />
+              <ListaCarrinho itens={itens} locale={locale} dolar={dolar} textos={T} aoRemover={remover} />
+              <SugestoesCarrinho locale={locale} dolar={dolar} textos={T} />
             </>
           ) : (
             <div className="py-10 text-center">
@@ -95,7 +101,15 @@ export function GavetaCarrinho({
         </div>
         {n > 0 && (
           <footer className="border-t border-(--color-borda) px-5 pb-5 pt-4">
-            <ResumoCarrinho itens={itens} locale={locale} hrefFinalizar={hrefFinalizar} textos={T} aoContinuar={fechar} />
+            <ResumoCarrinho
+              itens={itens}
+              locale={locale}
+              hrefFinalizar={hrefFinalizar}
+              dolar={dolar}
+              notaCambio={notaCambio}
+              textos={T}
+              aoContinuar={fechar}
+            />
           </footer>
         )}
       </section>

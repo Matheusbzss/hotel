@@ -4,7 +4,9 @@ import { CompraPedido } from '@/components/carrinho/CompraPedido';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
 import { linkEmail } from '@/lib/email';
 import { paraPublico, tokenConfere, type ReservaPublica } from '@/lib/reserva-publica';
 import { obterPedido } from '@/lib/reservas';
@@ -45,6 +47,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const pago = status === 'pago';
   const esperando = status === 'aguardando_whatsapp';
   const brl = (c: number) => formatarCifra(c, intl);
+  // o aproximado em dólar ao lado do total, só em espanhol e inglês
+  const cambio = await cambioParaTela(locale);
+  const usd = (c: number) => textoDolar(c, cambio.taxa, d.preco.dolar, intl);
   const noPix = pedido.totalPixCentavos ?? pedido.totalCentavos;
   // pago no Pix, o cliente vê o que pagou, com o desconto
   const fechado = primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos;
@@ -133,8 +138,17 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                     </>
                   ) : (
                     <p className="numeros mt-1.5 text-small">
-                      {esperando && r.totalPixCentavos ? `${brl(r.totalPixCentavos)} ${d.preco.noPix} · ` : ''}
+                      {esperando && r.totalPixCentavos ? (
+                        <>
+                          {brl(r.totalPixCentavos)} {d.preco.noPix}
+                          {usd(r.totalPixCentavos) && (
+                            <span className="whitespace-nowrap text-(--tinta-suave)"> · {usd(r.totalPixCentavos)}</span>
+                          )}{' '}
+                          ·{' '}
+                        </>
+                      ) : null}
                       {brl(r.totalCentavos)} {esperando ? d.preco.noCartao : ''}
+                      {usd(r.totalCentavos) && <span className="whitespace-nowrap text-(--tinta-suave)"> · {usd(r.totalCentavos)}</span>}
                     </p>
                   )}
                 </li>
@@ -143,10 +157,19 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
             <div className="tom-campo px-6 py-5 md:px-8">
               <p className="font-semibold">{d.status[status]}</p>
               <p className="numeros mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
-                <span className="text-lead font-semibold">{esperando ? `${brl(noPix)} ${d.preco.noPix}` : brl(fechado)}</span>
+                <span className="text-lead font-semibold">
+                  {esperando ? `${brl(noPix)} ${d.preco.noPix}` : brl(fechado)}
+                  {usd(esperando ? noPix : fechado) && (
+                    <span className="whitespace-nowrap text-small font-normal text-(--tinta-suave)">
+                      {' '}
+                      · {usd(esperando ? noPix : fechado)}
+                    </span>
+                  )}
+                </span>
                 {esperando && (
                   <span className="text-small">
                     {brl(pedido.totalCentavos)} {d.preco.noCartao}
+                    {usd(pedido.totalCentavos) && <span className="whitespace-nowrap"> · {usd(pedido.totalCentavos)}</span>}
                   </span>
                 )}
               </p>

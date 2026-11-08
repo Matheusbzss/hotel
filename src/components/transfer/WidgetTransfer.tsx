@@ -81,6 +81,8 @@ export interface TextosTransfer {
   adicionando: string;
   erroAdicionar: string;
   cheio: string;
+  /** "Ainda não cobramos nada: você confere tudo antes de pagar.", logo abaixo dos botões. */
+  semCobranca: string;
 }
 
 interface Ponta {
@@ -177,6 +179,7 @@ export function WidgetTransfer({
   locale,
   finalizarHref,
   dolar = null,
+  notaCambio = '',
   textos: T,
 }: {
   idioma: Idioma;
@@ -185,6 +188,8 @@ export function WidgetTransfer({
   finalizarHref: string;
   /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
   dolar?: number | null;
+  /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
+  notaCambio?: string;
   textos: TextosTransfer;
 }) {
   const router = useRouter();
@@ -295,7 +300,8 @@ export function WidgetTransfer({
   const precoEscolhido = veiculo ? total(veiculo) : null;
   const cifra = (reais: number) => formatarCifra(Math.round(reais * 100), locale);
   const pixEscolhido = veiculo ? totalPix(veiculo) : null;
-  const usd = (reais: number) => textoDolar(Math.round(reais * 100), dolar, T.dolar, locale);
+  const usdCentavos = (centavos: number) => textoDolar(centavos, dolar, T.dolar, locale);
+  const usd = (reais: number) => usdCentavos(Math.round(reais * 100));
 
   const nomePonta = (p: Ponta) => {
     if (!p.lugar) return '—';
@@ -556,6 +562,12 @@ export function WidgetTransfer({
             <div className="flex items-baseline justify-between gap-4">
               <span className="font-semibold">
                 {idaVolta ? T.totalIdaVolta : T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+                {usdCentavos(pixEscolhido ?? 0) && (
+                  <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)">
+                    {' '}
+                    · {usdCentavos(pixEscolhido ?? 0)}
+                  </span>
+                )}
               </span>
               <span aria-hidden="true">
                 <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="cifra text-figure-lg" />
@@ -564,13 +576,15 @@ export function WidgetTransfer({
             <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
               <span>
                 {idaVolta ? T.totalIdaVolta : T.total} {T.noCartao}
-                {usd(precoEscolhido) && ` · ${usd(precoEscolhido)}`}
+                {usd(precoEscolhido) && <span className="whitespace-nowrap"> · {usd(precoEscolhido)}</span>}
               </span>
               <Cifra centavos={Math.round(precoEscolhido * 100)} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
             </p>
             <span className="sr-only" aria-live="polite">
               {`${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}. ${T.noCartao}: ${cifra(precoEscolhido)}.`}
             </span>
+            {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
+            {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
           </div>
           {erro && (
             <p className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
@@ -596,6 +610,8 @@ export function WidgetTransfer({
             >
               {enviando === 'carrinho' ? T.adicionando : T.adicionar}
             </button>
+            {/* nenhum dos botões cobra na hora: a frase tira a dúvida ali mesmo */}
+            <p className="text-small text-(--color-tinta-suave)">{T.semCobranca}</p>
           </div>
         </>
       ) : (

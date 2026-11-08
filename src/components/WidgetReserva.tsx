@@ -37,7 +37,8 @@ export interface TextosWidget {
   aPartirDe: string;
   diminuir: string;
   aumentar: string;
-  revisao: string;
+  /** "Ainda não cobramos nada: você confere tudo antes de pagar.", logo abaixo dos botões. */
+  semCobranca: string;
   semHorarioHoje: string;
   noPix: string;
   noCartao: string;
@@ -69,6 +70,7 @@ export function WidgetReserva({
   finalizarHref,
   garantias,
   dolar = null,
+  notaCambio = '',
   textos: T,
 }: {
   slug: string;
@@ -86,6 +88,8 @@ export function WidgetReserva({
   garantias?: ReactNode;
   /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
   dolar?: number | null;
+  /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
+  notaCambio?: string;
   textos: TextosWidget;
 }) {
   const router = useRouter();
@@ -209,11 +213,14 @@ export function WidgetReserva({
           {mostrarOpcoes && <span className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</span>}
           <strong className="cifra text-figure">{brl(precoPixCentavos(menorPreco))}</strong>
           <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+          {usd(precoPixCentavos(menorPreco)) && (
+            <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usd(precoPixCentavos(menorPreco))}</span>
+          )}
           <span className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</span>
         </p>
         <p className="text-small text-(--color-tinta-suave)">
           <span className="numeros font-semibold text-(--color-tinta)">{brl(menorPreco)}</span> {T.noCartao}
-          {usd(menorPreco) && ` · ${usd(menorPreco)}`}
+          {usd(menorPreco) && <span className="whitespace-nowrap"> · {usd(menorPreco)}</span>}
         </p>
 
         {mostrarOpcoes && (
@@ -314,6 +321,9 @@ export function WidgetReserva({
           <div className="flex items-baseline justify-between gap-4">
             <span className="font-semibold">
               {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+              {usd(totalPix) && (
+                <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)"> · {usd(totalPix)}</span>
+              )}
             </span>
             {/* os números rolam na tela; o leitor de tela ouve só os valores finais */}
             <span aria-hidden="true">
@@ -323,13 +333,15 @@ export function WidgetReserva({
           <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
             <span>
               {T.total} {T.noCartao}
-              {usd(orc.totalCentavos) && ` · ${usd(orc.totalCentavos)}`}
+              {usd(orc.totalCentavos) && <span className="whitespace-nowrap"> · {usd(orc.totalCentavos)}</span>}
             </span>
             <Cifra centavos={orc.totalCentavos} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
           </p>
           <span className="sr-only" aria-live="polite">
             {`${T.total} ${T.noPix}: ${brl(totalPix)}. ${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}.`}
           </span>
+          {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
+          {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
         </div>
         {opcao.tabela.unidade !== 'pessoa' && (
           <p className="mt-2 text-right text-small font-semibold" aria-live="polite">
@@ -363,10 +375,11 @@ export function WidgetReserva({
           >
             {enviando === 'carrinho' ? T.adicionando : T.adicionar}
           </button>
+          {/* nenhum dos botões cobra na hora: a frase tira a dúvida ali mesmo */}
+          <p className="text-small text-(--color-tinta-suave)">{T.semCobranca}</p>
         </div>
         {garantias && <div className="mt-5">{garantias}</div>}
       </div>
-      <p className="pt-3 text-small text-(--color-tinta-suave)">{T.revisao}</p>
     </div>
   );
 }

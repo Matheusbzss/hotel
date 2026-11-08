@@ -13,10 +13,13 @@ import { RESERVA_CASAS_ABERTA } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { cambioParaTela } from '@/lib/cambio-tela';
 import { noitesOcupadas } from '@/lib/casa';
 import { casasAtivas, obterCasa, periodosOcupados } from '@/lib/casas';
 import { formatarCifra } from '@/lib/cifra';
 import { SINAL_PORCENTO, menorDiaria } from '@/lib/diarias';
+import { textoDolar } from '@/lib/dolar';
+import { precoPixCentavos } from '@/lib/orcamento';
 import { alternates } from '@/lib/site';
 import { hojeEmBuzios } from '@/lib/validacao';
 
@@ -78,7 +81,6 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
   const formatoData = new Intl.DateTimeFormat(intl, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
   const data = (iso: string) => formatoData.format(new Date(`${iso}T12:00:00Z`));
   const minimo = (n: number) => (n > 1 ? fmt(t.minimoDe, { n }) : '');
-  const tamanho = `${fmt(t.quartos, { n: c.quartos })} · ${fmt(t.capacidade, { n: c.capacidade })}`;
   const hoje = hojeEmBuzios();
   const periodos = [...c.temporadas, ...c.feriados].filter((p) => p.ate >= hoje).sort((a, b) => a.de.localeCompare(b.de));
   // cada linha da tabela: o nome, o valor e as notas embaixo (as datas e o mínimo de noites)
@@ -95,13 +97,23 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
   ].map((v) => ({ ...v, notas: v.notas.filter(Boolean) }));
   const outras = (await casasAtivas()).filter((o) => o.slug !== c.slug).slice(0, 4);
   const ocupadas = noitesOcupadas(await periodosOcupados(c.id), hoje);
+  // a menor diária do ano nos dois jeitos de pagar: no Pix (com desconto) em destaque e no cartão
+  const diariaPix = formatarCifra(precoPixCentavos(menorDiaria(c) * 100), intl);
+  // o aproximado em dólar ao lado de cada preço, só em espanhol e inglês (a barra fixa fica sem, por decisão)
+  const cambio = await cambioParaTela(locale);
+  const usd = (reais: number) => textoDolar(Math.round(reais * 100), cambio.taxa, d.preco.dolar, intl);
+  const usdDiariaPix = textoDolar(precoPixCentavos(menorDiaria(c) * 100), cambio.taxa, d.preco.dolar, intl);
 
   return (
     <main id="conteudo" className="tom-fundo">
       <BarraReservaMovel
-        preco={cifra(menorDiaria(c))}
-        unidade={`${t.porNoite} · ${d.comum.aPartirDe}`}
-        detalhe={<p className="truncate text-caption text-white/80">{tamanho}</p>}
+        preco={diariaPix}
+        unidade={`${d.preco.noPix} · ${d.comum.aPartirDe}`}
+        detalhe={
+          <p className="truncate text-caption text-white/80">
+            {cifra(menorDiaria(c))} {d.preco.noCartao} · {t.porNoite}
+          </p>
+        }
         textos={{ reservar: t.verDatas }}
       />
 
@@ -157,10 +169,18 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
       <div className="moldura pb-24">
         <div className="mt-10 grid gap-12 lg:mt-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <p className="chegar flex flex-wrap items-baseline gap-x-1.5">
-              <span className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</span>
-              <strong className="cifra text-figure">{cifra(menorDiaria(c))}</strong>
-            </p>
+            <div className="chegar">
+              <p className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</span>
+                <strong className="cifra text-figure">{diariaPix}</strong>
+                <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+                {usdDiariaPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usdDiariaPix}</span>}
+              </p>
+              <p className="text-small text-(--color-tinta-suave)">
+                <span className="numeros font-semibold text-(--color-tinta)">{cifra(menorDiaria(c))}</span> {d.preco.noCartao}
+                {usd(menorDiaria(c)) && <span className="whitespace-nowrap"> · {usd(menorDiaria(c))}</span>}
+              </p>
+            </div>
             <p className="chegar mt-4 max-w-[52ch] text-lead">{c.resumo[locale]}</p>
             <dl className="ficha entrar mt-6">
               <div>
@@ -224,7 +244,10 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
                         </span>
                       )}
                     </dt>
-                    <dd className="numeros shrink-0 font-semibold">{cifra(v.valor)}</dd>
+                    <dd className="numeros shrink-0 text-right font-semibold">
+                      {cifra(v.valor)}
+                      {usd(v.valor) && <span className="block text-small font-normal text-(--color-tinta-suave)">{usd(v.valor)}</span>}
+                    </dd>
                   </div>
                 ))}
               </dl>

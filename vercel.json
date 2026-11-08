@@ -3,6 +3,7 @@
   "regions": ["gru1"],
   "crons": [
     { "path": "/api/saude", "schedule": "0 9 * * *" },
-    { "path": "/api/casas/sincronizar", "schedule": "0 * * * *" }
+    { "path": "/api/casas/sincronizar", "schedule": "0 * * * *" },
+    { "path": "/api/cambio/atualizar", "schedule": "30 16 * * 1-5" }
   ]
 }

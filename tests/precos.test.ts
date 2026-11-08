@@ -1,7 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcular, faixasIdade, normalizarPessoas, precoComAjuste, precoPixCentavos, type TabelaPreco } from '../src/lib/orcamento.ts';
+import {
+  calcular,
+  faixasIdade,
+  formatarCentavos,
+  normalizarPessoas,
+  precoComAjuste,
+  precoPixCentavos,
+  type TabelaPreco,
+} from '../src/lib/orcamento.ts';
 import { AJUSTE_PRECOS_PORCENTO, DESCONTO_PIX_PORCENTO } from '../src/config/precos.ts';
+import { formatarCifra } from '../src/lib/cifra.ts';
 import { textoPessoas } from '../src/lib/pessoas.ts';
 import { CATEGORIAS, CIDADES, CRIANCAS_PADRAO, PASSEIOS } from '../src/data/passeios.ts';
 
@@ -19,6 +28,15 @@ test('ajuste geral de preços e preço no Pix', () => {
   assert.equal(precoPixCentavos(7700, 10), 6930);
   assert.equal(precoPixCentavos(15400, 10), 13860);
   assert.equal(precoPixCentavos(29150, 10), 26235);
+});
+
+// o espaço depois de "R$" é o inseparável ( ), como o Intl escreve
+test('preço sempre com os centavos: "R$ 197,00", nunca "R$ 197"', () => {
+  assert.equal(formatarCifra(19700, 'pt-BR'), 'R$ 197,00');
+  assert.equal(formatarCifra(29150, 'es-AR'), 'R$ 291,50');
+  assert.equal(formatarCifra(19700, 'en-US'), 'R$197.00');
+  // o total do carrinho e do checkout segue a mesma regra
+  assert.equal(formatarCentavos(19700, 'pt-BR'), 'R$ 197,00');
 });
 
 test('os 19 passeios mantêm o preço de venda de antes', () => {

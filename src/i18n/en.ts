@@ -116,6 +116,8 @@ const en: Dicionario = {
     cartao: 'Card',
     descontoPix: '{p}% off with Pix',
     dolar: '≈ US$ {v}',
+    // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
+    notaCambio: 'You pay in Brazilian reais. ≈ US$ is approximate: Central Bank of Brazil rate from {data}.',
   },
   carrinho: {
     titulo: 'Your cart',
@@ -134,7 +136,9 @@ const en: Dicionario = {
     adicionado: 'Added to cart',
     verCarrinho: 'View cart',
     adicionar: 'Add to cart',
-    reservarAgora: 'Book now',
+    reservarAgora: 'Book',
+    // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
+    semCobranca: "You won't be charged yet: you'll review everything before paying.",
     horario: 'Time',
     escolhaHorario: 'Choose a time',
     umPagamento: 'One payment and one voucher for each item.',
@@ -395,7 +399,7 @@ const en: Dicionario = {
     reservarTitulo: 'Book yours',
     data: 'Tour date',
     total: 'Total',
-    reservar: 'Book and pay',
+    reservar: 'Book',
     unidadesAviso: '{pessoas} → {n} {unidade}',
     politica: 'Free cancellation up to 24h before. Rain or rough sea? Refund or a new date.',
     escolhaData: 'Choose a date',
@@ -405,7 +409,6 @@ const en: Dicionario = {
     fotoAnterior: 'Previous photo',
     proximaFoto: 'Next photo',
     fotoDe: 'Photo {i} of {n}',
-    revisao: 'You review everything on the next page before paying.',
     semFotos: 'Photos of this tour coming soon.',
     precoPorPessoa: 'per person',
     escolhaOpcao: 'Choose the duration',
@@ -413,6 +416,11 @@ const en: Dicionario = {
     pagoSeguro: 'Secure payment by Pix or card',
     encontro: 'Meeting point',
     encontroTexto: 'Sent by our team on WhatsApp after booking',
+    // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio
+    opinioesTitulo: 'Reviews of Orla Nativa',
+    opinioesContagem: '{n} reviews',
+    opinioesContagemUma: '1 review',
+    opinioesVerTodas: 'See all reviews',
   },
   horario: {
     saida: 'Departure time',

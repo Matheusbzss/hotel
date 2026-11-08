@@ -3,27 +3,37 @@
 import Image from 'next/image';
 import type { ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
 
 export interface TextosLista {
   mudar: string;
   remover: string;
   noPix: string;
   noCartao: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
 }
 
-/** Os itens do carrinho: foto, nome, data e quem vai, o preço no Pix e no cartão, mudar e tirar. */
+/**
+ * Os itens do carrinho: foto, nome, data e quem vai, o preço no Pix e no cartão (com o aproximado em dólar
+ * ao lado em espanhol e inglês), mudar e tirar.
+ */
 export function ListaCarrinho({
   itens,
   locale,
+  dolar = null,
   textos: T,
   aoRemover,
 }: {
   itens: ItemVisivel[];
   locale: string;
+  /** Reais por dólar, para o "≈ US$" (null no português e sem cotação). */
+  dolar?: number | null;
   textos: TextosLista;
   aoRemover: (id: string) => void;
 }) {
   const brl = (c: number) => formatarCifra(c, locale);
+  const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
   return (
     <ul className="divide-y divide-(--color-borda)">
       {itens.map((i) => (
@@ -62,10 +72,14 @@ export function ListaCarrinho({
             <p className="mt-1.5">
               <span className="cifra font-semibold">{brl(i.totalPixCentavos)}</span>{' '}
               <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+              {usd(i.totalPixCentavos) && (
+                <span className="whitespace-nowrap text-small text-(--color-tinta-suave)"> · {usd(i.totalPixCentavos)}</span>
+              )}
             </p>
             <div className="flex items-baseline justify-between gap-3 text-small">
               <p className="text-(--color-tinta-suave)">
                 <span className="numeros">{brl(i.totalCentavos)}</span> {T.noCartao}
+                {usd(i.totalCentavos) && <span className="whitespace-nowrap"> · {usd(i.totalCentavos)}</span>}
               </p>
               <a href={i.href} className="link">
                 {T.mudar}

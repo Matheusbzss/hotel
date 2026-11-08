@@ -1,7 +1,8 @@
-/** Cálculo do total de uma reserva (só depende dos números de src/config/precos.ts: roda no navegador e no servidor). */
+/** Cálculo do total de uma reserva (só depende de src/config/precos.ts e src/lib/cifra.ts: roda no navegador e no servidor). */
 
-// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+// com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { AJUSTE_PRECOS_PORCENTO, DESCONTO_PIX_PORCENTO } from '../config/precos.ts';
+import { formatarCifra } from './cifra.ts';
 
 /** Preço de venda (em reais) com o ajuste geral de preços → centavos. Ex.: 77 com ajuste 0 → 7700; com -10 → 6930. */
 export function precoComAjuste(precoReais: number, ajuste: number = AJUSTE_PRECOS_PORCENTO): number {
@@ -131,6 +132,6 @@ export function calcular(t: TabelaPreco, entrada: Partial<Pessoas>): Orcamento {
 }
 
 export function formatarCentavos(centavos: number, locale: string): string {
-  // narrowSymbol: "R$" em todos os idiomas (o espanhol da Argentina escreveria "BRL")
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL', currencyDisplay: 'narrowSymbol' }).format(centavos / 100);
+  // a mesma regra do site inteiro: sempre com os centavos ("R$ 197,00"), "R$" em todos os idiomas
+  return formatarCifra(centavos, locale);
 }

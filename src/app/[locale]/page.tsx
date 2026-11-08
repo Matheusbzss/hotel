@@ -15,8 +15,7 @@ import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
 import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
-import { opinioesDoSite } from '@/lib/avaliacao';
-import { avaliacoesPublicadas } from '@/lib/avaliacoes';
+import { avaliacoesDoSite, opinioesDoSite } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
 import { alternates, urlDoSite } from '@/lib/site';
 
@@ -46,7 +45,8 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const H = d.home;
   const passeios = passeiosAtivos();
   // sem o banco, a página abre sem a seção: as opiniões nunca podem derrubar a inicial
-  const opinioes = opinioesDoSite(await avaliacoesPublicadas().catch(() => []), locale);
+  // (a leitura tem a etiqueta 'avaliacoes': publicar no painel atualiza o site sem novo deploy)
+  const opinioes = opinioesDoSite(await avaliacoesDoSite().catch(() => []), locale);
   const quantos = (n: number) => (n === 1 ? H.destinosUm : fmt(H.destinosQtd, { n }));
   const daCidade = (c: Cidade) => passeios.filter((p) => p.cidade === c);
   const cidades = (Object.keys(CIDADES) as Cidade[])

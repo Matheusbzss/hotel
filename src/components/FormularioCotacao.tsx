@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { TextosCotacao, TipoCotacao, TrajetoCotacao } from '@/lib/cotacao';
 import { rastrear } from '@/lib/pixel';
-import { DDIS, emailValido, telefoneValido } from '@/lib/validacao';
+import { DDIS, PAIS_PADRAO, emailValido, telefoneValido } from '@/lib/validacao';
 import { Campo, descricao } from './Campo';
 
 type Erros = Partial<Record<'nome' | 'email' | 'telefone' | 'mensagem', string>>;
@@ -36,7 +36,7 @@ export function FormularioCotacao({
   const id = useId();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [ddi, setDdi] = useState(idioma === 'es' ? '54' : idioma === 'en' ? '1' : '55');
+  const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [isca, setIsca] = useState('');

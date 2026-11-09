@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import type { Dicionario } from '@/i18n';
+// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+import { IDIOMAS } from '../i18n/config.ts';
 
 /**
  * Os pedidos de orçamento e as mensagens de quem ainda não reservou: o trajeto sob cotação do transfer, o
@@ -32,7 +34,7 @@ export type PontaCotacao = z.infer<typeof Ponta>;
 
 export const EsquemaCotacao = z.object({
   tipo: z.enum(TIPOS_COTACAO),
-  idioma: z.enum(['pt', 'es', 'en']),
+  idioma: z.enum(IDIOMAS),
   nome: z.string().trim().min(3).max(120),
   email: z.string().trim().min(3).max(160),
   ddi: z.string().max(4).optional().default(''),

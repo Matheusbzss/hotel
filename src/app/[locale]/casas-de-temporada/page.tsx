@@ -10,9 +10,10 @@ import { FormularioCotacao } from '@/components/FormularioCotacao';
 import { CIDADES, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { casasAtivas, casasNoAr } from '@/lib/casas';
 import { textosCotacao } from '@/lib/cotacao';
-import { alternates } from '@/lib/site';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de-temporada'>): Promise<Metadata> {
   const { locale } = await params;
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
     title: d.casas.titulo,
     description: d.casas.texto,
     alternates: alternates(locale, '/casas-de-temporada'),
-    openGraph: { title: d.casas.titulo, description: d.casas.texto, url: rota(locale, '/casas-de-temporada') },
+    openGraph: openGraphDaPagina(locale, { title: d.casas.titulo, description: d.casas.texto, url: rota(locale, '/casas-de-temporada') }),
     // sem casa no ar, a página "Em breve" fica fora do Google
     ...((await casasNoAr()) ? {} : { robots: { index: false, follow: true } }),
   };
@@ -38,7 +39,7 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
   const cidades = (Object.keys(CIDADES) as Cidade[])
     .filter((c) => casas.some((casa) => casa.cidade === c))
     .sort((a, b) => CIDADES[a].ordem - CIDADES[b].ordem)
-    .map((c) => ({ valor: c, rotulo: CIDADES[c].nome[locale] }));
+    .map((c) => ({ valor: c, rotulo: texto(CIDADES[c].nome, locale) }));
 
   return (
     <main id="conteudo" className="tom-fundo pb-24 md:pb-40">

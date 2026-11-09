@@ -1,5 +1,7 @@
 /** Validações usadas no navegador (checkout) e no servidor (API). */
 
+import type { Idioma } from '../i18n/config';
+
 export const CIDADES_HOSPEDAGEM = ['buzios', 'cabo-frio', 'arraial-do-cabo'] as const;
 export type CidadeHospedagem = (typeof CIDADES_HOSPEDAGEM)[number];
 
@@ -28,6 +30,17 @@ export const DDIS = [
   { ddi: '49', pais: 'DE', bandeira: '🇩🇪' },
   { ddi: '39', pais: 'IT', bandeira: '🇮🇹' },
 ] as const;
+
+/**
+ * O país que os formulários sugerem em cada idioma: o DDI do telefone e o país da cobrança do cartão. Sugestão a
+ * confirmar com o dono (es-ar → Argentina; es neutro → Chile; pt → Brasil; en → EUA): para mudar, só mexer aqui.
+ */
+export const PAIS_PADRAO: Record<Idioma, { ddi: string; pais: string }> = {
+  pt: { ddi: '55', pais: 'BR' },
+  en: { ddi: '1', pais: 'US' },
+  es: { ddi: '56', pais: 'CL' },
+  'es-ar': { ddi: '54', pais: 'AR' },
+};
 
 export const soDigitos = (v: string) => v.replace(/\D/g, '');
 

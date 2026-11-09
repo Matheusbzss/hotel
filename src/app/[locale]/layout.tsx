@@ -21,7 +21,7 @@ import '../globals.css';
  * Barlow em três larguras, como um sistema de placas (design-dna.json > typography):
  * Regular no texto, Semi Condensed nos títulos e números, Condensed no gancho.
  * Servida pelo próprio site: o navegador do cliente não chama o Google. Só o alfabeto latino e os pesos em uso:
- * cada arquivo a mais disputa a conexão do celular com a primeira foto. Português, espanhol e inglês cabem no "latin".
+ * cada arquivo a mais disputa a conexão do celular com a primeira foto. Português, os dois espanhóis e inglês cabem no "latin".
  */
 const barlow = Barlow({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
 const barlowSemi = Barlow_Semi_Condensed({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-barlow-semi', display: 'swap' });
@@ -87,7 +87,8 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     image: `${urlDoSite()}/fotos/buzios/escuna-no-mar.jpg`,
     address: { '@type': 'PostalAddress', addressLocality: EMPRESA.cidade, addressRegion: EMPRESA.uf, addressCountry: 'BR' },
     areaServed: ['Armação dos Búzios', 'Cabo Frio', 'Arraial do Cabo', 'Rio de Janeiro'],
-    knowsLanguage: ['pt-BR', 'en', 'es'],
+    // html lang e OG locale saem das tabelas de src/i18n/config.ts: 'es' é o espanhol neutro, 'es-AR' o da Argentina
+    knowsLanguage: ['pt-BR', 'en', 'es', 'es-AR'],
     ...(EMPRESA.perfis.length ? { sameAs: EMPRESA.perfis } : {}),
   };
 

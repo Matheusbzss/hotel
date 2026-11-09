@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { valorRecebido } from './pedidos-painel';
@@ -91,13 +92,13 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     status: r.status,
     tipo: 'passeio',
     passeioSlug: r.passeio.slug,
-    passeioNome: p?.nome[idioma] ?? r.passeio.nome,
+    passeioNome: p ? texto(p.nome, idioma) : r.passeio.nome,
     data: r.data,
     horario: r.horario ? { texto: formatarHora(r.horario.hora, idioma), busca: r.horario.busca } : undefined,
     adultos: r.adultos,
     criancas: r.criancas,
     pessoasTexto: textoPessoas(r, d.comum.rotulos, p ? semFaixas(p) : false),
-    opcaoNome: opcao?.nome[idioma] ?? r.passeio.opcao?.nome,
+    opcaoNome: (opcao && texto(opcao.nome, idioma)) ?? r.passeio.opcao?.nome,
     unidades: r.unidades,
     hotel: r.hospedagem.hotel,
     cidadeHospedagem: NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade],

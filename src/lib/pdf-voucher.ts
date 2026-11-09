@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { EMPRESA } from '@/config/empresa';
 import { obterPasseio } from '@/data/passeios';
 import { LOCALE_INTL, fmt } from '@/i18n/config';
+import { texto as noIdioma } from '@/i18n/conteudo';
 import { dicionario, type Dicionario } from '@/i18n';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
@@ -13,6 +14,7 @@ import { ehTransfer, type Reserva, type ReservaPasseio, type ReservaTransfer } f
 import { transferVisivel, type TrechoVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
 import { LOGO_VOUCHER_PNG_BASE64 } from './logo-voucher';
+import { AVISOS_VOUCHER as AVISOS, IMPORTANTE_VOUCHER as IMPORTANTE } from './voucher-textos';
 
 /** As cores do site: a tinta azul-noite, a superfície do cartão, o verde-água das ações e o cinza das notas. */
 const COR = {
@@ -23,27 +25,6 @@ const COR = {
   /** o verde do botão de WhatsApp do site */
   whats: rgb(37 / 255, 211 / 255, 102 / 255),
 };
-
-/** Os avisos fixos. O do horário (busca na hospedagem ou ponto de encontro) entra em segundo, vindo do dicionário. */
-const AVISOS = {
-  pt: [
-    'Apresente este voucher no celular ou impresso no dia do passeio.',
-    'Cancelamento com 24h de antecedência: reembolso integral.',
-    'Cancelado por chuva, mau tempo ou mar: reembolso integral ou nova data, à sua escolha.',
-  ],
-  en: [
-    'Show this voucher on your phone or printed on the day of the tour.',
-    'Cancellation at least 24h in advance: full refund.',
-    'Cancelled due to rain, bad weather or sea conditions: full refund or a new date, your choice.',
-  ],
-  es: [
-    'Presentá este voucher en el celular o impreso el día del paseo.',
-    'Cancelación con 24 h de anticipación: reembolso total.',
-    'Cancelado por lluvia, mal tiempo o mar: reembolso total o nueva fecha, a tu elección.',
-  ],
-} as const;
-
-const IMPORTANTE = { pt: 'Importante', en: 'Important', es: 'Importante' } as const;
 
 /** As fontes padrão do PDF só aceitam o conjunto WinAnsi: troca o que não couber. */
 function limpar(texto: string): string {
@@ -105,8 +86,8 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
   const locale = LOCALE_INTL[idioma];
   const passeio = obterPasseio(reserva.passeio.slug);
   const opcao = reserva.passeio.opcao ? passeio?.opcoes?.find((o) => o.id === reserva.passeio.opcao?.id) : undefined;
-  const nomeOpcao = opcao?.nome[idioma] ?? reserva.passeio.opcao?.nome;
-  const nomePasseio = `${passeio?.nome[idioma] ?? reserva.passeio.nome}${nomeOpcao ? ` (${nomeOpcao})` : ''}`;
+  const nomeOpcao = (opcao && noIdioma(opcao.nome, idioma)) ?? reserva.passeio.opcao?.nome;
+  const nomePasseio = `${passeio ? noIdioma(passeio.nome, idioma) : reserva.passeio.nome}${nomeOpcao ? ` (${nomeOpcao})` : ''}`;
   const pessoas = textoPessoas(reserva, d.comum.rotulos, passeio ? semFaixas(passeio) : false);
   const dataTexto = formatarDataIso(reserva.data, locale);
   const horario = reserva.horario;
@@ -129,7 +110,11 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
       hotel: `${reserva.hospedagem.hotel} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
     }),
     // o aviso do horário (busca na hospedagem ou ponto de encontro) vem logo depois do primeiro
-    avisos: [AVISOS[idioma][0], horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida, ...AVISOS[idioma].slice(1)],
+    avisos: [
+      noIdioma(AVISOS, idioma)[0],
+      horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida,
+      ...noIdioma(AVISOS, idioma).slice(1),
+    ],
   };
 }
 
@@ -159,7 +144,7 @@ function conteudoTransfer(reserva: ReservaTransfer, d: Dicionario): ConteudoVouc
       pessoas: v.passageiros,
     }),
     // o motorista no desembarque, a espera, o nome dos outros passageiros e o cancelamento
-    avisos: [T.como[0], T.como[1], T.demaisPassageiros, AVISOS[idioma][1]],
+    avisos: [T.como[0], T.como[1], T.demaisPassageiros, noIdioma(AVISOS, idioma)[1]],
   };
 }
 
@@ -240,7 +225,7 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
     ya = height - 70;
   };
   garantirEspaco(40);
-  texto(folha, IMPORTANTE[idioma], M, ya, negrito, 13);
+  texto(folha, noIdioma(IMPORTANTE, idioma), M, ya, negrito, 13);
   ya -= 22;
   for (const aviso of conteudo.avisos) {
     const linhas = quebrar(`• ${aviso}`, regular, 11, width - 2 * M);

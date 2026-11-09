@@ -1,9 +1,12 @@
-import { EMPRESA, enderecoCompleto } from '@/config/empresa';
-import type { DocumentoLegal } from './tipos';
+import { EMPRESA, enderecoCompleto } from '../../config/empresa.ts';
+import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
+import { comAjustesAR, type ParAR } from './argentino.ts';
+import type { DocumentoLegal } from './tipos.ts';
 
 const E = EMPRESA;
 
-export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
+/** Português, inglês e o espanhol neutro (es, com "tú"). O espanhol da Argentina sai de BASE.es + AJUSTES_AR, no fim. */
+const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   pt: {
     titulo: 'Termos de Uso',
     descricao:
@@ -185,8 +188,8 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   es: {
     titulo: 'Términos de Uso',
     descricao:
-      'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.',
-    resumo: `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.`,
+      'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.',
+    resumo: `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.`,
     secoes: [
       {
         titulo: '1. Quiénes somos',
@@ -199,7 +202,7 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '2. Qué vendemos',
         paragrafos: [
           'Somos una agencia de turismo que vende por internet paseos y traslados en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos).',
-          'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a vos, respondemos según el Código de Defensa del Consumidor de Brasil.',
+          'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a ti, respondemos según el Código de Defensa del Consumidor de Brasil.',
         ],
       },
       {
@@ -208,9 +211,9 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'La reserva se confirma cuando se aprueba el pago. En ese momento emitimos un voucher con número único, que es tu comprobante.',
         ],
         lista: [
-          'Sos responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
-          'El horario se elige en la compra y figura en el voucher, pero puede cambiar según la marea, el clima o la temporada. En los paseos sin búsqueda en el alojamiento, el equipo envía el punto de encuentro por WhatsApp después de la compra.',
-          'Si no hay disponibilidad en la fecha elegida, te avisamos y elegís entre una nueva fecha o el reembolso total.',
+          'Eres responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+          'El horario se elige en la compra y figura en el voucher, pero puede cambiar según la marea, el clima o la temporada. En los paseos sin recogida en el alojamiento, el equipo envía el punto de encuentro por WhatsApp después de la compra.',
+          'Si no hay disponibilidad en la fecha elegida, te avisamos y eliges entre una nueva fecha o el reembolso total.',
           'Los menores de 18 años deben estar acompañados por un adulto responsable.',
         ],
       },
@@ -232,23 +235,23 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         titulo: '6. Seguridad durante los paseos',
         paragrafos: ['Para la seguridad de todos:'],
         lista: [
-          'seguí las indicaciones de la tripulación, del guía o del conductor;',
-          'usá chaleco salvavidas, casco y demás equipos cuando se te pida;',
-          'para manejar un cuatriciclo necesitás licencia de conducir y no haber tomado alcohol;',
-          'informanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+          'sigue las indicaciones de la tripulación, del guía o del conductor;',
+          'usa chaleco salvavidas, casco y demás equipos cuando se te pida;',
+          'para manejar una cuatrimoto necesitas licencia de conducir y no haber tomado alcohol;',
+          'infórmanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
           'el operador puede negar el embarque a quien ponga en riesgo su seguridad o la de los demás.',
         ],
       },
       {
         titulo: '7. Casas de temporada',
         paragrafos: [
-          'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+          'Las casas de temporada se reservan en el sitio, con un anticipo del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
         ],
       },
       {
         titulo: '8. Uso del sitio',
         paragrafos: [
-          'Te comprometés a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+          'Te comprometes a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
           'Los textos, ilustraciones, logotipos y demás contenidos del sitio pertenecen a la agencia o se usan con autorización, y no pueden copiarse con fines comerciales sin permiso.',
         ],
       },
@@ -267,9 +270,65 @@ export const TERMOS: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '11. Ley aplicable y jurisdicción',
         paragrafos: [
-          'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escribinos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+          'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escríbenos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
         ],
       },
     ],
   },
 };
+
+/**
+ * O espanhol da Argentina: só as frases destes Términos que mudam do neutro, com o texto que o site tinha antes
+ * ("vos", imperativo sem acento, cuatriciclo, seña). Cada par é [frase neutra inteira, a mesma frase em argentino].
+ * Se alguém editar a frase neutra sem mexer aqui, comAjustesAR() falha na carga e aponta a frase.
+ */
+export const AJUSTES_AR_TERMOS: readonly ParAR[] = [
+  [
+    'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.',
+    'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.',
+  ],
+  [
+    `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.`,
+    `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.`,
+  ],
+  [
+    'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a ti, respondemos según el Código de Defensa del Consumidor de Brasil.',
+    'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a vos, respondemos según el Código de Defensa del Consumidor de Brasil.',
+  ],
+  [
+    'Eres responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+    'Sos responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+  ],
+  [
+    'Si no hay disponibilidad en la fecha elegida, te avisamos y eliges entre una nueva fecha o el reembolso total.',
+    'Si no hay disponibilidad en la fecha elegida, te avisamos y elegís entre una nueva fecha o el reembolso total.',
+  ],
+  [
+    'sigue las indicaciones de la tripulación, del guía o del conductor;',
+    'seguí las indicaciones de la tripulación, del guía o del conductor;',
+  ],
+  ['usa chaleco salvavidas, casco y demás equipos cuando se te pida;', 'usá chaleco salvavidas, casco y demás equipos cuando se te pida;'],
+  [
+    'para manejar una cuatrimoto necesitas licencia de conducir y no haber tomado alcohol;',
+    'para manejar un cuatriciclo necesitás licencia de conducir y no haber tomado alcohol;',
+  ],
+  [
+    'infórmanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+    'informanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+  ],
+  [
+    'Las casas de temporada se reservan en el sitio, con un anticipo del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+    'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+  ],
+  [
+    'Te comprometes a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+    'Te comprometés a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+  ],
+  [
+    'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escríbenos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+    'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escribinos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+  ],
+];
+
+/** Os Términos nos quatro idiomas: as páginas leem com texto(TERMOS, locale) (src/i18n/conteudo.ts). */
+export const TERMOS: Traduzido<DocumentoLegal> = { ...BASE, 'es-ar': comAjustesAR(BASE.es, AJUSTES_AR_TERMOS) };

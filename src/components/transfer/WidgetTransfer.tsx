@@ -15,6 +15,7 @@ import {
   type Malas,
   type Veiculo,
 } from '@/data/transfer';
+import { texto } from '@/i18n/conteudo';
 import type { TrechoEscolhido } from '@/lib/carrinho';
 import type { PontaCotacao, TextosCotacao } from '@/lib/cotacao';
 import { formatarCifra } from '@/lib/cifra';
@@ -122,14 +123,14 @@ function CampoPonta({
         <optgroup label={T.aeroportos}>
           {aeroportos.map((l) => (
             <option key={l} value={l}>
-              {LUGARES[l].nome[idioma]}
+              {texto(LUGARES[l].nome, idioma)}
             </option>
           ))}
         </optgroup>
         <optgroup label={T.cidades}>
           {cidades.map((l) => (
             <option key={l} value={l}>
-              {LUGARES[l].nome[idioma]}
+              {texto(LUGARES[l].nome, idioma)}
             </option>
           ))}
         </optgroup>
@@ -305,7 +306,7 @@ export function WidgetTransfer({
 
   const nomePonta = (p: Ponta) => {
     if (!p.lugar) return '—';
-    const base = p.lugar === 'outra-cidade' ? p.cidade || LUGARES[p.lugar].nome[idioma] : LUGARES[p.lugar].nome[idioma];
+    const base = p.lugar === 'outra-cidade' ? p.cidade || texto(LUGARES[p.lugar].nome, idioma) : texto(LUGARES[p.lugar].nome, idioma);
     return p.endereco ? `${base}, ${p.endereco}` : base;
   };
   // o que vai para o pedido de cotação: "Outra cidade" leva o nome que o cliente digitou
@@ -537,7 +538,7 @@ export function WidgetTransfer({
                   onChange={() => setEscolhido(v)}
                   className="sr-only"
                 />
-                <span>{VEICULOS[v].nome[idioma]}</span>
+                <span>{texto(VEICULOS[v].nome, idioma)}</span>
                 <span className="text-small font-normal">{T.ateNPessoas.replace('{n}', String(VEICULOS[v].capacidade))}</span>
                 <span className="numeros mt-1 text-small">
                   {!cabe[v]

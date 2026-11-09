@@ -1,9 +1,12 @@
-import { EMPRESA } from '@/config/empresa';
-import type { DocumentoLegal } from './tipos';
+import { EMPRESA } from '../../config/empresa.ts';
+import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
+import { comAjustesAR, type ParAR } from './argentino.ts';
+import type { DocumentoLegal } from './tipos.ts';
 
 const E = EMPRESA;
 
-export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
+/** Português, inglês e o espanhol neutro (es, com "tú"). O espanhol da Argentina sai de BASE.es + AJUSTES_AR, no fim. */
+const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   pt: {
     titulo: 'Política de Cancelamento e Reembolso',
     descricao:
@@ -164,18 +167,16 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       },
       {
         titulo: '10. Holiday homes',
-        paragrafos: [
-          'Holiday homes have their own deposit and cancellation rules, shown on each home’s page before booking.',
-        ],
+        paragrafos: ['Holiday homes have their own deposit and cancellation rules, shown on each home’s page before booking.'],
       },
     ],
   },
   es: {
     titulo: 'Política de Cancelación y Reembolso',
     descricao:
-      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Elegís entre reembolso o nueva fecha.',
+      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Eliges entre reembolso o nueva fecha.',
     resumo:
-      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
+      '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Eliges entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
     secoes: [
       {
         titulo: '1. Alcance',
@@ -187,48 +188,48 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '2. Derecho de arrepentimiento (7 días)',
         paragrafos: [
-          'Como la compra se hace por internet, podés desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor. Este derecho vale para todas las compras, de brasileños y de extranjeros.',
+          'Como la compra se hace por internet, puedes desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor. Este derecho vale para todas las compras, de brasileños y de extranjeros.',
           'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el servicio todavía no se haya realizado. El pedido se puede hacer por los mismos canales usados en la compra (ver el punto 8).',
         ],
       },
       {
         titulo: '3. Cancelación con 24 horas o más de anticipación',
         paragrafos: [
-          'Si cancelás con al menos 24 (veinticuatro) horas de anticipación al horario de inicio del paseo, el reembolso es total, sin importar el motivo.',
+          'Si cancelas con al menos 24 (veinticuatro) horas de anticipación al horario de inicio del paseo, el reembolso es total, sin importar el motivo.',
         ],
       },
       {
         titulo: '4. Cancelación por lluvia, mal tiempo o condiciones del mar',
         paragrafos: [
-          'Cuando el operador o la autoridad marítima cancela el paseo por lluvia, mal tiempo, viento, mar de fondo u otras condiciones del mar que afecten la seguridad, elegís una de estas opciones, sin ningún costo:',
+          'Cuando el operador o la autoridad marítima cancela el paseo por lluvia, mal tiempo, viento, mar de fondo u otras condiciones del mar que afecten la seguridad, eliges una de estas opciones, sin ningún costo:',
         ],
         lista: ['reembolso total del valor pagado; o', 'cambio a otra fecha, según disponibilidad.'],
         depois: [
-          'La decisión de realizar o cancelar el paseo la toma el operador, siempre priorizando la seguridad. Una lluvia leve que no impida el paseo no se considera cancelación. Si el paseo debe interrumpirse por seguridad después de comenzar, acordaremos con vos una nueva fecha o un reembolso proporcional.',
+          'La decisión de realizar o cancelar el paseo la toma el operador, siempre priorizando la seguridad. Una lluvia leve que no impida el paseo no se considera cancelación. Si el paseo debe interrumpirse por seguridad después de comenzar, acordaremos contigo una nueva fecha o un reembolso proporcional.',
         ],
       },
       {
         titulo: '5. Cancelación por parte de la agencia o del operador',
         paragrafos: [
-          'Si el paseo no puede realizarse por un motivo nuestro o del operador (por ejemplo, falta de disponibilidad en la fecha elegida, cupo mínimo no alcanzado o un problema operativo), te avisaremos lo antes posible y elegís entre reembolso total o cambio de fecha sin costo.',
+          'Si el paseo no puede realizarse por un motivo nuestro o del operador (por ejemplo, falta de disponibilidad en la fecha elegida, cupo mínimo no alcanzado o un problema operativo), te avisaremos lo antes posible y eliges entre reembolso total o cambio de fecha sin costo.',
         ],
       },
       {
         titulo: '6. Cancelación con menos de 24 horas e inasistencia',
         paragrafos: [
           'Fuera de las situaciones de los puntos 2, 4 y 5, las cancelaciones con menos de 24 horas de anticipación y la inasistencia en el horario y lugar acordados no dan derecho a reembolso, porque el lugar ya fue reservado y pagado al operador.',
-          'En casos de fuerza mayor debidamente comprobados (por ejemplo, un problema de salud con certificado médico), escribinos y analizaremos la posibilidad de cambiar la fecha.',
+          'En casos de fuerza mayor debidamente comprobados (por ejemplo, un problema de salud con certificado médico), escríbenos y analizaremos la posibilidad de cambiar la fecha.',
         ],
       },
       {
         titulo: '7. Cambio de fecha a pedido del cliente',
         paragrafos: [
-          'Podés pedir cambiar la fecha con al menos 24 horas de anticipación, sin costo, sujeto a disponibilidad. Si elegís otro paseo, la diferencia de precio se cobrará o se devolverá.',
+          'Puedes pedir cambiar la fecha con al menos 24 horas de anticipación, sin costo, sujeto a disponibilidad. Si eliges otro paseo, la diferencia de precio se cobrará o se devolverá.',
         ],
       },
       {
         titulo: '8. Cómo pedir la cancelación o el cambio de fecha',
-        paragrafos: ['Envianos el número de tu voucher (ej.: ON-7K3P9Q) por uno de estos canales:'],
+        paragrafos: ['Envíanos el número de tu voucher (ej.: ON-7K3P9Q) por uno de estos canales:'],
         lista: ['WhatsApp: con el botón de la página de tu reserva', `E-mail: ${E.email}`],
         depois: ['Confirmamos la recepción del pedido por el mismo canal. La hora de tu mensaje es la que cuenta para la anticipación.'],
       },
@@ -239,16 +240,75 @@ export const CANCELAMENTO: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
         ],
         lista: [
           'Pix: el valor vuelve a la cuenta de origen, en general el mismo día de la devolución.',
-          'Tarjeta de crédito: la devolución se envía a la emisora de la tarjeta y el crédito aparece en el resumen según sus plazos, normalmente en uno o dos resúmenes.',
+          'Tarjeta de crédito: la devolución se envía al banco emisor de la tarjeta y el crédito aparece en el estado de cuenta según sus plazos, normalmente en uno o dos estados de cuenta.',
         ],
         depois: ['No cobramos ninguna tasa por procesar los reembolsos previstos en esta política.'],
       },
       {
         titulo: '10. Casas de temporada',
         paragrafos: [
-          'Las casas de temporada tienen reglas propias de seña y cancelación, que se muestran en la página de cada casa antes de reservar.',
+          'Las casas de temporada tienen reglas propias de anticipo y cancelación, que se muestran en la página de cada casa antes de reservar.',
         ],
       },
     ],
   },
 };
+
+/**
+ * O espanhol da Argentina: só as frases desta Política que mudam do neutro, com o texto que o site tinha antes
+ * ("vos", imperativo sem acento, resumen da tarjeta, seña). Cada par é [frase neutra inteira, a mesma frase em
+ * argentino]. Se alguém editar a frase neutra sem mexer aqui, comAjustesAR() falha na carga e aponta a frase.
+ */
+export const AJUSTES_AR_CANCELAMENTO: readonly ParAR[] = [
+  [
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Eliges entre reembolso o nueva fecha.',
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por el clima o el mar? Elegís entre reembolso o nueva fecha.',
+  ],
+  [
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Eliges entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
+  ],
+  [
+    'Como la compra se hace por internet, puedes desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor. Este derecho vale para todas las compras, de brasileños y de extranjeros.',
+    'Como la compra se hace por internet, podés desistir de ella dentro de los 7 (siete) días corridos contados desde la fecha de compra, sin necesidad de explicar el motivo, según el art. 49 del Código de Defensa del Consumidor. Este derecho vale para todas las compras, de brasileños y de extranjeros.',
+  ],
+  [
+    'Si cancelas con al menos 24 (veinticuatro) horas de anticipación al horario de inicio del paseo, el reembolso es total, sin importar el motivo.',
+    'Si cancelás con al menos 24 (veinticuatro) horas de anticipación al horario de inicio del paseo, el reembolso es total, sin importar el motivo.',
+  ],
+  [
+    'Cuando el operador o la autoridad marítima cancela el paseo por lluvia, mal tiempo, viento, mar de fondo u otras condiciones del mar que afecten la seguridad, eliges una de estas opciones, sin ningún costo:',
+    'Cuando el operador o la autoridad marítima cancela el paseo por lluvia, mal tiempo, viento, mar de fondo u otras condiciones del mar que afecten la seguridad, elegís una de estas opciones, sin ningún costo:',
+  ],
+  [
+    'La decisión de realizar o cancelar el paseo la toma el operador, siempre priorizando la seguridad. Una lluvia leve que no impida el paseo no se considera cancelación. Si el paseo debe interrumpirse por seguridad después de comenzar, acordaremos contigo una nueva fecha o un reembolso proporcional.',
+    'La decisión de realizar o cancelar el paseo la toma el operador, siempre priorizando la seguridad. Una lluvia leve que no impida el paseo no se considera cancelación. Si el paseo debe interrumpirse por seguridad después de comenzar, acordaremos con vos una nueva fecha o un reembolso proporcional.',
+  ],
+  [
+    'Si el paseo no puede realizarse por un motivo nuestro o del operador (por ejemplo, falta de disponibilidad en la fecha elegida, cupo mínimo no alcanzado o un problema operativo), te avisaremos lo antes posible y eliges entre reembolso total o cambio de fecha sin costo.',
+    'Si el paseo no puede realizarse por un motivo nuestro o del operador (por ejemplo, falta de disponibilidad en la fecha elegida, cupo mínimo no alcanzado o un problema operativo), te avisaremos lo antes posible y elegís entre reembolso total o cambio de fecha sin costo.',
+  ],
+  [
+    'En casos de fuerza mayor debidamente comprobados (por ejemplo, un problema de salud con certificado médico), escríbenos y analizaremos la posibilidad de cambiar la fecha.',
+    'En casos de fuerza mayor debidamente comprobados (por ejemplo, un problema de salud con certificado médico), escribinos y analizaremos la posibilidad de cambiar la fecha.',
+  ],
+  [
+    'Puedes pedir cambiar la fecha con al menos 24 horas de anticipación, sin costo, sujeto a disponibilidad. Si eliges otro paseo, la diferencia de precio se cobrará o se devolverá.',
+    'Podés pedir cambiar la fecha con al menos 24 horas de anticipación, sin costo, sujeto a disponibilidad. Si elegís otro paseo, la diferencia de precio se cobrará o se devolverá.',
+  ],
+  [
+    'Envíanos el número de tu voucher (ej.: ON-7K3P9Q) por uno de estos canales:',
+    'Envianos el número de tu voucher (ej.: ON-7K3P9Q) por uno de estos canales:',
+  ],
+  [
+    'Tarjeta de crédito: la devolución se envía al banco emisor de la tarjeta y el crédito aparece en el estado de cuenta según sus plazos, normalmente en uno o dos estados de cuenta.',
+    'Tarjeta de crédito: la devolución se envía al banco emisor de la tarjeta y el crédito aparece en el resumen según sus plazos, normalmente en uno o dos resúmenes.',
+  ],
+  [
+    'Las casas de temporada tienen reglas propias de anticipo y cancelación, que se muestran en la página de cada casa antes de reservar.',
+    'Las casas de temporada tienen reglas propias de seña y cancelación, que se muestran en la página de cada casa antes de reservar.',
+  ],
+];
+
+/** A Política nos quatro idiomas: as páginas leem com texto(CANCELAMENTO, locale) (src/i18n/conteudo.ts). */
+export const CANCELAMENTO: Traduzido<DocumentoLegal> = { ...BASE, 'es-ar': comAjustesAR(BASE.es, AJUSTES_AR_CANCELAMENTO) };

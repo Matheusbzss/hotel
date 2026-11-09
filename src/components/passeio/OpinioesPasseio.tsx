@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
+import { idiomaDeConteudo } from '@/i18n/conteudo';
 import { MINIMO_NO_SITE, notaDaAgencia, trechoDaAvaliacao, trechosDoCartao, type Avaliacao } from '@/lib/avaliacao';
 
 /**
@@ -55,7 +56,7 @@ export function OpinioesPasseio({
             <p>“{trechoDaAvaliacao(a.texto)}”</p>
             <p className="mt-0.5 text-(--color-tinta-suave)">
               {a.nome}
-              {a.idioma && a.idioma !== idioma && ` · ${d.opinioes.original[a.idioma]}`}
+              {a.idioma && a.idioma !== idiomaDeConteudo(idioma) && ` · ${d.opinioes.original[a.idioma]}`}
             </p>
           </li>
         ))}

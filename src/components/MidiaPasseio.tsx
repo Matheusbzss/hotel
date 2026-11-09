@@ -1,11 +1,13 @@
 import Image from 'next/image';
 import { altDaFoto } from '@/data/fotos-alt';
-import type { Icone, Passeio } from '@/data/passeios';
+import type { Icone, Passeio, Texto } from '@/data/passeios';
 import type { Idioma } from '@/i18n/config';
+// com outro nome: a capa tem uma propriedade chamada `texto`
+import { texto as noIdioma } from '@/i18n/conteudo';
 import { nomeCidade } from '@/lib/passeio-view';
 
 /** Palavra grande da capa desenhada, por tipo de passeio (início do slug). */
-const PALAVRA: Record<string, Record<Idioma, string>> = {
+const PALAVRA: Record<string, Texto> = {
   escuna: { pt: 'Escuna', en: 'Schooner', es: 'Goleta' },
   catamara: { pt: 'Catamarã', en: 'Catamaran', es: 'Catamarán' },
   buggy: { pt: 'Buggy', en: 'Buggy', es: 'Buggy' },
@@ -181,7 +183,7 @@ function objeto(icone: Icone, c: Cores) {
 
 function palavraDaCapa(p: Passeio, idioma: Idioma): string {
   const chave = Object.keys(PALAVRA).find((k) => p.slug.startsWith(k));
-  return chave ? PALAVRA[chave][idioma] : p.nome[idioma].split(' ')[0];
+  return chave ? noIdioma(PALAVRA[chave], idioma) : noIdioma(p.nome, idioma).split(' ')[0];
 }
 
 /**
@@ -221,7 +223,7 @@ export function CapaPasseio({
       width={largura}
       height={altura}
       className={className}
-      {...(decorativa ? { 'aria-hidden': true } : { role: 'img', 'aria-label': passeio.nome[idioma] })}
+      {...(decorativa ? { 'aria-hidden': true } : { role: 'img', 'aria-label': noIdioma(passeio.nome, idioma) })}
     >
       <rect x="-2000" y="-2000" width="4400" height="4500" fill={c.fundo} />
       <circle cx="330" cy="96" r="54" fill={c.sol} />
@@ -276,7 +278,7 @@ export function MidiaPasseio({
       {foto ? (
         <Image
           src={foto}
-          alt={altDaFoto(foto, idioma, passeio.nome[idioma])}
+          alt={altDaFoto(foto, idioma, noIdioma(passeio.nome, idioma))}
           fill
           sizes={sizes}
           preload={prioridade}

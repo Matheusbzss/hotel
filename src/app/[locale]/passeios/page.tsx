@@ -9,7 +9,8 @@ import { SeletorGrupo } from '@/components/grupo/SeletorGrupo';
 import { CATEGORIAS, CIDADES, passeiosAtivos, type Categoria, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
-import { alternates } from '@/lib/site';
+import { texto } from '@/i18n/conteudo';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/passeios'>): Promise<Metadata> {
   const { locale } = await params;
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
     title: d.meta.passeiosTitulo,
     description: descricao,
     alternates: alternates(locale, '/passeios'),
-    openGraph: { title: d.meta.passeiosTitulo, description: descricao, url: rota(locale, '/passeios') },
+    openGraph: openGraphDaPagina(locale, { title: d.meta.passeiosTitulo, description: descricao, url: rota(locale, '/passeios') }),
   };
 }
 
@@ -60,8 +61,8 @@ export default async function Passeios({ params }: PageProps<'/[locale]/passeios
               categoria: p.categoria,
               card: <CardPasseio passeio={p} idioma={locale} d={d} nivelTitulo="h2" />,
             }))}
-            cidades={(Object.keys(CIDADES) as Cidade[]).map((c) => ({ valor: c, rotulo: CIDADES[c].nome[locale] }))}
-            categorias={(Object.keys(CATEGORIAS) as Categoria[]).map((c) => ({ valor: c, rotulo: CATEGORIAS[c].nome[locale] }))}
+            cidades={(Object.keys(CIDADES) as Cidade[]).map((c) => ({ valor: c, rotulo: texto(CIDADES[c].nome, locale) }))}
+            categorias={(Object.keys(CATEGORIAS) as Categoria[]).map((c) => ({ valor: c, rotulo: texto(CATEGORIAS[c].nome, locale) }))}
             textos={{
               cidade: d.comum.cidade,
               tipo: d.comum.tipo,

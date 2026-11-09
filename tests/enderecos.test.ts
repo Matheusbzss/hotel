@@ -40,6 +40,22 @@ test('espanhol e inglês usam as palavras de cada idioma', () => {
   assert.equal(rota('es', '/termos-de-uso'), '/es/terminos-de-uso');
 });
 
+test('o espanhol da Argentina usa os mesmos endereços do espanhol, só com o prefixo /es-ar', () => {
+  assert.equal(rota('es-ar', '/'), '/es-ar');
+  assert.equal(rota('es-ar', '/passeios'), '/es-ar/paseos');
+  assert.equal(rota('es-ar', '/passeios/escuna-buzios'), '/es-ar/paseos/goleta-buzios');
+  assert.equal(rota('es-ar', '/passeios/quadriciclo-buzios'), '/es-ar/paseos/cuatriciclo-buzios');
+  assert.equal(rota('es-ar', '/transfer?destino=buzios'), '/es-ar/traslado?destino=buzios');
+  assert.equal(rota('es-ar', '/guias/que-hacer-en-buzios'), '/es-ar/guias/que-hacer-en-buzios');
+  for (const pagina of PAGINAS) assert.equal(rota('es-ar', pagina), `/es-ar${rota('es', pagina).slice(3)}`, pagina);
+  // o /es-ar casa antes do /es: nunca vira "es" + "/-ar/paseos"
+  assert.equal(semIdioma('/es-ar/paseos/goleta-buzios'), '/passeios/escuna-buzios');
+  assert.equal(semIdioma('/es-ar'), '/');
+  assert.equal(semIdioma('/es-ar/'), '/');
+  assert.equal(semIdioma('/es/paseos'), '/passeios');
+  assert.equal(semIdioma('/es-argentina/paseos'), '/es-argentina/paseos');
+});
+
 test('o que vem depois do endereço continua igual', () => {
   assert.equal(rota('es', '/transfer?destino=buzios'), '/es/traslado?destino=buzios');
   assert.equal(rota('en', '/passeios?tipo=barco&cidade=buzios'), '/en/tours?tipo=barco&cidade=buzios');
@@ -63,6 +79,7 @@ test('de qualquer idioma se volta para a página em português', () => {
 test('o endereço antigo cai na mesma página do novo', () => {
   for (const pagina of PAGINAS.filter((p) => p !== '/')) {
     assert.equal(semIdioma(`/es${pagina}`), pagina, `/es${pagina}`);
+    assert.equal(semIdioma(`/es-ar${pagina}`), pagina, `/es-ar${pagina}`);
     assert.equal(semIdioma(`/en${pagina}`), pagina, `/en${pagina}`);
   }
   assert.equal(semIdioma('/pt/passeios'), '/passeios');

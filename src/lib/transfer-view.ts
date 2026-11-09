@@ -1,6 +1,7 @@
 import { LUGARES, VEICULOS, type Malas } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { formatarHora } from './horarios';
 import type { PontaTransfer, ReservaTransfer, TrechoTransfer } from './reservas';
 
@@ -8,7 +9,7 @@ type T = Dicionario['transfer'];
 
 /** "Búzios, Pousada X" ou "Aeroporto do Galeão (GIG), Rio". */
 export function nomePonta(p: PontaTransfer, idioma: Idioma): string {
-  const lugar = LUGARES[p.lugar].nome[idioma];
+  const lugar = texto(LUGARES[p.lugar].nome, idioma);
   return p.endereco ? `${lugar}, ${p.endereco}` : lugar;
 }
 
@@ -65,7 +66,7 @@ export function transferVisivel(r: ReservaTransfer, idioma: Idioma, d: Dicionari
     voo: x.voo,
   });
   return {
-    veiculo: VEICULOS[t.veiculo].nome[idioma],
+    veiculo: texto(VEICULOS[t.veiculo].nome, idioma),
     ida: trecho(t.ida),
     volta: t.volta ? trecho(t.volta) : undefined,
     passageiros: textoPassageiros(t.passageiros, d.transfer),

@@ -1,7 +1,8 @@
+import type { Idioma } from '../i18n/config';
 import type { Cidade } from './passeios';
 
 /**
- * AS PÁGINAS DE GUIA EM ESPANHOL (só existem em /es/guias)
+ * AS PÁGINAS DE GUIA EM ESPANHOL (existem em /es/guias, o espanhol neutro, e em /es-ar/guias, o da Argentina)
  *
  * Como editar:
  * - TEXTO: só informação verdadeira, conferida em fonte confiável ou nos dados do próprio site. Preço nunca vai
@@ -9,55 +10,68 @@ import type { Cidade } from './passeios';
  * - LINK no meio do texto: [palavras](/passeios/escuna-buzios), sempre com o caminho em português (a página
  *   traduz para o endereço em espanhol). tests/guias.test.ts confere se todo link leva a uma página que existe.
  * - FOTO: só de public/fotos, com o texto alternativo em src/data/fotos-alt.ts.
- * - Espanhol com voseo, como o resto do site ("reservá", "elegí").
+ * - DUAS VERSÕES DO ESPANHOL: um campo de texto escrito como texto simples vale igual para o /es e o /es-ar.
+ *   Quando a frase muda na Argentina ("elegís" em vez de "eliges"), o campo vira
+ *   { es: 'frase neutra', 'es-ar': 'frase argentina' }. As páginas leem pelo guiaNoIdioma() e textoGuia() daqui.
  */
-export interface DetalheGuia {
-  nome: string;
-  texto: string;
+
+/** Um texto do guia: igual nas duas versões do espanhol, ou com a versão argentina ao lado. */
+export type TextoGuia = string | { es: string; 'es-ar'?: string };
+
+/**
+ * Os tipos abaixo têm o texto em T: TextoGuia no arquivo (Guia) e string depois de escolhido o idioma
+ * (GuiaResolvido), que é o que as páginas e os componentes usam.
+ */
+export interface DetalheGuia<T = TextoGuia> {
+  nome: T;
+  texto: T;
 }
 
-export interface SecaoGuia {
+export interface SecaoGuia<T = TextoGuia> {
   /** A âncora do índice: letras simples e hífen. */
   id: string;
-  titulo: string;
-  paragrafos: string[];
+  titulo: T;
+  paragrafos: T[];
   foto?: string;
   /** Como a foto se encaixa no recorte, quando o centro não é o melhor ponto. */
   posicaoFoto?: string;
   /** Lista de nome e explicação: playas, dias do roteiro. */
-  detalhes?: DetalheGuia[];
+  detalhes?: DetalheGuia<T>[];
   /** Os cartões da seção, pelo slug de src/data/passeios.ts. */
   passeios?: string[];
   /** Mostra o cartão do transfer para essa cidade. */
   transfer?: Cidade;
   /** A primeira coluna é o título da linha. `compacta`: números curtos, que cabem em linhas no celular. */
-  tabela?: { legenda: string; colunas: string[]; linhas: string[][]; compacta?: boolean };
+  tabela?: { legenda: T; colunas: T[]; linhas: T[][]; compacta?: boolean };
 }
 
-export interface Guia {
+export interface Guia<T = TextoGuia> {
   slug: string;
   /** Título no Google, sem a marca (a marca entra sozinha): até 46 caracteres. */
-  titulo: string;
+  titulo: T;
   /** Descrição no Google: até 160 caracteres. */
-  descricao: string;
+  descricao: T;
   /** A frase curta do cartão, na lista de guias. */
-  chamada: string;
-  h1: string;
+  chamada: T;
+  h1: T;
   foto: string;
   posicaoFoto?: string;
   /** A resposta curta, logo abaixo do título. */
-  resumo: string;
+  resumo: T;
   /** Até quatro fatos para bater o olho. */
-  ficha: { rotulo: string; valor: string }[];
-  secoes: SecaoGuia[];
-  perguntas: { p: string; r: string }[];
-  fechamento: { titulo: string; texto: string; botao: string; caminho: string; foto: string; posicaoFoto?: string };
-  /** Os três guias do "Seguí leyendo", pelo slug. */
+  ficha: { rotulo: T; valor: T }[];
+  secoes: SecaoGuia<T>[];
+  perguntas: { p: T; r: T }[];
+  fechamento: { titulo: T; texto: T; botao: T; caminho: string; foto: string; posicaoFoto?: string };
+  /** Os três guias do "Sigue leyendo" ("Seguí leyendo" na Argentina), pelo slug. */
   relacionados: string[];
   /** AAAA-MM-DD */
   publicado: string;
   atualizado: string;
 }
+
+/** O guia com todo texto já no idioma da página. */
+export type GuiaResolvido = Guia<string>;
 
 export const GUIAS: Guia[] = [
   {
@@ -88,11 +102,23 @@ export const GUIAS: Guia[] = [
         posicaoFoto: '50% 62%',
         detalhes: [
           { nome: 'João Fernandes', texto: 'Agua calma, con bares y restaurantes sobre la arena. Es una de las más concurridas.' },
-          { nome: 'Ferradura', texto: 'Bahía con forma de herradura y mar tranquilo, buena para ir con chicos.' },
+          {
+            nome: 'Ferradura',
+            texto: {
+              es: 'Bahía con forma de herradura y mar tranquilo, buena para ir con niños.',
+              'es-ar': 'Bahía con forma de herradura y mar tranquilo, buena para ir con chicos.',
+            },
+          },
           { nome: 'Geribá', texto: 'La más larga, con unos 2 km de arena. Tiene olas para surf y muchos hoteles cerca.' },
           { nome: 'Azeda y Azedinha', texto: 'Dos playas chicas al lado de Ossos. Se llega por un sendero corto o en taxi acuático.' },
           { nome: 'Tartaruga', texto: 'Mar calmo y buen lugar para ver el atardecer.' },
-          { nome: 'Ossos', texto: 'Barcos de pesca y agua transparente, junto al centro. De acá sale el sendero a Azeda.' },
+          {
+            nome: 'Ossos',
+            texto: {
+              es: 'Barcos de pesca y agua transparente, junto al centro. De aquí sale el sendero a Azeda.',
+              'es-ar': 'Barcos de pesca y agua transparente, junto al centro. De acá sale el sendero a Azeda.',
+            },
+          },
         ],
       },
       {
@@ -100,7 +126,11 @@ export const GUIAS: Guia[] = [
         titulo: 'Un paseo en barco por la península',
         paragrafos: [
           'El mejor primer día en Búzios es arriba de un barco. Desde el mar se entiende la península y se ven bahías, islas y playas que mucha gente solo conoce así.',
-          'La [goleta](/passeios/escuna-buzios) sale del centro y hace paradas para nadar y hacer snorkel. El [catamarán](/passeios/catamara-buzios) se mueve menos: es la mejor opción para familias y para quien teme marearse. La [lancha privada](/passeios/lancha-buzios) va solo con tu grupo, y acordás con el marinero qué playas conocer y cuánto tiempo quedarte. Las paradas cambian según el viento y el mar del día.',
+          {
+            es: 'La [goleta](/passeios/escuna-buzios) sale del centro y hace paradas para nadar y hacer snorkel. El [catamarán](/passeios/catamara-buzios) se mueve menos: es la mejor opción para familias y para quien teme marearse. La [lancha privada](/passeios/lancha-buzios) va solo con tu grupo, y acuerdas con el marinero qué playas conocer y cuánto tiempo quedarte. Las paradas cambian según el viento y el mar del día.',
+            'es-ar':
+              'La [goleta](/passeios/escuna-buzios) sale del centro y hace paradas para nadar y hacer snorkel. El [catamarán](/passeios/catamara-buzios) se mueve menos: es la mejor opción para familias y para quien teme marearse. La [lancha privada](/passeios/lancha-buzios) va solo con tu grupo, y acordás con el marinero qué playas conocer y cuánto tiempo quedarte. Las paradas cambian según el viento y el mar del día.',
+          },
         ],
         passeios: ['escuna-buzios', 'catamara-buzios', 'lancha-buzios', 'jet-ski-buzios'],
       },
@@ -108,8 +138,16 @@ export const GUIAS: Guia[] = [
         id: 'por-tierra',
         titulo: 'Playas y miradores por tierra',
         paragrafos: [
-          'En [buggy](/passeios/buggy-buzios) llegás en un mismo paseo a playas de los dos lados de la península, con paradas en los miradores de Brava y Forno. Te lleva un conductor, así que solo disfrutás la vista.',
-          'El [trolley](/passeios/trolley-buzios) es un vehículo abierto, liviano y económico, para todas las edades. Si preferís manejar, el [cuatriciclo](/passeios/quadriciclo-buzios) sale en caravana con un guía por caminos de tierra hasta playas menos concurridas. Quien maneja necesita licencia de conducir.',
+          {
+            es: 'En [buggy](/passeios/buggy-buzios) llegas en un mismo paseo a playas de los dos lados de la península, con paradas en los miradores de Brava y Forno. Te lleva un conductor, así que solo disfrutas la vista.',
+            'es-ar':
+              'En [buggy](/passeios/buggy-buzios) llegás en un mismo paseo a playas de los dos lados de la península, con paradas en los miradores de Brava y Forno. Te lleva un conductor, así que solo disfrutás la vista.',
+          },
+          {
+            es: 'El [trolley](/passeios/trolley-buzios) es un vehículo abierto, liviano y económico, para todas las edades. Si prefieres manejar, la [cuatrimoto](/passeios/quadriciclo-buzios) sale en caravana con un guía por caminos de tierra hasta playas menos concurridas. Quien maneja necesita licencia de conducir.',
+            'es-ar':
+              'El [trolley](/passeios/trolley-buzios) es un vehículo abierto, liviano y económico, para todas las edades. Si preferís manejar, el [cuatriciclo](/passeios/quadriciclo-buzios) sale en caravana con un guía por caminos de tierra hasta playas menos concurridas. Quien maneja necesita licencia de conducir.',
+          },
         ],
         foto: '/fotos/buzios/buggy-ferradura.jpg',
         posicaoFoto: '12% 50%',
@@ -129,7 +167,11 @@ export const GUIAS: Guia[] = [
         id: 'excursiones',
         titulo: 'Un día en Arraial do Cabo, Cabo Frio o Río',
         paragrafos: [
-          'Búzios queda cerca de dos ciudades que vale la pena conocer, y las dos entran en un día. En [Arraial do Cabo](/passeios/full-day-arraial-do-cabo), conocida como el Caribe brasileño, el día incluye miradores y un paseo en barco por playas de agua turquesa. En [Cabo Frio](/passeios/full-day-cabo-frio) navegás hasta la Isla do Japonês y conocés el Fuerte São Mateus y la Praia do Forte.',
+          {
+            es: 'Búzios queda cerca de dos ciudades que vale la pena conocer, y las dos entran en un día. En [Arraial do Cabo](/passeios/full-day-arraial-do-cabo), conocida como el Caribe brasileño, el día incluye miradores y un paseo en barco por playas de agua turquesa. En [Cabo Frio](/passeios/full-day-cabo-frio) navegas hasta la Isla do Japonês y conoces el Fuerte São Mateus y la Praia do Forte.',
+            'es-ar':
+              'Búzios queda cerca de dos ciudades que vale la pena conocer, y las dos entran en un día. En [Arraial do Cabo](/passeios/full-day-arraial-do-cabo), conocida como el Caribe brasileño, el día incluye miradores y un paseo en barco por playas de agua turquesa. En [Cabo Frio](/passeios/full-day-cabo-frio) navegás hasta la Isla do Japonês y conocés el Fuerte São Mateus y la Praia do Forte.',
+          },
           'Si no pasaste por Río de Janeiro, también hay [un día en sus postales](/passeios/city-tour-rio-de-janeiro). En los tres casos te buscan en el hotel.',
         ],
         passeios: ['full-day-arraial-do-cabo', 'full-day-cabo-frio', 'city-tour-rio-de-janeiro'],
@@ -138,13 +180,26 @@ export const GUIAS: Guia[] = [
         id: 'dias',
         titulo: 'Cuántos días quedarte',
         paragrafos: [
-          'Con tres días completos ves lo principal sin apuro. Con cinco sumás Arraial do Cabo o Cabo Frio y te quedan días libres de playa. Este es un plan simple para tres días:',
+          {
+            es: 'Con tres días completos ves lo principal sin apuro. Con cinco sumas Arraial do Cabo o Cabo Frio y te quedan días libres de playa. Este es un plan simple para tres días:',
+            'es-ar':
+              'Con tres días completos ves lo principal sin apuro. Con cinco sumás Arraial do Cabo o Cabo Frio y te quedan días libres de playa. Este es un plan simple para tres días:',
+          },
         ],
         detalhes: [
-          { nome: 'Día 1', texto: 'Paseo en barco a la mañana y Orla Bardot al atardecer.' },
+          {
+            nome: 'Día 1',
+            texto: {
+              es: 'Paseo en barco por la mañana y Orla Bardot al atardecer.',
+              'es-ar': 'Paseo en barco a la mañana y Orla Bardot al atardecer.',
+            },
+          },
           { nome: 'Día 2', texto: 'Buggy por playas y miradores, y tarde libre en João Fernandes o Ferradura.' },
-          { nome: 'Día 3', texto: 'Full day en Arraial do Cabo, con búsqueda en el hotel.' },
-          { nome: 'Si tenés más días', texto: 'Cabo Frio, una lancha privada o días libres de playa.' },
+          { nome: 'Día 3', texto: 'Full day en Arraial do Cabo, con recogida en el hotel.' },
+          {
+            nome: { es: 'Si tienes más días', 'es-ar': 'Si tenés más días' },
+            texto: 'Cabo Frio, una lancha privada o días libres de playa.',
+          },
         ],
       },
       {
@@ -160,14 +215,22 @@ export const GUIAS: Guia[] = [
     perguntas: [
       {
         p: '¿Cuántos días se necesitan para conocer Búzios?',
-        r: 'Tres días completos alcanzan para un paseo en barco, los miradores y las playas principales. Con cinco podés sumar Arraial do Cabo o Cabo Frio.',
+        r: {
+          es: 'Tres días completos alcanzan para un paseo en barco, los miradores y las playas principales. Con cinco puedes sumar Arraial do Cabo o Cabo Frio.',
+          'es-ar':
+            'Tres días completos alcanzan para un paseo en barco, los miradores y las playas principales. Con cinco podés sumar Arraial do Cabo o Cabo Frio.',
+        },
       },
       {
         p: '¿Qué hacer en Búzios si llueve?',
-        r: 'Los paseos en barco dependen del clima y del mar. Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo. Para esos días quedan los negocios y restaurantes de la Rua das Pedras.',
+        r: {
+          es: 'Los paseos en barco dependen del clima y del mar. Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, eliges entre reembolso total o una nueva fecha, sin costo. Para esos días quedan los negocios y restaurantes de la Rua das Pedras.',
+          'es-ar':
+            'Los paseos en barco dependen del clima y del mar. Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo. Para esos días quedan los negocios y restaurantes de la Rua das Pedras.',
+        },
       },
       {
-        p: '¿Qué hacer en Búzios con chicos?',
+        p: { es: '¿Qué hacer en Búzios con niños?', 'es-ar': '¿Qué hacer en Búzios con chicos?' },
         r: 'Ferradura y João Fernandes tienen mar calmo. El catamarán se mueve menos y tiene mucho espacio, y el trolley es para todas las edades. En la mayoría de los paseos, los niños de hasta 5 años no pagan: la regla de cada uno está en su página.',
       },
       {
@@ -176,12 +239,19 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Conviene reservar los paseos antes de viajar?',
-        r: 'Sí: elegís la fecha y el grupo desde casa y ya sabés el precio final. Si cambiás de planes, cancelando con al menos 24 horas de anticipación el reembolso es total.',
+        r: {
+          es: 'Sí: eliges la fecha y el grupo desde casa y ya sabes el precio final. Si cambias de planes, cancelando con al menos 24 horas de anticipación el reembolso es total.',
+          'es-ar':
+            'Sí: elegís la fecha y el grupo desde casa y ya sabés el precio final. Si cambiás de planes, cancelando con al menos 24 horas de anticipación el reembolso es total.',
+        },
       },
     ],
     fechamento: {
-      titulo: 'Dejá los paseos resueltos antes de viajar',
-      texto: 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Deja los paseos resueltos antes de viajar', 'es-ar': 'Dejá los paseos resueltos antes de viajar' },
+      texto: {
+        es: 'Elige la fecha y el grupo, mira el precio final y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver los paseos en Búzios',
       caminho: '/passeios?cidade=buzios',
       foto: '/fotos/buzios/por-do-sol-barcos-na-baia.jpg',
@@ -200,8 +270,11 @@ export const GUIAS: Guia[] = [
     h1: 'Cómo ir de Río de Janeiro a Búzios',
     foto: '/fotos/transfer/carro-virtus-com-clientes.jpg',
     posicaoFoto: '50% 60%',
-    resumo:
-      'Búzios está a unos 170 km de Río de Janeiro y no tiene vuelos comerciales regulares: el último tramo siempre es por tierra. Son unas 3 horas en un día normal, en auto o en bus. Con valijas, chicos o en grupo, lo más simple es un traslado privado desde el aeropuerto.',
+    resumo: {
+      es: 'Búzios está a unos 170 km de Río de Janeiro y no tiene vuelos comerciales regulares: el último tramo siempre es por tierra. Son unas 3 horas en un día normal, en auto o en bus. Con maletas, niños o en grupo, lo más simple es un traslado privado desde el aeropuerto.',
+      'es-ar':
+        'Búzios está a unos 170 km de Río de Janeiro y no tiene vuelos comerciales regulares: el último tramo siempre es por tierra. Son unas 3 horas en un día normal, en auto o en bus. Con valijas, chicos o en grupo, lo más simple es un traslado privado desde el aeropuerto.',
+    },
     ficha: [
       { rotulo: 'Distancia', valor: 'Unos 170 km' },
       { rotulo: 'En auto', valor: '2h30 a 3h30' },
@@ -212,13 +285,37 @@ export const GUIAS: Guia[] = [
       {
         id: 'opciones',
         titulo: 'Las opciones, de un vistazo',
-        paragrafos: ['La mejor forma depende de cuántos son, cuántas valijas llevan y a qué hora aterriza tu vuelo.'],
+        paragrafos: [
+          {
+            es: 'La mejor forma depende de cuántos son, cuántas maletas llevan y a qué hora aterriza tu vuelo.',
+            'es-ar': 'La mejor forma depende de cuántos son, cuántas valijas llevan y a qué hora aterriza tu vuelo.',
+          },
+        ],
         foto: '/fotos/transfer/carros-creta-com-motoristas.jpg',
         posicaoFoto: '50% 40%',
         detalhes: [
-          { nome: 'Traslado privado', texto: 'De puerta a puerta y sin paradas, solo con tu grupo. Es lo más cómodo con chicos o valijas grandes.' },
-          { nome: 'Bus', texto: 'Lo más económico si viajás solo o en pareja. Te deja en el centro de Búzios y desde ahí seguís hasta tu alojamiento.' },
-          { nome: 'Traslado compartido', texto: 'Una van con otros pasajeros: suele costar menos que el privado, pero dependés de sus horarios y paradas.' },
+          {
+            nome: 'Traslado privado',
+            texto: {
+              es: 'De puerta a puerta y sin paradas, solo con tu grupo. Es lo más cómodo con niños o maletas grandes.',
+              'es-ar': 'De puerta a puerta y sin paradas, solo con tu grupo. Es lo más cómodo con chicos o valijas grandes.',
+            },
+          },
+          {
+            nome: 'Bus',
+            texto: {
+              es: 'Lo más económico si viajas solo o en pareja. Te deja en el centro de Búzios y desde ahí sigues hasta tu alojamiento.',
+              'es-ar':
+                'Lo más económico si viajás solo o en pareja. Te deja en el centro de Búzios y desde ahí seguís hasta tu alojamiento.',
+            },
+          },
+          {
+            nome: 'Traslado compartido',
+            texto: {
+              es: 'Una van con otros pasajeros: suele costar menos que el privado, pero dependes de sus horarios y paradas.',
+              'es-ar': 'Una van con otros pasajeros: suele costar menos que el privado, pero dependés de sus horarios y paradas.',
+            },
+          },
           { nome: 'Auto alquilado', texto: 'Da libertad para moverte por la región. Hay que sumar peajes, combustible y estacionamiento.' },
           { nome: 'Auto por aplicación', texto: 'Se puede pedir, pero el precio varía según el horario y la demanda.' },
         ],
@@ -227,8 +324,16 @@ export const GUIAS: Guia[] = [
         id: 'traslado',
         titulo: 'Traslado privado, paso a paso',
         paragrafos: [
-          'Reservás online con la fecha, el horario y el número de tu vuelo. En el aeropuerto, el chofer sigue tu llegada y te espera en arribos con un cartel con tu nombre. Después va directo a tu hotel o posada, sin paradas extra.',
-          'El precio es por vehículo, no por persona: hay [auto ejecutivo](/transfer?destino=buzios) para hasta 4 personas y van para hasta 17. El peaje y el estacionamiento están incluidos, la silla para chicos no tiene costo y podés cancelar gratis hasta 24 horas antes.',
+          {
+            es: 'Reservas online con la fecha, el horario y el número de tu vuelo. En el aeropuerto, el chofer sigue tu llegada y te espera en llegadas con un cartel con tu nombre. Después va directo a tu hotel o posada, sin paradas extra.',
+            'es-ar':
+              'Reservás online con la fecha, el horario y el número de tu vuelo. En el aeropuerto, el chofer sigue tu llegada y te espera en arribos con un cartel con tu nombre. Después va directo a tu hotel o posada, sin paradas extra.',
+          },
+          {
+            es: 'El precio es por vehículo, no por persona: hay [auto ejecutivo](/transfer?destino=buzios) para hasta 4 personas y van para hasta 17. El peaje y el estacionamiento están incluidos, la silla para niños no tiene costo y puedes cancelar gratis hasta 24 horas antes.',
+            'es-ar':
+              'El precio es por vehículo, no por persona: hay [auto ejecutivo](/transfer?destino=buzios) para hasta 4 personas y van para hasta 17. El peaje y el estacionamiento están incluidos, la silla para chicos no tiene costo y podés cancelar gratis hasta 24 horas antes.',
+          },
         ],
         transfer: 'buzios',
       },
@@ -236,8 +341,16 @@ export const GUIAS: Guia[] = [
         id: 'bus',
         titulo: 'En bus desde la Rodoviária Novo Rio',
         paragrafos: [
-          'Los buses a Búzios salen de la Rodoviária Novo Rio, la terminal de Río de Janeiro, y tardan unas 3 horas. Llegan al centro de Búzios: si tu alojamiento no queda cerca, desde ahí seguís en taxi o en auto por aplicación.',
-          'Desde el aeropuerto de Galeão también hay buses directos, pero son pocos por día y tardan alrededor de 3h30. Mirá los horarios en el sitio de la empresa antes de comprar el vuelo, y en temporada alta sacá el pasaje con tiempo.',
+          {
+            es: 'Los buses a Búzios salen de la Rodoviária Novo Rio, la terminal de Río de Janeiro, y tardan unas 3 horas. Llegan al centro de Búzios: si tu alojamiento no queda cerca, desde ahí sigues en taxi o en auto por aplicación.',
+            'es-ar':
+              'Los buses a Búzios salen de la Rodoviária Novo Rio, la terminal de Río de Janeiro, y tardan unas 3 horas. Llegan al centro de Búzios: si tu alojamiento no queda cerca, desde ahí seguís en taxi o en auto por aplicación.',
+          },
+          {
+            es: 'Desde el aeropuerto de Galeão también hay buses directos, pero son pocos por día y tardan alrededor de 3h30. Mira los horarios en el sitio de la empresa antes de comprar el vuelo, y en temporada alta saca el pasaje con tiempo.',
+            'es-ar':
+              'Desde el aeropuerto de Galeão también hay buses directos, pero son pocos por día y tardan alrededor de 3h30. Mirá los horarios en el sitio de la empresa antes de comprar el vuelo, y en temporada alta sacá el pasaje con tiempo.',
+          },
         ],
       },
       {
@@ -245,19 +358,33 @@ export const GUIAS: Guia[] = [
         titulo: 'En auto: la ruta y los peajes',
         paragrafos: [
           'El camino habitual cruza el puente Río-Niterói y sigue por la Via Lagos, dos tramos con peaje. En un día normal son unas 3 horas. En feriados, fines de semana largos y temporada alta puede tardar bastante más.',
-          'Si solo vas a moverte por la península, también podés dejar el auto de lado: varios paseos te buscan en el hotel, y en temporada alta estacionar en el centro de Búzios es difícil.',
+          {
+            es: 'Si solo vas a moverte por la península, también puedes dejar el auto de lado: varios paseos te buscan en el hotel, y en temporada alta estacionar en el centro de Búzios es difícil.',
+            'es-ar':
+              'Si solo vas a moverte por la península, también podés dejar el auto de lado: varios paseos te buscan en el hotel, y en temporada alta estacionar en el centro de Búzios es difícil.',
+          },
         ],
       },
       {
         id: 'aeropuertos',
         titulo: 'Desde qué aeropuerto salir',
         paragrafos: [
-          'Río de Janeiro tiene dos aeropuertos y hay un tercero más cerca de Búzios. Si venís del exterior, la guía de [cómo llegar desde Argentina y Chile](/guias/como-llegar-a-buzios-desde-argentina-y-chile) cuenta qué vuelos hay.',
+          {
+            es: 'Río de Janeiro tiene dos aeropuertos y hay un tercero más cerca de Búzios. Si vienes del exterior, la guía de [cómo llegar desde Argentina y Chile](/guias/como-llegar-a-buzios-desde-argentina-y-chile) cuenta qué vuelos hay.',
+            'es-ar':
+              'Río de Janeiro tiene dos aeropuertos y hay un tercero más cerca de Búzios. Si venís del exterior, la guía de [cómo llegar desde Argentina y Chile](/guias/como-llegar-a-buzios-desde-argentina-y-chile) cuenta qué vuelos hay.',
+          },
         ],
         detalhes: [
           { nome: 'Galeão (GIG)', texto: 'El aeropuerto internacional de Río de Janeiro, a unos 180 km de Búzios.' },
-          { nome: 'Santos Dumont (SDU)', texto: 'Queda en el centro de Río y recibe sobre todo vuelos dentro de Brasil. Está a unos 177 km de Búzios.' },
-          { nome: 'Cabo Frio (CFB)', texto: 'El más cercano: unos 30 km, cerca de media hora en auto. Tiene pocos vuelos, y varios son solo de temporada.' },
+          {
+            nome: 'Santos Dumont (SDU)',
+            texto: 'Queda en el centro de Río y recibe sobre todo vuelos dentro de Brasil. Está a unos 177 km de Búzios.',
+          },
+          {
+            nome: 'Cabo Frio (CFB)',
+            texto: 'El más cercano: unos 30 km, cerca de media hora en auto. Tiene pocos vuelos, y varios son solo de temporada.',
+          },
         ],
       },
       {
@@ -280,20 +407,35 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿El chofer me espera si mi vuelo se atrasa?',
-        r: 'Con el número de vuelo, el chofer sigue tu llegada y te espera en arribos con un cartel con tu nombre. La espera es de hasta 1 hora.',
+        r: {
+          es: 'Con el número de vuelo, el chofer sigue tu llegada y te espera en llegadas con un cartel con tu nombre. La espera es de hasta 1 hora.',
+          'es-ar':
+            'Con el número de vuelo, el chofer sigue tu llegada y te espera en arribos con un cartel con tu nombre. La espera es de hasta 1 hora.',
+        },
       },
       {
         p: '¿Hay Uber de Río a Búzios?',
-        r: 'Se puede pedir un auto por aplicación, pero el precio varía según el horario y la demanda. Con un traslado privado sabés el precio final antes de viajar.',
+        r: {
+          es: 'Se puede pedir un auto por aplicación, pero el precio varía según el horario y la demanda. Con un traslado privado sabes el precio final antes de viajar.',
+          'es-ar':
+            'Se puede pedir un auto por aplicación, pero el precio varía según el horario y la demanda. Con un traslado privado sabés el precio final antes de viajar.',
+        },
       },
       {
-        p: '¿Cómo viajan los chicos en el traslado?',
-        r: 'Los menores de 10 años con menos de 1,45 m viajan en silla o en asiento elevador. Tenemos los dos, sin costo: indicá en la reserva cuántos chicos viajan y la edad de cada uno.',
+        p: { es: '¿Cómo viajan los niños en el traslado?', 'es-ar': '¿Cómo viajan los chicos en el traslado?' },
+        r: {
+          es: 'Los menores de 10 años con menos de 1,45 m viajan en silla o en asiento elevador. Tenemos los dos, sin costo: indica en la reserva cuántos niños viajan y la edad de cada uno.',
+          'es-ar':
+            'Los menores de 10 años con menos de 1,45 m viajan en silla o en asiento elevador. Tenemos los dos, sin costo: indicá en la reserva cuántos chicos viajan y la edad de cada uno.',
+        },
       },
     ],
     fechamento: {
-      titulo: 'Reservá el traslado antes de aterrizar',
-      texto: 'Elegí la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Reserva el traslado antes de aterrizar', 'es-ar': 'Reservá el traslado antes de aterrizar' },
+      texto: {
+        es: 'Elige la fecha y el vehículo, y mira el precio final. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el precio del traslado',
       caminho: '/transfer?destino=buzios',
       foto: '/fotos/buzios/catamara-do-alto.jpg',
@@ -318,7 +460,7 @@ export const GUIAS: Guia[] = [
       { rotulo: 'Duración', valor: 'Unas 4 horas' },
       { rotulo: 'Salida', valor: 'Praia dos Anjos' },
       { rotulo: 'Playa do Farol', valor: 'Solo por mar' },
-      { rotulo: 'Chicos sin cargo', valor: 'Hasta 5 años' },
+      { rotulo: { es: 'Niños sin cargo', 'es-ar': 'Chicos sin cargo' }, valor: 'Hasta 5 años' },
     ],
     secoes: [
       {
@@ -330,8 +472,16 @@ export const GUIAS: Guia[] = [
         foto: '/fotos/arraial/costao-fenda.jpg',
         posicaoFoto: '50% 45%',
         detalhes: [
-          { nome: 'Prainhas do Pontal do Atalaia', texto: 'Arena blanca y agua turquesa al pie del morro. Por tierra hay que bajar más de 250 escalones; en barco se llega sin esfuerzo.' },
-          { nome: 'Playa do Farol', texto: 'En la Isla de Cabo Frio. Solo se llega por mar, la Marina controla las visitas y el tiempo en la arena suele ser de 40 minutos a 1 hora.' },
+          {
+            nome: 'Prainhas do Pontal do Atalaia',
+            texto:
+              'Arena blanca y agua turquesa al pie del morro. Por tierra hay que bajar más de 250 escalones; en barco se llega sin esfuerzo.',
+          },
+          {
+            nome: 'Playa do Farol',
+            texto:
+              'En la Isla de Cabo Frio. Solo se llega por mar, la Marina controla las visitas y el tiempo en la arena suele ser de 40 minutos a 1 hora.',
+          },
           { nome: 'Gruta Azul', texto: 'Una gruta en la roca, que se mira desde el barco.' },
           { nome: 'Fenda de Nossa Senhora', texto: 'Una grieta alta entre dos paredes de roca, que también se mira desde el barco.' },
         ],
@@ -341,21 +491,37 @@ export const GUIAS: Guia[] = [
         titulo: 'Barco, full day o lancha: cuál te conviene',
         paragrafos: [
           'El [paseo en barco](/passeios/barco-arraial-do-cabo) es la opción clásica si ya estás en Arraial. Algunos barcos tienen tobogán y música a bordo; el modelo depende de la disponibilidad del día.',
-          'Si te alojás en Búzios o Cabo Frio, el [full day](/passeios/full-day-arraial-do-cabo) suma la búsqueda en el hotel y los miradores, en un día de unas 10 horas. Para ir solo con tu grupo está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo): hasta 10 personas, unas 6 horas y un recorrido que armás con el marinero.',
+          {
+            es: 'Si te alojas en Búzios o Cabo Frio, el [full day](/passeios/full-day-arraial-do-cabo) suma la recogida en el hotel y los miradores, en un día de unas 10 horas. Para ir solo con tu grupo está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo): hasta 10 personas, unas 6 horas y un recorrido que armas con el marinero.',
+            'es-ar':
+              'Si te alojás en Búzios o Cabo Frio, el [full day](/passeios/full-day-arraial-do-cabo) suma la recogida en el hotel y los miradores, en un día de unas 10 horas. Para ir solo con tu grupo está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo): hasta 10 personas, unas 6 horas y un recorrido que armás con el marinero.',
+          },
         ],
         passeios: ['barco-arraial-do-cabo', 'full-day-arraial-do-cabo', 'lancha-privativa-arraial-do-cabo'],
       },
       {
         id: 'consejos',
         titulo: 'Qué llevar y qué tener en cuenta',
-        paragrafos: ['El paseo incluye la tripulación, los chalecos salvavidas y las paradas para nadar. Lo demás conviene llevarlo resuelto:'],
+        paragrafos: [
+          'El paseo incluye la tripulación, los chalecos salvavidas y las paradas para nadar. Lo demás conviene llevarlo resuelto:',
+        ],
         foto: '/fotos/arraial/banho-com-peixes.jpg',
         posicaoFoto: '50% 62%',
         detalhes: [
           { nome: 'Qué llevar', texto: 'Traje de baño, toalla, protector solar, lentes de sol, sombrero, agua y un documento con foto.' },
-          { nome: 'Efectivo o tarjeta', texto: 'Comidas, bebidas y fotos profesionales no están incluidas. Las tasas municipales o de embarque, cuando se cobran, se pagan en el lugar.' },
+          {
+            nome: 'Efectivo o tarjeta',
+            texto:
+              'Comidas, bebidas y fotos profesionales no están incluidas. Las tasas municipales o de embarque, cuando se cobran, se pagan en el lugar.',
+          },
           { nome: 'Agua fría', texto: 'El mar de Arraial es más frío que el de otras playas de la región, incluso en verano.' },
-          { nome: 'Horarios', texto: 'Hay salidas a la mañana y a la tarde: elegís el horario al reservar.' },
+          {
+            nome: 'Horarios',
+            texto: {
+              es: 'Hay salidas por la mañana y por la tarde: eliges el horario al reservar.',
+              'es-ar': 'Hay salidas a la mañana y a la tarde: elegís el horario al reservar.',
+            },
+          },
         ],
       },
       {
@@ -382,17 +548,27 @@ export const GUIAS: Guia[] = [
         r: 'No. Incluye el barco, la tripulación, los chalecos y las paradas para nadar. Comidas y bebidas se pagan aparte.',
       },
       {
-        p: '¿Pueden ir chicos?',
-        r: 'Sí. En el paseo en barco, los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
+        p: { es: '¿Pueden ir niños?', 'es-ar': '¿Pueden ir chicos?' },
+        r: {
+          es: 'Sí. En el paseo en barco, los niños de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
+          'es-ar': 'Sí. En el paseo en barco, los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
+        },
       },
       {
         p: '¿Qué pasa si hay mal tiempo?',
-        r: 'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        r: {
+          es: 'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, eliges entre reembolso total o una nueva fecha, sin costo.',
+          'es-ar':
+            'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        },
       },
     ],
     fechamento: {
-      titulo: 'Elegí tu día en el agua turquesa',
-      texto: 'Mirá las fechas y el precio final, y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Elige tu día en el agua turquesa', 'es-ar': 'Elegí tu día en el agua turquesa' },
+      texto: {
+        es: 'Mira las fechas y el precio final, y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Mirá las fechas y el precio final, y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el paseo en barco',
       caminho: '/passeios/barco-arraial-do-cabo',
       foto: '/fotos/arraial/barco-gruta.jpg',
@@ -406,8 +582,8 @@ export const GUIAS: Guia[] = [
     slug: 'excursion-arraial-do-cabo-desde-buzios',
     titulo: 'Excursión a Arraial do Cabo desde Búzios',
     descricao:
-      'Cómo es la excursión a Arraial do Cabo desde Búzios: búsqueda en el hotel, miradores y paseo en barco en un día. Horarios, qué incluye y qué llevar.',
-    chamada: 'Un día con búsqueda en el hotel y paseo en barco',
+      'Cómo es la excursión a Arraial do Cabo desde Búzios: recogida en el hotel, miradores y paseo en barco en un día. Horarios, qué incluye y qué llevar.',
+    chamada: 'Un día con recogida en el hotel y paseo en barco',
     h1: 'Excursión a Arraial do Cabo desde Búzios',
     foto: '/fotos/arraial/barcos-agua-turquesa.jpg',
     posicaoFoto: '50% 42%',
@@ -415,7 +591,7 @@ export const GUIAS: Guia[] = [
       'Arraial do Cabo queda a unos 40 km de Búzios y se puede conocer en un día. El full day te busca en el hotel, para en los miradores, hace el paseo en barco por las playas de agua turquesa y te deja de vuelta al final de la tarde.',
     ficha: [
       { rotulo: 'Duración', valor: 'Unas 10 horas' },
-      { rotulo: 'Búsqueda', valor: '7 de la mañana' },
+      { rotulo: 'Recogida', valor: '7 de la mañana' },
       { rotulo: 'Distancia', valor: 'Unos 40 km' },
       { rotulo: 'En la ruta', valor: '1h a 1h20' },
     ],
@@ -423,40 +599,69 @@ export const GUIAS: Guia[] = [
       {
         id: 'como-es',
         titulo: 'Cómo es el día',
-        paragrafos: ['La van pasa por tu hotel o posada a la mañana y te deja de vuelta al final de la tarde. Este es el recorrido:'],
+        paragrafos: [
+          {
+            es: 'La van pasa por tu hotel o posada por la mañana y te deja de vuelta al final de la tarde. Este es el recorrido:',
+            'es-ar': 'La van pasa por tu hotel o posada a la mañana y te deja de vuelta al final de la tarde. Este es el recorrido:',
+          },
+        ],
         foto: '/fotos/arraial/pontal-do-atalaia-vista.jpg',
         posicaoFoto: '50% 70%',
         detalhes: [
-          { nome: 'A la mañana', texto: 'Búsqueda en el hotel y ruta hasta Arraial do Cabo.' },
+          { nome: { es: 'Por la mañana', 'es-ar': 'A la mañana' }, texto: 'Recogida en el hotel y ruta hasta Arraial do Cabo.' },
           { nome: 'Mirador', texto: 'Parada en el Pontal do Atalaia, con vista a las Prainhas.' },
           { nome: 'Barco', texto: 'Paseo por las playas de agua turquesa, con paradas para nadar.' },
           { nome: 'Almuerzo', texto: 'Tiempo libre para comer. La comida no está incluida.' },
-          { nome: 'A la tarde', texto: 'Praia Grande y regreso al hotel.' },
+          { nome: { es: 'Por la tarde', 'es-ar': 'A la tarde' }, texto: 'Praia Grande y regreso al hotel.' },
         ],
       },
       {
         id: 'incluye',
         titulo: 'Qué incluye y qué no',
         paragrafos: [
-          'El precio incluye el traslado de ida y vuelta desde tu hotel en Búzios o Cabo Frio, el paseo en barco, el guía o conductor local y las paradas en los miradores. Los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
-          'Comidas y bebidas van aparte, igual que las tasas municipales o de embarque cuando se cobran en el lugar. Llevá traje de baño, toalla, protector solar, lentes de sol, sombrero, agua, un documento con foto y efectivo o tarjeta para los gastos del día.',
+          {
+            es: 'El precio incluye el traslado de ida y vuelta desde tu hotel en Búzios o Cabo Frio, el paseo en barco, el guía o conductor local y las paradas en los miradores. Los niños de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
+            'es-ar':
+              'El precio incluye el traslado de ida y vuelta desde tu hotel en Búzios o Cabo Frio, el paseo en barco, el guía o conductor local y las paradas en los miradores. Los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad.',
+          },
+          {
+            es: 'Comidas y bebidas van aparte, igual que las tasas municipales o de embarque cuando se cobran en el lugar. Lleva traje de baño, toalla, protector solar, lentes de sol, sombrero, agua, un documento con foto y efectivo o tarjeta para los gastos del día.',
+            'es-ar':
+              'Comidas y bebidas van aparte, igual que las tasas municipales o de embarque cuando se cobran en el lugar. Llevá traje de baño, toalla, protector solar, lentes de sol, sombrero, agua, un documento con foto y efectivo o tarjeta para los gastos del día.',
+          },
         ],
       },
       {
         id: 'alternativas',
         titulo: 'Otras formas de conocer Arraial',
         paragrafos: [
-          'Si preferís quedarte en tierra firme, el [city tour](/passeios/city-tour-arraial-do-cabo) recorre los miradores y las playas en unas 7 horas, con traslado desde tu hotel. Para ir solo con tu grupo, la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo) sale de la Praia dos Anjos y lleva hasta 10 personas.',
-          'La guía del [paseo en barco](/guias/paseo-en-barco-arraial-do-cabo) cuenta qué se ve en el recorrido, y la de [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) sirve si decidís quedarte más días.',
+          {
+            es: 'Si prefieres quedarte en tierra firme, el [city tour](/passeios/city-tour-arraial-do-cabo) recorre los miradores y las playas en unas 7 horas, con traslado desde tu hotel. Para ir solo con tu grupo, la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo) sale de la Praia dos Anjos y lleva hasta 10 personas.',
+            'es-ar':
+              'Si preferís quedarte en tierra firme, el [city tour](/passeios/city-tour-arraial-do-cabo) recorre los miradores y las playas en unas 7 horas, con traslado desde tu hotel. Para ir solo con tu grupo, la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo) sale de la Praia dos Anjos y lleva hasta 10 personas.',
+          },
+          {
+            es: 'La guía del [paseo en barco](/guias/paseo-en-barco-arraial-do-cabo) cuenta qué se ve en el recorrido, y la de [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) sirve si decides quedarte más días.',
+            'es-ar':
+              'La guía del [paseo en barco](/guias/paseo-en-barco-arraial-do-cabo) cuenta qué se ve en el recorrido, y la de [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) sirve si decidís quedarte más días.',
+          },
         ],
         passeios: ['full-day-arraial-do-cabo', 'city-tour-arraial-do-cabo', 'lancha-privativa-arraial-do-cabo'],
       },
       {
         id: 'por-tu-cuenta',
-        titulo: 'Si preferís ir por tu cuenta',
+        titulo: { es: 'Si prefieres ir por tu cuenta', 'es-ar': 'Si preferís ir por tu cuenta' },
         paragrafos: [
-          'Entre Búzios y Arraial do Cabo hay unos 40 km: se tarda de 1 hora a 1h20 en auto. Si manejás y vas a hacer el paseo en barco, calculá llegar a la Praia dos Anjos antes del horario de salida.',
-          'El [traslado privado](/transfer?destino=arraial-do-cabo) también hace este camino, solo con tu grupo. No tiene precio fijo: elegí la salida y el destino y pedí la cotización.',
+          {
+            es: 'Entre Búzios y Arraial do Cabo hay unos 40 km: se tarda de 1 hora a 1h20 en auto. Si manejas y vas a hacer el paseo en barco, calcula llegar a la Praia dos Anjos antes del horario de salida.',
+            'es-ar':
+              'Entre Búzios y Arraial do Cabo hay unos 40 km: se tarda de 1 hora a 1h20 en auto. Si manejás y vas a hacer el paseo en barco, calculá llegar a la Praia dos Anjos antes del horario de salida.',
+          },
+          {
+            es: 'El [traslado privado](/transfer?destino=arraial-do-cabo) también hace este camino, solo con tu grupo. No tiene precio fijo: elige la salida y el destino y pide la cotización.',
+            'es-ar':
+              'El [traslado privado](/transfer?destino=arraial-do-cabo) también hace este camino, solo con tu grupo. No tiene precio fijo: elegí la salida y el destino y pedí la cotización.',
+          },
         ],
         transfer: 'arraial-do-cabo',
       },
@@ -472,7 +677,11 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Vale la pena ir a Arraial desde Búzios en un día?',
-        r: 'Sí. Es la forma más simple de ver el agua turquesa sin cambiar de hotel. Si te gusta el buceo o querés más playa, conviene quedarse al menos una noche.',
+        r: {
+          es: 'Sí. Es la forma más simple de ver el agua turquesa sin cambiar de hotel. Si te gusta el buceo o quieres más playa, conviene quedarse al menos una noche.',
+          'es-ar':
+            'Sí. Es la forma más simple de ver el agua turquesa sin cambiar de hotel. Si te gusta el buceo o querés más playa, conviene quedarse al menos una noche.',
+        },
       },
       {
         p: '¿La excursión también sale de Cabo Frio?',
@@ -480,12 +689,19 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Qué pasa si el mar no permite navegar?',
-        r: 'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        r: {
+          es: 'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, eliges entre reembolso total o una nueva fecha, sin costo.',
+          'es-ar':
+            'Si el paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        },
       },
     ],
     fechamento: {
       titulo: 'Un día en el Caribe brasileño, sin manejar',
-      texto: 'La van te busca en el hotel y vos solo elegís la fecha. Podés cancelar gratis hasta 24 horas antes.',
+      texto: {
+        es: 'La van te busca en el hotel y tú solo eliges la fecha. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'La van te busca en el hotel y vos solo elegís la fecha. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el full day',
       caminho: '/passeios/full-day-arraial-do-cabo',
       foto: '/fotos/arraial/banho-com-peixes.jpg',
@@ -504,11 +720,14 @@ export const GUIAS: Guia[] = [
     h1: 'Las mejores playas de Búzios',
     foto: '/fotos/buzios/pedras-a-beira-mar.jpg',
     posicaoFoto: '50% 62%',
-    resumo:
-      'Búzios tiene 23 playas en una península de unos 8 km. En un mismo día podés elegir entre agua calma para nadar, olas para surf y playas chicas que se disfrutan mejor desde el mar.',
+    resumo: {
+      es: 'Búzios tiene 23 playas en una península de unos 8 km. En un mismo día puedes elegir entre agua calma para nadar, olas para surf y playas chicas que se disfrutan mejor desde el mar.',
+      'es-ar':
+        'Búzios tiene 23 playas en una península de unos 8 km. En un mismo día podés elegir entre agua calma para nadar, olas para surf y playas chicas que se disfrutan mejor desde el mar.',
+    },
     ficha: [
       { rotulo: 'Para nadar', valor: 'João Fernandes' },
-      { rotulo: 'Con chicos', valor: 'Ferradura' },
+      { rotulo: { es: 'Con niños', 'es-ar': 'Con chicos' }, valor: 'Ferradura' },
       { rotulo: 'Con olas', valor: 'Geribá' },
       { rotulo: 'Atardecer', valor: 'Tartaruga' },
     ],
@@ -516,14 +735,28 @@ export const GUIAS: Guia[] = [
       {
         id: 'agua-calma',
         titulo: 'Playas de agua calma para nadar',
-        paragrafos: ['Son las mejores para nadar, hacer snorkel y pasar el día con chicos.'],
+        paragrafos: [
+          {
+            es: 'Son las mejores para nadar, hacer snorkel y pasar el día con niños.',
+            'es-ar': 'Son las mejores para nadar, hacer snorkel y pasar el día con chicos.',
+          },
+        ],
         foto: '/fotos/buzios/lancha-joao-fernandes.jpg',
         posicaoFoto: '50% 55%',
         detalhes: [
           { nome: 'João Fernandes', texto: 'Agua calma y mucha estructura: bares, restaurantes y alquiler de stand up paddle.' },
           { nome: 'Ferradura', texto: 'Bahía de mar tranquilo y poco profundo, elegida por las familias. Se llena en temporada alta.' },
-          { nome: 'Ferradurinha', texto: 'Una bahía chica y calma, buena para ir con chicos. Se llega caminando desde el lado izquierdo de Geribá.' },
-          { nome: 'Azeda', texto: 'Mar calmo para hacer snorkel, kayak y stand up paddle. Se llega a pie, por una escalera de madera, o en taxi acuático.' },
+          {
+            nome: 'Ferradurinha',
+            texto: {
+              es: 'Una bahía chica y calma, buena para ir con niños. Se llega caminando desde el lado izquierdo de Geribá.',
+              'es-ar': 'Una bahía chica y calma, buena para ir con chicos. Se llega caminando desde el lado izquierdo de Geribá.',
+            },
+          },
+          {
+            nome: 'Azeda',
+            texto: 'Mar calmo para hacer snorkel, kayak y stand up paddle. Se llega a pie, por una escalera de madera, o en taxi acuático.',
+          },
           { nome: 'Tartaruga', texto: 'Agua tranquila, restaurantes y un buen lugar para ver el atardecer.' },
           { nome: 'Forno', texto: 'Mar calmo y profundo, con arena rosada. Es una de las mejores para hacer snorkel.' },
         ],
@@ -531,13 +764,33 @@ export const GUIAS: Guia[] = [
       {
         id: 'olas',
         titulo: 'Playas con olas y viento',
-        paragrafos: ['El mar es más movido: son para surf, kitesurf y largas caminatas. Si vas con chicos, conviene elegir otras.'],
+        paragrafos: [
+          {
+            es: 'El mar es más movido: son para surf, kitesurf y largas caminatas. Si vas con niños, conviene elegir otras.',
+            'es-ar': 'El mar es más movido: son para surf, kitesurf y largas caminatas. Si vas con chicos, conviene elegir otras.',
+          },
+        ],
         detalhes: [
           { nome: 'Geribá', texto: 'La más larga, con unos 2 km de arena. Tiene olas para surf, y el lado izquierdo es más calmo.' },
-          { nome: 'Manguinhos', texto: 'Mucho viento, por eso es la playa del kitesurf. Queda junto a Porto da Barra, con lindos atardeceres.' },
-          { nome: 'Brava', texto: 'Mar agitado y paradores sobre la arena. De acá sale el sendero a Olho de Boi.' },
+          {
+            nome: 'Manguinhos',
+            texto: 'Mucho viento, por eso es la playa del kitesurf. Queda junto a Porto da Barra, con lindos atardeceres.',
+          },
+          {
+            nome: 'Brava',
+            texto: {
+              es: 'Mar agitado y bares sobre la arena. De aquí sale el sendero a Olho de Boi.',
+              'es-ar': 'Mar agitado y paradores sobre la arena. De acá sale el sendero a Olho de Boi.',
+            },
+          },
           { nome: 'Tucuns', texto: 'Larga y con viento. Es un lugar elegido para volar en parapente.' },
-          { nome: 'José Gonçalves', texto: 'Olas grandes y un paisaje más salvaje. No es para ir con chicos.' },
+          {
+            nome: 'José Gonçalves',
+            texto: {
+              es: 'Olas grandes y un paisaje más salvaje. No es para ir con niños.',
+              'es-ar': 'Olas grandes y un paisaje más salvaje. No es para ir con chicos.',
+            },
+          },
         ],
       },
       {
@@ -559,7 +812,11 @@ export const GUIAS: Guia[] = [
         titulo: 'Cómo conocer varias playas en un día',
         paragrafos: [
           'Las playas están repartidas por toda la península, y en temporada alta estacionar es difícil. Por eso lo más práctico es ir de una a otra en un paseo.',
-          'Desde el mar, la [goleta](/passeios/escuna-buzios) pasa por Azeda y Azedinha y para a nadar en lugares como João Fernandes, Tartaruga o Forno, según el mar del día. Por tierra, el [buggy](/passeios/buggy-buzios) une Geribá, Ferradura, João Fernandes y Azeda con los miradores de Brava y Forno. Con la [lancha privada](/passeios/lancha-buzios) elegís las playas con el marinero.',
+          {
+            es: 'Desde el mar, la [goleta](/passeios/escuna-buzios) pasa por Azeda y Azedinha y para a nadar en lugares como João Fernandes, Tartaruga o Forno, según el mar del día. Por tierra, el [buggy](/passeios/buggy-buzios) une Geribá, Ferradura, João Fernandes y Azeda con los miradores de Brava y Forno. Con la [lancha privada](/passeios/lancha-buzios) eliges las playas con el marinero.',
+            'es-ar':
+              'Desde el mar, la [goleta](/passeios/escuna-buzios) pasa por Azeda y Azedinha y para a nadar en lugares como João Fernandes, Tartaruga o Forno, según el mar del día. Por tierra, el [buggy](/passeios/buggy-buzios) une Geribá, Ferradura, João Fernandes y Azeda con los miradores de Brava y Forno. Con la [lancha privada](/passeios/lancha-buzios) elegís las playas con el marinero.',
+          },
         ],
         passeios: ['escuna-buzios', 'buggy-buzios', 'lancha-buzios', 'trolley-buzios'],
       },
@@ -579,8 +836,11 @@ export const GUIAS: Guia[] = [
         r: 'Depende de lo que busques. Para nadar con calma, João Fernandes o Ferradura; para surf, Geribá; para kitesurf, Manguinhos; para snorkel, Forno o João Fernandinho.',
       },
       {
-        p: '¿Cuál es la mejor playa de Búzios para ir con chicos?',
-        r: 'Ferradura y Ferradurinha, por el mar calmo. Evitá Brava y José Gonçalves, que tienen mar agitado y olas grandes.',
+        p: { es: '¿Cuál es la mejor playa de Búzios para ir con niños?', 'es-ar': '¿Cuál es la mejor playa de Búzios para ir con chicos?' },
+        r: {
+          es: 'Ferradura y Ferradurinha, por el mar calmo. Evita Brava y José Gonçalves, que tienen mar agitado y olas grandes.',
+          'es-ar': 'Ferradura y Ferradurinha, por el mar calmo. Evitá Brava y José Gonçalves, que tienen mar agitado y olas grandes.',
+        },
       },
       {
         p: '¿Se pueden recorrer las playas caminando?',
@@ -596,8 +856,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Conocé varias playas en un solo paseo',
-      texto: 'Elegí entre barco o buggy, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Conoce varias playas en un solo paseo', 'es-ar': 'Conocé varias playas en un solo paseo' },
+      texto: {
+        es: 'Elige entre barco o buggy, mira el precio final y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí entre barco o buggy, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver los paseos en Búzios',
       caminho: '/passeios?cidade=buzios',
       foto: '/fotos/buzios/jet-ski-mar-azul.jpg',
@@ -632,18 +895,44 @@ export const GUIAS: Guia[] = [
         foto: '/fotos/transfer/van-porta-lateral-bancos.jpg',
         posicaoFoto: '50% 50%',
         detalhes: [
-          { nome: 'Traslado privado', texto: 'De puerta a puerta, solo con tu grupo, desde el aeropuerto o desde cualquier dirección de Río.' },
-          { nome: 'Bus', texto: 'Sale de la Rodoviária Novo Rio. Es lo más económico si viajás solo o en pareja.' },
-          { nome: 'Auto', texto: 'Sirve si querés recorrer la región por tu cuenta. Hay que sumar peajes y combustible.' },
-          { nome: 'Avión hasta Cabo Frio', texto: 'Hay pocos vuelos y varios son solo de temporada, pero te deja a unos 10 km de Arraial.' },
+          {
+            nome: 'Traslado privado',
+            texto: 'De puerta a puerta, solo con tu grupo, desde el aeropuerto o desde cualquier dirección de Río.',
+          },
+          {
+            nome: 'Bus',
+            texto: {
+              es: 'Sale de la Rodoviária Novo Rio. Es lo más económico si viajas solo o en pareja.',
+              'es-ar': 'Sale de la Rodoviária Novo Rio. Es lo más económico si viajás solo o en pareja.',
+            },
+          },
+          {
+            nome: 'Auto',
+            texto: {
+              es: 'Sirve si quieres recorrer la región por tu cuenta. Hay que sumar peajes y combustible.',
+              'es-ar': 'Sirve si querés recorrer la región por tu cuenta. Hay que sumar peajes y combustible.',
+            },
+          },
+          {
+            nome: 'Avión hasta Cabo Frio',
+            texto: 'Hay pocos vuelos y varios son solo de temporada, pero te deja a unos 10 km de Arraial.',
+          },
         ],
       },
       {
         id: 'traslado',
         titulo: 'Traslado privado desde Río o Cabo Frio',
         paragrafos: [
-          'El chofer te espera en arribos de Galeão, Santos Dumont o Cabo Frio, o en la dirección que indiques en Río, y te deja en tu hotel o posada sin paradas extra. Viajás solo con tu grupo, en [auto para hasta 4 personas o van para hasta 17](/transfer?destino=arraial-do-cabo).',
-          'El precio es por vehículo y ya incluye el peaje y el estacionamiento. Si viajan chicos, la silla no tiene costo: indicá en la reserva la edad de cada uno.',
+          {
+            es: 'El chofer te espera en llegadas de Galeão, Santos Dumont o Cabo Frio, o en la dirección que indiques en Río, y te deja en tu hotel o posada sin paradas extra. Viajas solo con tu grupo, en [auto para hasta 4 personas o van para hasta 17](/transfer?destino=arraial-do-cabo).',
+            'es-ar':
+              'El chofer te espera en arribos de Galeão, Santos Dumont o Cabo Frio, o en la dirección que indiques en Río, y te deja en tu hotel o posada sin paradas extra. Viajás solo con tu grupo, en [auto para hasta 4 personas o van para hasta 17](/transfer?destino=arraial-do-cabo).',
+          },
+          {
+            es: 'El precio es por vehículo y ya incluye el peaje y el estacionamiento. Si viajan niños, la silla no tiene costo: indica en la reserva la edad de cada uno.',
+            'es-ar':
+              'El precio es por vehículo y ya incluye el peaje y el estacionamiento. Si viajan chicos, la silla no tiene costo: indicá en la reserva la edad de cada uno.',
+          },
         ],
         transfer: 'arraial-do-cabo',
       },
@@ -651,7 +940,11 @@ export const GUIAS: Guia[] = [
         id: 'bus',
         titulo: 'En bus desde la Rodoviária Novo Rio',
         paragrafos: [
-          'La empresa 1001 une la Rodoviária Novo Rio con Arraial do Cabo. El viaje tarda de 3 horas a 3h30, y más si hay tránsito. El bus llega a la terminal Fernando Barros Pessoa y desde ahí seguís hasta tu alojamiento.',
+          {
+            es: 'La empresa 1001 une la Rodoviária Novo Rio con Arraial do Cabo. El viaje tarda de 3 horas a 3h30, y más si hay tránsito. El bus llega a la terminal Fernando Barros Pessoa y desde ahí sigues hasta tu alojamiento.',
+            'es-ar':
+              'La empresa 1001 une la Rodoviária Novo Rio con Arraial do Cabo. El viaje tarda de 3 horas a 3h30, y más si hay tránsito. El bus llega a la terminal Fernando Barros Pessoa y desde ahí seguís hasta tu alojamiento.',
+          },
           'En temporada alta y en feriados conviene sacar el pasaje con tiempo.',
         ],
       },
@@ -666,7 +959,11 @@ export const GUIAS: Guia[] = [
         id: 'desde-buzios',
         titulo: 'Desde Búzios o Cabo Frio',
         paragrafos: [
-          'Arraial está a unos 40 km de Búzios, de 1 hora a 1h20 en auto. Si te alojás en Búzios o Cabo Frio, no hace falta organizar el viaje: el [full day](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma los miradores y el paseo en barco.',
+          {
+            es: 'Arraial está a unos 40 km de Búzios, de 1 hora a 1h20 en auto. Si te alojas en Búzios o Cabo Frio, no hace falta organizar el viaje: el [full day](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma los miradores y el paseo en barco.',
+            'es-ar':
+              'Arraial está a unos 40 km de Búzios, de 1 hora a 1h20 en auto. Si te alojás en Búzios o Cabo Frio, no hace falta organizar el viaje: el [full day](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma los miradores y el paseo en barco.',
+          },
           'La guía de la [excursión desde Búzios](/guias/excursion-arraial-do-cabo-desde-buzios) cuenta cómo es el día.',
         ],
         passeios: ['full-day-arraial-do-cabo', 'barco-arraial-do-cabo', 'lancha-privativa-arraial-do-cabo', 'mergulho-arraial-do-cabo'],
@@ -695,8 +992,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Llegá sin pensar en la ruta',
-      texto: 'Elegí la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Llega sin pensar en la ruta', 'es-ar': 'Llegá sin pensar en la ruta' },
+      texto: {
+        es: 'Elige la fecha y el vehículo, y mira el precio final. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el precio del traslado',
       caminho: '/transfer?destino=arraial-do-cabo',
       foto: '/fotos/arraial/barcos-agua-turquesa.jpg',
@@ -715,8 +1015,11 @@ export const GUIAS: Guia[] = [
     h1: 'Qué hacer en Arraial do Cabo',
     foto: '/fotos/arraial/mirante-praia-do-forno.jpg',
     posicaoFoto: '50% 42%',
-    resumo:
-      'A Arraial do Cabo le dicen el Caribe brasileño por su agua turquesa. Lo imprescindible es el paseo en barco, pero también vale la pena subir a los miradores, caminar hasta la Praia do Forno y, si te animás, bucear.',
+    resumo: {
+      es: 'A Arraial do Cabo le dicen el Caribe brasileño por su agua turquesa. Lo imprescindible es el paseo en barco, pero también vale la pena subir a los miradores, caminar hasta la Praia do Forno y, si te animas, bucear.',
+      'es-ar':
+        'A Arraial do Cabo le dicen el Caribe brasileño por su agua turquesa. Lo imprescindible es el paseo en barco, pero también vale la pena subir a los miradores, caminar hasta la Praia do Forno y, si te animás, bucear.',
+    },
     ficha: [
       { rotulo: 'Desde Río', valor: 'Unos 164 km' },
       { rotulo: 'En auto', valor: '2h20 a 2h40' },
@@ -737,12 +1040,20 @@ export const GUIAS: Guia[] = [
       {
         id: 'playas',
         titulo: 'Las playas de Arraial',
-        paragrafos: ['Son menos que en Búzios y varias tienen un acceso difícil, pero el color del agua compensa. Estas son las más conocidas:'],
+        paragrafos: [
+          'Son menos que en Búzios y varias tienen un acceso difícil, pero el color del agua compensa. Estas son las más conocidas:',
+        ],
         foto: '/fotos/arraial/pontal-do-atalaia-vista.jpg',
         posicaoFoto: '50% 70%',
         detalhes: [
-          { nome: 'Prainhas do Pontal do Atalaia', texto: 'Arena blanca y agua turquesa. Se baja por una escalera de más de 250 escalones o se llega en barco.' },
-          { nome: 'Praia do Forno', texto: 'Se llega por un sendero de unos 20 minutos desde el lado izquierdo del puerto, o en taxi acuático.' },
+          {
+            nome: 'Prainhas do Pontal do Atalaia',
+            texto: 'Arena blanca y agua turquesa. Se baja por una escalera de más de 250 escalones o se llega en barco.',
+          },
+          {
+            nome: 'Praia do Forno',
+            texto: 'Se llega por un sendero de unos 20 minutos desde el lado izquierdo del puerto, o en taxi acuático.',
+          },
           { nome: 'Playa do Farol', texto: 'En la Isla de Cabo Frio. Solo se llega en barco, y la Marina controla el tiempo de visita.' },
           { nome: 'Praia Grande', texto: 'Larga y de agua fría, con el atardecer sobre el mar.' },
           { nome: 'Praia dos Anjos', texto: 'La playa central, de donde salen los barcos. No es la mejor para bañarse.' },
@@ -752,7 +1063,11 @@ export const GUIAS: Guia[] = [
         id: 'barco',
         titulo: 'El paseo que no hay que perderse',
         paragrafos: [
-          'Las playas más famosas se ven mejor desde el agua. El [paseo en barco](/passeios/barco-arraial-do-cabo) sale de la Praia dos Anjos y dura unas 4 horas, con paradas para nadar. Si querés ir solo con tu grupo, está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo), para hasta 10 personas.',
+          {
+            es: 'Las playas más famosas se ven mejor desde el agua. El [paseo en barco](/passeios/barco-arraial-do-cabo) sale de la Praia dos Anjos y dura unas 4 horas, con paradas para nadar. Si quieres ir solo con tu grupo, está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo), para hasta 10 personas.',
+            'es-ar':
+              'Las playas más famosas se ven mejor desde el agua. El [paseo en barco](/passeios/barco-arraial-do-cabo) sale de la Praia dos Anjos y dura unas 4 horas, con paradas para nadar. Si querés ir solo con tu grupo, está la [lancha privada](/passeios/lancha-privativa-arraial-do-cabo), para hasta 10 personas.',
+          },
           'La guía del [paseo en barco](/guias/paseo-en-barco-arraial-do-cabo) cuenta el recorrido y qué llevar.',
         ],
         passeios: ['barco-arraial-do-cabo', 'lancha-privativa-arraial-do-cabo', 'full-day-arraial-do-cabo'],
@@ -761,7 +1076,11 @@ export const GUIAS: Guia[] = [
         id: 'bucear',
         titulo: 'Bucear en la capital del buceo',
         paragrafos: [
-          'Sin experiencia podés hacer un [bautismo](/passeios/mergulho-arraial-do-cabo), con un instructor a tu lado todo el tiempo. Si ya tenés certificación, hay [dos inmersiones guiadas](/passeios/mergulho-credenciado-arraial-do-cabo) en los puntos más conocidos.',
+          {
+            es: 'Sin experiencia puedes hacer un [bautismo](/passeios/mergulho-arraial-do-cabo), con un instructor a tu lado todo el tiempo. Si ya tienes certificación, hay [dos inmersiones guiadas](/passeios/mergulho-credenciado-arraial-do-cabo) en los puntos más conocidos.',
+            'es-ar':
+              'Sin experiencia podés hacer un [bautismo](/passeios/mergulho-arraial-do-cabo), con un instructor a tu lado todo el tiempo. Si ya tenés certificación, hay [dos inmersiones guiadas](/passeios/mergulho-credenciado-arraial-do-cabo) en los puntos más conocidos.',
+          },
           'Todo el detalle está en la guía de [buceo en Arraial do Cabo](/guias/buceo-en-arraial-do-cabo).',
         ],
         foto: '/fotos/arraial/mergulho-tartaruga-de-perto.jpg',
@@ -770,21 +1089,40 @@ export const GUIAS: Guia[] = [
       },
       {
         id: 'por-tierra',
-        titulo: 'Miradores, médanos y lagunas por tierra',
+        titulo: { es: 'Miradores, dunas y lagunas por tierra', 'es-ar': 'Miradores, médanos y lagunas por tierra' },
         paragrafos: [
-          'El [city tour](/passeios/city-tour-arraial-do-cabo) recorre el Pontal do Atalaia, la Praia Grande y la Praia dos Anjos, con traslado desde tu hotel en la Región de los Lagos. En [buggy](/passeios/buggy-arraial-do-cabo) conocés el lado más salvaje de la ciudad, entre médanos, lagunas y la Praia Grande.',
-          'Si preferís manejar, el [cuatriciclo](/passeios/quadriciclo-arraial-do-cabo) sale en caravana con un guía por senderos de arena. Quien maneja necesita licencia de conducir.',
+          {
+            es: 'El [city tour](/passeios/city-tour-arraial-do-cabo) recorre el Pontal do Atalaia, la Praia Grande y la Praia dos Anjos, con traslado desde tu hotel en la Región de los Lagos. En [buggy](/passeios/buggy-arraial-do-cabo) conoces el lado más salvaje de la ciudad, entre dunas, lagunas y la Praia Grande.',
+            'es-ar':
+              'El [city tour](/passeios/city-tour-arraial-do-cabo) recorre el Pontal do Atalaia, la Praia Grande y la Praia dos Anjos, con traslado desde tu hotel en la Región de los Lagos. En [buggy](/passeios/buggy-arraial-do-cabo) conocés el lado más salvaje de la ciudad, entre médanos, lagunas y la Praia Grande.',
+          },
+          {
+            es: 'Si prefieres manejar, la [cuatrimoto](/passeios/quadriciclo-arraial-do-cabo) sale en caravana con un guía por senderos de arena. Quien maneja necesita licencia de conducir.',
+            'es-ar':
+              'Si preferís manejar, el [cuatriciclo](/passeios/quadriciclo-arraial-do-cabo) sale en caravana con un guía por senderos de arena. Quien maneja necesita licencia de conducir.',
+          },
         ],
         passeios: ['city-tour-arraial-do-cabo', 'buggy-arraial-do-cabo', 'quadriciclo-arraial-do-cabo'],
       },
       {
         id: 'dias',
         titulo: 'Cuántos días quedarte',
-        paragrafos: ['Con dos días completos ves lo principal. Con tres sumás buceo o buggy sin apuro. Este es un plan simple:'],
+        paragrafos: [
+          {
+            es: 'Con dos días completos ves lo principal. Con tres sumas buceo o buggy sin apuro. Este es un plan simple:',
+            'es-ar': 'Con dos días completos ves lo principal. Con tres sumás buceo o buggy sin apuro. Este es un plan simple:',
+          },
+        ],
         detalhes: [
           { nome: 'Día 1', texto: 'Paseo en barco y, al final de la tarde, el atardecer en la Praia Grande.' },
           { nome: 'Día 2', texto: 'Sendero a la Praia do Forno y mirador del Pontal do Atalaia.' },
-          { nome: 'Si tenés más días', texto: 'Bautismo de buceo, buggy por los médanos o un día en Cabo Frio.' },
+          {
+            nome: { es: 'Si tienes más días', 'es-ar': 'Si tenés más días' },
+            texto: {
+              es: 'Bautismo de buceo, buggy por las dunas o un día en Cabo Frio.',
+              'es-ar': 'Bautismo de buceo, buggy por los médanos o un día en Cabo Frio.',
+            },
+          },
         ],
       },
       {
@@ -808,11 +1146,19 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Cuántos días se necesitan para conocer Arraial do Cabo?',
-        r: 'Con dos días completos alcanza para el paseo en barco, los miradores y una playa por tierra. Con tres podés sumar buceo o buggy.',
+        r: {
+          es: 'Con dos días completos alcanza para el paseo en barco, los miradores y una playa por tierra. Con tres puedes sumar buceo o buggy.',
+          'es-ar':
+            'Con dos días completos alcanza para el paseo en barco, los miradores y una playa por tierra. Con tres podés sumar buceo o buggy.',
+        },
       },
       {
-        p: '¿Qué hacer en Arraial do Cabo con chicos?',
-        r: 'El paseo en barco es la mejor opción: los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad. A las Prainhas conviene llegar por mar, porque por tierra hay una escalera de más de 250 escalones.',
+        p: { es: '¿Qué hacer en Arraial do Cabo con niños?', 'es-ar': '¿Qué hacer en Arraial do Cabo con chicos?' },
+        r: {
+          es: 'El paseo en barco es la mejor opción: los niños de hasta 5 años no pagan y hasta los 10 pagan la mitad. A las Prainhas conviene llegar por mar, porque por tierra hay una escalera de más de 250 escalones.',
+          'es-ar':
+            'El paseo en barco es la mejor opción: los chicos de hasta 5 años no pagan y hasta los 10 pagan la mitad. A las Prainhas conviene llegar por mar, porque por tierra hay una escalera de más de 250 escalones.',
+        },
       },
       {
         p: '¿Se puede conocer Arraial do Cabo en un día desde Búzios?',
@@ -820,8 +1166,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Dejá el barco reservado antes de viajar',
-      texto: 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Deja el barco reservado antes de viajar', 'es-ar': 'Dejá el barco reservado antes de viajar' },
+      texto: {
+        es: 'Elige la fecha y el grupo, mira el precio final y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver los paseos en Arraial do Cabo',
       caminho: '/passeios?cidade=arraial-do-cabo',
       foto: '/fotos/arraial/barco-toboga.jpg',
@@ -840,8 +1189,11 @@ export const GUIAS: Guia[] = [
     h1: 'Búzios o Arraial do Cabo: cuál elegir',
     foto: '/fotos/arraial/lancha-agua-turquesa-do-alto.jpg',
     posicaoFoto: '50% 52%',
-    resumo:
-      'Si buscás el mar más turquesa y un lugar tranquilo, elegí Arraial do Cabo. Si querés más playas, restaurantes y vida nocturna, elegí Búzios. Están a unos 40 km, así que podés alojarte en una y conocer la otra en un día.',
+    resumo: {
+      es: 'Si buscas el mar más turquesa y un lugar tranquilo, elige Arraial do Cabo. Si quieres más playas, restaurantes y vida nocturna, elige Búzios. Están a unos 40 km, así que puedes alojarte en una y conocer la otra en un día.',
+      'es-ar':
+        'Si buscás el mar más turquesa y un lugar tranquilo, elegí Arraial do Cabo. Si querés más playas, restaurantes y vida nocturna, elegí Búzios. Están a unos 40 km, así que podés alojarte en una y conocer la otra en un día.',
+    },
     ficha: [
       { rotulo: 'Entre las dos', valor: 'Unos 40 km' },
       { rotulo: 'En auto', valor: '1h a 1h20' },
@@ -861,16 +1213,30 @@ export const GUIAS: Guia[] = [
             ['Playas', '23 playas, casi todas de acceso fácil', 'Menos playas, muchas chicas y de acceso más difícil'],
             ['De noche', 'Restaurantes, bares y un centro para recorrer a pie', 'Tranquila, con poca vida nocturna'],
             ['Alojamiento', 'Más opciones para elegir', 'Una estructura más simple'],
-            ['Paseos', 'Goleta, buggy, moto de agua y helicóptero', 'Barco a la playa do Farol, buceo y buggy por los médanos'],
+            [
+              'Paseos',
+              'Goleta, buggy, moto de agua y helicóptero',
+              {
+                es: 'Barco a la playa do Farol, buceo y buggy por las dunas',
+                'es-ar': 'Barco a la playa do Farol, buceo y buggy por los médanos',
+              },
+            ],
           ],
         },
       },
       {
         id: 'elegi-buzios',
-        titulo: 'Elegí Búzios si…',
+        titulo: { es: 'Elige Búzios si…', 'es-ar': 'Elegí Búzios si…' },
         paragrafos: [
-          'Querés variedad: más de veinte playas, muchas de agua calma y fácil acceso, además de restaurantes, negocios y un centro para salir a la noche. También es la opción más simple para ir con chicos o si querés moverte poco.',
-          'Para empezar, mirá [qué hacer en Búzios](/guias/que-hacer-en-buzios).',
+          {
+            es: 'Quieres variedad: más de veinte playas, muchas de agua calma y fácil acceso, además de restaurantes, negocios y un centro para salir por la noche. También es la opción más simple para ir con niños o si quieres moverte poco.',
+            'es-ar':
+              'Querés variedad: más de veinte playas, muchas de agua calma y fácil acceso, además de restaurantes, negocios y un centro para salir a la noche. También es la opción más simple para ir con chicos o si querés moverte poco.',
+          },
+          {
+            es: 'Para empezar, mira [qué hacer en Búzios](/guias/que-hacer-en-buzios).',
+            'es-ar': 'Para empezar, mirá [qué hacer en Búzios](/guias/que-hacer-en-buzios).',
+          },
         ],
         foto: '/fotos/buzios/orla-bardot-flores.jpg',
         posicaoFoto: '50% 62%',
@@ -878,10 +1244,13 @@ export const GUIAS: Guia[] = [
       },
       {
         id: 'elegi-arraial',
-        titulo: 'Elegí Arraial do Cabo si…',
+        titulo: { es: 'Elige Arraial do Cabo si…', 'es-ar': 'Elegí Arraial do Cabo si…' },
         paragrafos: [
           'Lo que más te importa es el mar: agua turquesa, paseos en barco y buceo. Es un destino más tranquilo y con menos estructura, ideal si no te molesta caminar un sendero o bajar una escalera para llegar a la playa.',
-          'Mirá [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) para armar tus días.',
+          {
+            es: 'Mira [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) para armar tus días.',
+            'es-ar': 'Mirá [qué hacer en Arraial do Cabo](/guias/que-hacer-en-arraial-do-cabo) para armar tus días.',
+          },
         ],
         foto: '/fotos/arraial/barco-arco-de-pedra.jpg',
         posicaoFoto: '50% 30%',
@@ -891,8 +1260,16 @@ export const GUIAS: Guia[] = [
         id: 'las-dos',
         titulo: 'Cómo conocer las dos en un mismo viaje',
         paragrafos: [
-          'Están a unos 40 km, de 1 hora a 1h20 en auto, así que no hace falta elegir. Si te alojás en Búzios, el [full day en Arraial](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma miradores y paseo en barco.',
-          'Si te alojás en Arraial o Cabo Frio, el [full day en Búzios](/passeios/full-day-buzios) junta goleta, miradores y tiempo libre en la Rua das Pedras.',
+          {
+            es: 'Están a unos 40 km, de 1 hora a 1h20 en auto, así que no hace falta elegir. Si te alojas en Búzios, el [full day en Arraial](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma miradores y paseo en barco.',
+            'es-ar':
+              'Están a unos 40 km, de 1 hora a 1h20 en auto, así que no hace falta elegir. Si te alojás en Búzios, el [full day en Arraial](/passeios/full-day-arraial-do-cabo) te busca en el hotel y suma miradores y paseo en barco.',
+          },
+          {
+            es: 'Si te alojas en Arraial o Cabo Frio, el [full day en Búzios](/passeios/full-day-buzios) junta goleta, miradores y tiempo libre en la Rua das Pedras.',
+            'es-ar':
+              'Si te alojás en Arraial o Cabo Frio, el [full day en Búzios](/passeios/full-day-buzios) junta goleta, miradores y tiempo libre en la Rua das Pedras.',
+          },
         ],
         passeios: ['full-day-arraial-do-cabo', 'full-day-buzios'],
       },
@@ -916,12 +1293,16 @@ export const GUIAS: Guia[] = [
         r: 'Arraial do Cabo: el agua es más azul y turquesa, aunque también más fría. En Búzios es más verde y cambia de una playa a otra.',
       },
       {
-        p: '¿Cuál conviene para ir con chicos?',
+        p: { es: '¿Cuál conviene para ir con niños?', 'es-ar': '¿Cuál conviene para ir con chicos?' },
         r: 'Búzios suele ser más fácil, con más playas de mar calmo y acceso simple, como Ferradura. En Arraial, varias playas tienen escaleras o senderos y las más lindas se visitan en barco.',
       },
       {
         p: '¿Dónde conviene alojarse para conocer las dos?',
-        r: 'En Búzios hay más opciones de alojamiento y restaurantes, y el full day a Arraial do Cabo te busca en el hotel. También podés hacerlo al revés: alojarte en Arraial y conocer Búzios en un día.',
+        r: {
+          es: 'En Búzios hay más opciones de alojamiento y restaurantes, y el full day a Arraial do Cabo te busca en el hotel. También puedes hacerlo al revés: alojarte en Arraial y conocer Búzios en un día.',
+          'es-ar':
+            'En Búzios hay más opciones de alojamiento y restaurantes, y el full day a Arraial do Cabo te busca en el hotel. También podés hacerlo al revés: alojarte en Arraial y conocer Búzios en un día.',
+        },
       },
       {
         p: '¿Qué distancia hay entre Búzios y Arraial do Cabo?',
@@ -929,8 +1310,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Conocé las dos en un mismo viaje',
-      texto: 'Elegí tu base y sumá un full day a la otra, con búsqueda en el hotel. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Conoce las dos en un mismo viaje', 'es-ar': 'Conocé las dos en un mismo viaje' },
+      texto: {
+        es: 'Elige tu base y suma un full day a la otra, con recogida en el hotel. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí tu base y sumá un full day a la otra, con recogida en el hotel. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver todos los paseos',
       caminho: '/passeios',
       foto: '/fotos/buzios/por-do-sol-barcos-na-baia.jpg',
@@ -943,8 +1327,11 @@ export const GUIAS: Guia[] = [
   {
     slug: 'que-hacer-en-cabo-frio',
     titulo: 'Qué hacer en Cabo Frio: playas y paseos',
-    descricao:
-      'Guía de Cabo Frio: Praia do Forte, Isla do Japonês, Fuerte São Mateus, los médanos del Peró, la Calle de los Bikinis y cómo conocerla en un día.',
+    descricao: {
+      es: 'Guía de Cabo Frio: Praia do Forte, Isla do Japonês, Fuerte São Mateus, las dunas del Peró, la Calle de los Bikinis y cómo conocerla en un día.',
+      'es-ar':
+        'Guía de Cabo Frio: Praia do Forte, Isla do Japonês, Fuerte São Mateus, los médanos del Peró, la Calle de los Bikinis y cómo conocerla en un día.',
+    },
     chamada: 'Playas, la Isla do Japonês y la Calle de los Bikinis',
     h1: 'Qué hacer en Cabo Frio',
     foto: '/fotos/cabo-frio/praia-do-forte-agua-azul.jpg',
@@ -961,13 +1348,27 @@ export const GUIAS: Guia[] = [
       {
         id: 'playas',
         titulo: 'Las playas de Cabo Frio',
-        paragrafos: ['Agua clara y arena blanca, con opciones tanto para familias como para caminar por la costa. Estas son las más conocidas:'],
+        paragrafos: [
+          'Agua clara y arena blanca, con opciones tanto para familias como para caminar por la costa. Estas son las más conocidas:',
+        ],
         foto: '/fotos/cabo-frio/praia-do-forte-forte-sao-mateus.jpg',
         posicaoFoto: '50% 55%',
         detalhes: [
           { nome: 'Praia do Forte', texto: 'La más conocida de la ciudad, de arena blanca, con el Fuerte São Mateus en un extremo.' },
-          { nome: 'Isla do Japonês', texto: 'Agua baja y calma, muy buena para ir con chicos. Los paseos en barco paran ahí.' },
-          { nome: 'Peró', texto: 'Una playa extensa, junto a los médanos de arena blanca.' },
+          {
+            nome: 'Isla do Japonês',
+            texto: {
+              es: 'Agua baja y calma, muy buena para ir con niños. Los paseos en barco paran ahí.',
+              'es-ar': 'Agua baja y calma, muy buena para ir con chicos. Los paseos en barco paran ahí.',
+            },
+          },
+          {
+            nome: 'Peró',
+            texto: {
+              es: 'Una playa extensa, junto a las dunas de arena blanca.',
+              'es-ar': 'Una playa extensa, junto a los médanos de arena blanca.',
+            },
+          },
           { nome: 'Conchas', texto: 'Al lado del Peró, con un sendero de menos de 20 minutos hasta un mirador.' },
         ],
       },
@@ -1001,9 +1402,13 @@ export const GUIAS: Guia[] = [
       },
       {
         id: 'medanos',
-        titulo: 'Médanos y playas en buggy o cuatriciclo',
+        titulo: { es: 'Dunas y playas en buggy o cuatrimoto', 'es-ar': 'Médanos y playas en buggy o cuatriciclo' },
         paragrafos: [
-          'Los Médanos do Peró son uno de los paisajes más abiertos de Cabo Frio. El [buggy](/passeios/buggy-cabo-frio) pasa por los médanos y por las playas do Peró y das Conchas, y el [cuatriciclo](/passeios/quadriciclo-cabo-frio) sale en caravana con un guía. Quien maneja necesita licencia de conducir.',
+          {
+            es: 'Las Dunas do Peró son uno de los paisajes más abiertos de Cabo Frio. El [buggy](/passeios/buggy-cabo-frio) pasa por las dunas y por las playas do Peró y das Conchas, y la [cuatrimoto](/passeios/quadriciclo-cabo-frio) sale en caravana con un guía. Quien maneja necesita licencia de conducir.',
+            'es-ar':
+              'Los Médanos do Peró son uno de los paisajes más abiertos de Cabo Frio. El [buggy](/passeios/buggy-cabo-frio) pasa por los médanos y por las playas do Peró y das Conchas, y el [cuatriciclo](/passeios/quadriciclo-cabo-frio) sale en caravana con un guía. Quien maneja necesita licencia de conducir.',
+          },
         ],
         passeios: ['buggy-cabo-frio', 'quadriciclo-cabo-frio'],
       },
@@ -1011,8 +1416,15 @@ export const GUIAS: Guia[] = [
         id: 'un-dia',
         titulo: 'Cabo Frio en un día',
         paragrafos: [
-          'Si te alojás en Búzios o Arraial do Cabo, el [full day](/passeios/full-day-cabo-frio) junta todo en unas 9 horas: barco a la Isla do Japonês, Fuerte São Mateus, Praia do Forte, Médanos do Peró y la Calle de los Bikinis, con búsqueda en el hotel.',
-          'Si preferís quedarte en tierra, el [city tour](/passeios/city-tour-cabo-frio) recorre esos puntos en unas 7 horas.',
+          {
+            es: 'Si te alojas en Búzios o Arraial do Cabo, el [full day](/passeios/full-day-cabo-frio) junta todo en unas 9 horas: barco a la Isla do Japonês, Fuerte São Mateus, Praia do Forte, Dunas do Peró y la Calle de los Bikinis, con recogida en el hotel.',
+            'es-ar':
+              'Si te alojás en Búzios o Arraial do Cabo, el [full day](/passeios/full-day-cabo-frio) junta todo en unas 9 horas: barco a la Isla do Japonês, Fuerte São Mateus, Praia do Forte, Médanos do Peró y la Calle de los Bikinis, con recogida en el hotel.',
+          },
+          {
+            es: 'Si prefieres quedarte en tierra, el [city tour](/passeios/city-tour-cabo-frio) recorre esos puntos en unas 7 horas.',
+            'es-ar': 'Si preferís quedarte en tierra, el [city tour](/passeios/city-tour-cabo-frio) recorre esos puntos en unas 7 horas.',
+          },
         ],
         passeios: ['full-day-cabo-frio', 'city-tour-cabo-frio'],
       },
@@ -1029,7 +1441,11 @@ export const GUIAS: Guia[] = [
     perguntas: [
       {
         p: '¿Qué hacer en Cabo Frio en un día?',
-        r: 'Un paseo en barco hasta la Isla do Japonês, el Fuerte São Mateus, la Praia do Forte y la Calle de los Bikinis. El full day junta todo eso, con búsqueda en el hotel si te alojás en Búzios o Arraial do Cabo.',
+        r: {
+          es: 'Un paseo en barco hasta la Isla do Japonês, el Fuerte São Mateus, la Praia do Forte y la Calle de los Bikinis. El full day junta todo eso, con recogida en el hotel si te alojas en Búzios o Arraial do Cabo.',
+          'es-ar':
+            'Un paseo en barco hasta la Isla do Japonês, el Fuerte São Mateus, la Praia do Forte y la Calle de los Bikinis. El full day junta todo eso, con recogida en el hotel si te alojás en Búzios o Arraial do Cabo.',
+        },
       },
       {
         p: '¿Cómo se llega a la Isla do Japonês?',
@@ -1049,8 +1465,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Dejá tu día en Cabo Frio resuelto',
-      texto: 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Deja tu día en Cabo Frio resuelto', 'es-ar': 'Dejá tu día en Cabo Frio resuelto' },
+      texto: {
+        es: 'Elige la fecha y el grupo, mira el precio final y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha y el grupo, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver los paseos en Cabo Frio',
       caminho: '/passeios?cidade=cabo-frio',
       foto: '/fotos/cabo-frio/orla-entardecer.jpg',
@@ -1069,8 +1488,11 @@ export const GUIAS: Guia[] = [
     h1: 'Buceo en Arraial do Cabo',
     foto: '/fotos/arraial/mergulho.jpg',
     posicaoFoto: '50% 50%',
-    resumo:
-      'A Arraial do Cabo la llaman la capital del buceo. Podés probar con un bautismo, sin experiencia y con un instructor a tu lado, o hacer dos inmersiones guiadas si ya tenés certificación.',
+    resumo: {
+      es: 'A Arraial do Cabo la llaman la capital del buceo. Puedes probar con un bautismo, sin experiencia y con un instructor a tu lado, o hacer dos inmersiones guiadas si ya tienes certificación.',
+      'es-ar':
+        'A Arraial do Cabo la llaman la capital del buceo. Podés probar con un bautismo, sin experiencia y con un instructor a tu lado, o hacer dos inmersiones guiadas si ya tenés certificación.',
+    },
     ficha: [
       { rotulo: 'Bautismo', valor: 'Sin experiencia' },
       { rotulo: 'Edad mínima', valor: '10 años' },
@@ -1097,7 +1519,13 @@ export const GUIAS: Guia[] = [
         foto: '/fotos/arraial/mergulho-com-instrutor.jpg',
         posicaoFoto: '40% 50%',
         detalhes: [
-          { nome: 'Clase', texto: 'Antes de entrar al agua aprendés cómo respirar y las señales para comunicarte.' },
+          {
+            nome: 'Clase',
+            texto: {
+              es: 'Antes de entrar al agua aprendes cómo respirar y las señales para comunicarte.',
+              'es-ar': 'Antes de entrar al agua aprendés cómo respirar y las señales para comunicarte.',
+            },
+          },
           { nome: 'Equipo', texto: 'El equipo completo está incluido y se ajusta antes de salir.' },
           { nome: 'Salida en barco', texto: 'El barco te lleva hasta el punto de buceo.' },
           { nome: 'Buceo', texto: 'El instructor va a tu lado todo el tiempo.' },
@@ -1107,8 +1535,16 @@ export const GUIAS: Guia[] = [
         id: 'certificados',
         titulo: 'Salidas para buzos certificados',
         paragrafos: [
-          'Si tenés certificación Open Water o equivalente, la [salida para certificados](/passeios/mergulho-credenciado-arraial-do-cabo) incluye dos inmersiones guiadas en los puntos más conocidos de Arraial, con un intervalo de superficie entre una y otra.',
-          'El equipo completo está incluido: traje, chaleco, regulador, tanques y lastre. Llevá tu credencial de buceo, porque se controla antes de salir.',
+          {
+            es: 'Si tienes certificación Open Water o equivalente, la [salida para certificados](/passeios/mergulho-credenciado-arraial-do-cabo) incluye dos inmersiones guiadas en los puntos más conocidos de Arraial, con un intervalo de superficie entre una y otra.',
+            'es-ar':
+              'Si tenés certificación Open Water o equivalente, la [salida para certificados](/passeios/mergulho-credenciado-arraial-do-cabo) incluye dos inmersiones guiadas en los puntos más conocidos de Arraial, con un intervalo de superficie entre una y otra.',
+          },
+          {
+            es: 'El equipo completo está incluido: traje, chaleco, regulador, tanques y lastre. Lleva tu credencial de buceo, porque se controla antes de salir.',
+            'es-ar':
+              'El equipo completo está incluido: traje, chaleco, regulador, tanques y lastre. Llevá tu credencial de buceo, porque se controla antes de salir.',
+          },
         ],
         passeios: ['mergulho-arraial-do-cabo', 'mergulho-credenciado-arraial-do-cabo'],
       },
@@ -1127,9 +1563,28 @@ export const GUIAS: Guia[] = [
         titulo: 'Antes y después de bucear',
         paragrafos: ['Tres cosas para tener en cuenta al organizar el día:'],
         detalhes: [
-          { nome: 'Qué llevar', texto: 'Traje de baño, toalla, protector solar, algo liviano para comer y un documento con foto. Si sos certificado, tu credencial.' },
-          { nome: 'Comida', texto: 'Evitá las comidas pesadas antes de entrar al agua.' },
-          { nome: 'Vuelo de regreso', texto: 'Esperá al menos 24 horas para viajar en avión: dejá el buceo para el principio del viaje, no para el último día.' },
+          {
+            nome: 'Qué llevar',
+            texto: {
+              es: 'Traje de baño, toalla, protector solar, algo liviano para comer y un documento con foto. Si eres certificado, tu credencial.',
+              'es-ar':
+                'Traje de baño, toalla, protector solar, algo liviano para comer y un documento con foto. Si sos certificado, tu credencial.',
+            },
+          },
+          {
+            nome: 'Comida',
+            texto: {
+              es: 'Evita las comidas pesadas antes de entrar al agua.',
+              'es-ar': 'Evitá las comidas pesadas antes de entrar al agua.',
+            },
+          },
+          {
+            nome: 'Vuelo de regreso',
+            texto: {
+              es: 'Espera al menos 24 horas para viajar en avión: deja el buceo para el principio del viaje, no para el último día.',
+              'es-ar': 'Esperá al menos 24 horas para viajar en avión: dejá el buceo para el principio del viaje, no para el último día.',
+            },
+          },
         ],
       },
       {
@@ -1145,7 +1600,11 @@ export const GUIAS: Guia[] = [
     perguntas: [
       {
         p: '¿Se puede bucear en Arraial do Cabo sin experiencia?',
-        r: 'Sí. El bautismo es para quien nunca buceó: recibís una clase sobre respiración y señales, y un instructor va a tu lado todo el tiempo.',
+        r: {
+          es: 'Sí. El bautismo es para quien nunca buceó: recibes una clase sobre respiración y señales, y un instructor va a tu lado todo el tiempo.',
+          'es-ar':
+            'Sí. El bautismo es para quien nunca buceó: recibís una clase sobre respiración y señales, y un instructor va a tu lado todo el tiempo.',
+        },
       },
       {
         p: '¿Desde qué edad se puede bucear?',
@@ -1153,7 +1612,10 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Qué certificación hace falta para las salidas?',
-        r: 'Open Water o equivalente. Llevá tu credencial de buceo.',
+        r: {
+          es: 'Open Water o equivalente. Lleva tu credencial de buceo.',
+          'es-ar': 'Open Water o equivalente. Llevá tu credencial de buceo.',
+        },
       },
       {
         p: '¿Cuánto tengo que esperar para volar después de bucear?',
@@ -1165,8 +1627,11 @@ export const GUIAS: Guia[] = [
       },
     ],
     fechamento: {
-      titulo: 'Reservá tu primera inmersión',
-      texto: 'Elegí la fecha, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Reserva tu primera inmersión', 'es-ar': 'Reservá tu primera inmersión' },
+      texto: {
+        es: 'Elige la fecha, mira el precio final y reserva desde casa. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí la fecha, mirá el precio final y reservá desde casa. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el bautismo de buceo',
       caminho: '/passeios/mergulho-arraial-do-cabo',
       foto: '/fotos/arraial/mergulho-nadando.jpg',
@@ -1199,7 +1664,11 @@ export const GUIAS: Guia[] = [
         titulo: 'Desde Argentina',
         paragrafos: [
           'Hay vuelos directos de Buenos Aires a Río de Janeiro, de unas 3 horas. Desde otras ciudades, según la fecha, puede haber vuelo directo o con conexión.',
-          'En temporada también se puede volar directo a Cabo Frio. Aerolíneas Argentinas opera la ruta desde Buenos Aires, y para el verano de 2027 anunció vuelos desde Córdoba, dos veces por semana a partir del 26 de diciembre. Las fechas cambian cada temporada: confirmalas con la aerolínea antes de organizar el resto del viaje.',
+          {
+            es: 'En temporada también se puede volar directo a Cabo Frio. Aerolíneas Argentinas opera la ruta desde Buenos Aires, y para el verano de 2027 anunció vuelos desde Córdoba, dos veces por semana a partir del 26 de diciembre. Las fechas cambian cada temporada: confírmalas con la aerolínea antes de organizar el resto del viaje.',
+            'es-ar':
+              'En temporada también se puede volar directo a Cabo Frio. Aerolíneas Argentinas opera la ruta desde Buenos Aires, y para el verano de 2027 anunció vuelos desde Córdoba, dos veces por semana a partir del 26 de diciembre. Las fechas cambian cada temporada: confirmalas con la aerolínea antes de organizar el resto del viaje.',
+          },
         ],
       },
       {
@@ -1216,16 +1685,30 @@ export const GUIAS: Guia[] = [
         foto: '/fotos/rio/cristo-e-pao-de-acucar-do-ceu.jpg',
         posicaoFoto: '50% 30%',
         detalhes: [
-          { nome: 'Río de Janeiro', texto: 'Más vuelos y horarios, y la posibilidad de sumar unos días en la ciudad. Después quedan unas 3 horas de ruta.' },
-          { nome: 'Cabo Frio', texto: 'El aeropuerto más cercano, a unos 30 km de Búzios. Tiene pocos vuelos, y los que salen de Argentina son de temporada.' },
+          {
+            nome: 'Río de Janeiro',
+            texto: 'Más vuelos y horarios, y la posibilidad de sumar unos días en la ciudad. Después quedan unas 3 horas de ruta.',
+          },
+          {
+            nome: 'Cabo Frio',
+            texto: 'El aeropuerto más cercano, a unos 30 km de Búzios. Tiene pocos vuelos, y los que salen de Argentina son de temporada.',
+          },
         ],
       },
       {
         id: 'ultimo-tramo',
         titulo: 'El último tramo hasta tu alojamiento',
         paragrafos: [
-          'Desde cualquiera de los aeropuertos, el [traslado privado](/transfer?destino=buzios) te espera en arribos con un cartel con tu nombre y te deja en tu hotel o posada. Con el número de vuelo, el chofer sigue tu llegada.',
-          'Si preferís otra opción, la guía de [cómo ir de Río a Búzios](/guias/como-ir-de-rio-a-buzios) compara el traslado, el bus y el auto.',
+          {
+            es: 'Desde cualquiera de los aeropuertos, el [traslado privado](/transfer?destino=buzios) te espera en llegadas con un cartel con tu nombre y te deja en tu hotel o posada. Con el número de vuelo, el chofer sigue tu llegada.',
+            'es-ar':
+              'Desde cualquiera de los aeropuertos, el [traslado privado](/transfer?destino=buzios) te espera en arribos con un cartel con tu nombre y te deja en tu hotel o posada. Con el número de vuelo, el chofer sigue tu llegada.',
+          },
+          {
+            es: 'Si prefieres otra opción, la guía de [cómo ir de Río a Búzios](/guias/como-ir-de-rio-a-buzios) compara el traslado, el bus y el auto.',
+            'es-ar':
+              'Si preferís otra opción, la guía de [cómo ir de Río a Búzios](/guias/como-ir-de-rio-a-buzios) compara el traslado, el bus y el auto.',
+          },
         ],
         transfer: 'buzios',
       },
@@ -1234,14 +1717,22 @@ export const GUIAS: Guia[] = [
         titulo: 'Qué documento llevar',
         paragrafos: [
           'Para entrar a Brasil como turistas, los argentinos pueden viajar con el DNI vigente y los chilenos con la cédula de identidad vigente, o con el pasaporte vigente. Tiene que ser el documento físico y estar en buen estado.',
-          'Si viajan menores, pueden pedirse papeles adicionales. Los requisitos pueden cambiar: confirmalos en los canales oficiales de tu país y con la aerolínea antes de viajar.',
+          {
+            es: 'Si viajan menores, pueden pedirse papeles adicionales. Los requisitos pueden cambiar: confírmalos en los canales oficiales de tu país y con la aerolínea antes de viajar.',
+            'es-ar':
+              'Si viajan menores, pueden pedirse papeles adicionales. Los requisitos pueden cambiar: confirmalos en los canales oficiales de tu país y con la aerolínea antes de viajar.',
+          },
         ],
       },
       {
         id: 'en-buzios',
         titulo: 'Ya en Búzios: qué reservar',
         paragrafos: [
-          'Con el viaje armado, podés dejar resueltos los paseos desde casa. La guía de [qué hacer en Búzios](/guias/que-hacer-en-buzios) tiene un plan para tres días, y la de la [mejor época](/guias/mejor-epoca-para-ir-a-buzios) te ayuda a elegir las fechas.',
+          {
+            es: 'Con el viaje armado, puedes dejar resueltos los paseos desde casa. La guía de [qué hacer en Búzios](/guias/que-hacer-en-buzios) tiene un plan para tres días, y la de la [mejor época](/guias/mejor-epoca-para-ir-a-buzios) te ayuda a elegir las fechas.',
+            'es-ar':
+              'Con el viaje armado, podés dejar resueltos los paseos desde casa. La guía de [qué hacer en Búzios](/guias/que-hacer-en-buzios) tiene un plan para tres días, y la de la [mejor época](/guias/mejor-epoca-para-ir-a-buzios) te ayuda a elegir las fechas.',
+          },
         ],
         passeios: ['escuna-buzios', 'buggy-buzios', 'full-day-arraial-do-cabo', 'city-tour-rio-de-janeiro'],
       },
@@ -1249,7 +1740,11 @@ export const GUIAS: Guia[] = [
     perguntas: [
       {
         p: '¿Hay vuelos directos de Buenos Aires a Búzios?',
-        r: 'No, porque Búzios no tiene vuelos comerciales regulares. Lo más cerca que podés llegar en avión es Cabo Frio, a unos 30 km, con vuelos de temporada desde Argentina.',
+        r: {
+          es: 'No, porque Búzios no tiene vuelos comerciales regulares. Lo más cerca que puedes llegar en avión es Cabo Frio, a unos 30 km, con vuelos de temporada desde Argentina.',
+          'es-ar':
+            'No, porque Búzios no tiene vuelos comerciales regulares. Lo más cerca que podés llegar en avión es Cabo Frio, a unos 30 km, con vuelos de temporada desde Argentina.',
+        },
       },
       {
         p: '¿Cuál es el aeropuerto más cercano a Búzios?',
@@ -1257,20 +1752,35 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Cuánto se tarda de Buenos Aires a Búzios?',
-        r: 'El vuelo a Río tarda unas 3 horas, y después quedan unas 3 horas por ruta. A eso sumale los tiempos de aeropuerto y migraciones.',
+        r: {
+          es: 'El vuelo a Río tarda unas 3 horas, y después quedan unas 3 horas por ruta. A eso súmale los tiempos de aeropuerto y migraciones.',
+          'es-ar':
+            'El vuelo a Río tarda unas 3 horas, y después quedan unas 3 horas por ruta. A eso sumale los tiempos de aeropuerto y migraciones.',
+        },
       },
       {
         p: '¿Necesito pasaporte para ir a Búzios?',
-        r: 'No es obligatorio para turistas argentinos y chilenos: alcanza con el DNI o la cédula de identidad vigentes, en buen estado. Confirmá los requisitos en los canales oficiales antes de viajar.',
+        r: {
+          es: 'No es obligatorio para turistas argentinos y chilenos: alcanza con el DNI o la cédula de identidad vigentes, en buen estado. Confirma los requisitos en los canales oficiales antes de viajar.',
+          'es-ar':
+            'No es obligatorio para turistas argentinos y chilenos: alcanza con el DNI o la cédula de identidad vigentes, en buen estado. Confirmá los requisitos en los canales oficiales antes de viajar.',
+        },
       },
       {
         p: '¿Conviene llegar por Río o por Cabo Frio?',
-        r: 'Por Cabo Frio el último tramo es mucho más corto, pero hay pocos vuelos. Por Río hay más horarios y podés sumar unos días en la ciudad.',
+        r: {
+          es: 'Por Cabo Frio el último tramo es mucho más corto, pero hay pocos vuelos. Por Río hay más horarios y puedes sumar unos días en la ciudad.',
+          'es-ar':
+            'Por Cabo Frio el último tramo es mucho más corto, pero hay pocos vuelos. Por Río hay más horarios y podés sumar unos días en la ciudad.',
+        },
       },
     ],
     fechamento: {
-      titulo: 'Dejá el último tramo resuelto',
-      texto: 'Elegí el aeropuerto, la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Deja el último tramo resuelto', 'es-ar': 'Dejá el último tramo resuelto' },
+      texto: {
+        es: 'Elige el aeropuerto, la fecha y el vehículo, y mira el precio final. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Elegí el aeropuerto, la fecha y el vehículo, y mirá el precio final. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver el precio del traslado',
       caminho: '/transfer?destino=buzios',
       foto: '/fotos/buzios/escuna-no-mar.jpg',
@@ -1301,11 +1811,27 @@ export const GUIAS: Guia[] = [
       {
         id: 'estaciones',
         titulo: 'Cómo es cada estación',
-        paragrafos: ['Cada época tiene lo suyo. Esto es lo que podés esperar:'],
+        paragrafos: [
+          {
+            es: 'Cada época tiene lo suyo. Esto es lo que puedes esperar:',
+            'es-ar': 'Cada época tiene lo suyo. Esto es lo que podés esperar:',
+          },
+        ],
         detalhes: [
-          { nome: 'Verano: diciembre a marzo', texto: 'Los días más calurosos, con promedios de hasta 28 °C. También llueve más. Es la temporada alta, con más gente y movimiento.' },
-          { nome: 'Otoño: abril y mayo', texto: 'Sigue haciendo calor, llueve menos y baja la cantidad de gente. Son de los meses más recomendados.' },
-          { nome: 'Invierno: junio a agosto', texto: 'La época más seca, con promedios de 19 a 24 °C. Hace fresco para bañarse, pero es buena para miradores y paseos por tierra.' },
+          {
+            nome: 'Verano: diciembre a marzo',
+            texto:
+              'Los días más calurosos, con promedios de hasta 28 °C. También llueve más. Es la temporada alta, con más gente y movimiento.',
+          },
+          {
+            nome: 'Otoño: abril y mayo',
+            texto: 'Sigue haciendo calor, llueve menos y baja la cantidad de gente. Son de los meses más recomendados.',
+          },
+          {
+            nome: 'Invierno: junio a agosto',
+            texto:
+              'La época más seca, con promedios de 19 a 24 °C. Hace fresco para bañarse, pero es buena para miradores y paseos por tierra.',
+          },
           { nome: 'Primavera: septiembre a noviembre', texto: 'Vuelve el calor poco a poco, y las lluvias aumentan hasta noviembre.' },
         ],
       },
@@ -1349,8 +1875,16 @@ export const GUIAS: Guia[] = [
         id: 'si-llueve',
         titulo: 'Qué hacer según el clima',
         paragrafos: [
-          'Con sol, lo mejor es arrancar por el mar: la [goleta](/passeios/escuna-buzios) o el [catamarán](/passeios/catamara-buzios). En los días más frescos, el [buggy](/passeios/buggy-buzios) y el [city tour](/passeios/city-tour-buzios) muestran las playas y los miradores por tierra.',
-          'Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo. Y si cambiás de planes, podés cancelar gratis hasta 24 horas antes.',
+          {
+            es: 'Con sol, lo mejor es empezar por el mar: la [goleta](/passeios/escuna-buzios) o el [catamarán](/passeios/catamara-buzios). En los días más frescos, el [buggy](/passeios/buggy-buzios) y el [city tour](/passeios/city-tour-buzios) muestran las playas y los miradores por tierra.',
+            'es-ar':
+              'Con sol, lo mejor es arrancar por el mar: la [goleta](/passeios/escuna-buzios) o el [catamarán](/passeios/catamara-buzios). En los días más frescos, el [buggy](/passeios/buggy-buzios) y el [city tour](/passeios/city-tour-buzios) muestran las playas y los miradores por tierra.',
+          },
+          {
+            es: 'Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, eliges entre reembolso total o una nueva fecha, sin costo. Y si cambias de planes, puedes cancelar gratis hasta 24 horas antes.',
+            'es-ar':
+              'Si tu paseo se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo. Y si cambiás de planes, podés cancelar gratis hasta 24 horas antes.',
+          },
         ],
         passeios: ['escuna-buzios', 'catamara-buzios', 'buggy-buzios', 'city-tour-buzios'],
       },
@@ -1383,12 +1917,18 @@ export const GUIAS: Guia[] = [
       },
       {
         p: '¿Qué pasa con el paseo si llueve?',
-        r: 'Si se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        r: {
+          es: 'Si se cancela por lluvia, mal tiempo o condiciones del mar, eliges entre reembolso total o una nueva fecha, sin costo.',
+          'es-ar': 'Si se cancela por lluvia, mal tiempo o condiciones del mar, elegís entre reembolso total o una nueva fecha, sin costo.',
+        },
       },
     ],
     fechamento: {
-      titulo: 'Elegí tu fecha y reservá desde casa',
-      texto: 'Mirá el precio final de cada paseo. Podés cancelar gratis hasta 24 horas antes.',
+      titulo: { es: 'Elige tu fecha y reserva desde casa', 'es-ar': 'Elegí tu fecha y reservá desde casa' },
+      texto: {
+        es: 'Mira el precio final de cada paseo. Puedes cancelar gratis hasta 24 horas antes.',
+        'es-ar': 'Mirá el precio final de cada paseo. Podés cancelar gratis hasta 24 horas antes.',
+      },
       botao: 'Ver los paseos en Búzios',
       caminho: '/passeios?cidade=buzios',
       foto: '/fotos/buzios/lancha-joao-fernandes.jpg',
@@ -1400,8 +1940,8 @@ export const GUIAS: Guia[] = [
   },
 ];
 
-/** Os grupos da página /es/guias, pelo slug. */
-export const GRUPOS_GUIAS: { id: string; titulo: string; guias: string[] }[] = [
+/** Os grupos da página /es/guias (e /es-ar/guias), pelo slug. */
+export const GRUPOS_GUIAS: { id: string; titulo: TextoGuia; guias: string[] }[] = [
   {
     id: 'que-hacer',
     titulo: 'Qué hacer en cada destino',
@@ -1425,3 +1965,46 @@ export const GRUPOS_GUIAS: { id: string; titulo: string; guias: string[] }[] = [
 ];
 
 export const obterGuia = (slug: string) => GUIAS.find((g) => g.slug === slug);
+
+/* ------------------------------------------------------------------ */
+/* As duas versões do espanhol                                          */
+
+/** A frase do guia no idioma: em 'es-ar', a versão argentina quando ela existe; nos demais casos, o espanhol. */
+export function fraseDoGuia(t: TextoGuia, idioma: Idioma): string {
+  if (typeof t === 'string') return t;
+  return (idioma === 'es-ar' && t['es-ar']) || t.es;
+}
+
+/** Os campos de texto que ficam no primeiro nível do guia. */
+export type CampoTextoGuia = 'titulo' | 'descricao' | 'chamada' | 'h1' | 'resumo';
+
+/** Um campo de texto do guia (título do Google, descrição, chamada do cartão, h1 ou resumo) no idioma da página. */
+export function textoGuia(guia: Guia, campo: CampoTextoGuia, idioma: Idioma): string {
+  return fraseDoGuia(guia[campo], idioma);
+}
+
+const ehTextoComVersoes = (v: unknown): v is { es: string; 'es-ar'?: string } =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) && typeof (v as { es?: unknown }).es === 'string';
+
+/** Percorre o guia inteiro trocando cada TextoGuia pela frase do idioma; o resto (slug, fotos, datas) passa igual. */
+function resolver(valor: unknown, idioma: Idioma): unknown {
+  if (Array.isArray(valor)) return valor.map((v) => resolver(v, idioma));
+  if (ehTextoComVersoes(valor)) return fraseDoGuia(valor, idioma);
+  if (typeof valor === 'object' && valor !== null) {
+    return Object.fromEntries(Object.entries(valor).map(([chave, v]) => [chave, resolver(v, idioma)]));
+  }
+  return valor;
+}
+
+const resolvidos = new Map<string, GuiaResolvido>();
+
+/** O guia inteiro com os textos no idioma da página (es ou es-ar), montado uma vez por guia e idioma. */
+export function guiaNoIdioma(guia: Guia, idioma: Idioma): GuiaResolvido {
+  const chave = `${guia.slug}|${idioma}`;
+  let pronto = resolvidos.get(chave);
+  if (!pronto) {
+    pronto = resolver(guia, idioma) as GuiaResolvido;
+    resolvidos.set(chave, pronto);
+  }
+  return pronto;
+}

@@ -4,6 +4,7 @@ import { EMPRESA } from '@/config/empresa';
 import { CIDADES, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { COR_OG, TAMANHO_OG, fontesOg, fotoDataUri, logoDataUri, previaLeve } from '@/lib/og';
 import { rotuloUnidade } from '@/lib/passeio-view';
 import { formatarPreco, precoAPartirCentavos } from '@/lib/precos';
@@ -40,9 +41,9 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: '54px 56px 48px' }}>
           <span style={{ fontWeight: 500, fontSize: 26, color: COR_OG.suave }}>
-            {`${CIDADES[p.cidade].nome[idioma]} · ${p.duracao[idioma]}`}
+            {`${texto(CIDADES[p.cidade].nome, idioma)} · ${texto(p.duracao, idioma)}`}
           </span>
-          <span style={{ fontWeight: 600, fontSize: 56, lineHeight: 1.06, marginTop: 14 }}>{p.nome[idioma]}</span>
+          <span style={{ fontWeight: 600, fontSize: 56, lineHeight: 1.06, marginTop: 14 }}>{texto(p.nome, idioma)}</span>
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
             <span style={{ fontWeight: 500, fontSize: 24, color: COR_OG.suave }}>{d.comum.aPartirDe}</span>
             <span style={{ fontWeight: 600, fontSize: 80, lineHeight: 1, marginTop: 6 }}>

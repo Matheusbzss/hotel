@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { obterPasseio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
+import { idiomaDeConteudo, texto } from '@/i18n/conteudo';
 import type { Avaliacao } from '@/lib/avaliacao';
 import { TextoOpiniao } from './TextoOpiniao';
 
@@ -73,9 +74,11 @@ export function Opinioes({ itens, idioma, d }: { itens: Avaliacao[]; idioma: Idi
                 {a.titulo && <h3 className="mt-2 font-[family-name:var(--font-semi)] font-semibold leading-snug">{a.titulo}</h3>}
                 <TextoOpiniao texto={a.texto} lerMais={O.lerMais} lerMenos={O.lerMenos} />
                 <p className="mt-3 text-small text-(--color-tinta-suave)">
-                  {[passeio?.nome[idioma], mes.format(new Date(`${a.data}T12:00:00Z`))].filter(Boolean).join(' · ')}
+                  {[passeio && texto(passeio.nome, idioma), mes.format(new Date(`${a.data}T12:00:00Z`))].filter(Boolean).join(' · ')}
                 </p>
-                {a.idioma && a.idioma !== idioma && <p className="text-small text-(--color-tinta-suave)">{O.original[a.idioma]}</p>}
+                {a.idioma && a.idioma !== idiomaDeConteudo(idioma) && (
+                  <p className="text-small text-(--color-tinta-suave)">{O.original[a.idioma]}</p>
+                )}
                 {a.origemUrl && (
                   <a href={a.origemUrl} target="_blank" rel="noopener noreferrer nofollow" className="link mt-2 self-start text-small">
                     {O.ver[a.origem]}

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { EMPRESA } from '@/config/empresa';
-import { fmt, rota, type Idioma } from '@/i18n/config';
+import { fmt, isIdiomaGuia, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { linkEmail } from '@/lib/email';
 import { IconeInstagram } from './IconeInstagram';
@@ -30,11 +30,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
               <p>{EMPRESA.enderecoCidade}</p>
               <p>
                 {R.suporte}{' '}
-                <a
-                  href={linkEmail(d.contato.assunto, d.contato.msg)}
-                  className="link font-semibold text-white"
-                  data-evento="Contact"
-                >
+                <a href={linkEmail(d.contato.assunto, d.contato.msg)} className="link font-semibold text-white" data-evento="Contact">
                   {EMPRESA.email}
                 </a>
               </p>
@@ -48,9 +44,10 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         </div>
         <div className="space-y-3 md:text-right">
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-small md:justify-end">
-            {idioma === 'es' && (
+            {/* os guias só existem nas duas versões do espanhol: cada uma leva à sua lista */}
+            {isIdiomaGuia(idioma) && (
               <li>
-                <Link href={rota('es', '/guias')} className="link">
+                <Link href={rota(idioma, '/guias')} className="link">
                   Guías de viaje
                 </Link>
               </li>

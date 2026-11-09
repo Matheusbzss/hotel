@@ -4,7 +4,8 @@ import { locale } from 'next/root-params';
 import { altDaFoto } from '@/data/fotos-alt';
 import { CATEGORIAS, type Categoria } from '@/data/passeios';
 import { dicionario } from '@/i18n';
-import { isIdioma, rota } from '@/i18n/config';
+import { isIdioma, rota, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 
 /** Três jeitos de começar, cada um com a sua foto (enfeite: o nome do tipo já diz aonde o link leva), que abrem a lista já filtrada. */
 const ATALHOS: { tipo: Categoria; foto: string }[] = [
@@ -15,7 +16,7 @@ const ATALHOS: { tipo: Categoria; foto: string }[] = [
 
 /** A página que "foi com a maré": o recado de um lado, o mar do outro. */
 export default async function NaoEncontrado() {
-  let idioma: 'pt' | 'en' | 'es' = 'pt';
+  let idioma: Idioma = 'pt';
   try {
     const l = await locale();
     if (l && isIdioma(l)) idioma = l;
@@ -68,7 +69,7 @@ export default async function NaoEncontrado() {
                   />
                 </span>
                 <span className="mt-3 block text-lead font-semibold underline-offset-4 group-hover:underline">
-                  {CATEGORIAS[a.tipo].nome[idioma]}
+                  {texto(CATEGORIAS[a.tipo].nome, idioma)}
                 </span>
               </Link>
             </li>

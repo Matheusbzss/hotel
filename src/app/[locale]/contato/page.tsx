@@ -10,7 +10,7 @@ import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
 import { textosCotacao } from '@/lib/cotacao';
 import { linkEmail } from '@/lib/email';
-import { alternates } from '@/lib/site';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/contato'>): Promise<Metadata> {
   const { locale } = await params;
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/contato'
     title: d.nav.contato,
     description: d.meta.contatoDescricao,
     alternates: alternates(locale, '/contato'),
-    openGraph: { title: d.contato.titulo, description: d.meta.contatoDescricao, url: rota(locale, '/contato') },
+    openGraph: openGraphDaPagina(locale, { title: d.contato.titulo, description: d.meta.contatoDescricao, url: rota(locale, '/contato') }),
   };
 }
 

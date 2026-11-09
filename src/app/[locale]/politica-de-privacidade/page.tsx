@@ -5,17 +5,18 @@ import { RedefinirCookies } from '@/components/RedefinirCookies';
 import { PRIVACIDADE } from '@/content/legal/privacidade';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
-import { alternates } from '@/lib/site';
+import { texto } from '@/i18n/conteudo';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/politica-de-privacidade'>): Promise<Metadata> {
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
-  const doc = PRIVACIDADE[locale];
+  const doc = texto(PRIVACIDADE, locale);
   return {
     title: doc.titulo,
     description: doc.descricao,
     alternates: alternates(locale, '/politica-de-privacidade'),
-    openGraph: { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-privacidade') },
+    openGraph: openGraphDaPagina(locale, { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-privacidade') }),
   };
 }
 
@@ -25,7 +26,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   const d = dicionario(locale);
   return (
     <PaginaLegal
-      doc={PRIVACIDADE[locale]}
+      doc={texto(PRIVACIDADE, locale)}
       idioma={locale}
       d={d}
       caminho="/politica-de-privacidade"

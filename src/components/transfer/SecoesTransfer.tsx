@@ -3,6 +3,7 @@ import { altDaFoto } from '@/data/fotos-alt';
 import { TRAJETOS, VEICULOS, precoDoTrajeto, type Idioma, type Veiculo } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { formatarCifra } from '@/lib/cifra';
 import { textosCotacao } from '@/lib/cotacao';
 import { textoDolar } from '@/lib/dolar';
@@ -92,11 +93,11 @@ export function PrecosTransfer({
       <ul className="mt-5 grid gap-(--vao-celula)">
         {TRAJETOS.map((t) => (
           <li key={t.de} className="celula grid gap-3 px-4 py-3.5">
-            <p className="font-semibold">{t.nome[idioma]}</p>
+            <p className="font-semibold">{texto(t.nome, idioma)}</p>
             <dl className="flex flex-wrap gap-x-8 gap-y-3">
               {VEICULOS_EM_ORDEM.map((v) => (
                 <div key={v}>
-                  <dt className="text-small text-(--color-tinta-suave)">{VEICULOS[v].nome[idioma]}</dt>
+                  <dt className="text-small text-(--color-tinta-suave)">{texto(VEICULOS[v].nome, idioma)}</dt>
                   <dd>{preco(precoDoTrajeto(t, v))}</dd>
                 </div>
               ))}
@@ -126,17 +127,17 @@ export function VeiculosTransfer({ d, idioma, className = '' }: { d: Dicionario;
                 <div className="relative aspect-[4/3] overflow-hidden rounded-[4px]">
                   <Image
                     src={V.foto}
-                    alt={altDaFoto(V.foto, idioma, V.nome[idioma])}
+                    alt={altDaFoto(V.foto, idioma, texto(V.nome, idioma))}
                     fill
                     sizes="(min-width: 640px) 30vw, 100vw"
                     className="object-cover"
                   />
                 </div>
                 <figcaption className="mt-3">
-                  <strong className="block font-[family-name:var(--font-semi)] text-lead font-semibold">{V.nome[idioma]}</strong>
-                  <span className="block text-small text-(--color-tinta-suave)">{V.modelos[idioma]}</span>
+                  <strong className="block font-[family-name:var(--font-semi)] text-lead font-semibold">{texto(V.nome, idioma)}</strong>
+                  <span className="block text-small text-(--color-tinta-suave)">{texto(V.modelos, idioma)}</span>
                   <span className="mt-1 block">
-                    {T.ateNPessoas.replace('{n}', String(V.capacidade))} · {V.malas[idioma]}
+                    {T.ateNPessoas.replace('{n}', String(V.capacidade))} · {texto(V.malas, idioma)}
                   </span>
                 </figcaption>
               </figure>

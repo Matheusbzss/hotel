@@ -24,9 +24,10 @@ export async function Cabecalho({ idioma, d }: { idioma: Idioma; d: Dicionario }
   return (
     <header className="cabecalho">
       <div className="cabecalho-barra vidro vidro-claro relative flex h-14 items-center justify-between gap-2 pl-2.5 pr-1.5 md:h-16 md:pl-4 md:pr-2">
-        <Link href={rota(idioma, '/')} prefetch={false} className="shrink-0 rounded-[8px]" aria-label={`${EMPRESA.marca}, ${d.nav.inicio}`}>
-          <Logo fundo="claro" className="logo-claro" />
-          <Logo fundo="escuro" className="logo-escuro" />
+        {/* a logo só encolhe quando não há lugar: nos celulares de 320 px com o código "ES‑AR" do espanhol da Argentina */}
+        <Link href={rota(idioma, '/')} prefetch={false} className="min-w-0 rounded-[8px]" aria-label={`${EMPRESA.marca}, ${d.nav.inicio}`}>
+          <Logo fundo="claro" className="logo-claro max-w-full" />
+          <Logo fundo="escuro" className="logo-escuro max-w-full" />
         </Link>
         <nav aria-label={d.nav.principal} className="hidden items-center gap-1 lg:flex">
           {links.map((l) => (

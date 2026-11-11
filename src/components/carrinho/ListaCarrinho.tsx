@@ -76,12 +76,13 @@ export function ListaCarrinho({
                 <span className="whitespace-nowrap text-small text-(--color-tinta-suave)"> · {usd(i.totalPixCentavos)}</span>
               )}
             </p>
-            <div className="flex items-baseline justify-between gap-3 text-small">
-              <p className="text-(--color-tinta-suave)">
+            {/* quando o valor no cartão e o "Mudar" não cabem lado a lado, o "Mudar" desce para a linha de baixo, à direita */}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-small">
+              <p className="flex-1 text-(--color-tinta-suave)">
                 <span className="numeros">{brl(i.totalCentavos)}</span> {T.noCartao}
                 {usd(i.totalCentavos) && <span className="whitespace-nowrap"> · {usd(i.totalCentavos)}</span>}
               </p>
-              <a href={i.href} className="link">
+              <a href={i.href} className="link ml-auto">
                 {T.mudar}
               </a>
             </div>

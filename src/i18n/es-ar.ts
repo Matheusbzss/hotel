@@ -48,6 +48,15 @@ export const ajustesAR: AjustesAR = {
       'Tu pedido quedó registrado. Completá el pago con nuestro equipo por WhatsApp; cada ítem recibe su voucher apenas se confirma el pago.',
     confirmadoTexto: 'Tus vouchers están listos, uno para cada ítem. El día del paseo, solo mostralos en el celular.',
     canceladoTexto: 'Este pedido fue cancelado. Si tenés dudas, escribinos.',
+    // Etapa 4 (pagamento pela Stripe): só as frases com verbo em vos
+    semPrazo: 'Este pedido ya no se puede pagar en el sitio. Escribinos por e-mail.',
+    recusadoPix: '¿Tarjeta rechazada? Pagá con Pix y recibí {p}% de descuento',
+    dicaInternacional:
+      'Si tu tarjeta es de fuera de Brasil, revisá en la app de tu banco que las compras internacionales estén habilitadas.',
+    tentarOutroCartao: 'Probá con otra tarjeta.',
+    contestadoTexto:
+      'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tenés dudas, escribinos.',
+    reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tenés dudas, escribinos.',
   },
   boletim: {
     escolha: 'Tocá un paseo para ver el total y reservar.',
@@ -240,28 +249,21 @@ export const ajustesAR: AjustesAR = {
     // o exemplo de telefone: no /es é chileno (DDI padrão +56); aqui fica o argentino e o uruguaio de antes
     telefoneAjuda: 'Con el código del país. Ej.: +54 9 11 1234-5678 o +598 99 123 456',
     selecione: 'Seleccioná',
-    horarioAjudaSaida: 'El punto de encuentro te llega por WhatsApp después de reservar. Llegá 30 minutos antes.',
+    pixExplicacao:
+      'Pagás en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
     indisponivelTexto:
       'Estamos terminando de activar el pago online. Tu reserva queda registrada con todos los datos y completás el pago con nuestro equipo por WhatsApp.',
     erros: {
       obrigatorio: 'Completá este campo.',
       email: 'Revisá el e-mail.',
       telefone: 'Ingresá el teléfono con código de país y de área.',
-      passaporte: 'Ingresá el número de pasaporte.',
-      data: 'Elegí una fecha a partir de hoy.',
-      horario: 'Elegí el horario.',
-      horarioIndisponivel: 'Ese horario ya no está disponible. Elegí otro.',
       semHorarioHoje: 'Para hoy ya no quedan horarios. Elegí otra fecha.',
-      pessoas: 'Indicá al menos 1 adulto.',
       aceite: 'Tenés que aceptar los términos y la política de cancelación.',
-      cartao: 'Revisá los datos de la tarjeta.',
-      recusado: 'El pago no fue aprobado. Revisá los datos o probá con otra tarjeta.',
       generico: 'No pudimos completarlo ahora. Probá de nuevo en unos minutos.',
       revise: 'Revisá los campos marcados.',
     },
   },
   reserva: {
-    pixInstrucoes: 'Abrí la app de tu banco, elegí Pix y escaneá el código QR o pegá el código de abajo.',
     confirmadoTexto: 'Tu voucher está listo. El día del paseo, solo mostralo en el celular.',
     proximo1Busca: 'El día del paseo, esperá en la recepción del alojamiento a la hora de la recogida.',
     proximo1Saida: 'El equipo te envía el punto de encuentro por WhatsApp. Llegá 30 minutos antes del horario de salida.',
@@ -292,6 +294,13 @@ export const ajustesAR: AjustesAR = {
   },
   rodape: {
     escreva: 'Escribinos',
+  },
+  recusa: {
+    dados: 'Algún dato de la tarjeta no coincide. Revisá el número, el vencimiento y el código de seguridad, e intentá de nuevo.',
+    autenticacao:
+      'El banco pidió una confirmación adicional (como un código en su app o por SMS) y no se completó. Intentá de nuevo y confirmá cuando el banco lo pida.',
+    vencido: 'La tarjeta está vencida. Revisá la fecha de vencimiento o usá otra tarjeta.',
+    processamento: 'Hubo un problema temporal en la comunicación con el banco de la tarjeta. Intentá de nuevo en unos instantes.',
   },
   erro404: {
     atalhos: 'O elegí por dónde empezar',

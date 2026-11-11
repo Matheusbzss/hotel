@@ -458,6 +458,51 @@ export type Database = {
           },
         ]
       }
+      limites_ip: {
+        Row: {
+          chave: string
+          contagem: number
+          janela_inicio: string
+        }
+        Insert: {
+          chave: string
+          contagem?: number
+          janela_inicio?: string
+        }
+        Update: {
+          chave?: string
+          contagem?: number
+          janela_inicio?: string
+        }
+        Relationships: []
+      }
+      pagamentos_eventos: {
+        Row: {
+          id: string
+          payload: Json | null
+          pedido_codigo: string | null
+          processado_em: string | null
+          recebido_em: string
+          tipo: string
+        }
+        Insert: {
+          id: string
+          payload?: Json | null
+          pedido_codigo?: string | null
+          processado_em?: string | null
+          recebido_em?: string
+          tipo: string
+        }
+        Update: {
+          id?: string
+          payload?: Json | null
+          pedido_codigo?: string | null
+          processado_em?: string | null
+          recebido_em?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       pedidos: {
         Row: {
           atualizado_em: string
@@ -477,7 +522,11 @@ export type Database = {
           observacoes: string | null
           origem_utm: Json
           pagamento: Json
+          pagamento_externo_id: string | null
           pago_em: string | null
+          payment_intent_id: string | null
+          provedor: string
+          reembolso_centavos: number
           status: string
           subtotal_centavos: number
           token: string
@@ -502,7 +551,11 @@ export type Database = {
           observacoes?: string | null
           origem_utm?: Json
           pagamento?: Json
+          pagamento_externo_id?: string | null
           pago_em?: string | null
+          payment_intent_id?: string | null
+          provedor: string
+          reembolso_centavos?: number
           status?: string
           subtotal_centavos: number
           token: string
@@ -527,7 +580,11 @@ export type Database = {
           observacoes?: string | null
           origem_utm?: Json
           pagamento?: Json
+          pagamento_externo_id?: string | null
           pago_em?: string | null
+          payment_intent_id?: string | null
+          provedor?: string
+          reembolso_centavos?: number
           status?: string
           subtotal_centavos?: number
           token?: string
@@ -595,6 +652,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_item: {
+        Args: { p_evento: string; p_status: string; p_voucher: string }
+        Returns: boolean
+      }
       atualizar_reserva: {
         Args: {
           p_historico: Json
@@ -603,6 +664,10 @@ export type Database = {
           p_versao: string
         }
         Returns: boolean
+      }
+      contar_limite: {
+        Args: { p_chave: string; p_janela_segundos: number }
+        Returns: number
       }
       criar_pedido: {
         Args: { p_historico: Json; p_itens: Json; p_pedido: Json }

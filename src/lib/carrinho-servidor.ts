@@ -21,13 +21,15 @@ import {
   type SugestaoVisivel,
   type TrechoEscolhido,
 } from './carrinho';
+import type { FormaPagamento } from './formas-pagamento';
 import { formatarHora, horasDisponiveis } from './horarios';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Orcamento } from './orcamento';
+import { podeAbrirSessao } from './pagamento-stripe';
 import { semFaixas } from './passeio-view';
 import { textoPessoas } from './pessoas';
 import type { Origem } from './origem';
 import { obterOpcao, opcoesPasseio, regraCriancas, tabelaPreco, temOpcoes } from './precos';
-import { listarReservas } from './reservas';
+import { listarReservas, obterReservaDoPedido, type StatusReserva } from './reservas';
 import { textoPassageiros } from './transfer-view';
 import { dataPasseioValida, formatarDataIso, hojeEmBuzios, somarDias } from './validacao';
 
@@ -278,10 +280,22 @@ export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dici
 /* ------------------------------------------------------------------ */
 /* Onde o carrinho fica guardado                                       */
 
+/** O pedido que este carrinho virou, para a página de checkout oferecer "continuar o pagamento" enquanto ele está em aberto. */
+export interface PedidoDoCarrinho {
+  codigo: string;
+  /** O token do link privado: quem tem o cookie do carrinho é quem fez o pedido. */
+  token: string;
+  status: StatusReserva;
+  /** A forma escolhida na Stripe (cartão ou Pix); ausente no caminho do WhatsApp. */
+  forma?: FormaPagamento;
+}
+
 export interface CarrinhoGuardado {
   itens: ItemCarrinho[];
   email?: string;
   pedidoId?: string | null;
+  /** O pedido que o carrinho virou, quando ainda existe. Só vem preenchido junto com `pedidoId`. */
+  pedido?: PedidoDoCarrinho;
   /** A campanha do anúncio de onde o cliente veio. */
   origem?: Origem;
   /** Só nos arquivos do computador: no banco, são as colunas criado_em e checkout_em. */
@@ -295,31 +309,61 @@ export const codigoCarrinhoValido = (c: string | undefined): c is string => !!c 
 // No banco na Vercel (ou no computador com RESERVAS_NO_BANCO=1); senão, arquivos em .data/carrinhos/.
 const PASTA = path.join(process.cwd(), '.data', 'carrinhos');
 
-/** Os itens ficam guardados depois do pedido, mas para o cliente o carrinho que virou pedido está vazio. */
-const semOQueVirouPedido = (c: CarrinhoGuardado): CarrinhoGuardado => (c.pedidoId ? { ...c, itens: [] } : c);
+/**
+ * O carrinho que virou um pedido da Stripe continua aberto enquanto nada foi pago: com o pedido pendente ou
+ * expirado, o cliente que fechou o formulário da Stripe volta e encontra tudo como estava, com "continuar o
+ * pagamento" (pedidoPagavel); com o pedido cancelado (a sessão falhou, ou a equipe cancelou), ele refaz a compra
+ * sem remontar o carrinho. Pago (ou fechado pelo WhatsApp), o carrinho acabou.
+ */
+export const carrinhoContinuaAberto = (status: StatusReserva): boolean => podeAbrirSessao(status) || status === 'cancelado';
+
+/** O pedido do carrinho ainda pode ser pago: é quando a página oferece "continuar o pagamento". */
+export const pedidoPagavel = (status: StatusReserva): boolean => podeAbrirSessao(status);
+
+/** O carrinho ainda recebe itens: nunca virou pedido, ou o pedido que virou ainda está em aberto na Stripe. */
+export const carrinhoReaproveitavel = (c: CarrinhoGuardado): boolean =>
+  !c.pedidoId || (c.pedido !== undefined && carrinhoContinuaAberto(c.pedido.status));
+
+/** Os itens ficam guardados depois do pedido, mas para o cliente o carrinho que virou pedido fechado está vazio. */
+const conformeOPedido = (c: CarrinhoGuardado): CarrinhoGuardado => (carrinhoReaproveitavel(c) ? c : { ...c, itens: [] });
+
+const formaDe = (metodo: string): FormaPagamento | undefined => (metodo === 'pix' || metodo === 'cartao' ? metodo : undefined);
 
 export async function lerCarrinho(codigo: string | undefined): Promise<CarrinhoGuardado> {
   if (!codigoCarrinhoValido(codigo)) return { itens: [] };
   if (usarBanco()) {
     const { data, error } = await supabase()
       .from('carrinhos')
-      .select('itens, email, pedido_id, origem_utm')
+      .select('itens, email, pedido_id, origem_utm, pedidos(codigo, token, status, metodo_pagamento)')
       .eq('token', codigo)
       .maybeSingle();
     if (error) throw new Error(`Banco de dados: ${error.message}`);
     if (!data) return { itens: [] };
-    return semOQueVirouPedido({
+    const p = data.pedidos;
+    return conformeOPedido({
       itens: (data.itens as unknown as ItemCarrinho[]) ?? [],
       email: data.email ?? undefined,
       pedidoId: data.pedido_id,
+      ...(p
+        ? { pedido: { codigo: p.codigo, token: p.token, status: p.status as StatusReserva, forma: formaDe(p.metodo_pagamento ?? '') } }
+        : {}),
       origem: data.origem_utm as Origem,
     });
   }
+  let c: CarrinhoGuardado;
   try {
-    return semOQueVirouPedido(JSON.parse(await fs.readFile(path.join(PASTA, `${codigo}.json`), 'utf8')) as CarrinhoGuardado);
+    c = JSON.parse(await fs.readFile(path.join(PASTA, `${codigo}.json`), 'utf8')) as CarrinhoGuardado;
   } catch {
     return { itens: [] };
   }
+  // nos arquivos do computador, o id do pedido é o próprio código
+  const r = c.pedidoId ? await obterReservaDoPedido(c.pedidoId) : null;
+  return conformeOPedido({
+    ...c,
+    ...(r
+      ? { pedido: { codigo: r.pedido?.codigo ?? r.codigo, token: r.token, status: r.status, forma: formaDe(r.pagamento.metodo) } }
+      : {}),
+  });
 }
 
 /** Grava os itens (e o e-mail, se veio), criando o carrinho na primeira vez. */
@@ -370,7 +414,8 @@ export async function marcarCheckout(codigo: string | undefined): Promise<void> 
     if (error) throw new Error(`Banco de dados: ${error.message}`);
     return;
   }
-  const atual = await lerCarrinho(codigo);
+  // o pedido é lido do banco de reservas a cada leitura: não entra no arquivo
+  const { pedido: _pedido, ...atual } = await lerCarrinho(codigo);
   if (!atual.itens.length || atual.checkoutEm) return;
   await fs.writeFile(path.join(PASTA, `${codigo}.json`), JSON.stringify({ ...atual, checkoutEm: agora }, null, 2));
 }

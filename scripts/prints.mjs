@@ -1,77 +1,186 @@
 /**
- * Prints e testes rápidos com Playwright: celular (390 px) e computador (1440 px).
- * Uso: node scripts/prints.mjs [url-base] [pasta-saida] [paginas...]
- * Ex.: node scripts/prints.mjs http://localhost:3000 .impeccable/review /es /es/paseos
- * Também registra erros do console e, na página inicial, clica de verdade nos pinos do mapa
- * (se algo cobrir o pino, o clique falha e aparece no relatório).
+ * Prints rápidos com Playwright: celular (390 px) e computador (1440 px), sempre do site construído.
+ *
+ * Antes, em segundo plano e um servidor só: npm run build e depois npm run start.
+ * Uso: node scripts/prints.mjs [opções] <página> [<página>...]
+ *   página: /es/checkout, ou nome=/pt/pedido/ON-ABC123?t=TOKEN (o nome vira o nome do arquivo)
+ * Opções:
+ *   --base=http://localhost:3000  endereço do site construído (o padrão é o do npm run start)
+ *   --saida=.impeccable/review    pasta dos prints
+ *   --inteira                     também a página inteira (só no fim da etapa)
+ *   --com-mapa                    mapa 3D e cliques nos pinos (só quando a etapa mexer no mapa)
+ *   --cookies=arquivo.json        cookies no formato do Playwright (painel logado, carrinho)
+ * Regras: espera o 'load' (nunca 'networkidle'), no máximo 20 s por espera, um print por vez
+ * (uma trava impede duas execuções ao mesmo tempo) e o tempo de cada print no relatório.
+ * O jeito antigo (node scripts/prints.mjs <url-base> <pasta> <páginas...>) continua valendo.
  */
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
+import { openSync, closeSync, writeSync, readFileSync, rmSync } from 'node:fs';
+import path from 'node:path';
 import { chromium, devices } from 'playwright';
 
-const [base = 'http://localhost:3000', saida = '.impeccable/review', ...paginas] = process.argv.slice(2);
-const lista = paginas.length ? paginas : ['/es'];
-await mkdir(saida, { recursive: true });
+const LIMITE = 20000;
+const opcoes = {};
+const soltos = [];
+for (const a of process.argv.slice(2)) {
+  if (a.startsWith('--')) {
+    const [chave, ...resto] = a.slice(2).split('=');
+    opcoes[chave] = resto.length ? resto.join('=') : true;
+  } else soltos.push(a);
+}
+// no Git Bash, "/es" vira "C:/Program Files/Git/es" antes de chegar aqui
+const convertido = soltos.find((a) => /^[A-Za-z]:[/].*[/]Git[/]/.test(a));
+if (convertido) {
+  console.error(
+    `O Git Bash trocou uma página por um caminho do Windows (${convertido}). Rode de novo com MSYS_NO_PATHCONV=1 na frente do comando.`,
+  );
+  process.exit(1);
+}
+if (soltos[0]?.startsWith('http')) opcoes.base ??= soltos.shift();
+if (soltos[0] && !soltos[0].startsWith('/') && !soltos[0].includes('=/')) opcoes.saida ??= soltos.shift();
+const base = String(opcoes.base ?? 'http://localhost:3000').replace(/[/]$/, '');
+const saida = String(opcoes.saida ?? '.impeccable/review');
+const comMapa = Boolean(opcoes['com-mapa']);
+const inteira = Boolean(opcoes.inteira);
 
+const sair = (msg) => {
+  console.error(msg);
+  process.exit(1);
+};
+if (!soltos.length) sair('Diga quais páginas fotografar (só as que a etapa mudou). Ex.: node scripts/prints.mjs /es/checkout');
+
+const paginas = soltos.map((a) => {
+  const i = a.indexOf('=/');
+  const caminho = i > 0 ? a.slice(i + 1) : a;
+  const bruto = i > 0 ? a.slice(0, i) : caminho.split('?')[0].replace(/^[/]/, '').split('/').join('-') || 'inicio';
+  return { caminho, id: bruto.toLowerCase().replace(/[^a-z0-9-]+/g, '-') };
+});
+
+// 1. só o site construído: o npm run dev não serve os arquivos do build
+const buildId = (await readFile('.next/BUILD_ID', 'utf8').catch(() => '')).trim();
+if (!buildId) sair('Não achei o site construído (.next/BUILD_ID). Rode antes, em segundo plano: npm run build e depois npm run start.');
+const teste = await fetch(`${base}/_next/static/${buildId}/_buildManifest.js`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+if (!teste) sair(`Nada respondeu em ${base}. Suba o site construído em segundo plano: npm run start`);
+if (teste.status !== 200) {
+  sair(
+    `O servidor em ${base} não é o site construído de agora (parece o npm run dev ou um build antigo). Rode npm run build e depois npm run start.`,
+  );
+}
+
+// 2. um print por vez: a trava impede outra execução ao mesmo tempo
+const trava = path.join('.impeccable', '.prints.lock');
+await mkdir('.impeccable', { recursive: true });
+const pegarTrava = () => {
+  try {
+    const fd = openSync(trava, 'wx');
+    writeSync(fd, String(process.pid));
+    closeSync(fd);
+    return true;
+  } catch {
+    return false;
+  }
+};
+if (!pegarTrava()) {
+  const dono = Number(readFileSync(trava, 'utf8'));
+  let vivo = false;
+  try {
+    process.kill(dono, 0);
+    vivo = true;
+  } catch {}
+  if (vivo) sair(`Outro print está rodando (processo ${dono}). Espere ele terminar: um print por vez.`);
+  rmSync(trava, { force: true });
+  if (!pegarTrava()) sair('Não consegui pegar a trava dos prints.');
+}
+process.on('exit', () => rmSync(trava, { force: true }));
+
+await mkdir(saida, { recursive: true });
+const seg = (ms) => (ms / 1000).toFixed(1).replace('.', ',');
+const tempos = [];
+const avisos = [];
+const erros = [];
+const cookies = opcoes.cookies ? JSON.parse(await readFile(String(opcoes.cookies), 'utf8')) : [];
 const telas = [
   ['celular', { ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 }],
   ['computador', { viewport: { width: 1440, height: 900 } }],
 ];
+const primeiraLinha = (e) => String(e.message).split(String.fromCharCode(10))[0];
 
-const navegador = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] });
-const erros = [];
-const avisos = [];
-for (const [nome, opcoes] of telas) {
-  const ctx = await navegador.newContext({ ...opcoes, locale: 'es-AR' });
-  const page = await ctx.newPage();
-  page.setDefaultTimeout(120000);
-  page.on('console', (m) => m.type() === 'error' && erros.push(`[${nome}] ${m.text()}`));
-  page.on('pageerror', (e) => erros.push(`[${nome}] ${e.message}`));
-  for (const caminho of lista) {
-    const id = caminho.replace(/^\//, '').replace(/\//g, '-') || 'inicio';
-    await page.goto(base + caminho, { waitUntil: 'networkidle', timeout: 90000 });
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: `${saida}/${id}-${nome}.png` });
-
-    if (await page.locator('#passeios').count()) {
-      await page.locator('#passeios').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: `${saida}/${id}-${nome}-vitrine.png` });
+const inicio = performance.now();
+const navegador = await chromium.launch({ args: comMapa ? ['--enable-unsafe-swiftshader', '--use-angle=swiftshader'] : [] });
+try {
+  for (const [nome, config] of telas) {
+    const ctx = await navegador.newContext({ ...config, locale: 'es-AR' });
+    if (cookies.length) {
+      const ajustados = cookies.map((c) => ({
+        ...c,
+        secure: base.startsWith('https') ? c.secure : false,
+        ...(c.domain || c.url ? {} : { url: base }),
+      }));
+      await ctx.addCookies(ajustados);
     }
-
-    const palco = page.locator('.mapa-palco');
-    if (await palco.count()) {
-      // print da tela, com o mapa logo abaixo do menu (o print de um elemento muda a altura da tela no celular)
-      const mostrarMapa = () =>
-        palco.evaluate((el) => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 76, behavior: 'instant' }));
-      await mostrarMapa();
-      // o 3D carrega perto da tela; no renderizador por software dos testes pode levar um tempo
-      await page
-        .waitForFunction(() => document.querySelector('.mapa-palco')?.getAttribute('data-3d') !== 'plano', null, { timeout: 90000 })
-        .catch(() => {});
-      const modo = await palco.getAttribute('data-3d');
-      console.log(`${nome} ${caminho}: mapa ${modo}`);
-      await page.waitForTimeout(2500);
-      await mostrarMapa();
-      await page.screenshot({ path: `${saida}/${id}-${nome}-mapa.png` });
-      for (const cidade of ['buzios', 'arraial-do-cabo']) {
-        const pino = page.locator(`.pino[data-pino="${cidade}"]`);
-        try {
-          await pino.click({ timeout: 15000 });
-          await page.waitForTimeout(5000);
-          await mostrarMapa();
-          await page.screenshot({ path: `${saida}/${id}-${nome}-mapa-${cidade}.png` });
-          await page.locator('.mapa-cartao .mapa-fechar').click({ timeout: 15000 });
-          await page.waitForTimeout(2500);
-        } catch (e) {
-          avisos.push(`[${nome}] pino ${cidade} não clicável: ${e.message.split('\n')[0]}`);
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(LIMITE);
+    page.on('console', (m) => m.type() === 'error' && erros.push(`[${nome}] ${m.text()}`));
+    page.on('pageerror', (e) => erros.push(`[${nome}] ${e.message}`));
+    const foto = async (sufixo, extra = {}) => {
+      const t = performance.now();
+      const arquivo = `${saida}/${sufixo}.png`;
+      await page.screenshot({ path: arquivo, timeout: LIMITE, ...extra });
+      tempos.push({ arquivo, ms: performance.now() - t });
+    };
+    for (const { caminho, id } of paginas) {
+      const t = performance.now();
+      try {
+        await page.goto(base + caminho, { waitUntil: 'load', timeout: LIMITE });
+        await page.evaluate((ms) => Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, ms))]), LIMITE);
+        await page.waitForTimeout(400);
+        await foto(`${id}-${nome}`);
+        if (await page.locator('#passeios').count()) {
+          await page.locator('#passeios').scrollIntoViewIfNeeded();
+          await page.waitForTimeout(300);
+          await foto(`${id}-${nome}-vitrine`);
         }
+        const palco = page.locator('.mapa-palco');
+        if (comMapa && (await palco.count())) {
+          const mostrarMapa = () =>
+            palco.evaluate((el) => window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 76, behavior: 'instant' }));
+          await mostrarMapa();
+          await page
+            .waitForFunction(() => document.querySelector('.mapa-palco')?.getAttribute('data-3d') !== 'plano', null, { timeout: LIMITE })
+            .catch(() => {});
+          console.log(`${nome} ${caminho}: mapa ${await palco.getAttribute('data-3d')}`);
+          await page.waitForTimeout(1500);
+          await mostrarMapa();
+          await foto(`${id}-${nome}-mapa`);
+          for (const cidade of ['buzios', 'arraial-do-cabo']) {
+            try {
+              await page.locator(`.pino[data-pino="${cidade}"]`).click({ timeout: LIMITE });
+              await page.waitForTimeout(3000);
+              await mostrarMapa();
+              await foto(`${id}-${nome}-mapa-${cidade}`);
+              await page.locator('.mapa-cartao .mapa-fechar').click({ timeout: LIMITE });
+              await page.waitForTimeout(1500);
+            } catch (e) {
+              avisos.push(`[${nome}] pino ${cidade} não clicável: ${primeiraLinha(e)}`);
+            }
+          }
+        }
+        if (inteira) await foto(`${id}-${nome}-inteira`, { fullPage: true });
+      } catch (e) {
+        avisos.push(`[${nome}] ${caminho.split('?')[0]}: ${primeiraLinha(e)}`);
       }
+      console.log(`${nome.padEnd(10)} ${caminho.split('?')[0]}: ${seg(performance.now() - t)} s`);
     }
-    await page.screenshot({ path: `${saida}/${id}-${nome}-inteira.png`, fullPage: true, timeout: 120000 });
+    await ctx.close();
   }
-  await ctx.close();
+} finally {
+  await navegador.close();
 }
-await navegador.close();
-if (avisos.length) console.log(`Avisos:\n${avisos.join('\n')}`);
-console.log(erros.length ? `Erros no console:\n${[...new Set(erros)].join('\n')}` : 'Sem erros no console.');
+for (const { arquivo, ms } of tempos) console.log(`  ${arquivo}: ${seg(ms)} s`);
+console.log(`Total: ${tempos.length} prints em ${seg(performance.now() - inicio)} s (contando abrir o navegador).`);
+if (avisos.length) console.log('Avisos:');
+for (const a of avisos) console.log(`  ${a}`);
+const unicos = [...new Set(erros)];
+console.log(unicos.length ? 'Erros no console:' : 'Sem erros no console.');
+for (const e of unicos) console.log(`  ${e}`);
+await rm(trava, { force: true });

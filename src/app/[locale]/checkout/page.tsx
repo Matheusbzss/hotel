@@ -5,8 +5,10 @@ import { notFound } from 'next/navigation';
 import { FormularioCarrinho } from '@/components/carrinho/FormularioCarrinho';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
+import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { COOKIE_CARRINHO, itensVisiveis, lerCarrinho } from '@/lib/carrinho-servidor';
+import { pagamentoDoCheckout } from '@/lib/reserva-publica';
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -15,7 +17,16 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
-  const { itens } = await lerCarrinho((await cookies()).get(COOKIE_CARRINHO)?.value).catch(() => ({ itens: [] }));
+  const loja = await cookies();
+  const carrinho = await lerCarrinho(loja.get(COOKIE_CARRINHO)?.value).catch(() => ({ itens: [], pedido: undefined }));
+  const inicial = itensVisiveis(carrinho.itens, locale, d);
+  // cartão e Pix (o interruptor, a Stripe e o prazo) e o pedido em aberto do carrinho, decididos aqui no servidor
+  const { pagamentoOnline, pedidoAberto } = await pagamentoDoCheckout(
+    locale,
+    inicial,
+    carrinho.pedido,
+    sessaoValida(loja.get(COOKIE_ADMIN)?.value),
+  );
   // o aproximado em dólar e a nota da cotação, só em espanhol e inglês
   const cambio = await cambioParaTela(locale);
 
@@ -30,9 +41,11 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
           <FormularioCarrinho
             idioma={locale}
             locale={LOCALE_INTL[locale]}
-            inicial={itensVisiveis(itens, locale, d)}
+            inicial={inicial}
             dolar={cambio.taxa}
             notaCambio={cambio.nota}
+            pagamentoOnline={pagamentoOnline}
+            pedidoAberto={pedidoAberto}
             textos={{
               checkout: d.checkout,
               transfer: d.transfer,

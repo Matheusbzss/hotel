@@ -94,7 +94,6 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
   assert.equal(ar.contato.texto, 'Atención 100% online, en español, portugués e inglés. Escribinos acá y te respondemos.');
   assert.equal(ar.rodape.escreva, 'Escribinos');
   assert.equal(ar.reserva.proximo3, '¿Necesitás cambiar la fecha? Escribinos con al menos 24 h de anticipación.');
-  assert.equal(ar.reserva.pixInstrucoes, 'Abrí la app de tu banco, elegí Pix y escaneá el código QR o pegá el código de abajo.');
   assert.equal(ar.checkout.erros.aceite, 'Tenés que aceptar los términos y la política de cancelación.');
   assert.equal(ar.erro404.atalhos, 'O elegí por dónde empezar');
 });
@@ -130,7 +129,6 @@ test('o espanhol neutro traz o "tú" nas mesmas frases, com os acentos do impera
   // verbos irregulares do tú
   assert.equal(es.reserva.expiradoTexto, 'El plazo para pagar este Pix terminó. Haz una nueva reserva o escríbenos.');
   assert.equal(es.transfer.horaAjudaAeroporto, 'Saliendo del aeropuerto, pon el horario de llegada del vuelo.');
-  assert.equal(es.reserva.pixInstrucoes, 'Abre la app de tu banco, elige Pix y escanea el código QR o pega el código de abajo.');
   assert.equal(es.home.diaRegras[1], 'El paseo sale a la hora marcada: si llegas después, pierdes el paseo y no hay reembolso.');
   assert.equal(es.home.garantias[2].se, 'Te arrepientes de la compra');
   assert.equal(es.checkout.erros.aceite, 'Tienes que aceptar los términos y la política de cancelación.');
@@ -159,9 +157,50 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    121,
-    `${diferentes} frases diferem entre es e es-ar; esperava 121 (as 120 do lote 2 mais o exemplo de telefone). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    123,
+    `${diferentes} frases diferem entre es e es-ar; esperava 123 (as 111 que ficaram do lote 2, o exemplo de telefone e as 11 da Etapa 4). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
+});
+
+test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar e em tú no es; as impessoais são iguais', () => {
+  // [chave, frase argentina, frase neutra]
+  const PARES: [string, string, string][] = [
+    ['checkout.pixExplicacao', ar.checkout.pixExplicacao, es.checkout.pixExplicacao],
+    ['pedido.recusadoPix', ar.pedido.recusadoPix, es.pedido.recusadoPix],
+    ['pedido.dicaInternacional', ar.pedido.dicaInternacional, es.pedido.dicaInternacional],
+    ['pedido.tentarOutroCartao', ar.pedido.tentarOutroCartao, es.pedido.tentarOutroCartao],
+    ['recusa.dados', ar.recusa.dados, es.recusa.dados],
+    ['recusa.vencido', ar.recusa.vencido, es.recusa.vencido],
+  ];
+  const TRECHOS: Record<string, [string, string]> = {
+    'checkout.pixExplicacao': ['Pagás en la app de tu banco', 'Pagas en la app de tu banco'],
+    'pedido.recusadoPix': ['Pagá con Pix y recibí {p}% de descuento', 'Paga con Pix y recibe {p}% de descuento'],
+    'pedido.dicaInternacional': ['revisá en la app de tu banco', 'revisa en la app de tu banco'],
+    'pedido.tentarOutroCartao': ['Probá con otra tarjeta.', 'Prueba con otra tarjeta.'],
+    'recusa.dados': ['Revisá el número', 'Revisa el número'],
+    'recusa.vencido': ['usá otra tarjeta', 'usa otra tarjeta'],
+  };
+  for (const [caminho, textoAr, textoEs] of PARES) {
+    const [trechoAr, trechoEs] = TRECHOS[caminho];
+    assert.ok(textoAr.includes(trechoAr), `${caminho} no es-ar: ${textoAr}`);
+    assert.ok(textoEs.includes(trechoEs), `${caminho} no es: ${textoEs}`);
+  }
+  for (const caminho of ['pedido.contestadoTexto', 'pedido.reembolsadoTexto'] as const) {
+    const [grupo, chave] = caminho.split('.') as ['pedido', 'contestadoTexto' | 'reembolsadoTexto'];
+    assert.ok(ar[grupo][chave].endsWith('Si tenés dudas, escribinos.'), `${caminho} no es-ar`);
+    assert.ok(es[grupo][chave].endsWith('Si tienes dudas, escríbenos.'), `${caminho} no es`);
+  }
+  // as frases sem verbo para o cliente (impessoais) não ganham versão argentina
+  for (const t of [
+    (d: typeof es) => d.checkout.pixApps,
+    (d: typeof es) => d.checkout.cartaoAvista,
+    (d: typeof es) => d.pedido.semPixPrazo,
+    (d: typeof es) => d.pedido.confirmandoTexto,
+    (d: typeof es) => d.recusa.generica,
+    (d: typeof es) => d.status.contestado,
+  ]) {
+    assert.equal(t(ar), t(es));
+  }
 });
 
 test('cada entrada de src/i18n/es-ar.ts muda de fato alguma coisa (nenhuma repete o es)', () => {

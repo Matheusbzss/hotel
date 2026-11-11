@@ -1,6 +1,7 @@
 'use client';
 
-import { COOKIE_MEDICAO, COOKIE_ORIGEM, IDADE_COOKIE_ORIGEM, escreverOrigem, lerOrigem, origemDoLink, type Origem } from './origem';
+import { caminhoPrivado } from './caminho-privado.ts';
+import { COOKIE_MEDICAO, COOKIE_ORIGEM, IDADE_COOKIE_ORIGEM, escreverOrigem, lerOrigem, origemDoLink, type Origem } from './origem.ts';
 
 type Fbq = (...args: unknown[]) => void;
 
@@ -42,9 +43,33 @@ type Evento = [evento: string, dados?: Record<string, unknown>, eventID?: string
 const EVENTOS_EM_ESPERA: Evento[] = [];
 const MAXIMO_EM_ESPERA = 50;
 
-/** Dispara um evento no Pixel da Meta e na tag do Google (só funcionam se o visitante aceitou os cookies). */
+/**
+ * As páginas do pedido e do voucher levam no endereço o token do cliente (?t=...), e as tags de anúncio mandam
+ * o endereço da página para a Meta e o Google. Por isso, num documento que está ou já esteve numa página
+ * particular, as tags não carregam e nenhum evento sai; o "não" vale até a página ser recarregada por inteiro.
+ * A compra é medida pelo servidor, sem o endereço da página: src/lib/avisar-compra.ts (Meta) e o arquivo
+ * diário do Google (src/lib/conversoes.ts).
+ */
+let documentoParticular = false;
+/** As tags já foram postas neste documento. Não se olha window.fbq: bloqueador de anúncio cria um de mentira. */
+let tagsNoDocumento = false;
+
+/** Diz se as tags de anúncio podem carregar e receber eventos neste documento. */
+export function tagsLiberadas(caminho?: string): boolean {
+  if (typeof window === 'undefined') return false;
+  if (caminhoPrivado(window.location.pathname) || (caminho !== undefined && caminhoPrivado(caminho))) documentoParticular = true;
+  return !documentoParticular;
+}
+
+/** Diz se as tags de anúncio já foram carregadas neste documento. */
+export const tagsCarregadas = (): boolean => tagsNoDocumento;
+
+/**
+ * Dispara um evento no Pixel da Meta e na tag do Google (só funcionam se o visitante aceitou os cookies). Nas
+ * páginas do pedido e do voucher o evento é descartado, nem fica em espera.
+ */
 export function rastrear(...[evento, dados, eventID]: Evento) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !tagsLiberadas()) return;
   if (!window.fbq && !window.gtag) {
     if (EVENTOS_EM_ESPERA.length < MAXIMO_EM_ESPERA) EVENTOS_EM_ESPERA.push([evento, dados, eventID]);
     return;
@@ -60,7 +85,7 @@ export function soltarEventos() {
 }
 
 export function carregarPixel(pixelId: string) {
-  if (typeof window === 'undefined' || window.fbq) return;
+  if (typeof window === 'undefined' || window.fbq || !tagsLiberadas()) return;
   const n = function (...args: unknown[]) {
     if (n.callMethod) n.callMethod(...args);
     else n.queue!.push(args);
@@ -75,11 +100,12 @@ export function carregarPixel(pixelId: string) {
   s.async = true;
   s.src = 'https://connect.facebook.net/en_US/fbevents.js';
   document.head.appendChild(s);
+  tagsNoDocumento = true;
   n('init', pixelId);
 }
 
 export function carregarGoogle(id: string) {
-  if (typeof window === 'undefined' || window.gtag) return;
+  if (typeof window === 'undefined' || window.gtag || !tagsLiberadas()) return;
   window.dataLayer = window.dataLayer ?? [];
   // a tag do Google lê o objeto "arguments" de cada chamada, não uma lista
   window.gtag = function () {
@@ -93,6 +119,7 @@ export function carregarGoogle(id: string) {
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
   document.head.appendChild(s);
+  tagsNoDocumento = true;
 }
 
 const lerCookie = (nome: string) =>

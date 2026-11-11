@@ -225,7 +225,9 @@ const semGestos = (s: string) => s.replace(/seña de ok/gi, '');
  * versão argentina)? Atualize o número da fonte aqui e diga o motivo no commit.
  */
 const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
-  dicionario: 121,
+  // 112 do lote 2 (eram 121; 9 saíram com as frases do formulário antigo de pagamento, que ninguém mais lia)
+  // + 11 da Etapa 4 (pagamento pela Stripe: Pix, recusa do cartão, contestação, reembolso, prazo)
+  dicionario: 123,
   guia: 138,
   passeios: 54,
   transfer: 2,
@@ -269,8 +271,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    96,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 96 (87 textos + 9 listas inteiras). Mudou uma frase argentina de propósito? Atualize este número.`,
+    98,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 98 (89 textos + 9 listas inteiras; 11 dos textos são da Etapa 4). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>

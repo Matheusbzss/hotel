@@ -2,8 +2,9 @@ import type { Idioma } from '@/i18n/config';
 
 /**
  * Para reservar no mesmo dia: o horário precisa começar pelo menos este tanto depois de agora
- * (120 = 2 horas). Se mudar, ajuste também os textos que falam das 2 horas nos três idiomas:
- * checkout.horarioHoje e a resposta da pergunta sobre o horário de saída (faq).
+ * (120 = 2 horas). O prazo do Pix usa o mesmo número (src/lib/formas-pagamento.ts). Se mudar, ajuste também
+ * os textos que falam das 2 horas nos quatro idiomas: a resposta da pergunta sobre o horário de saída (faq)
+ * e pedido.semPixPrazo.
  */
 export const ANTECEDENCIA_MINIMA_MINUTOS = 120;
 

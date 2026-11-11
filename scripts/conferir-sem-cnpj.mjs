@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'node:fs';
 
-const base = (process.argv[2] ?? 'https://agenciavictorhugo.online').replace(/\/$/, '');
+const base = (process.argv[2] ?? 'https://orlanativa.online').replace(/\/$/, '');
 
 const OFICIAL = readFileSync(new URL('../src/config/empresa.ts', import.meta.url), 'utf8').match(/cnpj: '([^']+)'/)[1];
 const DIGITOS = OFICIAL.replace(/\D/g, '');

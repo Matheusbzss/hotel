@@ -19,7 +19,7 @@ import type { Reserva } from '../src/lib/reservas.ts';
 
 const GRAVAR = process.argv.includes('--gravar');
 const CONFERIR_LINKS = process.argv.includes('--conferir-links');
-const SITE = (process.argv.find((a) => a.startsWith('http')) ?? 'https://agenciavictorhugo.online').replace(/\/$/, '');
+const SITE = (process.argv.find((a) => a.startsWith('http')) ?? 'https://orlanativa.online').replace(/\/$/, '');
 
 const faltam = ['BLOB_READ_WRITE_TOKEN', 'SUPABASE_URL', 'SUPABASE_SECRET_KEY'].filter((v) => !process.env[v]);
 if (faltam.length) {

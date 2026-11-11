@@ -38,7 +38,7 @@ export const EMPRESA = {
    * Domínio mostrado no voucher, nas políticas e nas prévias: o do endereço oficial
    * (NEXT_PUBLIC_SITE_URL na Vercel), para nunca mostrar um endereço que ainda não abre.
    */
-  dominio: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL).host : 'orlanativa.com.br',
+  dominio: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL).host : 'orlanativa.online',
 
   /** Nome que aparece na fatura do cartão (até 13 caracteres, sem acento). */
   descricaoFatura: 'ORLANATIVA',

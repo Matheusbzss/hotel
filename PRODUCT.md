@@ -37,14 +37,14 @@ Praticidade e organização: os passeios da viagem ficam resolvidos de casa, ant
 - Só fotos reais da região e dos passeios. Fotos da internet podem entrar se forem fotos reais, com licença de uso.
 - Rodapé com razão social, CNPJ, endereço e e-mail (ORLA NATIVA LTDA, CNPJ 69.664.651/0001-82, Travessa dos Pescadores, 326, Búzios - RJ, CEP 28950-000, financeiro@orlanativa.com), sem telefone. Os ícones do Instagram e do WhatsApp entram só como enfeite: sem link, sem texto e sem efeito ao tocar (o Instagram está em formação).
 - Casas de temporada (só a casa, ou pacote casa + passeio) ficam prontas mas desligadas (`CASAS_ATIVO = false`); quando ativadas, ganham aba própria no menu.
-- Domínio provisório agenciavictorhugo.online; vai mudar para um domínio Orla Nativa.
+- Domínio oficial orlanativa.online. O antigo, agenciavictorhugo.online, só redireciona (301) e precisa continuar pago e no projeto da Vercel, porque há links e vouchers com ele.
 - Respeitar a opção "reduzir movimento" do sistema.
 
 ## Brand Commitments
 
 - Nome: Orla Nativa — Viagens & Passeios.
 - O logo atual (sol atrás de duas ondas) será substituído por um logo novo com o nome, a pedido do dono.
-- E-mail de suporte: suporte@orlanativa.com.br.
+- E-mail de contato: financeiro@orlanativa.com.
 
 ## Evidence on Hand
 

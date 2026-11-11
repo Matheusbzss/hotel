@@ -14,4 +14,4 @@ export interface DocumentoLegal {
 }
 
 /** Data da última revisão dos textos legais (AAAA-MM-DD). */
-export const ATUALIZADO_EM = '2026-11-07';
+export const ATUALIZADO_EM = '2026-11-11';

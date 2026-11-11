@@ -9,7 +9,9 @@
  *   npm run links -- http://localhost:3000 confere a versão local (npm run build e npm start antes)
  */
 
-const OFICIAL = 'https://agenciavictorhugo.online';
+const OFICIAL = 'https://orlanativa.online';
+/** O endereço antigo só redireciona: não pode sobrar em nenhuma página. */
+const ANTIGO = 'agenciavictorhugo.online';
 const BASE = (process.argv[2] ?? OFICIAL).replace(/\/$/, '');
 const AO_MESMO_TEMPO = 8;
 /** Páginas que só existem para quem tem o código: não entram no rastreamento. */
@@ -103,6 +105,7 @@ async function lerPagina(url) {
 function conferirPagina(url, html) {
   const pagina = curto(url);
   if (/<meta name="robots" content="[^"]*noindex/.test(html)) avisar(`noindex numa página do sitemap: ${pagina}`);
+  if (!BASE.includes(ANTIGO) && html.includes(ANTIGO)) avisar(`endereço antigo na página: ${pagina}`);
   const canonica = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
   if (!canonica) avisar(`sem canônica: ${pagina}`);
   else if (naBase(limpar(canonica)).replace(/\/$/, '') !== url.replace(/\/$/, ''))

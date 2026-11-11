@@ -33,12 +33,12 @@ const AGORA = new Date('2026-11-06T12:00:00.000Z');
 
 test('o evento de compra leva o valor que entrou e os dados embaralhados', () => {
   const [p] = pedidos(passeio({ codigo: 'ON-TESTE1', origem: { fbp: 'fb.1.123.456', fbc: 'fb.1.123.abc', navegador: 'Safari', medicao: true } }));
-  const e = eventoDeCompra(p, 'https://agenciavictorhugo.online', AGORA);
+  const e = eventoDeCompra(p, 'https://orlanativa.online', AGORA);
   assert.equal(e.event_name, 'Purchase');
   assert.equal(e.event_id, 'ON-TESTE1');
   assert.equal(e.event_time, Math.floor(AGORA.getTime() / 1000));
   assert.equal(e.action_source, 'website');
-  assert.equal(e.event_source_url, 'https://agenciavictorhugo.online/checkout');
+  assert.equal(e.event_source_url, 'https://orlanativa.online/checkout');
   assert.deepEqual(e.custom_data, {
     currency: 'BRL',
     value: 90,

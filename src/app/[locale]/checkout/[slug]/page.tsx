@@ -5,6 +5,7 @@ import { FormularioCheckout } from '@/components/FormularioCheckout';
 import { horariosDoPasseio, obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { pagarmeConfigurado } from '@/lib/pagarme';
 import { contadoresPessoas, nomeCidade, regrasCriancas, semFaixas } from '@/lib/passeio-view';
 import { opcoesPasseio, tabelaPreco, temOpcoes } from '@/lib/precos';
@@ -30,15 +31,15 @@ export default async function Checkout({ params, searchParams }: PageProps<'/[lo
       <div className="moldura pb-24 pt-4 md:pb-32 md:pt-8">
         <h1 className="display text-head">{d.checkout.titulo}</h1>
         <Link href={rota(locale, `/passeios/${p.slug}`)} className="link mt-3 inline-flex min-h-11 items-center gap-2 font-semibold">
-          <span aria-hidden="true">←</span> {p.nome[locale]}
+          <span aria-hidden="true">←</span> {texto(p.nome, locale)}
         </Link>
         <div className="mt-10">
           <FormularioCheckout
             idioma={locale}
             locale={LOCALE_INTL[locale]}
-            passeio={{ slug: p.slug, nome: p.nome[locale], cidade: nomeCidade(p, locale), duracao: p.duracao[locale] }}
+            passeio={{ slug: p.slug, nome: texto(p.nome, locale), cidade: nomeCidade(p, locale), duracao: texto(p.duracao, locale) }}
             horarios={horariosDoPasseio(p)}
-            opcoes={opcoesPasseio(p).map((o) => ({ id: o.id, nome: o.nome[locale], tabela: tabelaPreco(p, o) }))}
+            opcoes={opcoesPasseio(p).map((o) => ({ id: o.id, nome: texto(o.nome, locale), tabela: tabelaPreco(p, o) }))}
             mostrarOpcoes={temOpcoes(p)}
             contadores={contadoresPessoas(tabelaPreco(p), d)}
             regras={regrasCriancas(p, d)}

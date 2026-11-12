@@ -14,6 +14,7 @@ import { EMPRESA } from '@/config/empresa';
 import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { texto, textoOpcional } from '@/i18n/conteudo';
 import { avaliacoesDoSite } from '@/lib/avaliacao';
 import { itemBoletim } from '@/lib/boletim';
 import { cambioParaTela } from '@/lib/cambio-tela';
@@ -22,7 +23,7 @@ import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
-import { alternates, urlDoSite } from '@/lib/site';
+import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 export const dynamicParams = false;
 
@@ -36,14 +37,14 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/passeios
   if (!isIdioma(locale) || !p) return {};
   const descricao = descricaoParaBusca(p, locale, dicionario(locale));
   return {
-    title: p.tituloBusca?.[locale] ?? p.nome[locale],
+    title: textoOpcional(p.tituloBusca, locale) ?? texto(p.nome, locale),
     description: descricao,
     alternates: alternates(locale, `/passeios/${p.slug}`),
-    openGraph: {
-      title: `${p.nome[locale]} | ${EMPRESA.marca}`,
+    openGraph: openGraphDaPagina(locale, {
+      title: `${texto(p.nome, locale)} | ${EMPRESA.marca}`,
       description: descricao,
       url: rota(locale, `/passeios/${p.slug}`),
-    },
+    }),
   };
 }
 
@@ -76,8 +77,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: p.nome[locale],
-    description: p.resumo[locale],
+    name: texto(p.nome, locale),
+    description: texto(p.resumo, locale),
     category: nomeCategoria(p, locale),
     sku: p.slug,
     url: endereco,
@@ -136,12 +137,12 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
       <div className="moldura pb-24">
         <div className="mt-12 grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
-            <p className="chegar max-w-[52ch] text-lead">{p.resumo[locale]}</p>
+            <p className="chegar max-w-[52ch] text-lead">{texto(p.resumo, locale)}</p>
             {/* a ficha do passeio: o que a pessoa confere antes de reservar */}
             <dl className="ficha entrar mt-6">
               <div>
                 <dt>{d.comum.duracaoAprox}</dt>
-                <dd>{p.duracao[locale]}</dd>
+                <dd>{texto(p.duracao, locale)}</dd>
               </div>
               <div>
                 <dt>{d.comum.tipo}</dt>
@@ -169,15 +170,17 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 {d.passeio.sobre}
               </h2>
               <div className="texto-corrido mt-4 max-w-[62ch]">
-                {p.descricao[locale].split('\n\n').map((par) => (
-                  <p key={par.slice(0, 24)}>{par}</p>
-                ))}
+                {texto(p.descricao, locale)
+                  .split('\n\n')
+                  .map((par) => (
+                    <p key={par.slice(0, 24)}>{par}</p>
+                  ))}
               </div>
             </section>
 
             <div className="entrar mt-14 grid gap-10 md:grid-cols-2">
-              <ListaMarcada titulo={d.passeio.inclui} id="inclui" itens={p.inclui[locale]} marca="sim" />
-              <ListaMarcada titulo={d.passeio.naoInclui} id="nao-inclui" itens={p.naoInclui[locale]} marca="nao" />
+              <ListaMarcada titulo={d.passeio.inclui} id="inclui" itens={texto(p.inclui, locale)} marca="sim" />
+              <ListaMarcada titulo={d.passeio.naoInclui} id="nao-inclui" itens={texto(p.naoInclui, locale)} marca="nao" />
             </div>
 
             <section className="entrar mt-14" aria-labelledby="roteiro">
@@ -185,7 +188,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 {d.passeio.roteiro}
               </h2>
               <ol className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                {p.roteiro[locale].map((parada, i) => (
+                {texto(p.roteiro, locale).map((parada, i) => (
                   <li key={parada} className="flex gap-4">
                     <span className="numeros w-6 shrink-0 font-semibold text-(--color-turquesa-texto)" aria-hidden="true">
                       {i + 1}
@@ -201,7 +204,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 {d.passeio.levar}
               </h2>
               <ul className="mt-4 flex flex-wrap gap-1.5">
-                {p.levar[locale].map((i) => (
+                {texto(p.levar, locale).map((i) => (
                   <li key={i} className="rounded-full bg-superficie px-4 py-2">
                     {i}
                   </li>
@@ -215,9 +218,9 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
             <div className="lg:sticky lg:top-24">
               <WidgetReserva
                 slug={p.slug}
-                nome={p.nome[locale]}
+                nome={texto(p.nome, locale)}
                 horas={horarios.horas}
-                opcoes={opcoes.map((o) => ({ id: o.id, nome: o.nome[locale], tabela: tabelaPreco(p, o) }))}
+                opcoes={opcoes.map((o) => ({ id: o.id, nome: texto(o.nome, locale), tabela: tabelaPreco(p, o) }))}
                 mostrarOpcoes={temOpcoes(p)}
                 contadores={contadoresPessoas(tabelaPreco(p), d)}
                 regras={regras}
@@ -282,7 +285,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
       <DadosEstruturados
         dados={migalhas(locale, [
           { nome: d.nav.passeios, caminho: '/passeios' },
-          { nome: p.nome[locale], caminho: `/passeios/${p.slug}` },
+          { nome: texto(p.nome, locale), caminho: `/passeios/${p.slug}` },
         ])}
       />
     </main>

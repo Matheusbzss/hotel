@@ -2,6 +2,7 @@ import { altDaFoto } from '@/data/fotos-alt';
 import type { Passeio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { itemBoletim } from '@/lib/boletim';
 import { GaleriaPasseio, type TextosGaleria } from '../GaleriaPasseio';
 import { MidiaPasseio } from '../MidiaPasseio';
@@ -38,7 +39,7 @@ export function TopoPasseio({
       <section className="topo-passeio" aria-labelledby="passeio-titulo">
         <div className="topo-passeio-fotos">
           {p.fotos.length > 0 ? (
-            <GaleriaPasseio fotos={p.fotos} alts={p.fotos.map((f) => altDaFoto(f, idioma, p.nome[idioma]))} textos={textosGaleria} />
+            <GaleriaPasseio fotos={p.fotos} alts={p.fotos.map((f) => altDaFoto(f, idioma, texto(p.nome, idioma)))} textos={textosGaleria} />
           ) : (
             <MidiaPasseio passeio={p} idioma={idioma} sizes="100vw" prioridade className="absolute inset-0 size-full" />
           )}
@@ -53,7 +54,7 @@ export function TopoPasseio({
               <span className="etiqueta vidro vidro-foto">{item.cidadeNome}</span>
             </div>
             <h1 id="passeio-titulo" className="topo-passeio-titulo mt-3">
-              {p.nome[idioma]}
+              {texto(p.nome, idioma)}
             </h1>
           </div>
         </div>

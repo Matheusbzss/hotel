@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Horarios } from '@/data/passeios';
+import type { Idioma } from '@/i18n/config';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { calcular, formatarCentavos, normalizarPessoas, totalPixCentavos, type Pessoas } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
@@ -12,6 +13,7 @@ import { rastrear } from '@/lib/pixel';
 import {
   CIDADES_HOSPEDAGEM,
   DDIS,
+  PAIS_PADRAO,
   NOME_CIDADE_HOSPEDAGEM,
   cartaoValido,
   cpfValido,
@@ -134,7 +136,7 @@ export function FormularioCheckout({
   textos,
   links,
 }: {
-  idioma: 'pt' | 'en' | 'es';
+  idioma: Idioma;
   locale: string;
   passeio: { slug: string; nome: string; cidade: string; duracao: string };
   horarios: Horarios;
@@ -163,7 +165,7 @@ export function FormularioCheckout({
   });
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [ddi, setDdi] = useState(idioma === 'es' ? '54' : idioma === 'en' ? '1' : '55');
+  const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
   const [docTipo, setDocTipo] = useState<'cpf' | 'passaporte'>(idioma === 'pt' ? 'cpf' : 'passaporte');
   const [documento, setDocumento] = useState('');
@@ -174,7 +176,7 @@ export function FormularioCheckout({
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
   const [cartao, setCartao] = useState({ numero: '', nome: '', validade: '', cvv: '' });
   const [cobranca, setCobranca] = useState({
-    pais: idioma === 'es' ? 'AR' : idioma === 'en' ? 'US' : 'BR',
+    pais: PAIS_PADRAO[idioma].pais,
     cep: '',
     endereco: '',
     bairro: '',

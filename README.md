@@ -1,6 +1,6 @@
 # Orla Nativa — Viagens & Passeios
 
-Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento finalizado pelo WhatsApp (cartão pela Stripe e Pix manual entram nas Etapas 4 e 5 da Fase 4), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês e espanhol.
+Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento finalizado pelo WhatsApp (cartão pela Stripe e Pix manual entram nas Etapas 4 e 5 da Fase 4), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês, espanhol neutro (`/es`) e espanhol da Argentina (`/es-ar`).
 
 ## Onde mudar cada coisa
 
@@ -65,7 +65,7 @@ Veja `.env.example`. Resumo:
 | `BLOB_READ_WRITE_TOKEN`          | Criada pela Vercel ao conectar o Blob Store (banco de reservas) |
 | `NEXT_PUBLIC_SITE_URL`           | Endereço oficial (sitemap, prévias, link do voucher)            |
 
-**Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável; depois, redirecione o domínio antigo para o novo.
+**Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável. Em 11/11/2026 o site passou para `orlanativa.online` e o domínio antigo (`agenciavictorhugo.online`) foi desligado, sem redirecionamento, por decisão do dono.
 
 Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e registra a reserva para finalizar pelo WhatsApp. Com chaves de teste (`sk_test_…`/`pk_test_…`), o fluxo completo funciona em modo de teste.
 

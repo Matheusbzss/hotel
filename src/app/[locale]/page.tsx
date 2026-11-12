@@ -15,9 +15,10 @@ import { CIDADES, passeiosAtivos, type Cidade } from '@/data/passeios';
 import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { avaliacoesDoSite, opinioesDoSite } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
-import { alternates, urlDoSite } from '@/lib/site';
+import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 /** Foto real de cada cidade no cartão do mapa (das fotos dos passeios da agência). */
 const FOTO_CIDADE: Partial<Record<Cidade, string>> = {
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]'>): Prom
     title: { absolute: d.meta.titulo },
     description: d.meta.descricao,
     alternates: alternates(locale, '/'),
-    openGraph: { title: d.meta.titulo, description: d.meta.descricao, url: rota(locale, '/') },
+    openGraph: openGraphDaPagina(locale, { title: d.meta.titulo, description: d.meta.descricao, url: rota(locale, '/') }),
   };
 }
 
@@ -55,7 +56,7 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
 
   const secoes = cidades.map((c) => ({
     id: c,
-    titulo: c === 'rio-de-janeiro' ? H.saindoDaRegiao : CIDADES[c].nome[locale],
+    titulo: c === 'rio-de-janeiro' ? H.saindoDaRegiao : texto(CIDADES[c].nome, locale),
     contagem: quantos(daCidade(c).length),
     cartoes: [
       ...daCidade(c).map((p) => (
@@ -75,7 +76,7 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
     .filter((p) => daCidade(p.id).length > 0)
     .map((p) => ({
       ...p,
-      nome: CIDADES[p.id].nome[locale],
+      nome: texto(CIDADES[p.id].nome, locale),
       foto: FOTO_CIDADE[p.id] ?? daCidade(p.id)[0].fotos[0],
       fotoAlt: altDaFoto(FOTO_CIDADE[p.id] ?? daCidade(p.id)[0].fotos[0], locale),
       texto: textosCidade[p.id] ?? '',

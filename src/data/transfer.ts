@@ -9,13 +9,18 @@
  * - LUGARES: a lista de saída e de destino. Os aeroportos já vêm com o ponto de encontro (o desembarque);
  *   as cidades pedem o hotel, a pousada ou o endereço.
  * - MALAS: os limites de cada veículo estão em cabeNoCarro e cabeNaVan.
+ * - TEXTOS: pt, en e es (espanhol neutro, com "tú"). A versão argentina ('es-ar', com "vos" e palavras locais,
+ *   como "valijas") é opcional e só entra onde a frase muda; quem lê usa texto() de src/i18n/conteudo.ts.
  */
 
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { precoComAjuste } from '../lib/orcamento.ts';
 
-export type Idioma = 'pt' | 'en' | 'es';
-type Texto = Record<Idioma, string>;
+import type { Idioma } from '../i18n/config';
+import type { Texto } from './passeios';
+
+/** O mesmo tipo do site todo; os textos daqui se leem com texto() de src/i18n/conteudo.ts. */
+export type { Idioma };
 
 /** O preço de TRAJETOS com o ajuste geral de preços, em reais. */
 const comAjuste = (reais: number) => precoComAjuste(reais) / 100;
@@ -86,7 +91,8 @@ export const VEICULOS: Record<Veiculo, { nome: Texto; modelos: Texto; capacidade
     malas: {
       pt: 'Até 3 malas médias, ou 2 grandes e 2 de mão',
       en: 'Up to 3 medium suitcases, or 2 large and 2 carry-ons',
-      es: 'Hasta 3 valijas medianas, o 2 grandes y 2 de mano',
+      es: 'Hasta 3 maletas medianas, o 2 grandes y 2 de mano',
+      'es-ar': 'Hasta 3 valijas medianas, o 2 grandes y 2 de mano',
     },
     foto: '/fotos/transfer/carro-corolla.jpg',
   },
@@ -97,7 +103,8 @@ export const VEICULOS: Record<Veiculo, { nome: Texto; modelos: Texto; capacidade
     malas: {
       pt: '1 mala grande e 1 de mão por pessoa',
       en: '1 large suitcase and 1 carry-on per person',
-      es: '1 valija grande y 1 de mano por persona',
+      es: '1 maleta grande y 1 de mano por persona',
+      'es-ar': '1 valija grande y 1 de mano por persona',
     },
     foto: '/fotos/transfer/van-frente.jpg',
   },

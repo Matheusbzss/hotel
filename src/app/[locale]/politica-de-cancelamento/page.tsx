@@ -6,17 +6,18 @@ import { PaginaLegal } from '@/components/PaginaLegal';
 import { CANCELAMENTO } from '@/content/legal/cancelamento';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
-import { alternates } from '@/lib/site';
+import { texto } from '@/i18n/conteudo';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/politica-de-cancelamento'>): Promise<Metadata> {
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
-  const doc = CANCELAMENTO[locale];
+  const doc = texto(CANCELAMENTO, locale);
   return {
     title: doc.titulo,
     description: doc.descricao,
     alternates: alternates(locale, '/politica-de-cancelamento'),
-    openGraph: { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-cancelamento') },
+    openGraph: openGraphDaPagina(locale, { title: doc.titulo, description: doc.descricao, url: rota(locale, '/politica-de-cancelamento') }),
   };
 }
 
@@ -26,7 +27,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   const d = dicionario(locale);
   return (
     <PaginaLegal
-      doc={CANCELAMENTO[locale]}
+      doc={texto(CANCELAMENTO, locale)}
       idioma={locale}
       d={d}
       caminho="/politica-de-cancelamento"

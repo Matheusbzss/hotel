@@ -16,7 +16,9 @@
  *   idade grátis paga inteira. `gratisAte: null` = todos pagam (ex.: helicóptero, mergulho).
  * - FOTOS: coloque as imagens em /public/fotos/ e liste os caminhos em `fotos`
  *   (a primeira é a capa). Sem fotos, o card mostra uma capa com o ícone do passeio.
- * - TEXTOS: cada campo de texto tem as versões pt (português), en (inglês) e es (espanhol).
+ * - TEXTOS: cada campo de texto tem as versões pt (português), en (inglês) e es (espanhol neutro, com "tú").
+ *   A versão argentina ('es-ar', com "vos") é opcional: só entra quando a frase muda; sem ela, o /es-ar lê o es.
+ *   Quem lê um texto usa texto(campo, idioma) de src/i18n/conteudo.ts, nunca campo[idioma] direto.
  * - HORÁRIOS: cada tipo de passeio tem os seus em HORARIOS_POR_CATEGORIA (ex.: barcos às 9h, 11h
  *   e 14h). Um passeio com horário diferente usa o campo `horarios`. Com `busca: true`, a hora é a
  *   da busca na hospedagem; com `busca: false`, a da saída do passeio. No dia de hoje, o checkout
@@ -28,9 +30,13 @@
  * desses passeios na Região dos Lagos. Confira com o parceiro antes de divulgar.
  */
 
-export type Idioma = 'pt' | 'en' | 'es';
-export type Texto = Record<Idioma, string>;
-export type Lista = Record<Idioma, string[]>;
+import type { Idioma } from '../i18n/config';
+import type { IdiomaConteudo } from '../i18n/conteudo';
+
+export type { Idioma };
+/** Um texto nos três idiomas de conteúdo, com a versão argentina só onde a frase muda (texto() escolhe). */
+export type Texto = Record<IdiomaConteudo, string> & { 'es-ar'?: string };
+export type Lista = Record<IdiomaConteudo, string[]> & { 'es-ar'?: string[] };
 
 export type Cidade = 'buzios' | 'arraial-do-cabo' | 'cabo-frio' | 'rio-de-janeiro';
 export type Categoria = 'barco' | 'lancha' | 'buggy-quadriciclo' | 'mergulho' | 'city-tour' | 'aventura';
@@ -119,7 +125,11 @@ export const CIDADES: Record<Cidade, { nome: Texto; ordem: number }> = {
 export const CATEGORIAS: Record<Categoria, { nome: Texto; ordem: number; icone: Icone }> = {
   barco: { nome: { pt: 'Barcos e escunas', en: 'Boats & schooners', es: 'Barcos y goletas' }, ordem: 1, icone: 'barco' },
   lancha: { nome: { pt: 'Lancha', en: 'Speedboat', es: 'Lancha' }, ordem: 2, icone: 'lancha' },
-  'buggy-quadriciclo': { nome: { pt: 'Buggy e quadriciclo', en: 'Buggy & quad', es: 'Buggy y cuatriciclo' }, ordem: 3, icone: 'buggy' },
+  'buggy-quadriciclo': {
+    nome: { pt: 'Buggy e quadriciclo', en: 'Buggy & quad', es: 'Buggy y cuatrimoto', 'es-ar': 'Buggy y cuatriciclo' },
+    ordem: 3,
+    icone: 'buggy',
+  },
   mergulho: { nome: { pt: 'Mergulho', en: 'Diving', es: 'Buceo' }, ordem: 4, icone: 'mergulho' },
   'city-tour': { nome: { pt: 'City tour e full day', en: 'City tours & day trips', es: 'City tour y full day' }, ordem: 5, icone: 'van' },
   aventura: {
@@ -216,7 +226,8 @@ const NAO_INCLUI_BASE: Lista = {
 const NAO_INCLUI_TRANSPORTE: Lista = {
   pt: ['Transporte até o ponto de embarque (consulte traslado)', ...NAO_INCLUI_BASE.pt],
   en: ['Transport to the boarding point (ask us about transfers)', ...NAO_INCLUI_BASE.en],
-  es: ['Traslado hasta el punto de embarque (consulte por transfer)', ...NAO_INCLUI_BASE.es],
+  es: ['Traslado hasta el punto de embarque (consulta por transfer)', ...NAO_INCLUI_BASE.es],
+  'es-ar': ['Traslado hasta el punto de embarque (consultá por transfer)', ...NAO_INCLUI_BASE.es],
 };
 
 /* ------------------------------------------------------------------ */
@@ -438,21 +449,30 @@ export const PASSEIOS: Passeio[] = [
     ],
     icone: 'quadriciclo',
     criancas: { gratisAte: null },
-    nome: { pt: 'Passeio de Quadriciclo em Búzios', en: 'Quad Bike Tour in Búzios', es: 'Paseo en Cuatriciclo por Búzios' },
+    nome: {
+      pt: 'Passeio de Quadriciclo em Búzios',
+      en: 'Quad Bike Tour in Búzios',
+      es: 'Paseo en Cuatrimoto por Búzios',
+      'es-ar': 'Paseo en Cuatriciclo por Búzios',
+    },
     resumo: {
       pt: 'Você no comando de um quadriciclo por trilhas de terra e praias mais selvagens.',
       en: 'You in charge of a quad bike on dirt trails and wilder beaches.',
-      es: 'Vos al mando de un cuatriciclo por senderos de tierra y playas más salvajes.',
+      es: 'Tú al mando de una cuatrimoto por senderos de tierra y playas más salvajes.',
+      'es-ar': 'Vos al mando de un cuatriciclo por senderos de tierra y playas más salvajes.',
     },
     descricao: {
       pt: 'O quadriciclo leva até duas pessoas e sai em comboio com um guia à frente, por estradas de terra e trilhas que dão acesso a praias menos movimentadas de Búzios.\n\nAntes de sair, o guia explica a pilotagem e as regras de segurança. É preciso ter habilitação para pilotar; o carona não precisa.',
       en: 'Each quad bike carries up to two people and rides in a convoy behind a guide, on dirt roads and trails that lead to quieter beaches in Búzios.\n\nBefore leaving, the guide explains how to ride and the safety rules. The driver needs a driving licence; the passenger does not.',
-      es: 'Cada cuatriciclo lleva hasta dos personas y sale en caravana detrás de un guía, por caminos de tierra y senderos que llevan a playas menos concurridas de Búzios.\n\nAntes de salir, el guía explica cómo manejar y las reglas de seguridad. Quien maneja necesita licencia de conducir; el acompañante no.',
+      es: 'Cada cuatrimoto lleva hasta dos personas y sale en caravana detrás de un guía, por caminos de tierra y senderos que llevan a playas menos concurridas de Búzios.\n\nAntes de salir, el guía explica cómo manejar y las reglas de seguridad. Quien maneja necesita licencia de conducir; el acompañante no.',
+      'es-ar':
+        'Cada cuatriciclo lleva hasta dos personas y sale en caravana detrás de un guía, por caminos de tierra y senderos que llevan a playas menos concurridas de Búzios.\n\nAntes de salir, el guía explica cómo manejar y las reglas de seguridad. Quien maneja necesita licencia de conducir; el acompañante no.',
     },
     inclui: {
       pt: ['Quadriciclo para até 2 pessoas', 'Guia acompanhando o grupo', 'Capacete', 'Orientação de pilotagem e segurança'],
       en: ['Quad bike for up to 2 people', 'Guide riding with the group', 'Helmet', 'Riding and safety briefing'],
-      es: ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      es: ['Cuatrimoto para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      'es-ar': ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
@@ -514,12 +534,14 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'Um roteiro por terra para entender Búzios: o centro com a Rua das Pedras, a Orla Bardot, a Praia dos Ossos e os mirantes de onde se veem as praias dos dois lados da península.\n\nVocê viaja com conforto, com paradas para fotos e tempo para conhecer cada lugar sem pressa.',
       en: 'A land route to understand Búzios: the centre with Rua das Pedras, Orla Bardot, Ossos beach and the viewpoints overlooking beaches on both sides of the peninsula.\n\nYou travel comfortably, with photo stops and time to enjoy each place without rushing.',
-      es: 'Un recorrido por tierra para entender Búzios: el centro con la Rua das Pedras, la Orla Bardot, la playa dos Ossos y los miradores con vista a las playas de los dos lados de la península.\n\nViajás cómodo, con paradas para fotos y tiempo para disfrutar cada lugar sin apuro.',
+      es: 'Un recorrido por tierra para entender Búzios: el centro con la Rua das Pedras, la Orla Bardot, la playa dos Ossos y los miradores con vista a las playas de los dos lados de la península.\n\nViajas cómodo, con paradas para fotos y tiempo para disfrutar cada lugar sin apuro.',
+      'es-ar':
+        'Un recorrido por tierra para entender Búzios: el centro con la Rua das Pedras, la Orla Bardot, la playa dos Ossos y los miradores con vista a las playas de los dos lados de la península.\n\nViajás cómodo, con paradas para fotos y tiempo para disfrutar cada lugar sin apuro.',
     },
     inclui: {
       pt: ['Transporte com busca e retorno ao hotel/pousada em Búzios', 'Guia ou condutor local', 'Paradas para fotos'],
       en: ['Transport with hotel pick-up and drop-off in Búzios', 'Local guide or driver', 'Photo stops'],
-      es: ['Traslado con búsqueda y regreso al hotel/posada en Búzios', 'Guía o conductor local', 'Paradas para fotos'],
+      es: ['Traslado con recogida y regreso al hotel/posada en Búzios', 'Guía o conductor local', 'Paradas para fotos'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
@@ -542,7 +564,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Orla Bardot y playa dos Ossos',
         'Mirador de João Fernandes',
         'Playas de Geribá y Ferradura',
@@ -586,7 +608,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'O jeito mais completo de conhecer Búzios em um dia, para quem está hospedado em Cabo Frio ou Arraial do Cabo. A van busca você no hotel, faz o city tour pelos mirantes e praias mais bonitas da península e leva até o píer para o passeio de escuna, com paradas para banho em águas calmas.\n\nNo fim sobra tempo livre para almoçar e caminhar pela Rua das Pedras e pela Orla Bardot antes do retorno. Se o mar não permitir a navegação no dia, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
       en: 'The most complete way to see Búzios in one day, for travellers staying in Cabo Frio or Arraial do Cabo. The van picks you up at your hotel, tours the peninsula’s best viewpoints and beaches and takes you to the pier for the schooner trip, with swim stops in calm water.\n\nAt the end there is free time for lunch and a stroll along Rua das Pedras and Orla Bardot before heading back. If the sea does not allow sailing that day, you choose between a new date or a refund, as our cancellation policy provides.',
-      es: 'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+      es: 'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, eliges entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+      'es-ar':
+        'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
     },
     inclui: {
       pt: [
@@ -630,7 +654,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel in the late afternoon',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Miradores y playas de la península (Geribá, Ferradura y João Fernandes)',
         'Paseo en goleta con paradas para nadar',
         'Orla Bardot y playa dos Ossos',
@@ -668,12 +692,14 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'O trolley é um veículo aberto que circula por Búzios com paradas rápidas nos pontos mais fotogênicos. Sem janelas fechadas, você aproveita a brisa e a vista o tempo todo.\n\nÉ uma opção leve e econômica para ter um panorama da península, boa para todas as idades.',
       en: 'The trolley is an open-air vehicle that drives around Búzios with short stops at the most photogenic spots. With no closed windows, you enjoy the breeze and the view the whole time.\n\nIt is a light, budget-friendly way to get an overview of the peninsula, great for all ages.',
-      es: 'El trolley es un vehículo abierto que recorre Búzios con paradas cortas en los puntos más fotogénicos. Sin ventanas cerradas, disfrutás la brisa y la vista todo el tiempo.\n\nEs una opción liviana y económica para tener un panorama de la península, ideal para todas las edades.',
+      es: 'El trolley es un vehículo abierto que recorre Búzios con paradas cortas en los puntos más fotogénicos. Sin ventanas cerradas, disfrutas la brisa y la vista todo el tiempo.\n\nEs una opción liviana y económica para tener un panorama de la península, ideal para todas las edades.',
+      'es-ar':
+        'El trolley es un vehículo abierto que recorre Búzios con paradas cortas en los puntos más fotogénicos. Sin ventanas cerradas, disfrutás la brisa y la vista todo el tiempo.\n\nEs una opción liviana y económica para tener un panorama de la península, ideal para todas las edades.',
     },
     inclui: {
       pt: ['Busca no hotel ou pousada', 'Passeio em trolley aberto', 'Condutor local', 'Paradas em praias e mirantes'],
       en: ['Pick-up at your hotel', 'Open-air trolley ride', 'Local driver', 'Stops at beaches and viewpoints'],
-      es: ['Búsqueda en el hotel o posada', 'Paseo en trolley abierto', 'Conductor local', 'Paradas en playas y miradores'],
+      es: ['Recogida en el hotel o posada', 'Paseo en trolley abierto', 'Conductor local', 'Paradas en playas y miradores'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
@@ -694,7 +720,7 @@ export const PASSEIOS: Passeio[] = [
         'Return',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Playas de Geribá y Ferradura',
         'Mirador de la playa Brava',
         'Playa de João Fernandes',
@@ -734,12 +760,15 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'A lancha só para o seu grupo, com marinheiro, para até 6 pessoas. Escolha 2 ou 4 horas.',
       en: 'A speedboat just for your group, with a skipper, for up to 6 people. Choose 2 or 4 hours.',
-      es: 'La lancha solo para tu grupo, con marinero, para hasta 6 personas. Elegí 2 o 4 horas.',
+      es: 'La lancha solo para tu grupo, con marinero, para hasta 6 personas. Elige 2 o 4 horas.',
+      'es-ar': 'La lancha solo para tu grupo, con marinero, para hasta 6 personas. Elegí 2 o 4 horas.',
     },
     descricao: {
       pt: 'Na lancha privativa o roteiro é do seu grupo: você combina com o marinheiro as praias e ilhas que quer conhecer e quanto tempo fica em cada parada, conforme o mar do dia. É o jeito mais confortável e rápido de ver Búzios pelo mar, ideal para casais, famílias e amigos.\n\nO preço é pela lancha, para até 6 pessoas contando as crianças. Com 4 horas dá para incluir mais praias e fazer paradas mais longas para banho.',
       en: 'On a private speedboat the route belongs to your group: you agree with the skipper which beaches and islands to visit and how long to stay at each stop, depending on the day’s sea. It is the most comfortable and fastest way to see Búzios from the water, ideal for couples, families and friends.\n\nThe price is per boat, for up to 6 people including children. With 4 hours you can add more beaches and enjoy longer swim stops.',
-      es: 'En la lancha privada el recorrido es de tu grupo: acordás con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
+      es: 'En la lancha privada el recorrido es de tu grupo: acuerdas con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
+      'es-ar':
+        'En la lancha privada el recorrido es de tu grupo: acordás con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
     },
     inclui: {
       pt: [
@@ -815,7 +844,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'Um passeio de jet ski acompanhado por instrutor, contornando praias e costões de Búzios. Antes de sair você recebe orientação sobre pilotagem e segurança, sem precisar de experiência.\n\nO preço é por jet ski, que leva até duas pessoas. Escolha 30 minutos ou 1 hora. A rota depende das condições do dia e das regras da Marinha.',
       en: 'A jet ski ride with an instructor, cruising past the beaches and rocky shores of Búzios. Before starting you get a riding and safety briefing, no experience needed.\n\nThe price is per jet ski, which carries up to two people. Choose 30 minutes or 1 hour. The route depends on the day’s conditions and Navy rules.',
-      es: 'Un paseo en moto de agua acompañado por un instructor, recorriendo playas y costas rocosas de Búzios. Antes de salir recibís instrucciones de manejo y seguridad, sin necesidad de experiencia.\n\nEl precio es por moto de agua, que lleva hasta dos personas. Elegí 30 minutos o 1 hora. La ruta depende de las condiciones del día y de las reglas de la Marina.',
+      es: 'Un paseo en moto de agua acompañado por un instructor, recorriendo playas y costas rocosas de Búzios. Antes de salir recibes instrucciones de manejo y seguridad, sin necesidad de experiencia.\n\nEl precio es por moto de agua, que lleva hasta dos personas. Elige 30 minutos o 1 hora. La ruta depende de las condiciones del día y de las reglas de la Marina.',
+      'es-ar':
+        'Un paseo en moto de agua acompañado por un instructor, recorriendo playas y costas rocosas de Búzios. Antes de salir recibís instrucciones de manejo y seguridad, sin necesidad de experiencia.\n\nEl precio es por moto de agua, que lleva hasta dos personas. Elegí 30 minutos o 1 hora. La ruta depende de las condiciones del día y de las reglas de la Marina.',
     },
     inclui: {
       pt: ['Jet ski para até 2 pessoas', 'Instrutor acompanhando', 'Colete salva-vidas', 'Orientação de segurança'],
@@ -873,7 +904,8 @@ export const PASSEIOS: Passeio[] = [
     naoInclui: {
       pt: ['Transporte até o heliponto (consulte traslado)', 'Fotos e vídeos profissionais'],
       en: ['Transport to the helipad (ask us about transfers)', 'Professional photos and videos'],
-      es: ['Traslado hasta el helipuerto (consulte por transfer)', 'Fotos y videos profesionales'],
+      es: ['Traslado hasta el helipuerto (consulta por transfer)', 'Fotos y videos profesionales'],
+      'es-ar': ['Traslado hasta el helipuerto (consultá por transfer)', 'Fotos y videos profesionales'],
     },
     roteiro: {
       pt: ['Apresentação no heliponto', 'Orientação de segurança', 'Voo sobre as praias e ilhas de Búzios', 'Pouso no heliponto'],
@@ -988,7 +1020,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'O dia completo em Arraial do Cabo para quem está em Búzios ou Cabo Frio. Você sai do hotel, conhece os mirantes mais bonitos da cidade e faz o passeio de barco pelas praias de água azul-turquesa.\n\nSobra tempo para almoçar e aproveitar a praia antes do retorno, no fim da tarde.',
       en: 'The complete Arraial do Cabo day for travellers staying in Búzios or Cabo Frio. You leave from your hotel, visit the town’s best viewpoints and take the boat tour to the turquoise-water beaches.\n\nThere is time left for lunch and the beach before heading back in the late afternoon.',
-      es: 'El día completo en Arraial do Cabo para quienes están en Búzios o Cabo Frio. Salís del hotel, conocés los miradores más lindos de la ciudad y hacés el paseo en barco por las playas de agua turquesa.\n\nQueda tiempo para almorzar y disfrutar la playa antes de volver, al final de la tarde.',
+      es: 'El día completo en Arraial do Cabo para quienes están en Búzios o Cabo Frio. Sales del hotel, conoces los miradores más lindos de la ciudad y haces el paseo en barco por las playas de agua turquesa.\n\nQueda tiempo para almorzar y disfrutar la playa antes de volver, al final de la tarde.',
+      'es-ar':
+        'El día completo en Arraial do Cabo para quienes están en Búzios o Cabo Frio. Salís del hotel, conocés los miradores más lindos de la ciudad y hacés el paseo en barco por las playas de agua turquesa.\n\nQueda tiempo para almorzar y disfrutar la playa antes de volver, al final de la tarde.',
     },
     inclui: {
       pt: [
@@ -1029,7 +1063,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel in the late afternoon',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Mirador del Pontal do Atalaia',
         'Paseo en barco por las playas de Arraial',
         'Tiempo libre para almorzar',
@@ -1104,7 +1138,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Mirador del Pontal do Atalaia y Prainhas',
         'Praia Grande',
         'Praia dos Anjos',
@@ -1148,7 +1182,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'As águas frias e claras de Arraial do Cabo concentram uma vida marinha impressionante, com peixes coloridos, tartarugas e formações rochosas. O mergulho de batismo é feito com instrutor ao seu lado o tempo todo, sem precisar de experiência.\n\nAntes de entrar na água você recebe uma aula sobre respiração e sinais. Depois de mergulhar, aguarde pelo menos 24 horas para viajar de avião.',
       en: 'The cold, clear waters of Arraial do Cabo hold impressive marine life: colourful fish, turtles and rock formations. The discover-scuba dive is done with an instructor by your side the whole time, no experience needed.\n\nBefore getting in the water you get a lesson on breathing and hand signals. After diving, wait at least 24 hours before flying.',
-      es: 'Las aguas frías y claras de Arraial do Cabo tienen una vida marina impresionante: peces de colores, tortugas y formaciones rocosas. El bautismo se hace con un instructor a tu lado todo el tiempo, sin necesidad de experiencia.\n\nAntes de entrar al agua recibís una clase sobre respiración y señales. Después de bucear, esperá al menos 24 horas para viajar en avión.',
+      es: 'Las aguas frías y claras de Arraial do Cabo tienen una vida marina impresionante: peces de colores, tortugas y formaciones rocosas. El bautismo se hace con un instructor a tu lado todo el tiempo, sin necesidad de experiencia.\n\nAntes de entrar al agua recibes una clase sobre respiración y señales. Después de bucear, espera al menos 24 horas para viajar en avión.',
+      'es-ar':
+        'Las aguas frías y claras de Arraial do Cabo tienen una vida marina impresionante: peces de colores, tortugas y formaciones rocosas. El bautismo se hace con un instructor a tu lado todo el tiempo, sin necesidad de experiencia.\n\nAntes de entrar al agua recibís una clase sobre respiración y señales. Después de bucear, esperá al menos 24 horas para viajar en avión.',
     },
     inclui: {
       pt: [
@@ -1191,7 +1227,8 @@ export const PASSEIOS: Passeio[] = [
     levar: {
       pt: ['Roupa de banho e toalha', 'Protetor solar', 'Lanche leve (evite refeições pesadas antes)', 'Documento com foto'],
       en: ['Swimwear and a towel', 'Sunscreen', 'Light snack (avoid heavy meals beforehand)', 'Photo ID'],
-      es: ['Traje de baño y toalla', 'Protector solar', 'Algo liviano para comer (evitá comidas pesadas antes)', 'Documento con foto'],
+      es: ['Traje de baño y toalla', 'Protector solar', 'Algo liviano para comer (evita comidas pesadas antes)', 'Documento con foto'],
+      'es-ar': ['Traje de baño y toalla', 'Protector solar', 'Algo liviano para comer (evitá comidas pesadas antes)', 'Documento con foto'],
     },
   },
   {
@@ -1214,17 +1251,21 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'Dunas, lagoas e praias de Arraial em um passeio de buggy cheio de paisagens.',
       en: 'Dunes, lagoons and Arraial beaches on a scenic buggy ride.',
-      es: 'Médanos, lagunas y playas de Arraial en un paseo en buggy lleno de paisajes.',
+      es: 'Dunas, lagunas y playas de Arraial en un paseo en buggy lleno de paisajes.',
+      'es-ar': 'Médanos, lagunas y playas de Arraial en un paseo en buggy lleno de paisajes.',
     },
     descricao: {
       pt: 'O buggy percorre a parte mais selvagem de Arraial do Cabo, entre dunas de areia branca, lagoas e a extensa Praia Grande. O condutor faz paradas para foto e para você aproveitar cada cenário.\n\nUm passeio diferente do barco, que mostra outro lado da cidade.',
       en: 'The buggy explores the wildest part of Arraial do Cabo, between white sand dunes, lagoons and the long Praia Grande. The driver stops for photos so you can enjoy each view.\n\nA different side of the town from the one you see by boat.',
-      es: 'El buggy recorre la parte más salvaje de Arraial do Cabo, entre médanos de arena blanca, lagunas y la extensa Praia Grande. El conductor para para fotos y para que disfrutes cada paisaje.\n\nUn paseo distinto al del barco, que muestra otro lado de la ciudad.',
+      es: 'El buggy recorre la parte más salvaje de Arraial do Cabo, entre dunas de arena blanca, lagunas y la extensa Praia Grande. El conductor para para fotos y para que disfrutes cada paisaje.\n\nUn paseo distinto al del barco, que muestra otro lado de la ciudad.',
+      'es-ar':
+        'El buggy recorre la parte más salvaje de Arraial do Cabo, entre médanos de arena blanca, lagunas y la extensa Praia Grande. El conductor para para fotos y para que disfrutes cada paisaje.\n\nUn paseo distinto al del barco, que muestra otro lado de la ciudad.',
     },
     inclui: {
       pt: ['Buggy com condutor', 'Paradas em dunas, lagoas e praias'],
       en: ['Buggy with driver', 'Stops at dunes, lagoons and beaches'],
-      es: ['Buggy con conductor', 'Paradas en médanos, lagunas y playas'],
+      es: ['Buggy con conductor', 'Paradas en dunas, lagunas y playas'],
+      'es-ar': ['Buggy con conductor', 'Paradas en médanos, lagunas y playas'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
@@ -1238,6 +1279,14 @@ export const PASSEIOS: Passeio[] = [
       ],
       en: ['Departure from the agreed meeting point', 'Praia Grande', 'White sand dunes', 'Coastal lagoons', 'Photo stops', 'Return'],
       es: [
+        'Salida desde el punto de encuentro acordado',
+        'Praia Grande',
+        'Dunas de arena blanca',
+        'Lagunas costeras',
+        'Paradas para fotos',
+        'Regreso',
+      ],
+      'es-ar': [
         'Salida desde el punto de encuentro acordado',
         'Praia Grande',
         'Médanos de arena blanca',
@@ -1267,22 +1316,27 @@ export const PASSEIOS: Passeio[] = [
     nome: {
       pt: 'Passeio de Quadriciclo em Arraial do Cabo',
       en: 'Quad Bike Tour in Arraial do Cabo',
-      es: 'Paseo en Cuatriciclo por Arraial do Cabo',
+      es: 'Paseo en Cuatrimoto por Arraial do Cabo',
+      'es-ar': 'Paseo en Cuatriciclo por Arraial do Cabo',
     },
     resumo: {
       pt: 'Trilhas de areia e dunas de Arraial pilotando o seu próprio quadriciclo.',
       en: 'Sand trails and dunes in Arraial on your own quad bike.',
-      es: 'Senderos de arena y médanos de Arraial manejando tu propio cuatriciclo.',
+      es: 'Senderos de arena y dunas de Arraial manejando tu propia cuatrimoto.',
+      'es-ar': 'Senderos de arena y médanos de Arraial manejando tu propio cuatriciclo.',
     },
     descricao: {
       pt: 'Em comboio com um guia, você pilota por trilhas de areia e dunas com vista para o mar. Cada quadriciclo leva até duas pessoas.\n\nHá orientação de pilotagem antes da saída. Quem pilota precisa de habilitação.',
       en: 'In a convoy behind a guide, you ride sand trails and dunes with sea views. Each quad carries up to two people.\n\nThere is a riding briefing before departure. The driver needs a driving licence.',
-      es: 'En caravana con un guía, manejás por senderos de arena y médanos con vista al mar. Cada cuatriciclo lleva hasta dos personas.\n\nHay instrucciones de manejo antes de salir. Quien maneja necesita licencia de conducir.',
+      es: 'En caravana con un guía, manejas por senderos de arena y dunas con vista al mar. Cada cuatrimoto lleva hasta dos personas.\n\nHay instrucciones de manejo antes de salir. Quien maneja necesita licencia de conducir.',
+      'es-ar':
+        'En caravana con un guía, manejás por senderos de arena y médanos con vista al mar. Cada cuatriciclo lleva hasta dos personas.\n\nHay instrucciones de manejo antes de salir. Quien maneja necesita licencia de conducir.',
     },
     inclui: {
       pt: ['Quadriciclo para até 2 pessoas', 'Guia acompanhando o grupo', 'Capacete', 'Orientação de pilotagem e segurança'],
       en: ['Quad bike for up to 2 people', 'Guide riding with the group', 'Helmet', 'Riding and safety briefing'],
-      es: ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      es: ['Cuatrimoto para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      'es-ar': ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
@@ -1302,7 +1356,14 @@ export const PASSEIOS: Passeio[] = [
       ],
       es: [
         'Instrucciones y salida desde la base',
-        'Senderos de arena en la restinga',
+        'Senderos de arena entre la vegetación costera',
+        'Dunas con vista al mar',
+        'Paradas para fotos',
+        'Regreso a la base',
+      ],
+      'es-ar': [
+        'Instrucciones y salida desde la base',
+        'Senderos de arena entre la vegetación costera',
         'Médanos con vista al mar',
         'Paradas para fotos',
         'Regreso a la base',
@@ -1346,7 +1407,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'Fuja dos barcos lotados e conheça as praias de água azul-turquesa de Arraial do Cabo no ritmo do seu grupo. A lancha sai da Praia dos Anjos e o marinheiro monta o roteiro com vocês, conforme o mar e as regras de visitação do dia.\n\nO preço é pela lancha, para até 10 pessoas contando as crianças. As paradas costumam ser mais longas e em horários diferentes dos barcos de passeio, com mais espaço na areia.',
       en: 'Skip the crowded boats and explore the turquoise beaches of Arraial do Cabo at your group’s own pace. The speedboat leaves from Praia dos Anjos and the skipper plans the route with you, according to the sea and the day’s visiting rules.\n\nThe price is per boat, for up to 10 people including children. Stops tend to be longer and at different times from the tour boats, with more room on the sand.',
-      es: 'Escapá de los barcos llenos y conocé las playas de agua turquesa de Arraial do Cabo al ritmo de tu grupo. La lancha sale de la Praia dos Anjos y el marinero arma el recorrido con ustedes, según el mar y las reglas de visita del día.\n\nEl precio es por lancha, para hasta 10 personas contando a los niños. Las paradas suelen ser más largas y en horarios distintos a los de los barcos de paseo, con más espacio en la arena.',
+      es: 'Escapa de los barcos llenos y conoce las playas de agua turquesa de Arraial do Cabo al ritmo de tu grupo. La lancha sale de la Praia dos Anjos y el marinero arma el recorrido contigo y tu grupo, según el mar y las reglas de visita del día.\n\nEl precio es por lancha, para hasta 10 personas contando a los niños. Las paradas suelen ser más largas y en horarios distintos a los de los barcos de paseo, con más espacio en la arena.',
+      'es-ar':
+        'Escapá de los barcos llenos y conocé las playas de agua turquesa de Arraial do Cabo al ritmo de tu grupo. La lancha sale de la Praia dos Anjos y el marinero arma el recorrido con ustedes, según el mar y las reglas de visita del día.\n\nEl precio es por lancha, para hasta 10 personas contando a los niños. Las paradas suelen ser más largas y en horarios distintos a los de los barcos de paseo, con más espacio en la arena.',
     },
     inclui: {
       pt: [
@@ -1429,7 +1492,9 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'Para quem já tem certificação de mergulho (Open Water ou equivalente). A saída de barco leva aos pontos mais conhecidos de Arraial do Cabo, onde o fenômeno da ressurgência deixa a água fria e cheia de vida: cardumes, tartarugas, moreias e, com sorte, cavalos-marinhos.\n\nSão dois mergulhos com guia, com o equipamento completo incluído. Leve sua carteira de certificação. Depois de mergulhar, aguarde pelo menos 24 horas para viajar de avião.',
       en: 'For divers who already hold a certification (Open Water or equivalent). The boat takes you to the best-known sites in Arraial do Cabo, where upwelling keeps the water cold and full of life: schools of fish, turtles, moray eels and, with luck, seahorses.\n\nThere are two guided dives, with full gear included. Bring your certification card. After diving, wait at least 24 hours before flying.',
-      es: 'Para quienes ya tienen certificación de buceo (Open Water o equivalente). La salida en barco lleva a los puntos más conocidos de Arraial do Cabo, donde la surgencia deja el agua fría y llena de vida: cardúmenes, tortugas, morenas y, con suerte, caballitos de mar.\n\nSon dos inmersiones guiadas, con el equipo completo incluido. Llevá tu credencial de buceo. Después de bucear, esperá al menos 24 horas para viajar en avión.',
+      es: 'Para quienes ya tienen certificación de buceo (Open Water o equivalente). La salida en barco lleva a los puntos más conocidos de Arraial do Cabo, donde la surgencia deja el agua fría y llena de vida: cardúmenes, tortugas, morenas y, con suerte, caballitos de mar.\n\nSon dos inmersiones guiadas, con el equipo completo incluido. Lleva tu credencial de buceo. Después de bucear, espera al menos 24 horas para viajar en avión.',
+      'es-ar':
+        'Para quienes ya tienen certificación de buceo (Open Water o equivalente). La salida en barco lleva a los puntos más conocidos de Arraial do Cabo, donde la surgencia deja el agua fría y llena de vida: cardúmenes, tortugas, morenas y, con suerte, caballitos de mar.\n\nSon dos inmersiones guiadas, con el equipo completo incluido. Llevá tu credencial de buceo. Después de bucear, esperá al menos 24 horas para viajar en avión.',
     },
     inclui: {
       pt: [
@@ -1559,12 +1624,15 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'Forte São Mateus, Praia do Forte, Dunas do Peró e a famosa Rua dos Biquínis.',
       en: 'São Mateus Fort, Praia do Forte, the Peró Dunes and the famous Bikini Street.',
-      es: 'Fuerte São Mateus, Praia do Forte, los Médanos do Peró y la famosa Calle de los Bikinis.',
+      es: 'Fuerte São Mateus, Praia do Forte, las Dunas do Peró y la famosa Calle de los Bikinis.',
+      'es-ar': 'Fuerte São Mateus, Praia do Forte, los Médanos do Peró y la famosa Calle de los Bikinis.',
     },
     descricao: {
       pt: 'Cabo Frio é uma das cidades mais antigas do Brasil e mistura história com praias de areia branca. O city tour passa pelo Forte São Mateus, pela Praia do Forte, pelas Dunas do Peró e pela Rua dos Biquínis, famosa pela moda praia.\n\nO transporte sai do seu hotel e há tempo livre para compras e almoço.',
       en: 'Cabo Frio is one of the oldest towns in Brazil, mixing history with white-sand beaches. The city tour visits São Mateus Fort, Praia do Forte, the Peró Dunes and Bikini Street, famous for its beachwear shops.\n\nTransport leaves from your hotel and there is free time for shopping and lunch.',
-      es: 'Cabo Frio es una de las ciudades más antiguas de Brasil y mezcla historia con playas de arena blanca. El city tour pasa por el Fuerte São Mateus, la Praia do Forte, los Médanos do Peró y la Calle de los Bikinis, famosa por la moda de playa.\n\nEl traslado sale de tu hotel y hay tiempo libre para compras y almuerzo.',
+      es: 'Cabo Frio es una de las ciudades más antiguas de Brasil y mezcla historia con playas de arena blanca. El city tour pasa por el Fuerte São Mateus, la Praia do Forte, las Dunas do Peró y la Calle de los Bikinis, famosa por la moda de playa.\n\nEl traslado sale de tu hotel y hay tiempo libre para compras y almuerzo.',
+      'es-ar':
+        'Cabo Frio es una de las ciudades más antiguas de Brasil y mezcla historia con playas de arena blanca. El city tour pasa por el Fuerte São Mateus, la Praia do Forte, los Médanos do Peró y la Calle de los Bikinis, famosa por la moda de playa.\n\nEl traslado sale de tu hotel y hay tiempo libre para compras y almuerzo.',
     },
     inclui: {
       pt: [
@@ -1600,7 +1668,16 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
+        'Fuerte São Mateus y Praia do Forte',
+        'Canal do Itajuru',
+        'Dunas y playa do Peró',
+        'Calle de los Bikinis',
+        'Tiempo libre para almorzar',
+        'Regreso al hotel',
+      ],
+      'es-ar': [
+        'Recogida en el hotel o posada',
         'Fuerte São Mateus y Praia do Forte',
         'Canal do Itajuru',
         'Médanos y playa do Peró',
@@ -1631,23 +1708,35 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'As Dunas do Peró e as praias de Cabo Frio a bordo de um buggy.',
       en: 'The Peró Dunes and Cabo Frio beaches aboard a buggy.',
-      es: 'Los Médanos do Peró y las playas de Cabo Frio a bordo de un buggy.',
+      es: 'Las Dunas do Peró y las playas de Cabo Frio a bordo de un buggy.',
+      'es-ar': 'Los Médanos do Peró y las playas de Cabo Frio a bordo de un buggy.',
     },
     descricao: {
       pt: 'Um passeio de buggy pelas paisagens mais abertas de Cabo Frio: as dunas de areia branca do Peró, praias extensas e mirantes sobre o mar.\n\nO condutor faz paradas para fotos e para você caminhar pelas dunas.',
       en: 'A buggy ride through Cabo Frio’s most open landscapes: the white sand dunes of Peró, long beaches and viewpoints over the sea.\n\nThe driver stops for photos and for you to walk on the dunes.',
-      es: 'Un paseo en buggy por los paisajes más abiertos de Cabo Frio: los médanos de arena blanca del Peró, playas extensas y miradores sobre el mar.\n\nEl conductor para para fotos y para que camines por los médanos.',
+      es: 'Un paseo en buggy por los paisajes más abiertos de Cabo Frio: las dunas de arena blanca del Peró, playas extensas y miradores sobre el mar.\n\nEl conductor para para fotos y para que camines por las dunas.',
+      'es-ar':
+        'Un paseo en buggy por los paisajes más abiertos de Cabo Frio: los médanos de arena blanca del Peró, playas extensas y miradores sobre el mar.\n\nEl conductor para para fotos y para que camines por los médanos.',
     },
     inclui: {
       pt: ['Buggy com condutor', 'Paradas em dunas, praias e mirantes'],
       en: ['Buggy with driver', 'Stops at dunes, beaches and viewpoints'],
-      es: ['Buggy con conductor', 'Paradas en médanos, playas y miradores'],
+      es: ['Buggy con conductor', 'Paradas en dunas, playas y miradores'],
+      'es-ar': ['Buggy con conductor', 'Paradas en médanos, playas y miradores'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
       pt: ['Saída do ponto de encontro combinado', 'Dunas do Peró', 'Praia do Peró', 'Praia das Conchas', 'Paradas para foto', 'Retorno'],
       en: ['Departure from the agreed meeting point', 'Peró Dunes', 'Peró beach', 'Conchas beach', 'Photo stops', 'Return'],
       es: [
+        'Salida desde el punto de encuentro acordado',
+        'Dunas do Peró',
+        'Playa do Peró',
+        'Playa das Conchas',
+        'Paradas para fotos',
+        'Regreso',
+      ],
+      'es-ar': [
         'Salida desde el punto de encuentro acordado',
         'Médanos do Peró',
         'Playa do Peró',
@@ -1674,27 +1763,43 @@ export const PASSEIOS: Passeio[] = [
     ],
     icone: 'quadriciclo',
     criancas: { gratisAte: null },
-    nome: { pt: 'Passeio de Quadriciclo em Cabo Frio', en: 'Quad Bike Tour in Cabo Frio', es: 'Paseo en Cuatriciclo por Cabo Frio' },
+    nome: {
+      pt: 'Passeio de Quadriciclo em Cabo Frio',
+      en: 'Quad Bike Tour in Cabo Frio',
+      es: 'Paseo en Cuatrimoto por Cabo Frio',
+      'es-ar': 'Paseo en Cuatriciclo por Cabo Frio',
+    },
     resumo: {
       pt: 'Pilote um quadriciclo pelas trilhas e dunas de Cabo Frio.',
       en: 'Ride a quad bike along the trails and dunes of Cabo Frio.',
-      es: 'Manejá un cuatriciclo por los senderos y médanos de Cabo Frio.',
+      es: 'Maneja una cuatrimoto por los senderos y dunas de Cabo Frio.',
+      'es-ar': 'Manejá un cuatriciclo por los senderos y médanos de Cabo Frio.',
     },
     descricao: {
       pt: 'Em comboio com um guia, o passeio percorre trilhas de areia e dunas com vista para o mar. Cada quadriciclo leva até duas pessoas.\n\nAntes da saída há orientação de pilotagem e segurança. Quem pilota precisa de habilitação.',
       en: 'In a convoy behind a guide, the tour follows sand trails and dunes with sea views. Each quad carries up to two people.\n\nThere is a riding and safety briefing before departure. The driver needs a driving licence.',
-      es: 'En caravana con un guía, el paseo recorre senderos de arena y médanos con vista al mar. Cada cuatriciclo lleva hasta dos personas.\n\nAntes de salir hay instrucciones de manejo y seguridad. Quien maneja necesita licencia de conducir.',
+      es: 'En caravana con un guía, el paseo recorre senderos de arena y dunas con vista al mar. Cada cuatrimoto lleva hasta dos personas.\n\nAntes de salir hay instrucciones de manejo y seguridad. Quien maneja necesita licencia de conducir.',
+      'es-ar':
+        'En caravana con un guía, el paseo recorre senderos de arena y médanos con vista al mar. Cada cuatriciclo lleva hasta dos personas.\n\nAntes de salir hay instrucciones de manejo y seguridad. Quien maneja necesita licencia de conducir.',
     },
     inclui: {
       pt: ['Quadriciclo para até 2 pessoas', 'Guia acompanhando o grupo', 'Capacete', 'Orientação de pilotagem e segurança'],
       en: ['Quad bike for up to 2 people', 'Guide riding with the group', 'Helmet', 'Riding and safety briefing'],
-      es: ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      es: ['Cuatrimoto para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
+      'es-ar': ['Cuatriciclo para hasta 2 personas', 'Guía que acompaña al grupo', 'Casco', 'Instrucciones de manejo y seguridad'],
     },
     naoInclui: NAO_INCLUI_BASE,
     roteiro: {
       pt: ['Orientação e saída da base', 'Trilhas de areia', 'Dunas com vista para o mar', 'Paradas para foto', 'Retorno à base'],
       en: ['Briefing and departure from the base', 'Sand trails', 'Dunes with sea views', 'Photo stops', 'Return to the base'],
       es: [
+        'Instrucciones y salida desde la base',
+        'Senderos de arena',
+        'Dunas con vista al mar',
+        'Paradas para fotos',
+        'Regreso a la base',
+      ],
+      'es-ar': [
         'Instrucciones y salida desde la base',
         'Senderos de arena',
         'Médanos con vista al mar',
@@ -1732,12 +1837,14 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'Busca no hotel, navegação pelo Canal do Itajuru e parada para banho na Ilha do Japonês.',
       en: 'Hotel pick-up, a cruise along the Itajuru Canal and a swim stop at Japonês Island.',
-      es: 'Búsqueda en el hotel, navegación por el Canal do Itajuru y parada para nadar en la Isla do Japonês.',
+      es: 'Recogida en el hotel, navegación por el Canal do Itajuru y parada para nadar en la Isla do Japonês.',
     },
     descricao: {
       pt: 'Para não se preocupar com nada: a van busca você no hotel em Cabo Frio e leva até o cais do Canal do Itajuru, de onde a escuna sai rumo ao mar. O passeio passa pelo Forte São Mateus e pela Praia do Forte e para na Ilha do Japonês, de águas calmas e rasas, ótimas para crianças.\n\nNo fim, o traslado leva você de volta ao hotel. Hospedado em Búzios ou Arraial do Cabo? A busca é combinada depois da reserva, pelo WhatsApp que vem no voucher.',
       en: 'Nothing to worry about: the van picks you up at your hotel in Cabo Frio and takes you to the Itajuru Canal pier, where the schooner sets out to sea. The trip passes São Mateus Fort and Praia do Forte and stops at Japonês Island, with calm, shallow water that is great for children.\n\nAt the end, the transfer takes you back to your hotel. Staying in Búzios or Arraial do Cabo? The pickup is arranged after booking, on the WhatsApp number in your voucher.',
-      es: 'Para no preocuparte por nada: la van te busca en el hotel en Cabo Frio y te lleva al muelle del Canal do Itajuru, desde donde la goleta sale hacia el mar. El paseo pasa por el Fuerte São Mateus y la Praia do Forte y para en la Isla do Japonês, de aguas calmas y bajas, ideales para los chicos.\n\nAl final, el traslado te lleva de vuelta al hotel. ¿Te alojás en Búzios o Arraial do Cabo? La búsqueda se coordina después de reservar, por el WhatsApp que viene en el voucher.',
+      es: 'Para no preocuparte por nada: la van te busca en el hotel en Cabo Frio y te lleva al muelle del Canal do Itajuru, desde donde la goleta sale hacia el mar. El paseo pasa por el Fuerte São Mateus y la Praia do Forte y para en la Isla do Japonês, de aguas calmas y bajas, ideales para los niños.\n\nAl final, el traslado te lleva de vuelta al hotel. ¿Te alojas en Búzios o Arraial do Cabo? La recogida se coordina después de reservar, por el WhatsApp que viene en el voucher.',
+      'es-ar':
+        'Para no preocuparte por nada: la van te busca en el hotel en Cabo Frio y te lleva al muelle del Canal do Itajuru, desde donde la goleta sale hacia el mar. El paseo pasa por el Fuerte São Mateus y la Praia do Forte y para en la Isla do Japonês, de aguas calmas y bajas, ideales para los chicos.\n\nAl final, el traslado te lleva de vuelta al hotel. ¿Te alojás en Búzios o Arraial do Cabo? La recogida se coordina después de reservar, por el WhatsApp que viene en el voucher.',
     },
     inclui: {
       pt: [
@@ -1771,7 +1878,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to the pier and your hotel',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Embarque en el Canal do Itajuru',
         'Fuerte São Mateus y Praia do Forte vistos desde el mar',
         'Isla do Japonês (parada para nadar)',
@@ -1880,12 +1987,15 @@ export const PASSEIOS: Passeio[] = [
     resumo: {
       pt: 'Saindo de Búzios ou Arraial: barco até a Ilha do Japonês, Forte São Mateus, dunas e Rua dos Biquínis.',
       en: 'From Búzios or Arraial: a boat to Japonês Island, São Mateus Fort, the dunes and Bikini Street.',
-      es: 'Desde Búzios o Arraial: barco a la Isla do Japonês, Fuerte São Mateus, médanos y la Calle de los Bikinis.',
+      es: 'Desde Búzios o Arraial: barco a la Isla do Japonês, Fuerte São Mateus, dunas y la Calle de los Bikinis.',
+      'es-ar': 'Desde Búzios o Arraial: barco a la Isla do Japonês, Fuerte São Mateus, médanos y la Calle de los Bikinis.',
     },
     descricao: {
       pt: 'Um dia completo em Cabo Frio para quem está hospedado em Búzios ou Arraial do Cabo. A van busca você no hotel e o dia começa com um passeio de barco pelo Canal do Itajuru até a Ilha do Japonês, com parada para banho.\n\nDepois o roteiro segue por terra: Forte São Mateus, Praia do Forte, Dunas do Peró e a Rua dos Biquínis, com tempo livre para almoço e compras. Se o mar não permitir a navegação, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
       en: 'A full day in Cabo Frio for travellers staying in Búzios or Arraial do Cabo. The van picks you up at your hotel and the day starts with a boat trip along the Itajuru Canal to Japonês Island, with a swim stop.\n\nThen the tour continues by land: São Mateus Fort, Praia do Forte, the Peró Dunes and Bikini Street, with free time for lunch and shopping. If the sea does not allow sailing, you choose between a new date or a refund, as our cancellation policy provides.',
-      es: 'Un día completo en Cabo Frio para quienes se alojan en Búzios o Arraial do Cabo. La van te busca en el hotel y el día empieza con un paseo en barco por el Canal do Itajuru hasta la Isla do Japonês, con parada para nadar.\n\nDespués el recorrido sigue por tierra: Fuerte São Mateus, Praia do Forte, Médanos do Peró y la Calle de los Bikinis, con tiempo libre para almorzar y hacer compras. Si el mar no permite navegar, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+      es: 'Un día completo en Cabo Frio para quienes se alojan en Búzios o Arraial do Cabo. La van te busca en el hotel y el día empieza con un paseo en barco por el Canal do Itajuru hasta la Isla do Japonês, con parada para nadar.\n\nDespués el recorrido sigue por tierra: Fuerte São Mateus, Praia do Forte, Dunas do Peró y la Calle de los Bikinis, con tiempo libre para almorzar y hacer compras. Si el mar no permite navegar, eliges entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+      'es-ar':
+        'Un día completo en Cabo Frio para quienes se alojan en Búzios o Arraial do Cabo. La van te busca en el hotel y el día empieza con un paseo en barco por el Canal do Itajuru hasta la Isla do Japonês, con parada para nadar.\n\nDespués el recorrido sigue por tierra: Fuerte São Mateus, Praia do Forte, Médanos do Peró y la Calle de los Bikinis, con tiempo libre para almorzar y hacer compras. Si el mar no permite navegar, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
     },
     inclui: {
       pt: [
@@ -1903,6 +2013,13 @@ export const PASSEIOS: Passeio[] = [
         'Free time on Bikini Street',
       ],
       es: [
+        'Traslado de ida y vuelta desde el hotel/posada en Búzios o Arraial do Cabo',
+        'Paseo en barco hasta la Isla do Japonês',
+        'Guía o conductor local',
+        'Paradas en el Fuerte São Mateus, la Praia do Forte y las Dunas do Peró',
+        'Tiempo libre en la Calle de los Bikinis',
+      ],
+      'es-ar': [
         'Traslado de ida y vuelta desde el hotel/posada en Búzios o Arraial do Cabo',
         'Paseo en barco hasta la Isla do Japonês',
         'Guía o conductor local',
@@ -1929,7 +2046,15 @@ export const PASSEIOS: Passeio[] = [
         'Return to your hotel in the late afternoon',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
+        'Paseo en barco por el Canal do Itajuru hasta la Isla do Japonês',
+        'Fuerte São Mateus y Praia do Forte',
+        'Dunas do Peró',
+        'Tiempo libre para almorzar y hacer compras en la Calle de los Bikinis',
+        'Regreso al hotel al final de la tarde',
+      ],
+      'es-ar': [
+        'Recogida en el hotel o posada',
         'Paseo en barco por el Canal do Itajuru hasta la Isla do Japonês',
         'Fuerte São Mateus y Praia do Forte',
         'Médanos do Peró',
@@ -2019,7 +2144,7 @@ export const PASSEIOS: Passeio[] = [
         'Return to the Lakes Region in the evening',
       ],
       es: [
-        'Búsqueda en el hotel o posada',
+        'Recogida en el hotel o posada',
         'Cristo Redentor',
         'Pan de Azúcar',
         'Escalera Selarón y Arcos de Lapa',
@@ -2044,6 +2169,13 @@ export const PASSEIOS: Passeio[] = [
         'Cash or card for tickets and meals',
       ],
       es: [
+        'Ropa y calzado cómodos',
+        'Protector solar y gorra',
+        'Chaqueta liviana (en el Corcovado puede haber viento)',
+        'Documento con foto',
+        'Efectivo o tarjeta para entradas y comidas',
+      ],
+      'es-ar': [
         'Ropa y calzado cómodos',
         'Protector solar y gorra',
         'Campera liviana (en el Corcovado puede haber viento)',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Idioma } from '@/i18n/config';
+import type { IdiomaConteudo } from '@/i18n/conteudo';
 
 /**
  * As avaliações reais (tabela avaliacoes), com o texto igual ao original. A origem fica guardada para o painel; o
@@ -39,7 +39,8 @@ export interface Avaliacao {
   /** Só quando a origem tem nota (Google, TripAdvisor): nunca inventada. */
   nota?: number;
   texto: string;
-  idioma?: Idioma;
+  /** O idioma do texto original: só pt, es ou en (uma avaliação em espanhol vale para o /es e o /es-ar). */
+  idioma?: IdiomaConteudo;
   origem: Origem;
   origemUrl?: string;
   /** AAAA-MM-DD. Quando a origem só dá o mês, o dia 1: o site mostra só o mês e o ano. */

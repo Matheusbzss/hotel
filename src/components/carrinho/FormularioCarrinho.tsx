@@ -8,7 +8,15 @@ import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { rastrear } from '@/lib/pixel';
-import { CIDADES_HOSPEDAGEM, DDIS, NOME_CIDADE_HOSPEDAGEM, emailValido, telefoneValido, type CidadeHospedagem } from '@/lib/validacao';
+import {
+  CIDADES_HOSPEDAGEM,
+  DDIS,
+  NOME_CIDADE_HOSPEDAGEM,
+  PAIS_PADRAO,
+  emailValido,
+  telefoneValido,
+  type CidadeHospedagem,
+} from '@/lib/validacao';
 import { Campo, descricao } from '../Campo';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
@@ -72,7 +80,7 @@ export function FormularioCarrinho({
   const formRef = useRef<HTMLFormElement>(null);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [ddi, setDdi] = useState(idioma === 'es' ? '54' : idioma === 'en' ? '1' : '55');
+  const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
   const [cidadeHosp, setCidadeHosp] = useState<CidadeHospedagem | ''>('');
   const [hotel, setHotel] = useState('');

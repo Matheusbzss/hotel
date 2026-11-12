@@ -18,7 +18,7 @@ import { FOTOS_TRANSFER, FOTO_TOPO_TRANSFER, TRAJETOS, precoDoTrajeto } from '@/
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 import { cambioParaTela } from '@/lib/cambio-tela';
-import { alternates, urlDoSite } from '@/lib/site';
+import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/transfer'>): Promise<Metadata> {
   const { locale } = await params;
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/transfer
     title: d.meta.transferTitulo,
     description: d.transfer.resumo,
     alternates: alternates(locale, '/transfer'),
-    openGraph: { title: d.meta.transferTitulo, description: d.transfer.resumo, url: rota(locale, '/transfer') },
+    openGraph: openGraphDaPagina(locale, { title: d.meta.transferTitulo, description: d.transfer.resumo, url: rota(locale, '/transfer') }),
   };
 }
 

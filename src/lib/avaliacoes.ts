@@ -2,7 +2,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { Idioma } from '@/i18n/config';
+import type { IdiomaConteudo } from '@/i18n/conteudo';
 import type { Avaliacao, Origem, Sobre } from './avaliacao';
 import { supabase, usarBanco } from './banco';
 import type { Tables } from './banco-tipos';
@@ -26,7 +26,7 @@ const deLinha = (l: Tables<'avaliacoes'>): Avaliacao => ({
   lugar: l.lugar ?? undefined,
   nota: l.nota ?? undefined,
   texto: l.texto,
-  idioma: (l.idioma as Idioma | null) ?? undefined,
+  idioma: (l.idioma as IdiomaConteudo | null) ?? undefined,
   origem: l.origem as Origem,
   origemUrl: l.origem_url ?? undefined,
   data: l.data_avaliacao,

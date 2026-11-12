@@ -1,6 +1,11 @@
 import type { Idioma } from '../i18n/config';
+import { texto, type Traduzido } from '../i18n/conteudo.ts';
 
-type Texto = Record<Idioma, string>;
+/**
+ * Os três idiomas de conteúdo: o espanhol da Argentina lê o texto em espanhol ('es', o neutro) e só traz a sua
+ * versão ('es-ar') na foto em que a palavra muda (as do quadriciclo: cuatrimoto no neutro, cuatriciclo na Argentina).
+ */
+type Texto = Traduzido<string>;
 
 /**
  * O texto alternativo de cada foto de public/fotos, escrito olhando a foto, nos três idiomas: é o que o Google
@@ -507,7 +512,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/cabo-frio/camarao-e-caipirinha.jpg': {
     pt: 'Espetinho de camarão e caipirinha na praia',
     en: 'Shrimp skewer and caipirinha on the beach',
-    es: 'Brochette de camarones y caipiriña en la playa',
+    es: 'Brocheta de camarones y caipiriña en la playa',
+    'es-ar': 'Brochette de camarones y caipiriña en la playa',
   },
   '/fotos/cabo-frio/casario-azul-e-branco.jpg': {
     pt: 'Rua de pedras com casario azul e branco e flores, em Cabo Frio',
@@ -609,7 +615,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/lancha/lancha-petiscos.jpg': {
     pt: 'Bandeja de petiscos e bebidas na mesa da lancha',
     en: 'Platter of snacks and drinks on the speedboat table',
-    es: 'Bandeja de picadas y bebidas en la mesa de la lancha',
+    es: 'Bandeja de aperitivos y bebidas en la mesa de la lancha',
+    'es-ar': 'Bandeja de picadas y bebidas en la mesa de la lancha',
   },
   '/fotos/lancha/lancha-proa.jpg': {
     pt: 'Proa de lancha com piso de madeira, vista de cima, ancorada em mar verde',
@@ -641,32 +648,38 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/quadriciclo/quadriciclo-lama.jpg': {
     pt: 'Dupla em quadriciclo laranja atravessando uma poça de lama em trilha na mata',
     en: 'Two people on an orange quad bike crossing a mud puddle on a forest trail',
-    es: 'Dos personas en un cuatriciclo naranja cruzando un charco de barro en un sendero',
+    es: 'Dos personas en una cuatrimoto naranja cruzando un charco de barro en un sendero',
+    'es-ar': 'Dos personas en un cuatriciclo naranja cruzando un charco de barro en un sendero',
   },
   '/fotos/quadriciclo/quadriciclo-laranja-mirante.jpg': {
     pt: 'Pessoa em quadriciclo laranja no mirante, de frente para o mar azul',
     en: 'Person on an orange quad bike at a viewpoint, facing the blue sea',
-    es: 'Persona en un cuatriciclo naranja en el mirador, frente al mar azul',
+    es: 'Persona en una cuatrimoto naranja en el mirador, frente al mar azul',
+    'es-ar': 'Persona en un cuatriciclo naranja en el mirador, frente al mar azul',
   },
   '/fotos/quadriciclo/quadriciclo-mirante.jpg': {
     pt: 'Homem sentado em quadriciclo vermelho, com o mar azul ao fundo',
     en: 'Man sitting on a red quad bike with the blue sea behind',
-    es: 'Hombre sentado en un cuatriciclo rojo, con el mar azul de fondo',
+    es: 'Hombre sentado en una cuatrimoto roja, con el mar azul de fondo',
+    'es-ar': 'Hombre sentado en un cuatriciclo rojo, con el mar azul de fondo',
   },
   '/fotos/quadriciclo/quadriciclo-por-do-sol.jpg': {
     pt: 'Duas mulheres de braços abertos sobre um quadriciclo, ao pôr do sol',
     en: 'Two women with open arms on a quad bike at sunset',
-    es: 'Dos mujeres con los brazos abiertos sobre un cuatriciclo, al atardecer',
+    es: 'Dos mujeres con los brazos abiertos sobre una cuatrimoto, al atardecer',
+    'es-ar': 'Dos mujeres con los brazos abiertos sobre un cuatriciclo, al atardecer',
   },
   '/fotos/quadriciclo/quadriciclo-vermelho-mar.jpg': {
     pt: 'Mulher sentada em quadriciclo vermelho em um mirante de frente para o mar',
     en: 'Woman sitting on a red quad bike at a viewpoint facing the sea',
-    es: 'Mujer sentada en un cuatriciclo rojo en un mirador frente al mar',
+    es: 'Mujer sentada en una cuatrimoto roja en un mirador frente al mar',
+    'es-ar': 'Mujer sentada en un cuatriciclo rojo en un mirador frente al mar',
   },
   '/fotos/quadriciclo/quadriciclos-na-areia.jpg': {
     pt: 'Três pessoas em pé sobre quadriciclos na areia da praia',
     en: 'Three people standing on quad bikes on the beach sand',
-    es: 'Tres personas de pie sobre cuatriciclos en la arena de la playa',
+    es: 'Tres personas de pie sobre cuatrimotos en la arena de la playa',
+    'es-ar': 'Tres personas de pie sobre cuatriciclos en la arena de la playa',
   },
 
   /* Rio de Janeiro */
@@ -795,11 +808,13 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/transfer/van-traseira-bagageiro.jpg': {
     pt: 'Bagageiro da van executiva visto pelas portas traseiras abertas',
     en: 'Luggage space of the executive van seen through the open rear doors',
-    es: 'Baúl de la van ejecutiva visto por las puertas traseras abiertas',
+    es: 'Maletero de la van ejecutiva visto por las puertas traseras abiertas',
+    'es-ar': 'Baúl de la van ejecutiva visto por las puertas traseras abiertas',
   },
 };
 
 /** O texto da foto no idioma; uma foto de fora da lista (a de uma casa, por exemplo) usa o texto reserva. */
 export function altDaFoto(foto: string, idioma: Idioma, reserva = ''): string {
-  return ALT_FOTOS[foto]?.[idioma] ?? reserva;
+  const alt = ALT_FOTOS[foto];
+  return alt ? texto(alt, idioma) : reserva;
 }

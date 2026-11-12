@@ -1,14 +1,22 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { rota, semIdioma, type Idioma } from '@/i18n/config';
+import { PREFIXOS_IDIOMA, rota, semIdioma, type Idioma } from '@/i18n/config';
 import { urlDoSite } from '@/lib/site';
 
 /** O endereço que a Vercel dá ao projeto: abre o mesmo site, então quem chega por ele vai para o endereço oficial. */
 const ENDERECO_DA_VERCEL = 'agencia-victor-hugo.vercel.app';
 
+/** Os prefixos dos idiomas com endereço próprio (/en, /es, /es-ar), do mais comprido para o mais curto: /es-ar casa antes de /es. */
+const PREFIXO_TRADUZIDO = new RegExp(
+  `^\\/(${PREFIXOS_IDIOMA.split('|')
+    .filter((p) => p !== 'pt')
+    .join('|')})(?=\\/|$)`,
+);
+
 /**
  * Rotas de idioma:
  *  - português fica sem prefixo (/passeios) e é servido internamente por /pt/passeios;
- *  - inglês e espanhol usam /en/... e /es/..., com o endereço traduzido (/es/paseos), servido pela pasta em português;
+ *  - inglês e os dois espanhóis usam /en/..., /es/... e /es-ar/..., com o endereço traduzido (/es/paseos, /es-ar/paseos),
+ *    servido pela pasta em português; nenhuma troca automática de idioma acontece aqui;
  *  - o endereço antigo em português (/es/passeios) e /pt/... redirecionam (evita conteúdo duplicado).
  */
 export function proxy(request: NextRequest) {
@@ -18,7 +26,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(`${urlDoSite()}${pathname}${search}`, 301);
   }
 
-  const idioma = pathname.match(/^\/(en|es)(?=\/|$)/)?.[1] as Exclude<Idioma, 'pt'> | undefined;
+  const idioma = pathname.match(PREFIXO_TRADUZIDO)?.[1] as Exclude<Idioma, 'pt'> | undefined;
   if (idioma) {
     // as imagens de prévia geradas pelo Next ficam no caminho da pasta
     if (pathname.includes('/opengraph-image') || pathname.includes('/twitter-image')) return NextResponse.next();

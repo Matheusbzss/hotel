@@ -2,6 +2,7 @@ import { EMPRESA } from '@/config/empresa';
 import { TERMOS } from '@/content/legal/termos';
 import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { TAMANHO_OG, previaDaPagina } from '@/lib/og';
 
 export const size = TAMANHO_OG;
@@ -14,7 +15,7 @@ export default async function Imagem({ params }: { params: Promise<{ locale: str
   const idioma = isIdioma(locale) ? locale : 'pt';
   return previaDaPagina({
     foto: '/fotos/buzios/por-do-sol-barcos-na-baia.jpg',
-    titulo: TERMOS[idioma].titulo,
+    titulo: texto(TERMOS, idioma).titulo,
     texto: dicionario(idioma).home.heroTexto,
   });
 }

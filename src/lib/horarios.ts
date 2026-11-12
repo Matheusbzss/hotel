@@ -52,13 +52,13 @@ export function primeiroDiaComHorario(horas: string[], agora: Date = new Date())
   return amanha.toISOString().slice(0, 10);
 }
 
-/** A hora como se escreve em cada idioma: 9h (pt), 9 h (es), 9am (en). */
+/** A hora como se escreve em cada idioma: 9h (pt), 9 h (es e es-ar), 9am (en). */
 export function formatarHora(hora: string, idioma: Idioma): string {
   const [h, m] = hora.split(':').map(Number);
   const mm = String(m).padStart(2, '0');
   if (idioma === 'en') return `${h % 12 || 12}${m ? `:${mm}` : ''}${h < 12 ? 'am' : 'pm'}`;
   // espaço que não quebra: o "h" nunca fica sozinho na linha de baixo
-  if (idioma === 'es') return `${h}${m ? `:${mm}` : ''} h`;
+  if (idioma === 'es' || idioma === 'es-ar') return `${h}${m ? `:${mm}` : ''} h`;
   return `${h}h${m ? mm : ''}`;
 }
 

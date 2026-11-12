@@ -1,13 +1,18 @@
 import type { Idioma } from './config';
 
-type Traducao = Record<Exclude<Idioma, 'pt'>, string>;
+/** As tabelas têm só 'en' e 'es': o espanhol da Argentina ('es-ar') usa os mesmos endereços do 'es'. */
+type IdiomaDaTabela = 'en' | 'es';
+type Traducao = Record<IdiomaDaTabela, string>;
+
+/** 'es-ar' lê a coluna 'es' das tabelas. */
+const coluna = (idioma: Exclude<Idioma, 'pt'>): IdiomaDaTabela => (idioma === 'es-ar' ? 'es' : idioma);
 
 /**
  * Os endereços públicos em espanhol e inglês, com as palavras que as pessoas pesquisam em cada idioma.
  * As pastas de src/app/[locale] seguem em português: o proxy troca um pelo outro (src/proxy.ts) e o endereço
- * em português de uma página /es ou /en redireciona para o traduzido com 301.
+ * em português de uma página /es, /es-ar ou /en redireciona para o traduzido com 301.
  *
- * Página nova sem linha aqui fica com o nome em português nos três idiomas. Depois que um endereço
+ * Página nova sem linha aqui fica com o nome em português em todos os idiomas. Depois que um endereço
  * for publicado, trocar a tradução muda o link que o Google já conhece: nesse caso, crie o 301 do antigo.
  */
 const SECOES: Record<string, Traducao> = {
@@ -52,17 +57,19 @@ function inverter(tabela: Record<string, Partial<Traducao>>, idioma: keyof Tradu
 const SECOES_INTERNAS = { en: inverter(SECOES, 'en'), es: inverter(SECOES, 'es') };
 const PASSEIOS_INTERNOS = { en: inverter(PASSEIOS, 'en'), es: inverter(PASSEIOS, 'es') };
 
-/** `/passeios/escuna-buzios` → `/paseos/goleta-buzios`. O caminho vem sem o idioma. */
-export function caminhoPublico(idioma: keyof Traducao, caminho: string): string {
+/** `/passeios/escuna-buzios` → `/paseos/goleta-buzios`. O caminho vem sem o idioma ('es-ar' sai igual ao 'es'). */
+export function caminhoPublico(idioma: Exclude<Idioma, 'pt'>, caminho: string): string {
+  const col = coluna(idioma);
   const [, secao = '', slug, ...resto] = caminho.split('/');
-  const novoSlug = secao === 'passeios' && slug ? (PASSEIOS[slug]?.[idioma] ?? slug) : slug;
-  return ['', SECOES[secao]?.[idioma] ?? secao, ...(novoSlug === undefined ? [] : [novoSlug]), ...resto].join('/') || '/';
+  const novoSlug = secao === 'passeios' && slug ? (PASSEIOS[slug]?.[col] ?? slug) : slug;
+  return ['', SECOES[secao]?.[col] ?? secao, ...(novoSlug === undefined ? [] : [novoSlug]), ...resto].join('/') || '/';
 }
 
 /** `/paseos/goleta-buzios` → `/passeios/escuna-buzios`. Quem já vem com o nome da pasta passa direto. */
-export function caminhoInterno(idioma: keyof Traducao, caminho: string): string {
+export function caminhoInterno(idioma: Exclude<Idioma, 'pt'>, caminho: string): string {
+  const col = coluna(idioma);
   const [, secaoPublica = '', slug, ...resto] = caminho.split('/');
-  const secao = SECOES_INTERNAS[idioma][secaoPublica] ?? secaoPublica;
-  const novoSlug = secao === 'passeios' && slug ? (PASSEIOS_INTERNOS[idioma][slug] ?? slug) : slug;
+  const secao = SECOES_INTERNAS[col][secaoPublica] ?? secaoPublica;
+  const novoSlug = secao === 'passeios' && slug ? (PASSEIOS_INTERNOS[col][slug] ?? slug) : slug;
   return ['', secao, ...(novoSlug === undefined ? [] : [novoSlug]), ...resto].join('/') || '/';
 }

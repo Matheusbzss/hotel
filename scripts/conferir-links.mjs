@@ -110,8 +110,9 @@ function conferirPagina(url, html) {
   if (!canonica) avisar(`sem canônica: ${pagina}`);
   else if (naBase(limpar(canonica)).replace(/\/$/, '') !== url.replace(/\/$/, ''))
     avisar(`canônica aponta para outro lugar: ${pagina} → ${canonica}`);
-  // os guias só existem em espanhol
-  for (const idioma of pagina.startsWith('/es/guias') ? [] : ['pt-BR', 'en', 'es', 'x-default']) {
+  // os guias só existem nas duas versões do espanhol (es e es-AR); as outras páginas, nos quatro idiomas e no x-default
+  const guia = pagina.startsWith('/es/guias') || pagina.startsWith('/es-ar/guias');
+  for (const idioma of guia ? ['es', 'es-AR'] : ['pt-BR', 'en', 'es', 'es-AR', 'x-default']) {
     if (!new RegExp(`hrefLang="${idioma}"`, 'i').test(html)) avisar(`sem hreflang ${idioma}: ${pagina}`);
   }
   const titulo = html.match(/<title>([^<]*)<\/title>/)?.[1];
@@ -135,7 +136,7 @@ function conferirPagina(url, html) {
     const foto = /src="[^"]*(?:%2Ffotos%2F|\/fotos\/)/.test(m[0]);
     if (foto && !/\balt="[^"]+"/.test(m[0])) avisar(`foto sem texto alternativo em ${pagina}: ${m[0].match(/src="([^"]{0,70})/)?.[1]}`);
   }
-  if (pagina !== '/' && !/^\/(en|es)$/.test(pagina) && !html.includes('"BreadcrumbList"')) avisar(`sem caminho nos dados: ${pagina}`);
+  if (pagina !== '/' && !/^\/(en|es|es-ar)$/.test(pagina) && !html.includes('"BreadcrumbList"')) avisar(`sem caminho nos dados: ${pagina}`);
 }
 
 while (pendentes.size) {

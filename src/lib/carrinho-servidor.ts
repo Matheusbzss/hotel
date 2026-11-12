@@ -8,6 +8,7 @@ import { MAXIMO_SUGESTOES, sugestoesDoCarrinho } from '@/data/sugestoes';
 import { IDS_LUGARES, LUGARES, VEICULOS, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
 import type { CarrinhoNoFunil } from './estatisticas';
@@ -187,7 +188,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
     return {
       id: item.id,
       tipo: 'passeio',
-      titulo: opcao ? `${p.nome[idioma]} · ${opcao.nome[idioma]}` : p.nome[idioma],
+      titulo: opcao ? `${texto(p.nome, idioma)} · ${texto(opcao.nome, idioma)}` : texto(p.nome, idioma),
       foto: p.fotos[0] ?? '',
       detalhes: [
         quando(c.escolha.data, c.escolha.hora, idioma),
@@ -204,7 +205,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
     };
   }
   const t = c.escolha as EscolhaTransfer;
-  const lugar = (l: IdLugar) => LUGARES[l].nome[idioma];
+  const lugar = (l: IdLugar) => texto(LUGARES[l].nome, idioma);
   const temAeroporto = (x: TrechoEscolhido) => LUGARES[x.saida.lugar].aeroporto || LUGARES[x.destino.lugar].aeroporto;
   // saindo do aeroporto, o voo é o de chegada; indo para ele, o de partida
   const rotuloVoo = (x: TrechoEscolhido) => (LUGARES[x.saida.lugar].aeroporto ? d.transfer.vooChegada : d.transfer.vooPartida);
@@ -216,7 +217,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
     detalhes: [
       quando(t.ida.data, t.ida.hora, idioma),
       ...(t.volta ? [fmt(d.carrinho.volta, { quando: quando(t.volta.data, t.volta.hora, idioma) })] : []),
-      `${VEICULOS[t.veiculo].nome[idioma]} · ${textoPassageiros(t.passageiros, d.transfer)}`,
+      `${texto(VEICULOS[t.veiculo].nome, idioma)} · ${textoPassageiros(t.passageiros, d.transfer)}`,
     ],
     href: `${rota(idioma, '/transfer')}?mudar=${item.id}#reservar`,
     totalCentavos: c.totalCentavos,
@@ -256,14 +257,14 @@ export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dici
     const pessoas = normalizarPessoas(tabelaPreco(p), grupo);
     lista.push({
       slug,
-      nome: p.nome[idioma],
+      nome: texto(p.nome, idioma),
       foto: p.fotos[0] ?? '',
       href: rota(idioma, `/passeios/${slug}`),
       horas: horarios.horas,
       rotuloHorario: horarios.busca ? d.horario.busca : d.horario.saida,
       opcoes: opcoesPasseio(p).map((o) => {
         const orc = calcular(tabelaPreco(p, o), grupo);
-        return { id: o.id, nome: o.nome[idioma], totalCentavos: orc.totalCentavos, totalPixCentavos: totalPixCentavos(orc) };
+        return { id: o.id, nome: texto(o.nome, idioma), totalCentavos: orc.totalCentavos, totalPixCentavos: totalPixCentavos(orc) };
       }),
       pessoas: { adultos: pessoas.adultos, meia: pessoas.criancasMeia, gratis: pessoas.criancasGratis },
       pessoasTexto: textoPessoas(pessoas, d.comum.rotulos, semFaixas(p)),
@@ -300,7 +301,11 @@ const semOQueVirouPedido = (c: CarrinhoGuardado): CarrinhoGuardado => (c.pedidoI
 export async function lerCarrinho(codigo: string | undefined): Promise<CarrinhoGuardado> {
   if (!codigoCarrinhoValido(codigo)) return { itens: [] };
   if (usarBanco()) {
-    const { data, error } = await supabase().from('carrinhos').select('itens, email, pedido_id, origem_utm').eq('token', codigo).maybeSingle();
+    const { data, error } = await supabase()
+      .from('carrinhos')
+      .select('itens, email, pedido_id, origem_utm')
+      .eq('token', codigo)
+      .maybeSingle();
     if (error) throw new Error(`Banco de dados: ${error.message}`);
     if (!data) return { itens: [] };
     return semOQueVirouPedido({

@@ -6,10 +6,11 @@ import { useRef, useState } from 'react';
 import { LUGARES, VEICULOS, precoTrecho, totalTransfer, type IdLugar, type Malas, type Veiculo } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { formatarHora } from '@/lib/horarios';
 import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
 import { textoMalas } from '@/lib/transfer-view';
-import { DDIS, emailValido, formatarDataIso, telefoneValido } from '@/lib/validacao';
+import { DDIS, PAIS_PADRAO, emailValido, formatarDataIso, telefoneValido } from '@/lib/validacao';
 import { Campo, descricao } from '../Campo';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
@@ -64,7 +65,7 @@ export function FormularioTransfer({
   const formRef = useRef<HTMLFormElement>(null);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [ddi, setDdi] = useState(idioma === 'es' ? '54' : idioma === 'en' ? '1' : '55');
+  const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
   const [vooIda, setVooIda] = useState('');
   const [vooVolta, setVooVolta] = useState('');
@@ -93,7 +94,8 @@ export function FormularioTransfer({
   const temAeroporto = (t: TrechoPedido) => Boolean(LUGARES[t.saida.lugar].aeroporto || LUGARES[t.destino.lugar].aeroporto);
   // saindo do aeroporto, o voo é o de chegada; indo para ele, o de partida
   const rotuloVoo = (t: TrechoPedido) => (LUGARES[t.saida.lugar].aeroporto ? T.vooChegada : T.vooPartida);
-  const nomePonta = (p: PontaPedido) => (p.endereco ? `${LUGARES[p.lugar].nome[idioma]}, ${p.endereco}` : LUGARES[p.lugar].nome[idioma]);
+  const nomePonta = (p: PontaPedido) =>
+    p.endereco ? `${texto(LUGARES[p.lugar].nome, idioma)}, ${p.endereco}` : texto(LUGARES[p.lugar].nome, idioma);
   const dataHora = (t: TrechoPedido) => fmt(textos.dataHora, { data: formatarDataIso(t.data, locale), hora: formatarHora(t.hora, idioma) });
   const nomeIdade = (n: number) => (n === 0 ? T.menosDeUmAno : n === 1 ? T.umAno : fmt(T.nAnos, { n }));
 
@@ -379,7 +381,7 @@ export function FormularioTransfer({
               <h2 className="text-lead font-semibold">{C.resumo}</h2>
               <p className="mt-4 text-lead font-semibold leading-tight">{T.titulo}</p>
               <p className="mt-1 text-small text-(--tinta-suave)">
-                {VEICULOS[pedido.veiculo].nome[idioma]} · {VEICULOS[pedido.veiculo].modelos[idioma]}
+                {texto(VEICULOS[pedido.veiculo].nome, idioma)} · {texto(VEICULOS[pedido.veiculo].modelos, idioma)}
               </p>
               <dl className="mt-5 space-y-4">
                 {(

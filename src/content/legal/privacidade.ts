@@ -1,9 +1,12 @@
-import { EMPRESA, enderecoCompleto } from '@/config/empresa';
-import type { DocumentoLegal } from './tipos';
+import { EMPRESA, enderecoCompleto } from '../../config/empresa.ts';
+import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
+import { comAjustesAR, type ParAR } from './argentino.ts';
+import type { DocumentoLegal } from './tipos.ts';
 
 const E = EMPRESA;
 
-export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
+/** Português, inglês e o espanhol neutro (es, com "tú"). O espanhol da Argentina sai de BASE.es + AJUSTES_AR, no fim. */
+const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   pt: {
     titulo: 'Política de Privacidade',
     descricao:
@@ -13,7 +16,10 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     secoes: [
       {
         titulo: '1. Quem é o controlador dos dados',
-        paragrafos: [`${E.razaoSocial}, CNPJ ${E.cnpj}, com sede na ${enderecoCompleto}.`, `Canal do titular de dados (encarregado): ${E.email}.`],
+        paragrafos: [
+          `${E.razaoSocial}, CNPJ ${E.cnpj}, com sede na ${enderecoCompleto}.`,
+          `Canal do titular de dados (encarregado): ${E.email}.`,
+        ],
       },
       {
         titulo: '2. Quais dados coletamos',
@@ -116,7 +122,10 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     secoes: [
       {
         titulo: '1. Data controller',
-        paragrafos: [`${E.razaoSocial}, CNPJ (Brazilian company registration number) ${E.cnpj}, with its registered office at ${enderecoCompleto}, Brazil.`, `Data subject contact (data protection officer): ${E.email}.`],
+        paragrafos: [
+          `${E.razaoSocial}, CNPJ (Brazilian company registration number) ${E.cnpj}, with its registered office at ${enderecoCompleto}, Brazil.`,
+          `Data subject contact (data protection officer): ${E.email}.`,
+        ],
       },
       {
         titulo: '2. What data we collect',
@@ -213,28 +222,31 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
   es: {
     titulo: 'Política de Privacidad',
     descricao:
-      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales.',
+      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales.',
     resumo:
-      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
     secoes: [
       {
         titulo: '1. Responsable de los datos',
-        paragrafos: [`${E.razaoSocial}, CNPJ (registro de empresas de Brasil) ${E.cnpj}, con sede en ${enderecoCompleto}, Brasil.`, `Canal del titular de datos (delegado de protección de datos): ${E.email}.`],
+        paragrafos: [
+          `${E.razaoSocial}, CNPJ (registro de empresas de Brasil) ${E.cnpj}, con sede en ${enderecoCompleto}, Brasil.`,
+          `Canal del titular de datos (delegado de protección de datos): ${E.email}.`,
+        ],
       },
       {
         titulo: '2. Qué datos recopilamos',
         paragrafos: ['Recopilamos solo lo necesario:'],
         lista: [
           'Identificación: nombre completo y, cuando lo pedimos, número de CPF (brasileños) o de pasaporte (extranjeros).',
-          'Contacto: e-mail y teléfono/WhatsApp, también cuando pedís una cotización o mandás un mensaje por el sitio.',
-          'Reserva: paseo o traslado, fecha, horario, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas. En el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla.',
-          'Carrito: los ítems que elegiste y, si lo escribís en el checkout, tu e-mail, aunque no termines la reserva.',
+          'Contacto: e-mail y teléfono/WhatsApp, también cuando pides una cotización o mandas un mensaje por el sitio.',
+          'Reserva: paseo o traslado, fecha, horario, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas. En el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla.',
+          'Carrito: los ítems que elegiste y, si lo escribes en el checkout, tu e-mail, aunque no termines la reserva.',
           'Origen de la visita: el nombre de la campaña del anuncio del que viniste, cuando el enlace lo indica.',
           'Pago: forma de pago, estado y, en el caso de tarjeta, solo la marca y los cuatro últimos dígitos. El sitio no recibe ni guarda el número completo de la tarjeta.',
           'Navegación: dirección IP, tipo de dispositivo y páginas visitadas, registrados por nuestros proveedores por seguridad y para el funcionamiento del sitio; y, solo con tu consentimiento, datos de navegación para el Píxel de Meta y la etiqueta de Google Ads.',
         ],
         depois: [
-          'Evitá escribir información de salud en las observaciones, salvo que sea necesaria para tu seguridad en el paseo (por ejemplo, restricciones para bucear). Si la escribís, la usaremos solo para ese fin.',
+          'Evita escribir información de salud en las observaciones, salvo que sea necesaria para tu seguridad en el paseo (por ejemplo, restricciones para bucear). Si la escribes, la usaremos solo para ese fin.',
         ],
       },
       {
@@ -245,16 +257,16 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'Procesar pagos y reembolsos y prevenir fraudes — ejecución de contrato e interés legítimo (art. 7, V y IX).',
           'Guardar registros fiscales, contables y de consumo — obligación legal y ejercicio regular de derechos (art. 7, II y VI).',
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',
-          'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Podés pedir no recibir ese recordatorio.',
+          'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
           'Saber de qué campaña vino cada reserva, para medir el resultado de los anuncios — interés legítimo (art. 7, IX).',
-          'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
+          'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
         ],
       },
       {
         titulo: '4. Con quién los compartimos',
         paragrafos: ['Compartimos datos solo cuando es necesario:'],
         lista: [
-          'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla, para realizar el servicio.',
+          'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla, para realizar el servicio.',
           'Bancos y empresas de pago: procesamiento de pagos con Pix y tarjeta.',
           'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
           'Meta (WhatsApp, Facebook e Instagram): atención por WhatsApp y, con tu consentimiento, medición de anuncios.',
@@ -268,8 +280,8 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       {
         titulo: '5. Cookies, Píxel de Meta y Google',
         paragrafos: [
-          'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
-          'Podés cambiar tu elección en cualquier momento con el botón al final de esta página.',
+          'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+          'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',
         ],
       },
       {
@@ -280,7 +292,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
       },
       {
         titulo: '7. Tus derechos',
-        paragrafos: ['Según la LGPD (art. 18), podés pedir en cualquier momento:'],
+        paragrafos: ['Según la LGPD (art. 18), puedes pedir en cualquier momento:'],
         lista: [
           'confirmación de que tratamos tus datos y acceso a ellos;',
           'corrección de datos incompletos, inexactos o desactualizados;',
@@ -290,7 +302,7 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
           'eliminación de los datos tratados con base en el consentimiento y revocación del consentimiento.',
         ],
         depois: [
-          `Para ejercer tus derechos, escribí a ${E.email}. Responderemos en hasta 15 (quince) días. También podés presentar un reclamo ante la Autoridad Nacional de Protección de Datos de Brasil (ANPD).`,
+          `Para ejercer tus derechos, escribe a ${E.email}. Responderemos en un plazo de hasta 15 (quince) días. También puedes presentar un reclamo ante la Autoridad Nacional de Protección de Datos de Brasil (ANPD).`,
         ],
       },
       {
@@ -314,3 +326,63 @@ export const PRIVACIDADE: Record<'pt' | 'en' | 'es', DocumentoLegal> = {
     ],
   },
 };
+
+/**
+ * O espanhol da Argentina: só as frases desta Política que mudam do neutro, com o texto que o site tinha antes
+ * ("vos", imperativo sem acento, valijas). Cada par é [frase neutra inteira, a mesma frase em argentino].
+ * Se alguém editar a frase neutra sem mexer aqui, comAjustesAR() falha na carga e aponta a frase.
+ */
+export const AJUSTES_AR_PRIVACIDADE: readonly ParAR[] = [
+  [
+    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales.',
+    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales.',
+  ],
+  [
+    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+  ],
+  [
+    'Contacto: e-mail y teléfono/WhatsApp, también cuando pides una cotización o mandas un mensaje por el sitio.',
+    'Contacto: e-mail y teléfono/WhatsApp, también cuando pedís una cotización o mandás un mensaje por el sitio.',
+  ],
+  [
+    'Reserva: paseo o traslado, fecha, horario, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas. En el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla.',
+    'Reserva: paseo o traslado, fecha, horario, cantidad de adultos y niños, ciudad y nombre del hotel o posada, y las observaciones que escribas. En el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla.',
+  ],
+  [
+    'Carrito: los ítems que elegiste y, si lo escribes en el checkout, tu e-mail, aunque no termines la reserva.',
+    'Carrito: los ítems que elegiste y, si lo escribís en el checkout, tu e-mail, aunque no termines la reserva.',
+  ],
+  [
+    'Evita escribir información de salud en las observaciones, salvo que sea necesaria para tu seguridad en el paseo (por ejemplo, restricciones para bucear). Si la escribes, la usaremos solo para ese fin.',
+    'Evitá escribir información de salud en las observaciones, salvo que sea necesaria para tu seguridad en el paseo (por ejemplo, restricciones para bucear). Si la escribís, la usaremos solo para ese fin.',
+  ],
+  [
+    'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
+    'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Podés pedir no recibir ese recordatorio.',
+  ],
+  [
+    'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
+    'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
+  ],
+  [
+    'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla, para realizar el servicio.',
+    'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla, para realizar el servicio.',
+  ],
+  [
+    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
+  ],
+  [
+    'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',
+    'Podés cambiar tu elección en cualquier momento con el botón al final de esta página.',
+  ],
+  ['Según la LGPD (art. 18), puedes pedir en cualquier momento:', 'Según la LGPD (art. 18), podés pedir en cualquier momento:'],
+  [
+    `Para ejercer tus derechos, escribe a ${E.email}. Responderemos en un plazo de hasta 15 (quince) días. También puedes presentar un reclamo ante la Autoridad Nacional de Protección de Datos de Brasil (ANPD).`,
+    `Para ejercer tus derechos, escribí a ${E.email}. Responderemos en un plazo de hasta 15 (quince) días. También podés presentar un reclamo ante la Autoridad Nacional de Protección de Datos de Brasil (ANPD).`,
+  ],
+];
+
+/** A Política nos quatro idiomas: as páginas leem com texto(PRIVACIDADE, locale) (src/i18n/conteudo.ts). */
+export const PRIVACIDADE: Traduzido<DocumentoLegal> = { ...BASE, 'es-ar': comAjustesAR(BASE.es, AJUSTES_AR_PRIVACIDADE) };

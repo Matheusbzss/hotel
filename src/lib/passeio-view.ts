@@ -1,5 +1,6 @@
 import { CATEGORIAS, CIDADES, type Passeio } from '@/data/passeios';
 import { fmt, rota, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import type { Dicionario } from '@/i18n';
 import { faixasIdade, type TabelaPreco } from './orcamento';
 import { formatarPreco, opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, regraCriancas, tabelaPreco, temOpcoes } from './precos';
@@ -14,13 +15,13 @@ export function rotuloUnidade(p: Passeio, d: Dicionario): string {
 /** A descrição da página no Google: o resumo do passeio, o preço e, se couber nos 160 caracteres, a chamada. */
 export function descricaoParaBusca(p: Passeio, idioma: Idioma, d: Dicionario): string {
   const aPartir = d.comum.aPartirDe.charAt(0).toUpperCase() + d.comum.aPartirDe.slice(1);
-  const base = `${p.resumo[idioma]} ${aPartir} ${formatarPreco(precoAPartirCentavos(p), idioma)} ${rotuloUnidade(p, d)}.`;
+  const base = `${texto(p.resumo, idioma)} ${aPartir} ${formatarPreco(precoAPartirCentavos(p), idioma)} ${rotuloUnidade(p, d)}.`;
   const completa = `${base} ${d.meta.chamadaPasseio}`;
   return completa.length <= 160 ? completa : base;
 }
 
-export const nomeCidade = (p: Passeio, idioma: Idioma) => CIDADES[p.cidade].nome[idioma];
-export const nomeCategoria = (p: Passeio, idioma: Idioma) => CATEGORIAS[p.categoria].nome[idioma];
+export const nomeCidade = (p: Passeio, idioma: Idioma) => texto(CIDADES[p.cidade].nome, idioma);
+export const nomeCategoria = (p: Passeio, idioma: Idioma) => texto(CATEGORIAS[p.categoria].nome, idioma);
 
 /** Frases sobre crianças: "Até 5 anos não pagam. De 6 a 10 anos pagam meia." */
 export function regrasCriancas(p: Passeio, d: Dicionario): string[] {
@@ -94,11 +95,11 @@ export function precoPasseio(p: Passeio, idioma: Idioma, d: Dicionario): PrecoPa
   const cap = p.capacidadePorUnidade ?? 1;
   return {
     slug: p.slug,
-    nome: p.nome[idioma],
+    nome: texto(p.nome, idioma),
     href: rota(idioma, `/passeios/${p.slug}`),
     cidade: p.cidade,
     cidadeNome: nomeCidade(p, idioma),
-    duracao: p.duracao[idioma],
+    duracao: texto(p.duracao, idioma),
     aPartirCentavos: precoAPartirCentavos(p),
     temOpcoes: temOpcoes(p),
     unidadeCurta:

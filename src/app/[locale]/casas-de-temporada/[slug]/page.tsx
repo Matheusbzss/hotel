@@ -13,6 +13,7 @@ import { RESERVA_CASAS_ABERTA } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { noitesOcupadas } from '@/lib/casa';
 import { casasAtivas, obterCasa, periodosOcupados } from '@/lib/casas';
@@ -20,7 +21,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { SINAL_PORCENTO, menorDiaria } from '@/lib/diarias';
 import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
-import { alternates } from '@/lib/site';
+import { alternates, openGraphDaPagina } from '@/lib/site';
 import { hojeEmBuzios } from '@/lib/validacao';
 
 // a página é refeita uma vez por dia, para os dias e os períodos que já passaram saírem dela; a casa nova
@@ -37,17 +38,17 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
   const c = await obterCasa(slug);
   if (!isIdioma(locale) || !c) return {};
   const d = dicionario(locale);
-  const descricao = `${c.resumo[locale]} ${d.casas.diariaAPartir} ${formatarCifra(menorDiaria(c) * 100, LOCALE_INTL[locale])}.`;
+  const descricao = `${texto(c.resumo, locale)} ${d.casas.diariaAPartir} ${formatarCifra(menorDiaria(c) * 100, LOCALE_INTL[locale])}.`;
   return {
-    title: `${c.nome[locale]} — ${c.local[locale]}`,
+    title: `${texto(c.nome, locale)} — ${texto(c.local, locale)}`,
     description: descricao,
     alternates: alternates(locale, `/casas-de-temporada/${c.slug}`),
-    openGraph: {
-      title: `${c.nome[locale]} | ${EMPRESA.marca}`,
+    openGraph: openGraphDaPagina(locale, {
+      title: `${texto(c.nome, locale)} | ${EMPRESA.marca}`,
       description: descricao,
       url: rota(locale, `/casas-de-temporada/${c.slug}`),
-      ...(c.fotos[0] ? { images: [{ url: c.fotos[0], alt: c.nome[locale] }] } : {}),
-    },
+      ...(c.fotos[0] ? { images: [{ url: c.fotos[0], alt: texto(c.nome, locale) }] } : {}),
+    }),
   };
 }
 
@@ -88,7 +89,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
     { chave: 'diaria', titulo: t.diaria, notas: [minimo(c.minimoNoites)], valor: c.diaria },
     ...periodos.map((p) => ({
       chave: `${p.de}-${p.nome.pt}`,
-      titulo: p.nome[locale],
+      titulo: texto(p.nome, locale),
       notas: [fmt(t.periodo, { de: data(p.de), ate: data(p.ate) }), minimo(Math.max(c.minimoNoites, p.minimoNoites ?? 0))],
       valor: p.diaria,
     })),
@@ -123,7 +124,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           {c.fotos.length > 0 && (
             <GaleriaPasseio
               fotos={c.fotos}
-              alts={c.fotos.map((_, i) => `${c.nome[locale]} — ${fmt(d.passeio.fotoDe, { i: i + 1, n: c.fotos.length })}`)}
+              alts={c.fotos.map((_, i) => `${texto(c.nome, locale)} — ${fmt(d.passeio.fotoDe, { i: i + 1, n: c.fotos.length })}`)}
               textos={{
                 galeria: t.galeria,
                 verFotos: d.passeio.verFotos,
@@ -138,11 +139,11 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
         <div className="topo-passeio-texto">
           <div className="moldura">
             <div className="flex flex-wrap gap-1.5">
-              <span className="etiqueta vidro vidro-foto">{CIDADES[c.cidade].nome[locale]}</span>
-              <span className="etiqueta vidro vidro-foto">{c.local[locale]}</span>
+              <span className="etiqueta vidro vidro-foto">{texto(CIDADES[c.cidade].nome, locale)}</span>
+              <span className="etiqueta vidro vidro-foto">{texto(c.local, locale)}</span>
             </div>
             <h1 id="casa-titulo" className="topo-passeio-titulo mt-3">
-              {c.nome[locale]}
+              {texto(c.nome, locale)}
             </h1>
             <dl className="ficha-vidro vidro vidro-foto mt-4">
               <div>
@@ -181,7 +182,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
                 {usd(menorDiaria(c)) && <span className="whitespace-nowrap"> · {usd(menorDiaria(c))}</span>}
               </p>
             </div>
-            <p className="chegar mt-4 max-w-[52ch] text-lead">{c.resumo[locale]}</p>
+            <p className="chegar mt-4 max-w-[52ch] text-lead">{texto(c.resumo, locale)}</p>
             <dl className="ficha entrar mt-6">
               <div>
                 <dt>{t.ficha.checkIn}</dt>
@@ -191,10 +192,10 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
                 <dt>{t.ficha.checkOut}</dt>
                 <dd>{c.checkOut}</dd>
               </div>
-              {c.camas[locale].length > 0 && (
+              {texto(c.camas, locale).length > 0 && (
                 <div className="largo">
                   <dt>{t.ficha.camas}</dt>
-                  <dd>{c.camas[locale].join(' · ')}</dd>
+                  <dd>{texto(c.camas, locale).join(' · ')}</dd>
                 </div>
               )}
             </dl>
@@ -204,22 +205,24 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
                 {t.sobre}
               </h2>
               <div className="texto-corrido mt-4 max-w-[62ch]">
-                {c.descricao[locale].split('\n\n').map((par) => (
-                  <p key={par.slice(0, 24)}>{par}</p>
-                ))}
+                {texto(c.descricao, locale)
+                  .split('\n\n')
+                  .map((par) => (
+                    <p key={par.slice(0, 24)}>{par}</p>
+                  ))}
               </div>
             </section>
 
-            {c.comodidades[locale].length > 0 && (
+            {texto(c.comodidades, locale).length > 0 && (
               <div className="entrar mt-14">
-                <ListaMarcada titulo={t.comodidades} id="comodidades" itens={c.comodidades[locale]} marca="sim" />
+                <ListaMarcada titulo={t.comodidades} id="comodidades" itens={texto(c.comodidades, locale)} marca="sim" />
               </div>
             )}
 
             <div className="entrar mt-14 grid gap-10 md:grid-cols-2">
-              {c.regras[locale].length > 0 && <ListaPontos titulo={t.regras} id="regras" itens={c.regras[locale]} />}
-              {c.cancelamento[locale].length > 0 && (
-                <ListaPontos titulo={t.cancelamento} id="cancelamento" itens={c.cancelamento[locale]} />
+              {texto(c.regras, locale).length > 0 && <ListaPontos titulo={t.regras} id="regras" itens={texto(c.regras, locale)} />}
+              {texto(c.cancelamento, locale).length > 0 && (
+                <ListaPontos titulo={t.cancelamento} id="cancelamento" itens={texto(c.cancelamento, locale)} />
               )}
             </div>
 
@@ -254,7 +257,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
               <p className="mt-3 text-small text-(--color-tinta-suave)">{fmt(t.sinalTexto, { p: SINAL_PORCENTO })}</p>
             </section>
 
-            <MapaCasa slug={c.slug} local={c.local[locale]} textos={t} className="entrar mt-14" />
+            <MapaCasa slug={c.slug} local={texto(c.local, locale)} textos={t} className="entrar mt-14" />
           </div>
 
           <aside className="lg:col-span-5">
@@ -320,7 +323,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
       <DadosEstruturados
         dados={migalhas(locale, [
           { nome: d.nav.casas, caminho: '/casas-de-temporada' },
-          { nome: c.nome[locale], caminho: `/casas-de-temporada/${c.slug}` },
+          { nome: texto(c.nome, locale), caminho: `/casas-de-temporada/${c.slug}` },
         ])}
       />
     </main>

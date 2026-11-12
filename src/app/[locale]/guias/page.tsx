@@ -5,9 +5,10 @@ import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { CartaoGuia } from '@/components/guia/CartaoGuia';
 import { EMPRESA } from '@/config/empresa';
 import { altDaFoto } from '@/data/fotos-alt';
-import { GRUPOS_GUIAS, obterGuia, type Guia } from '@/data/guias';
-import { rota } from '@/i18n/config';
+import { GRUPOS_GUIAS, fraseDoGuia, guiaNoIdioma, obterGuia, type Guia } from '@/data/guias';
+import { IDIOMAS_GUIAS, isIdiomaGuia, rota } from '@/i18n/config';
 import { migalhas } from '@/lib/dados-estruturados';
+import { alternatesGuia, openGraphDaPagina } from '@/lib/site';
 
 const TITULO = 'Guías de viaje: Búzios, Arraial y Cabo Frio';
 const DESCRICAO =
@@ -16,27 +17,27 @@ const FOTO = '/fotos/buzios/por-do-sol-barcos-na-baia.jpg';
 
 export const dynamicParams = false;
 
-/** Como os guias, a lista só existe em espanhol. */
+/** Como os guias, a lista existe nas duas versões do espanhol, cada uma no seu endereço. */
 export function generateStaticParams() {
-  return [{ locale: 'es' }];
+  return IDIOMAS_GUIAS.map((locale) => ({ locale }));
 }
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/guias'>): Promise<Metadata> {
   const { locale } = await params;
-  if (locale !== 'es') return {};
-  const endereco = rota('es', '/guias');
+  if (!isIdiomaGuia(locale)) return {};
+  const endereco = rota(locale, '/guias');
   return {
     title: TITULO,
     description: DESCRICAO,
-    alternates: { canonical: endereco },
-    openGraph: { title: `${TITULO} | ${EMPRESA.marca}`, description: DESCRICAO, url: endereco },
+    alternates: alternatesGuia(locale, '/guias'),
+    openGraph: openGraphDaPagina(locale, { title: `${TITULO} | ${EMPRESA.marca}`, description: DESCRICAO, url: endereco }),
   };
 }
 
-/** A lista dos guias, que só existem em espanhol: agrupados pela pergunta de quem planeja a viagem. */
+/** A lista dos guias, nas duas versões do espanhol: agrupados pela pergunta de quem planeja a viagem. */
 export default async function PaginaGuias({ params }: PageProps<'/[locale]/guias'>) {
   const { locale } = await params;
-  if (locale !== 'es') notFound();
+  if (!isIdiomaGuia(locale)) notFound();
 
   return (
     <main id="conteudo" className="tom-fundo pb-24 md:pb-40">
@@ -44,7 +45,7 @@ export default async function PaginaGuias({ params }: PageProps<'/[locale]/guias
         <div className="topo-passeio-fotos">
           <Image
             src={FOTO}
-            alt={altDaFoto(FOTO, 'es')}
+            alt={altDaFoto(FOTO, locale)}
             fill
             preload
             fetchPriority="high"
@@ -74,12 +75,12 @@ export default async function PaginaGuias({ params }: PageProps<'/[locale]/guias
         return (
           <section key={grupo.id} aria-labelledby={`${grupo.id}-titulo`} className="moldura mt-12 md:mt-20">
             <h2 id={`${grupo.id}-titulo`} className="titulo">
-              {grupo.titulo}
+              {fraseDoGuia(grupo.titulo, locale)}
             </h2>
             <ul className="trilho mt-6 md:mt-8">
               {guias.map((g) => (
                 <li key={g.slug}>
-                  <CartaoGuia guia={g} />
+                  <CartaoGuia guia={guiaNoIdioma(g, locale)} idioma={locale} />
                 </li>
               ))}
             </ul>
@@ -87,7 +88,7 @@ export default async function PaginaGuias({ params }: PageProps<'/[locale]/guias
         );
       })}
 
-      <DadosEstruturados dados={migalhas('es', [{ nome: 'Guías de viaje', caminho: '/guias' }])} />
+      <DadosEstruturados dados={migalhas(locale, [{ nome: 'Guías de viaje', caminho: '/guias' }])} />
     </main>
   );
 }

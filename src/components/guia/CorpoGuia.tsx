@@ -4,18 +4,22 @@ import { CardPasseio } from '@/components/CardPasseio';
 import { FaixaFoto } from '@/components/home/BlocosHome';
 import { CardTransfer } from '@/components/transfer/CardTransfer';
 import { altDaFoto } from '@/data/fotos-alt';
-import { obterGuia, type Guia, type SecaoGuia } from '@/data/guias';
+import { guiaNoIdioma, obterGuia, type Guia, type GuiaResolvido, type SecaoGuia } from '@/data/guias';
 import { obterPasseio, type Passeio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
-import { rota } from '@/i18n/config';
+import { LOCALE_INTL, rota, type IdiomaGuia } from '@/i18n/config';
 import { CartaoGuia } from './CartaoGuia';
+import { TEXTOS_GUIA } from './textos-guia';
 
-/** Texto com os links no formato [palavras](/caminho). */
-function Texto({ children }: { children: string }) {
+/** Uma seção com o texto já no idioma da página. */
+type Secao = SecaoGuia<string>;
+
+/** Texto com os links no formato [palavras](/caminho), traduzidos para o endereço do idioma da página. */
+function Texto({ children, idioma }: { children: string; idioma: IdiomaGuia }) {
   return children.split(/(\[[^\]]+\]\([^)]+\))/g).map((parte, i) => {
     const link = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
     return link ? (
-      <Link key={i} href={rota('es', link[2])} className="link font-semibold">
+      <Link key={i} href={rota(idioma, link[2])} className="link font-semibold">
         {link[1]}
       </Link>
     ) : (
@@ -25,14 +29,14 @@ function Texto({ children }: { children: string }) {
 }
 
 /** Nome e explicação em células, como a tabela de garantias: playas, dias do roteiro. */
-function Detalhes({ itens }: { itens: NonNullable<SecaoGuia['detalhes']> }) {
+function Detalhes({ itens, idioma }: { itens: NonNullable<Secao['detalhes']>; idioma: IdiomaGuia }) {
   return (
     <dl className="mt-5 grid gap-(--vao-celula)">
       {itens.map((d) => (
         <div key={d.nome} className="celula px-4 py-3">
           <dt className="font-[family-name:var(--font-semi)] text-[1.0625rem] font-semibold">{d.nome}</dt>
           <dd className="mt-0.5 text-(--color-tinta-suave)">
-            <Texto>{d.texto}</Texto>
+            <Texto idioma={idioma}>{d.texto}</Texto>
           </dd>
         </div>
       ))}
@@ -41,7 +45,7 @@ function Detalhes({ itens }: { itens: NonNullable<SecaoGuia['detalhes']> }) {
 }
 
 /** Números curtos em linhas, que cabem inteiros no celular: o clima de cada mês. */
-function TabelaCompacta({ t }: { t: NonNullable<SecaoGuia['tabela']> }) {
+function TabelaCompacta({ t }: { t: NonNullable<Secao['tabela']> }) {
   return (
     <div className="celula mt-5 overflow-hidden">
       <table className="w-full text-left">
@@ -75,7 +79,7 @@ function TabelaCompacta({ t }: { t: NonNullable<SecaoGuia['tabela']> }) {
 }
 
 /** Comparação com frases, como a tabela de garantias: no celular, cada linha vira um bloco. */
-function Tabela({ t }: { t: NonNullable<SecaoGuia['tabela']> }) {
+function Tabela({ t }: { t: NonNullable<Secao['tabela']> }) {
   return (
     <table className="mt-5 w-full border-separate border-spacing-y-(--vao-celula) text-left">
       <caption className="sr-only">{t.legenda}</caption>
@@ -113,7 +117,17 @@ function Tabela({ t }: { t: NonNullable<SecaoGuia['tabela']> }) {
   );
 }
 
-function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionario; fotoNaEsquerda: boolean }) {
+function SecaoDoGuia({
+  secao: s,
+  d,
+  idioma,
+  fotoNaEsquerda,
+}: {
+  secao: Secao;
+  d: Dicionario;
+  idioma: IdiomaGuia;
+  fotoNaEsquerda: boolean;
+}) {
   const passeios = (s.passeios ?? []).map(obterPasseio).filter((p): p is Passeio => Boolean(p));
   // a etiqueta da cidade só ajuda quando os cartões da seção são de cidades diferentes
   const variasCidades = new Set(passeios.map((p) => p.cidade)).size > 1;
@@ -130,11 +144,11 @@ function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionari
           <div className="texto-corrido mt-4 max-w-[65ch]">
             {s.paragrafos.map((p) => (
               <p key={p.slice(0, 40)}>
-                <Texto>{p}</Texto>
+                <Texto idioma={idioma}>{p}</Texto>
               </p>
             ))}
           </div>
-          {s.detalhes && <Detalhes itens={s.detalhes} />}
+          {s.detalhes && <Detalhes itens={s.detalhes} idioma={idioma} />}
           {s.tabela && (s.tabela.compacta ? <TabelaCompacta t={s.tabela} /> : <Tabela t={s.tabela} />)}
         </div>
         {s.foto && (
@@ -142,7 +156,7 @@ function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionari
             <div className={`adiar relative aspect-[4/3] overflow-hidden rounded-[4px] ${fotoAlta ? 'lg:aspect-[4/5]' : ''}`}>
               <Image
                 src={s.foto}
-                alt={altDaFoto(s.foto, 'es')}
+                alt={altDaFoto(s.foto, idioma)}
                 fill
                 sizes="(min-width: 1024px) 40vw, 100vw"
                 quality={70}
@@ -154,7 +168,7 @@ function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionari
         )}
         {s.transfer && (
           <div className="lg:col-span-4 lg:col-start-9">
-            <CardTransfer cidade={s.transfer} idioma="es" d={d} />
+            <CardTransfer cidade={s.transfer} idioma={idioma} d={d} />
           </div>
         )}
       </div>
@@ -162,7 +176,7 @@ function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionari
         <ul className="trilho mt-6 md:mt-8">
           {passeios.map((p) => (
             <li key={p.slug}>
-              <CardPasseio passeio={p} idioma="es" d={d} mostrarCidade={variasCidades} />
+              <CardPasseio passeio={p} idioma={idioma} d={d} mostrarCidade={variasCidades} />
             </li>
           ))}
         </ul>
@@ -174,14 +188,19 @@ function Secao({ secao: s, d, fotoNaEsquerda }: { secao: SecaoGuia; d: Dicionari
 /**
  * O guia: a foto real de borda a borda com o título, a resposta curta e a ficha para bater o olho logo abaixo,
  * e depois a leitura em coluna, interrompida só pelas fotos e pelos cartões dos passeios de cada assunto.
+ * Recebe o guia já no idioma da página (guiaNoIdioma) e o idioma, para os links e os cartões saírem no mesmo espanhol.
  */
-export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
-  const data = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+export function CorpoGuia({ guia: g, idioma, d }: { guia: GuiaResolvido; idioma: IdiomaGuia; d: Dicionario }) {
+  const T = TEXTOS_GUIA[idioma];
+  const data = new Intl.DateTimeFormat(LOCALE_INTL[idioma], { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(`${g.atualizado}T12:00:00Z`),
   );
   // no computador, as fotos alternam de lado, para a leitura ter ritmo
   const comFoto = g.secoes.filter((s) => s.foto);
-  const relacionados = g.relacionados.map(obterGuia).filter((r): r is Guia => Boolean(r));
+  const relacionados = g.relacionados
+    .map(obterGuia)
+    .filter((r): r is Guia => Boolean(r))
+    .map((r) => guiaNoIdioma(r, idioma));
   const indice = (
     <ul className="grid gap-2.5 lg:flex lg:flex-wrap lg:gap-x-6">
       {g.secoes.map((s) => (
@@ -199,7 +218,7 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
         <div className="topo-passeio-fotos">
           <Image
             src={g.foto}
-            alt={altDaFoto(g.foto, 'es')}
+            alt={altDaFoto(g.foto, idioma)}
             fill
             preload
             fetchPriority="high"
@@ -221,7 +240,9 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
       <div className="moldura mt-6 grid gap-6 md:mt-10 lg:grid-cols-12 lg:gap-x-8">
         <div className="lg:col-span-7">
           <p className="max-w-[56ch] text-lead leading-[1.35]">{g.resumo}</p>
-          <p className="mt-3 text-small text-(--color-tinta-suave)">Actualizado en {data}</p>
+          <p className="mt-3 text-small text-(--color-tinta-suave)">
+            {T.atualizado} {data}
+          </p>
         </div>
         <dl className="grid grid-cols-2 gap-(--vao-celula) self-start lg:col-span-5">
           {g.ficha.map((f) => (
@@ -233,10 +254,10 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
         </dl>
       </div>
 
-      <nav aria-label="En esta guía" className="moldura mt-6 md:mt-10">
+      <nav aria-label={T.indice} className="moldura mt-6 md:mt-10">
         <details className="tom-superficie group px-5 py-3 lg:hidden">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 font-semibold [&::-webkit-details-marker]:hidden">
-            En esta guía
+            {T.indice}
             <svg viewBox="0 0 24 24" className="size-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true">
               <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" />
             </svg>
@@ -247,13 +268,13 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
       </nav>
 
       {g.secoes.map((s) => (
-        <Secao key={s.id} secao={s} d={d} fotoNaEsquerda={comFoto.indexOf(s) % 2 === 1} />
+        <SecaoDoGuia key={s.id} secao={s} d={d} idioma={idioma} fotoNaEsquerda={comFoto.indexOf(s) % 2 === 1} />
       ))}
 
       <section aria-labelledby="guia-preguntas" className="tom-superficie mt-16 py-14 md:mt-24 md:py-24">
         <div className="moldura grid gap-6 md:grid-cols-12 md:gap-x-8">
           <h2 id="guia-preguntas" className="titulo md:col-span-4">
-            Preguntas frecuentes
+            {T.perguntas}
           </h2>
           <div className="grid content-start gap-(--vao-celula) md:col-span-8">
             {g.perguntas.map((f) => (
@@ -277,25 +298,25 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
 
       <section aria-labelledby="guia-relacionados" className="moldura my-14 md:my-24">
         <h2 id="guia-relacionados" className="titulo">
-          Seguí leyendo
+          {T.seguir}
         </h2>
         <ul className="trilho mt-6 md:mt-8">
           {relacionados.map((r) => (
             <li key={r.slug}>
-              <CartaoGuia guia={r} />
+              <CartaoGuia guia={r} idioma={idioma} />
             </li>
           ))}
         </ul>
         <p className="mt-5">
-          <Link href={rota('es', '/guias')} className="link font-semibold">
-            Todas las guías
+          <Link href={rota(idioma, '/guias')} className="link font-semibold">
+            {T.todas}
           </Link>
         </p>
       </section>
 
       <FaixaFoto
         src={g.fechamento.foto}
-        alt={altDaFoto(g.fechamento.foto, 'es')}
+        alt={altDaFoto(g.fechamento.foto, idioma)}
         posicao={g.fechamento.posicaoFoto}
         aria-labelledby="guia-fechamento"
       >
@@ -304,7 +325,7 @@ export function CorpoGuia({ guia: g, d }: { guia: Guia; d: Dicionario }) {
             {g.fechamento.titulo}
           </h2>
           <p className="mt-3 text-lead leading-[1.35]">{g.fechamento.texto}</p>
-          <Link href={rota('es', g.fechamento.caminho)} className="botao mt-5">
+          <Link href={rota(idioma, g.fechamento.caminho)} className="botao mt-5">
             {g.fechamento.botao}
           </Link>
         </div>

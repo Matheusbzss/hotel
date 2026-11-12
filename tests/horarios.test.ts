@@ -41,6 +41,9 @@ test('a hora em cada idioma', () => {
   assert.equal(formatarHora('09:00', 'pt'), '9h');
   assert.equal(formatarHora('09:30', 'pt'), '9h30');
   assert.equal(formatarHora('14:00', 'es'), '14 h');
+  // o espanhol da Argentina escreve a hora igual ao espanhol
+  assert.equal(formatarHora('14:00', 'es-ar'), formatarHora('14:00', 'es'));
+  assert.equal(formatarHora('09:30', 'es-ar'), formatarHora('09:30', 'es'));
   assert.equal(formatarHora('07:00', 'en'), '7am');
   assert.equal(formatarHora('12:00', 'en'), '12pm');
   assert.equal(formatarHora('14:00', 'en'), '2pm');

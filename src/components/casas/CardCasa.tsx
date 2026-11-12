@@ -3,6 +3,7 @@ import type { Casa } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
+import { texto } from '@/i18n/conteudo';
 import { formatarCifra } from '@/lib/cifra';
 import { menorDiaria } from '@/lib/diarias';
 import { cotacaoDolar, textoDolar } from '@/lib/dolar';
@@ -36,19 +37,19 @@ export async function CardCasa({
   return (
     <CartaoInclinavel
       href={rota(idioma, `/casas-de-temporada/${c.slug}`)}
-      rotulo={`${c.nome[idioma]}, ${c.local[idioma]}, ${tamanho}, ${t.diariaAPartir} ${diariaPix} ${d.preco.noPix}`}
+      rotulo={`${texto(c.nome, idioma)}, ${texto(c.local, idioma)}, ${tamanho}, ${t.diariaAPartir} ${diariaPix} ${d.preco.noPix}`}
     >
       <div className="cartao-foto">
         <div className="absolute inset-0 bg-superficie">
-          {c.fotos[0] && <Image src={c.fotos[0]} alt={c.nome[idioma]} fill sizes={sizes} quality={80} className="object-cover" />}
+          {c.fotos[0] && <Image src={c.fotos[0]} alt={texto(c.nome, idioma)} fill sizes={sizes} quality={80} className="object-cover" />}
         </div>
         <div className="etiquetas" aria-hidden="true">
-          <span className="etiqueta vidro vidro-escuro">{CIDADES[c.cidade].nome[idioma]}</span>
-          <span className="etiqueta vidro vidro-escuro">{c.local[idioma]}</span>
+          <span className="etiqueta vidro vidro-escuro">{texto(CIDADES[c.cidade].nome, idioma)}</span>
+          <span className="etiqueta vidro vidro-escuro">{texto(c.local, idioma)}</span>
         </div>
       </div>
       <div className="cartao-texto" aria-hidden="true">
-        <h3 className="cartao-titulo">{c.nome[idioma]}</h3>
+        <h3 className="cartao-titulo">{texto(c.nome, idioma)}</h3>
         <p className="mt-1 text-small text-(--color-tinta-suave)">{tamanho}</p>
         <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
           <span className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</span>

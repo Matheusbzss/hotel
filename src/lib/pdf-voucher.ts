@@ -5,11 +5,13 @@ import { obterPasseio } from '@/data/passeios';
 import { LOCALE_INTL, fmt } from '@/i18n/config';
 import { texto as noIdioma } from '@/i18n/conteudo';
 import { dicionario, type Dicionario } from '@/i18n';
+import { mostrarWhatsApp } from './formas-pagamento';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
+import { statusDoVoucher } from './reserva-publica';
 import { ehTransfer, type Reserva, type ReservaPasseio, type ReservaTransfer } from './reservas';
 import { transferVisivel, type TrechoVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
@@ -203,17 +205,32 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
   const qr = await QRCode.toBuffer(urlReserva, { margin: 2, width: 300, color: { dark: '#0B2530', light: '#FFFFFF' } });
   const qrImg = await pdf.embedPng(qr);
   page.drawImage(qrImg, { x: xColuna, y: topoCartao - 44 - 130, width: 130, height: 130 });
-  texto(page, d.status.pago || 'Pago', xColuna, topoCartao - 44 - 152, negrito, 14, COR.acao);
+  // o selo embaixo do QR é o status deste voucher: "Pago" em verde-água; um item reembolsado sozinho num pedido
+  // pago mostra o status dele, em cinza (a rota do PDF só gera o voucher pago)
+  const statusVoucher = statusDoVoucher(reserva);
+  texto(
+    page,
+    d.status[statusVoucher] || d.status.pago,
+    xColuna,
+    topoCartao - 44 - 152,
+    negrito,
+    14,
+    statusVoucher === 'pago' ? COR.acao : COR.cinza,
+  );
 
-  // o WhatsApp da equipe, num botão que abre a conversa com o voucher já escrito
-  const urlWhats = `https://wa.me/${EMPRESA.whatsapp}?text=${encodeURIComponent(conteudo.mensagem)}`;
-  const yBotao = topoCartao - 44 - 152 - 64;
-  texto(page, d.reserva.whatsappEquipe, xColuna, yBotao + 42, regular, 10, COR.cinza);
-  page.drawRectangle({ x: xColuna, y: yBotao, width: 130, height: 32, color: COR.whats });
-  const numero = limpar(EMPRESA.telefoneExibicao);
-  const larguraNumero = negrito.widthOfTextAtSize(numero, 11);
-  texto(page, numero, xColuna + (130 - larguraNumero) / 2, yBotao + 12, negrito, 11);
-  link(pdf, page, urlWhats, xColuna, yBotao, 130, 32);
+  // o WhatsApp da equipe, num botão que abre a conversa com o voucher já escrito; como nas páginas, só com o
+  // pagamento aprovado (mostrarWhatsApp): o voucher de um item reembolsado sozinho sai sem ele
+  const whatsappLiberado = mostrarWhatsApp(statusVoucher);
+  if (whatsappLiberado) {
+    const urlWhats = `https://wa.me/${EMPRESA.whatsapp}?text=${encodeURIComponent(conteudo.mensagem)}`;
+    const yBotao = topoCartao - 44 - 152 - 64;
+    texto(page, d.reserva.whatsappEquipe, xColuna, yBotao + 42, regular, 10, COR.cinza);
+    page.drawRectangle({ x: xColuna, y: yBotao, width: 130, height: 32, color: COR.whats });
+    const numero = limpar(EMPRESA.telefoneExibicao);
+    const larguraNumero = negrito.widthOfTextAtSize(numero, 11);
+    texto(page, numero, xColuna + (130 - larguraNumero) / 2, yBotao + 12, negrito, 11);
+    link(pdf, page, urlWhats, xColuna, yBotao, 130, 32);
+  }
 
   // avisos: se não couberem acima do rodapé, continuam numa segunda página
   let folha = page;
@@ -237,10 +254,10 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
     ya -= 2;
   }
 
-  // rodapé com dados da empresa, em todas as páginas
+  // rodapé com dados da empresa, em todas as páginas (o WhatsApp, só com o pagamento aprovado)
   const rodape = [
     `${EMPRESA.marca} — ${EMPRESA.slogan}`,
-    `WhatsApp ${EMPRESA.telefoneExibicao} · ${EMPRESA.email} · ${EMPRESA.dominio}`,
+    [...(whatsappLiberado ? [`WhatsApp ${EMPRESA.telefoneExibicao}`] : []), EMPRESA.email, EMPRESA.dominio].join(' · '),
     `${EMPRESA.cidade} – ${EMPRESA.uf}`,
   ];
   for (const p of pdf.getPages()) {

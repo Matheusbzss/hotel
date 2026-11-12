@@ -59,6 +59,8 @@ const paginas = new Map();
 const imagens = new Map();
 const titulos = new Map();
 const descricoes = new Map();
+// o /es e o /es-ar são a mesma página nas duas versões do espanhol (uma é o hreflang da outra): podem repetir título e descrição
+const gemea = (p) => (p === '/es-ar' || p.startsWith('/es-ar/') ? '/es' + p.slice(6) : p);
 const pendentes = new Set([...doSitemap, ...alternativas].map(semHash));
 
 function anotarLink(href, origem) {
@@ -120,13 +122,13 @@ function conferirPagina(url, html) {
   if (!titulo) avisar(`sem título: ${pagina}`);
   else {
     if (limpar(titulo).length > 65) avisar(`título longo (${limpar(titulo).length}): ${pagina}`);
-    if (titulos.has(titulo)) avisar(`título repetido em ${pagina} e ${titulos.get(titulo)}`);
+    if (titulos.has(titulo) && gemea(titulos.get(titulo)) !== gemea(pagina)) avisar(`título repetido em ${pagina} e ${titulos.get(titulo)}`);
     titulos.set(titulo, pagina);
   }
   if (!descricao) avisar(`sem descrição: ${pagina}`);
   else {
     if (limpar(descricao).length > 165) avisar(`descrição longa (${limpar(descricao).length}): ${pagina}`);
-    if (descricoes.has(descricao)) avisar(`descrição repetida em ${pagina} e ${descricoes.get(descricao)}`);
+    if (descricoes.has(descricao) && gemea(descricoes.get(descricao)) !== gemea(pagina)) avisar(`descrição repetida em ${pagina} e ${descricoes.get(descricao)}`);
     descricoes.set(descricao, pagina);
   }
   const h1 = (html.match(/<h1[\s>]/g) ?? []).length;
@@ -161,7 +163,7 @@ await emFila([...imagens.keys()], async (url) => {
 console.log(`${BASE}: ${doSitemap.length} páginas no sitemap, ${paginas.size} endereços abertos, ${imagens.size} imagens.`);
 if (problemas.length) {
   console.error(`\n${problemas.length} problema(s):`);
-  for (const p of problemas.slice(0, 60)) console.error(`  ${p}`);
+  for (const p of problemas) console.error(`  ${p}`);
   process.exit(1);
 }
 console.log('Nenhum link quebrado.');

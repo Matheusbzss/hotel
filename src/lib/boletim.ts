@@ -1,5 +1,5 @@
 import { CIDADES, type Cidade, type Passeio } from '@/data/passeios';
-import { fmt, rota, type Idioma } from '@/i18n/config';
+import { fmt, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { ehDiaInteiro, faixaDuracao, horasCurtas, horasDoTexto, type FaixaDuracao } from './duracao';
 import { faixasIdade } from './orcamento';
@@ -15,7 +15,6 @@ export interface ItemBoletim extends PrecoPasseio {
   paraQuem: string;
   /** Regra curta de crianças para a coluna do computador. */
   criancas: string;
-  checkoutHref: string;
 }
 
 export function criancasCurto(p: Passeio, d: Dicionario): string {
@@ -44,7 +43,6 @@ export function itemBoletim(p: Passeio, idioma: Idioma, d: Dicionario): ItemBole
     horas: horasCurtas(h, d.boletim.dia, dia),
     paraQuem: base.unidadeCurta,
     criancas: criancasCurto(p, d),
-    checkoutHref: rota(idioma, `/checkout/${p.slug}`),
   };
 }
 

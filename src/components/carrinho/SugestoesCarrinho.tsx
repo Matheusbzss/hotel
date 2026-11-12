@@ -84,12 +84,13 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
 
   return (
     <li className="py-3">
-      <div className="flex items-center gap-3">
+      {/* quando o texto e o botão não cabem ao lado da foto, o botão desce para a linha de baixo, à direita */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="relative size-14 shrink-0 overflow-hidden rounded-[8px] bg-(--color-superficie)">
           {/* carrega antes: a gaveta abre com a foto pronta, sem o quadrado vazio */}
           {s.foto && <Image src={s.foto} alt="" fill sizes="56px" loading="eager" className="object-cover" />}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="flex-1">
           <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{s.nome}</p>
           <p className="text-small">
             {varias && <span className="text-(--color-tinta-suave)">{T.aPartirDe} </span>}
@@ -99,8 +100,14 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
           </p>
           <p className="text-small text-(--color-tinta-suave)">{s.pessoasTexto}</p>
         </div>
-        <button type="button" onClick={() => setAberta(!aberta)} aria-expanded={aberta} className="filtro shrink-0 bg-transparent">
-          {aberta ? T.sugestaoAgoraNao : T.sugestaoAdicionar}
+        <button type="button" onClick={() => setAberta(!aberta)} aria-expanded={aberta} className="filtro ml-auto shrink-0 bg-transparent">
+          {/* em tela estreita o botão já tem a largura do rótulo mais comprido: ao tocar, ele não fica mais largo e não
+              pula para a linha de baixo. O rótulo de reserva é invisível (fica fora do nome lido em voz alta) e some a
+              partir de 360 px, onde os dois cabem ao lado do texto */}
+          <span className="grid justify-items-center">
+            <span className={`col-start-1 row-start-1 ${aberta ? 'invisible min-[360px]:hidden' : ''}`}>{T.sugestaoAdicionar}</span>
+            <span className={`col-start-1 row-start-1 ${aberta ? '' : 'invisible min-[360px]:hidden'}`}>{T.sugestaoAgoraNao}</span>
+          </span>
         </button>
       </div>
 

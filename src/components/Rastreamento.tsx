@@ -3,13 +3,25 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { carregarGoogle, carregarPixel, guardarOrigem, marcarMedicao, rastrear, soltarEventos } from '@/lib/pixel';
+import {
+  carregarGoogle,
+  carregarPixel,
+  guardarOrigem,
+  marcarMedicao,
+  rastrear,
+  soltarEventos,
+  tagsCarregadas,
+  tagsLiberadas,
+} from '@/lib/pixel';
 
 const CHAVE = 'vh_consentimento_cookies';
 
 /**
  * Pixel da Meta (NEXT_PUBLIC_META_PIXEL_ID) e tag do Google Ads (NEXT_PUBLIC_GOOGLE_ADS_ID), carregados só
  * após o aceite dos cookies (LGPD). Sem nenhum dos dois, o aviso de cookies nem aparece.
+ *
+ * Nas páginas do pedido e do voucher as tags não carregam e nenhum evento sai: o endereço delas leva o token
+ * do cliente (ver tagsLiberadas em src/lib/pixel.ts). A escolha sobre os cookies continua sendo guardada lá.
  */
 export function Rastreamento({
   pixelId,
@@ -40,14 +52,21 @@ export function Rastreamento({
     guardarOrigem(consentimento === 'sim');
   }, [caminho, consentimento]);
 
+  // Último recurso: as tags já estão neste documento e a navegação caiu numa página particular (pedido ou
+  // voucher). Recarregar troca o documento por um sem as tags. A regra é entrar nessas páginas sempre com a
+  // página inteira carregando (window.location.assign), nunca pela navegação interna do site.
   useEffect(() => {
-    if (consentimento !== 'sim') return;
-    if (pixelId) carregarPixel(pixelId);
-    if (googleId) carregarGoogle(googleId);
-  }, [consentimento, pixelId, googleId]);
+    if (!tagsLiberadas(caminho) && tagsCarregadas()) window.location.reload();
+  }, [caminho]);
 
   useEffect(() => {
-    if (consentimento !== 'sim' || !medeAnuncios) return;
+    if (consentimento !== 'sim' || !tagsLiberadas(caminho)) return;
+    if (pixelId) carregarPixel(pixelId);
+    if (googleId) carregarGoogle(googleId);
+  }, [caminho, consentimento, pixelId, googleId]);
+
+  useEffect(() => {
+    if (consentimento !== 'sim' || !medeAnuncios || !tagsLiberadas(caminho)) return;
     rastrear('PageView');
     soltarEventos();
   }, [caminho, consentimento, medeAnuncios]);

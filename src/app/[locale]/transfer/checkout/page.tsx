@@ -28,7 +28,7 @@ function trecho(q: Busca, saida: string, destino: string, data: string, hora: st
   return { saida: s, destino: d, data: dia, hora: h };
 }
 
-/** O transfer montado no cartão da página chega pela URL; o servidor confere tudo de novo na reserva. */
+/** O transfer montado no cartão da página chega pela URL; o servidor confere tudo de novo ao pôr no carrinho. */
 function lerPedido(q: Busca): PedidoTransfer | null {
   const veiculo = um(q.veiculo);
   const ida = trecho(q, 'saida', 'destino', 'data', 'hora');
@@ -48,6 +48,10 @@ function lerPedido(q: Busca): PedidoTransfer | null {
   };
 }
 
+/**
+ * O transfer avulso (links antigos e compartilhados, com o trajeto na URL): mostra o resumo e segue pelo
+ * carrinho para o checkout único, onde o pagamento acontece. Sem trajeto válido, volta para o cartão do transfer.
+ */
 export default async function CheckoutTransfer({ params, searchParams }: PageProps<'/[locale]/transfer/checkout'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
@@ -72,14 +76,11 @@ export default async function CheckoutTransfer({ params, searchParams }: PagePro
                 checkout: d.checkout,
                 preco: d.preco,
                 transfer: T,
+                carrinho: d.carrinho,
                 dataHora: d.horario.dataHora,
-                diminuir: d.comum.diminuir,
-                aumentar: d.comum.aumentar,
               }}
               links={{
-                termos: rota(locale, '/termos-de-uso'),
-                politica: rota(locale, '/politica-de-cancelamento'),
-                reserva: rota(locale, '/reserva'),
+                checkout: rota(locale, '/checkout'),
                 transfer: rota(locale, '/transfer'),
               }}
             />

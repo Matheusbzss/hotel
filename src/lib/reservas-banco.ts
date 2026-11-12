@@ -1,6 +1,8 @@
 import type { Idioma } from '@/i18n/config';
 import type { Json, Tables } from './banco-tipos';
-import type { Reserva, ReservaPasseio, ReservaTransfer, StatusReserva } from './reservas';
+// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+import { provedorDaReserva } from './pedidos-painel.ts';
+import type { Provedor, Reserva, ReservaPasseio, ReservaTransfer, StatusItem, StatusReserva } from './reservas';
 
 /**
  * A reserva como o site usa (o mesmo JSON que ficava no Blob) ↔ as linhas do banco: um pedido, um item
@@ -26,8 +28,11 @@ export interface LinhasReserva {
 
 const json = (v: unknown) => v as Json;
 
-/** O voucher acompanha o pedido quando ele é cancelado ou reembolsado; nos outros casos fica ativo. */
-function statusDoItem(s: StatusReserva): string {
+/**
+ * O voucher acompanha o pedido quando ele é cancelado ou reembolsado; nos outros casos fica ativo. Um item
+ * com status próprio (reembolsado sozinho, usado) guarda-o em `statusItem`, que passa por cima deste.
+ */
+function statusDoItem(s: StatusReserva): StatusItem {
   return s === 'cancelado' || s === 'reembolsado' ? s : 'ativo';
 }
 
@@ -48,7 +53,7 @@ export function paraLinhas(
     cliente_telefone: r.cliente.telefone,
     cliente_documento_tipo: r.tipo === 'transfer' ? null : (r.cliente.documentoTipo ?? null),
     cliente_documento: r.tipo === 'transfer' ? null : (r.cliente.documento ?? null),
-    cliente_pais: null,
+    cliente_pais: r.cliente.pais ?? null,
     metodo_pagamento: r.pagamento.metodo,
     pagamento: json(r.pagamento),
     subtotal_centavos: totalPedido,
@@ -59,6 +64,10 @@ export function paraLinhas(
     origem_utm: json(r.origem ?? {}),
     observacoes: r.observacoes ?? null,
     pago_em: r.pagamento.pagoEm ?? null,
+    provedor: provedorDaReserva(r),
+    pagamento_externo_id: r.pagamentoExternoId ?? null,
+    payment_intent_id: r.paymentIntentId ?? null,
+    reembolso_centavos: r.reembolsoCentavos ?? 0,
     criado_em: r.criadaEm,
     atualizado_em: r.atualizadaEm,
   };
@@ -70,7 +79,7 @@ export function paraLinhas(
     preco_centavos: r.totalCentavos,
     sinal_centavos: null,
     voucher_codigo: r.codigo,
-    status: statusDoItem(r.status),
+    status: r.statusItem ?? statusDoItem(r.status),
     criado_em: r.criadaEm,
   };
   // no pedido com vários itens, o preço do item no Pix (o total do pedido fica na linha do pedido)
@@ -131,13 +140,21 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
   const voucher = i.voucher_codigo && i.voucher_codigo !== p.codigo ? i.voucher_codigo : null;
   const pix = voucher ? (i.detalhes as { pixCentavos?: number }).pixCentavos : (p.total_pix_centavos ?? undefined);
   const origem = p.origem_utm as NonNullable<Reserva['origem']>;
+  const pagamento = p.pagamento as unknown as Reserva['pagamento'];
+  const status = p.status as StatusReserva;
   const base = {
     codigo: voucher ?? p.codigo,
     token: p.token,
     criadaEm: iso(p.criado_em),
     atualizadaEm: iso(p.atualizado_em),
     idioma: p.idioma as Idioma,
-    status: p.status as StatusReserva,
+    status,
+    // os campos do pagamento online só entram quando dizem algo: as reservas antigas voltam como foram gravadas
+    ...(p.provedor !== provedorDaReserva({ pagamento }) ? { provedor: p.provedor as Provedor } : {}),
+    ...(p.pagamento_externo_id !== null ? { pagamentoExternoId: p.pagamento_externo_id } : {}),
+    ...(p.payment_intent_id !== null ? { paymentIntentId: p.payment_intent_id } : {}),
+    ...(p.reembolso_centavos > 0 ? { reembolsoCentavos: p.reembolso_centavos } : {}),
+    ...(i.status !== statusDoItem(status) ? { statusItem: i.status as StatusItem } : {}),
     data: i.data,
     totalCentavos: voucher ? i.preco_centavos : p.total_centavos,
     ...(pix !== undefined ? { totalPixCentavos: pix } : {}),
@@ -152,10 +169,15 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
       : {}),
     ...(Object.keys(origem).length ? { origem } : {}),
     ...(p.observacoes !== null ? { observacoes: p.observacoes } : {}),
-    pagamento: p.pagamento as unknown as Reserva['pagamento'],
+    pagamento,
     historico: historico.map(({ em, evento }) => ({ em: iso(em), evento })).sort((a, b) => a.em.localeCompare(b.em)),
   };
-  const cliente = { nome: p.cliente_nome, email: p.cliente_email, telefone: p.cliente_telefone };
+  const cliente = {
+    nome: p.cliente_nome,
+    email: p.cliente_email,
+    telefone: p.cliente_telefone,
+    ...(p.cliente_pais !== null ? { pais: p.cliente_pais } : {}),
+  };
   const pessoas = i.pessoas as Record<string, number>;
 
   if (i.tipo === 'transfer') {
@@ -209,4 +231,45 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
     ...(d.sugestao ? { sugestao: true } : {}),
   };
   return passeio;
+}
+
+/**
+ * Sem o banco não existe a linha do pedido: cada voucher é um arquivo, e o que é DO PEDIDO fica repetido em
+ * todos. Esta função leva do voucher que acabou de ser gravado para um irmão (outro voucher do mesmo pedido) o
+ * que é do pedido e muda depois da compra: o status, o pagamento, o provedor, a sessão e o pagamento na Stripe,
+ * o valor reembolsado, o país de quem pagou, a hora da última mudança e o histórico. O irmão guarda o que é só
+ * dele: o código, o statusItem (o passeio reembolsado sozinho continua reembolsado), a data, o preço e os dados
+ * do passeio ou do transfer. No histórico entram os eventos que ele ainda não tinha, na ordem do tempo; repetir
+ * a cópia não repete nada.
+ * Devolve o irmão atualizado, sem mexer nos dois que recebeu, ou null quando a cópia não vale: não são dois
+ * vouchers diferentes do mesmo pedido, ou o irmão foi gravado DEPOIS do voucher (duas gravações chegaram juntas
+ * e esta cópia ficou para trás: vale o mais novo).
+ * Não toca em disco (tests/reservas-banco.test.ts); quem lê e grava é levarAosIrmaos, em reservas.ts.
+ */
+export function copiarDoPedido(irmao: Reserva, gravada: Reserva): Reserva | null {
+  if (!gravada.pedido || irmao.pedido?.codigo !== gravada.pedido.codigo || irmao.codigo === gravada.codigo) return null;
+  if (irmao.atualizadaEm > gravada.atualizadaEm) return null;
+
+  const copia = structuredClone(irmao);
+  copia.atualizadaEm = gravada.atualizadaEm;
+  copia.status = gravada.status;
+  copia.pagamento = structuredClone(gravada.pagamento);
+  // os campos que só existem quando dizem algo: sem valor no voucher gravado, saem do irmão também
+  if (gravada.provedor !== undefined) copia.provedor = gravada.provedor;
+  else delete copia.provedor;
+  if (gravada.pagamentoExternoId !== undefined) copia.pagamentoExternoId = gravada.pagamentoExternoId;
+  else delete copia.pagamentoExternoId;
+  if (gravada.paymentIntentId !== undefined) copia.paymentIntentId = gravada.paymentIntentId;
+  else delete copia.paymentIntentId;
+  if (gravada.reembolsoCentavos !== undefined) copia.reembolsoCentavos = gravada.reembolsoCentavos;
+  else delete copia.reembolsoCentavos;
+  if (gravada.cliente.pais !== undefined) copia.cliente.pais = gravada.cliente.pais;
+  else delete copia.cliente.pais;
+
+  // o histórico é o do pedido: entram os eventos que o irmão ainda não tinha (a mesma hora e o mesmo texto)
+  const chave = (h: EventoHistorico) => `${h.em} ${h.evento}`;
+  const jaTem = new Set((irmao.historico ?? []).map(chave));
+  const novos = (gravada.historico ?? []).filter((h) => !jaTem.has(chave(h)));
+  copia.historico = [...(copia.historico ?? []), ...novos].sort((a, b) => a.em.localeCompare(b.em));
+  return copia;
 }

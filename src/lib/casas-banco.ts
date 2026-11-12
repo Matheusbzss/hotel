@@ -49,6 +49,32 @@ export const bloqueioDeLinha = (l: LinhaBloqueio): Bloqueio => ({
   ...(l.referencia ? { referencia: l.referencia } : {}),
 });
 
+/** Uma estadia vendida pelo site, como entra em casas_bloqueios enquanto o cliente paga (Etapa 4) e depois de pago. */
+export interface BloqueioDoSite {
+  casaId: string;
+  /** A data de entrada (AAAA-MM-DD). */
+  inicio: string;
+  /** A data de saída: a noite da saída fica livre, como nas tarifas. */
+  fim: string;
+  /** A linha de itens_pedido da estadia (o voucher), para o bloqueio sumir com o pedido. */
+  itemPedidoId: string;
+}
+
+/**
+ * O bloqueio de uma estadia vendida pelo site → a linha da tabela. A referência é o id da sessão de pagamento
+ * corrente na Stripe (cs_...): é por ela que o bloqueio é liberado quando a sessão vence ou o pedido é cancelado,
+ * e que ele muda de sessão quando o cliente paga de novo. A trava do banco (casas_bloqueios_sem_sobreposicao_site)
+ * recusa duas estadias do site na mesma data: a inserção falha com o código 23P01 e o pedido não deve ser criado.
+ */
+export const linhaDeBloqueioDoSite = (b: BloqueioDoSite, sessaoId: string): TablesInsert<'casas_bloqueios'> => ({
+  casa_id: b.casaId,
+  inicio: b.inicio,
+  fim: b.fim,
+  origem: 'site',
+  referencia: sessaoId,
+  item_pedido_id: b.itemPedidoId,
+});
+
 export function deLinhas(c: LinhaCasa, tarifas: LinhaTarifa[], bloqueios: LinhaBloqueio[]): CasaPainel {
   const lista = tarifas.map(tarifaDeLinha).sort((a, b) => a.de.localeCompare(b.de));
   const periodos = (tipo: TipoTarifa) => lista.filter((t) => t.tipo === tipo);

@@ -1,6 +1,6 @@
 # Orla Nativa — Viagens & Passeios
 
-Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, pagamento finalizado pelo WhatsApp (cartão pela Stripe e Pix manual entram nas Etapas 4 e 5 da Fase 4), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês, espanhol neutro (`/es`) e espanhol da Argentina (`/es-ar`).
+Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, cartão e Pix pela Stripe no próprio site (ligados pela variável `PAGAMENTO_ONLINE`; sem ela o pedido segue pelo WhatsApp), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês, espanhol neutro (`/es`) e espanhol da Argentina (`/es-ar`).
 
 ## Onde mudar cada coisa
 
@@ -55,34 +55,37 @@ A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next
 
 Veja `.env.example`. Resumo:
 
-| Variável                         | Para quê                                                        |
-| -------------------------------- | --------------------------------------------------------------- |
-| `PAGARME_SECRET_KEY`             | Chave secreta da Pagar.me (só servidor)                         |
-| `NEXT_PUBLIC_PAGARME_PUBLIC_KEY` | Chave pública (tokeniza o cartão no navegador)                  |
-| `PAGARME_WEBHOOK_TOKEN`          | Senha que protege o webhook                                     |
-| `ADMIN_PASSWORD`                 | Senha do `/admin`                                               |
-| `NEXT_PUBLIC_META_PIXEL_ID`      | ID do Pixel da Meta                                             |
-| `BLOB_READ_WRITE_TOKEN`          | Criada pela Vercel ao conectar o Blob Store (banco de reservas) |
-| `NEXT_PUBLIC_SITE_URL`           | Endereço oficial (sitemap, prévias, link do voucher)            |
+| Variável                                | Para quê                                                     |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `STRIPE_SECRET_KEY`                     | Chave restrita da Stripe (só servidor)                       |
+| `STRIPE_WEBHOOK_SECRET`                 | Assinatura do webhook da Stripe (`whsec_…`)                  |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`    | Chave publicável (monta o checkout embutido)                 |
+| `PAGAMENTO_ONLINE`                      | `desligado` (padrão), `admin` ou `publico`                   |
+| `ADMIN_PASSWORD`                        | Senha do `/admin`                                            |
+| `SUPABASE_URL` e `SUPABASE_SECRET_KEY`  | Banco de dados (só servidor)                                 |
+| `CRON_SECRET`                           | Senha dos agendamentos da Vercel                             |
+| `NEXT_PUBLIC_META_PIXEL_ID`             | ID do Pixel da Meta                                          |
+| `BLOB_READ_WRITE_TOKEN`                 | Blob Store com as reservas antigas (criada pela Vercel)      |
+| `NEXT_PUBLIC_SITE_URL`                  | Endereço oficial (sitemap, prévias, link do voucher)         |
 
 **Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável. Em 11/11/2026 o site passou para `orlanativa.online` e o domínio antigo (`agenciavictorhugo.online`) foi desligado, sem redirecionamento, por decisão do dono.
 
-Sem as chaves da Pagar.me, o checkout funciona até a etapa de pagamento e registra a reserva para finalizar pelo WhatsApp. Com chaves de teste (`sk_test_…`/`pk_test_…`), o fluxo completo funciona em modo de teste.
+Sem as chaves da Stripe, ou com `PAGAMENTO_ONLINE` desligado, o checkout registra o pedido e ele segue pelo WhatsApp. Com as chaves de teste (`rk_test_…` e `pk_test_…`) e `PAGAMENTO_ONLINE=publico` no `.env.local`, o fluxo completo funciona em modo de teste; o passo a passo está em `docs/pagamentos-stripe.md`.
 
 ## Como funciona o pagamento
 
-Hoje a Pagar.me está parada, sem chaves em produção: o pedido é registrado no site e a equipe fecha o pagamento pelo WhatsApp. O código abaixo fica até a Stripe e o Pix manual entrarem no ar.
+Cartão e Pix pela Stripe, no checkout embutido do próprio site. O desenho completo está em `docs/pagamentos-stripe.md`.
 
-1. O cliente escolhe data e pessoas; o total é recalculado no servidor (o navegador nunca define o preço).
-2. **Pix**: o servidor cria o pedido na Pagar.me e mostra QR Code + copia e cola. A página consulta o status a cada 4 s e o webhook confirma o pagamento.
-3. **Cartão**: o número é tokenizado no navegador com a chave pública (`/core/v5/tokens`), e só o token vai para o servidor.
+1. O cliente monta o carrinho; o total é recalculado no servidor (o navegador nunca define o preço).
+2. No checkout ele escolhe **Pix** (com 10% de desconto) ou **cartão**; o servidor grava o pedido como `pendente` e abre a sessão de pagamento da Stripe.
+3. O pagamento só é confirmado pelo webhook assinado da Stripe (`/api/webhooks/stripe`), que relê a sessão na Stripe antes de mudar o status. Pix vencido libera a vaga.
 4. Pago → voucher com número único (ex.: `ON-7K3P9Q`), PDF e botão para enviar pelo WhatsApp. Reservas antigas com `VH-` continuam valendo.
 
-O webhook nunca confia no corpo do evento: ele consulta o pedido na API da Pagar.me antes de mudar o status.
+Com `PAGAMENTO_ONLINE` desligado (o padrão), o pedido é registrado como `aguardando_whatsapp`: a equipe cobra pelo WhatsApp e marca como pago no painel.
 
 ## Banco de reservas
 
-Vercel Blob em modo **privado**: cada reserva é um JSON em `reservas/<VOUCHER>.json`. O código do voucher é gravado com "não sobrescrever", então nunca se repete. No computador, sem a variável do Blob, as reservas ficam em `.data/reservas/`.
+Desde 03/11/2026 as reservas ficam no banco de dados (Supabase, projeto `orla-nativa`), com as migrações em `supabase/migrations/`. O Vercel Blob (privado) guarda só as reservas antigas, de antes do banco, que o site ainda consulta. No computador as reservas ficam em `.data/reservas/` (com `RESERVAS_NO_BANCO=1` no comando, no banco de verdade, para testar).
 
 ## Área administrativa
 

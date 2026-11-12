@@ -6,8 +6,8 @@ import type { Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
 import type { Origem } from './origem';
-import { quandoAcontece } from './pedidos-painel';
-import { deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
+import { provedorDaReserva, quandoAcontece } from './pedidos-painel';
+import { copiarDoPedido, deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
 
 /**
@@ -17,14 +17,27 @@ import type { CidadeHospedagem } from './validacao';
  *   vale para todos. As reservas de antes continuam no Vercel Blob (reservas/<VOUCHER>.json), como
  *   cópia de segurança: uma reserva que ainda não estiver no banco é lida de lá e, se alguém mexer nela,
  *   vem para o banco antes. Nada é apagado do Blob.
- * - No computador (npm run dev): arquivos em .data/reservas/, um por voucher (ali, o status muda voucher
- *   a voucher). Com RESERVAS_NO_BANCO=1 no comando, usa o banco de verdade (para testar), e os arquivos
- *   fazem o papel do Blob.
+ * - No computador (npm run dev): arquivos em .data/reservas/, um por voucher. Ali não existe a linha do
+ *   pedido: o que é do pedido (status, pagamento, histórico) fica repetido em cada arquivo, e toda gravação
+ *   leva a mudança aos outros vouchers do mesmo pedido (levarAosIrmaos). Com RESERVAS_NO_BANCO=1 no comando,
+ *   usa o banco de verdade (para testar), e os arquivos fazem o papel do Blob.
  */
 
-export type StatusReserva = 'pendente' | 'pago' | 'recusado' | 'cancelado' | 'expirado' | 'aguardando_whatsapp' | 'reembolsado';
+/**
+ * O status do pedido (um pagamento, vale para todos os vouchers). 'contestado' é o chargeback aberto na
+ * Stripe; 'recusado' e 'aguardando_whatsapp' ficam para os pedidos antigos e para o caminho do WhatsApp.
+ * As mudanças que a Stripe pode causar estão em src/lib/pagamento-stripe.ts (podeMudar).
+ */
+export type StatusReserva =
+  'pendente' | 'pago' | 'recusado' | 'cancelado' | 'expirado' | 'aguardando_whatsapp' | 'reembolsado' | 'contestado';
 
 export type MetodoPagamento = 'pix' | 'cartao' | 'whatsapp';
+
+/** Quem processou o pagamento: a Stripe (online), a equipe pelo WhatsApp, ou a Pagar.me (checkout antigo). */
+export type Provedor = 'pagarme' | 'stripe' | 'whatsapp';
+
+/** O status de um voucher dentro do pedido (itens_pedido.status). Só atualizarItem muda um item sozinho. */
+export type StatusItem = 'ativo' | 'cancelado' | 'reembolsado' | 'usado';
 
 /** O que toda reserva tem, de passeio ou de transfer. */
 interface ReservaBase {
@@ -34,6 +47,22 @@ interface ReservaBase {
   atualizadaEm: string;
   idioma: Idioma;
   status: StatusReserva;
+  /**
+   * Quem processou o pagamento. As reservas gravadas antes desta coluna não têm o campo: para elas, e para
+   * qualquer reserva, use provedorDaReserva(), que deduz pela forma de pagamento.
+   */
+  provedor?: Provedor;
+  /** A sessão de pagamento corrente na Stripe (cs_...). As anteriores ficam no histórico. */
+  pagamentoExternoId?: string;
+  /** O pagamento na Stripe (pi_...): é por ele que se reembolsa. */
+  paymentIntentId?: string;
+  /** Quanto já voltou para o cliente, em centavos (reembolso total ou de um item só). Ausente = nada. */
+  reembolsoCentavos?: number;
+  /**
+   * O status deste voucher quando difere do que o status do pedido diria (ex.: um passeio reembolsado
+   * sozinho num pedido pago). Ausente = acompanha o pedido: ativo, ou cancelado/reembolsado com ele.
+   */
+  statusItem?: StatusItem;
   /** A data do passeio, ou a da ida do transfer (AAAA-MM-DD). */
   data: string;
   totalCentavos: number;
@@ -46,16 +75,25 @@ interface ReservaBase {
   pedido?: { codigo: string; totalCentavos: number; totalPixCentavos?: number };
   /** De onde o cliente veio, pelos links dos anúncios. */
   origem?: Origem;
-  cliente: { nome: string; email: string; telefone: string };
+  /** `pais` é o do endereço informado na Stripe (ISO de 2 letras), quando o pagamento foi online. */
+  cliente: { nome: string; email: string; telefone: string; pais?: string };
   observacoes?: string;
   pagamento: {
     metodo: MetodoPagamento;
+    /** O id do pedido na Pagar.me (checkout antigo). Na Stripe os ids ficam em pagamentoExternoId e paymentIntentId. */
     pedidoId?: string;
     pixCopiaECola?: string;
     pixExpiraEm?: string;
     cartaoFinal?: string;
     cartaoBandeira?: string;
+    /** O país do cartão (ISO de 2 letras): o suporte sabe se foi cartão de fora. */
+    cartaoPais?: string;
+    /** O motivo da recusa por extenso (checkout antigo). */
     motivo?: string;
+    /** O `decline_code` da Stripe da última recusa do cartão; src/lib/recusas.ts traduz para a chave do dicionário. */
+    motivoCodigo?: string;
+    /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade dela: centavos no dólar, pesos inteiros no CLP. */
+    apresentado?: { moeda: string; valorCentavos: number };
     pagoEm?: string;
     ultimaConsulta?: string;
   };
@@ -126,7 +164,7 @@ export type Reserva = ReservaPasseio | ReservaTransfer;
 
 export const ehTransfer = (r: Reserva): r is ReservaTransfer => r.tipo === 'transfer';
 
-export { codigoValido, gerarCodigo, gerarToken };
+export { codigoValido, gerarCodigo, gerarToken, provedorDaReserva };
 
 /* ------------------------------------------------------------------ */
 
@@ -421,7 +459,20 @@ export async function obterReserva(codigo: string): Promise<Reserva | null> {
   return (await anterior()?.ler(codigo))?.reserva ?? null;
 }
 
-/** Atualiza com controle de concorrência (webhook e consulta de status podem chegar juntos). */
+/**
+ * A reserva que representa um pedido, pelo código do pedido: o próprio voucher, num pedido de um item só,
+ * ou o primeiro voucher (na ordem da viagem) de um pedido com vários. Aceita também o código de um voucher.
+ * É por aqui que o webhook da Stripe acha o pedido pelo `metadata.codigo` da sessão.
+ */
+export async function obterReservaDoPedido(codigo: string): Promise<Reserva | null> {
+  if (!codigoValido(codigo)) return null;
+  return (await obterReserva(codigo)) ?? (await obterPedido(codigo))[0] ?? null;
+}
+
+/**
+ * Atualiza com controle de concorrência (webhook e consulta de status podem chegar juntos). Sem o banco, o que
+ * foi gravado num voucher de um pedido com vários itens segue para os outros (levarAosIrmaos, logo abaixo).
+ */
 export async function atualizarReserva(codigo: string, alterar: (r: Reserva) => Reserva | null): Promise<Reserva | null> {
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     let atual = await principal().ler(codigo);
@@ -436,9 +487,60 @@ export async function atualizarReserva(codigo: string, alterar: (r: Reserva) => 
     const nova = alterar(structuredClone(atual.reserva));
     if (!nova) return atual.reserva;
     nova.atualizadaEm = new Date().toISOString();
-    if (await principal().gravar(nova, atual.versao)) return nova;
+    if (await principal().gravar(nova, atual.versao)) {
+      await levarAosIrmaos(nova);
+      return nova;
+    }
   }
   throw new Error(`Conflito ao atualizar a reserva ${codigo}.`);
+}
+
+/**
+ * Sem o banco, cada voucher de um pedido é um arquivo, e o que é do pedido (status, pagamento, histórico) fica
+ * repetido em todos. Depois de gravar um, leva a mudança aos irmãos: copiarDoPedido (reservas-banco.ts) diz o
+ * que é do pedido e o que é só do voucher. Sem isto, o pedido com vários itens pago pelo webhook ficava pago num
+ * voucher só, e o PDF dos outros respondia 409. No banco não precisa: lá o pedido é uma linha só.
+ * A reserva já está gravada quando isto roda: uma falha aqui fica no registro do servidor e não desfaz nem
+ * repete nada (quem chamou segue com a reserva gravada); a próxima gravação do pedido leva tudo de novo.
+ */
+async function levarAosIrmaos(gravada: Reserva): Promise<void> {
+  if (usarBanco() || !gravada.pedido) return;
+  const pedido = gravada.pedido.codigo;
+  try {
+    const irmaos = (await principal().lerPedido(pedido)).filter((r) => r.codigo !== gravada.codigo);
+    for (const { codigo } of irmaos) {
+      let feito = false;
+      for (let tentativa = 0; tentativa < 5 && !feito; tentativa++) {
+        // relido a cada tentativa, com a versão: outra gravação pode ter chegado ao irmão no meio do caminho
+        const atual = await principal().ler(codigo);
+        const copia = atual ? copiarDoPedido(atual.reserva, gravada) : null;
+        feito = !atual || !copia || (await principal().gravar(copia, atual.versao));
+      }
+      if (!feito) throw new Error(`Conflito ao atualizar a reserva ${codigo}.`);
+    }
+  } catch (e) {
+    console.error(`[reservas] o voucher ${gravada.codigo} foi gravado, mas a cópia para os outros do pedido ${pedido} falhou`, e);
+  }
+}
+
+/**
+ * Muda o status de UM voucher só (ex.: o passeio da chuva reembolsado num pedido de três), sem mexer nos
+ * outros nem no status do pedido, e grava o evento no histórico. No banco é a função atualizar_item; no
+ * computador (um arquivo por voucher) o item é marcado na própria reserva, e o evento entra também no histórico
+ * dos outros vouchers do pedido (o histórico é do pedido, como no banco). Devolve false se o voucher não existir.
+ */
+export async function atualizarItem(voucher: string, status: StatusItem, evento: string): Promise<boolean> {
+  if (!codigoValido(voucher)) return false;
+  if (usarBanco()) {
+    const { data, error } = await supabase().rpc('atualizar_item', { p_voucher: voucher, p_status: status, p_evento: evento });
+    if (error) throw erroDoBanco(error);
+    return data === true;
+  }
+  const r = await atualizarReserva(voucher, (reserva) => {
+    reserva.statusItem = status;
+    return registrar(reserva, evento);
+  });
+  return r !== null;
 }
 
 export async function listarReservas(): Promise<Reserva[]> {

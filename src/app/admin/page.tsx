@@ -2,13 +2,24 @@ import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { contarCotacoesNovas } from '@/lib/cotacoes';
+import { modoPagamentoOnline } from '@/lib/formas-pagamento';
 import { textoDaOrigem } from '@/lib/origem';
-import { pagarmeConfigurado } from '@/lib/pagarme';
+import { linkPainelStripe, modoStripe } from '@/lib/stripe';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
-import { agruparPedidos, valorRecebido, type PedidoPainel } from '@/lib/pedidos-painel';
+import {
+  agruparPedidos,
+  avisosDeContestacao,
+  contestacoesAbertas,
+  ehAviso,
+  fraseDoErro,
+  motivoNoPainel,
+  oQueFazerNaContestacao,
+  valorRecebido,
+  type PedidoPainel,
+} from '@/lib/pedidos-painel';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
@@ -18,6 +29,7 @@ import {
   type Reserva,
   type ReservaPasseio,
   type ReservaTransfer,
+  type StatusItem,
   type StatusReserva,
 } from '@/lib/reservas';
 import { transferVisivel } from '@/lib/transfer-view';
@@ -30,9 +42,10 @@ const ROTULO: Record<StatusReserva, string> = {
   pago: 'Pago',
   recusado: 'Recusado',
   cancelado: 'Cancelado',
-  expirado: 'Pix expirado',
+  expirado: 'Tempo esgotado',
   aguardando_whatsapp: 'Finalizar no WhatsApp',
   reembolsado: 'Reembolsado',
+  contestado: 'Contestado',
 };
 
 const COR: Record<StatusReserva, string> = {
@@ -43,6 +56,16 @@ const COR: Record<StatusReserva, string> = {
   expirado: 'bg-[#e5e9ee] text-mar',
   aguardando_whatsapp: 'bg-turquesa text-mar',
   reembolsado: 'bg-[#e5e9ee] text-mar',
+  contestado: 'bg-erro-claro text-[#7a1f12]',
+};
+
+/** O status de um voucher dentro do pedido, quando difere do pedido (um item reembolsado ou cancelado sozinho). */
+const ROTULO_ITEM: Record<StatusItem, string> = { ativo: 'Ativo', cancelado: 'Cancelado', reembolsado: 'Reembolsado', usado: 'Usado' };
+
+const PROVEDOR: Record<PedidoPainel['provedor'], string> = {
+  stripe: 'Stripe',
+  pagarme: 'Pagar.me (checkout antigo)',
+  whatsapp: 'WhatsApp',
 };
 
 const DICIONARIO_PT = dicionario('pt');
@@ -52,13 +75,42 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[] }[] = [
   { valor: '', rotulo: 'Todos' },
   { valor: 'pagas', rotulo: 'Pagos', status: ['pago'] },
   { valor: 'abertas', rotulo: 'Em aberto', status: ['pendente', 'aguardando_whatsapp'] },
+  { valor: 'contestados', rotulo: 'Contestados', status: ['contestado'] },
   { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
 ];
+
+/** Os pedidos cuja forma de pagamento ainda não fechou: os dois totais (Pix e cartão) continuam valendo. */
+const EM_ABERTO: readonly StatusReserva[] = ['aguardando_whatsapp', 'pendente', 'expirado', 'recusado'];
 
 const dataHora = (iso?: string) =>
   iso
     ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
     : '—';
+
+/** Quanto o cliente viu na moeda dele (Adaptive Pricing), que a Stripe guarda na menor unidade da moeda. */
+function moedaApresentada(a: { moeda: string; valorCentavos: number }): string {
+  try {
+    const formato = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: a.moeda });
+    const casas = formato.resolvedOptions().maximumFractionDigits ?? 2;
+    return formato.format(a.valorCentavos / 10 ** casas);
+  } catch {
+    return `${a.moeda} ${a.valorCentavos}`;
+  }
+}
+
+/** O que o cabeçalho diz do pagamento online: a Stripe (teste ou produção) e o interruptor, ou desligado. */
+function textoPagamentoOnline(): string {
+  const stripe = modoStripe();
+  if (stripe === 'desligado') return 'desligado — pedidos finalizados pelo WhatsApp';
+  const interruptor = modoPagamentoOnline();
+  const quem =
+    interruptor === 'publico'
+      ? 'aberto ao público'
+      : interruptor === 'admin'
+        ? 'só para o admin'
+        : 'interruptor PAGAMENTO_ONLINE desligado';
+  return `Stripe (${stripe === 'producao' ? 'produção' : 'teste'}), ${quem}`;
+}
 
 function Login({ erro }: { erro?: string }) {
   return (
@@ -81,6 +133,11 @@ function Login({ erro }: { erro?: string }) {
         {erro === 'senha' && (
           <p className="erro-campo" role="alert">
             Senha incorreta.
+          </p>
+        )}
+        {erro === 'limite' && (
+          <p className="erro-campo" role="alert">
+            Muitas tentativas. Espere 15 minutos e tente de novo.
           </p>
         )}
         <button type="submit" className="botao w-full">
@@ -160,68 +217,189 @@ function textosDaBusca(r: Reserva): string[] {
   );
 }
 
+/**
+ * Um botão de ação do pedido: um form POST para a rota do painel, com o código do voucher no endereço. No
+ * reembolso de um item só, o voucher a reembolsar vai também no campo `voucher` (é dele que a rota lê).
+ */
+function BotaoAcao({
+  voucher,
+  acao,
+  rotulo,
+  filtro,
+  cor = 'bg-superficie',
+  item,
+}: {
+  voucher: string;
+  acao: string;
+  rotulo: string;
+  filtro: string;
+  cor?: string;
+  item?: string;
+}) {
+  return (
+    <form method="post" action={`/api/admin/reservas/${voucher}`}>
+      <input type="hidden" name="acao" value={acao} />
+      <input type="hidden" name="filtro" value={filtro} />
+      {item && <input type="hidden" name="voucher" value={item} />}
+      <button type="submit" className={`min-h-10 px-4 text-small font-semibold text-mar hover:bg-borda ${cor}`}>
+        {rotulo}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Devolver o dinheiro pela Stripe: tudo, ou um voucher só (a chuva num passeio de um pedido de três). Fica atrás
+ * de um "abrir" porque não dá para desfazer. O status do pedido só muda quando a Stripe confirmar (webhook
+ * charge.refunded): até lá o painel mostra o pedido como está.
+ */
+function ReembolsoStripe({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+  const r = p.itens[0];
+  const restante = p.recebidoCentavos - p.reembolsoCentavos;
+  if (!r.paymentIntentId || restante <= 0) return null;
+  const vouchersAtivos = p.itens.filter((i) => (i.statusItem ?? 'ativo') === 'ativo');
+  return (
+    <details className="text-small">
+      <summary className="inline-flex min-h-10 cursor-pointer items-center bg-superficie px-4 font-semibold text-mar hover:bg-borda">
+        Reembolsar na Stripe…
+      </summary>
+      <div className="mt-2 space-y-2 border border-borda bg-white p-3">
+        <p className="text-tinta-suave">
+          Devolve o dinheiro pela Stripe (cartão: 5 a 10 dias úteis; Pix: alguns minutos). Não dá para desfazer. O status muda quando a
+          Stripe confirmar.
+        </p>
+        <BotaoAcao
+          voucher={r.codigo}
+          acao="reembolsar"
+          rotulo={`Reembolsar tudo (${formatarPreco(restante)})`}
+          filtro={filtro}
+          cor="bg-erro-claro"
+        />
+        {p.itens.length > 1 &&
+          vouchersAtivos.map((i) => (
+            <BotaoAcao
+              key={i.codigo}
+              voucher={i.codigo}
+              item={i.codigo}
+              acao="reembolsar_item"
+              rotulo={`Reembolsar só o voucher ${i.codigo} (${formatarPreco(valorRecebido(i))})`}
+              filtro={filtro}
+            />
+          ))}
+      </div>
+    </details>
+  );
+}
+
 /** O status é do pedido inteiro, com todos os vouchers: um pagamento só. */
 function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   const r = p.itens[0];
+  const stripe = p.provedor === 'stripe';
   const acoes: { acao: string; rotulo: string }[] = [];
-  if (p.status === 'aguardando_whatsapp' || p.status === 'pendente' || p.status === 'expirado' || p.status === 'recusado') {
+  if (EM_ABERTO.includes(p.status)) {
     if (p.metodo === 'whatsapp') {
       // a forma de pagamento define quanto entrou
       acoes.push(
         { acao: 'pago_pix', rotulo: `Pago no Pix (${formatarPreco(p.totalPixCentavos ?? p.totalCentavos)})` },
         { acao: 'pago_cartao', rotulo: `Pago no cartão (${formatarPreco(p.totalCentavos)})` },
       );
-    } else {
+    } else if (!stripe) {
+      // pela Stripe ninguém marca pago à mão: só o webhook (ou a consulta à sessão) muda o status
       acoes.push({ acao: 'marcar_pago', rotulo: 'Marcar como pago' });
     }
   }
   // marcou errado: dá para trocar, menos no pagamento online, que veio do sistema de pagamento
-  if (p.status === 'pago' && !r.pagamento.pedidoId) {
+  if (p.status === 'pago' && !stripe && !r.pagamento.pedidoId) {
     if (p.metodo !== 'pix') acoes.push({ acao: 'pago_pix', rotulo: 'Corrigir: foi no Pix' });
     if (p.metodo !== 'cartao') acoes.push({ acao: 'pago_cartao', rotulo: 'Corrigir: foi no cartão' });
   }
-  if (p.status !== 'cancelado' && p.status !== 'reembolsado') acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
-  if (p.status === 'pago' || p.status === 'cancelado') acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
+  // um pedido pago pela Stripe se desfaz com o reembolso, não com o cancelamento
+  const pagoNaStripe = stripe && (p.status === 'pago' || p.status === 'contestado');
+  if (p.status !== 'cancelado' && p.status !== 'reembolsado' && !pagoNaStripe) acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
+  if (!stripe && (p.status === 'pago' || p.status === 'cancelado')) acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-start gap-2">
       {acoes.map((a) => (
-        <form key={a.acao} method="post" action={`/api/admin/reservas/${r.codigo}`}>
-          <input type="hidden" name="acao" value={a.acao} />
-          <input type="hidden" name="filtro" value={filtro} />
-          <button type="submit" className="min-h-10 bg-superficie px-4 text-small font-semibold text-mar hover:bg-borda">
-            {a.rotulo}
-          </button>
-        </form>
+        <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} />
       ))}
+      {pagoNaStripe && <ReembolsoStripe p={p} filtro={filtro} />}
     </div>
   );
 }
 
-/** A forma de pagamento e o valor: em aberto, os dois preços; depois de pago, o que entrou. */
+/** O id na Stripe, com o link para o painel dela (em modo teste, com /test/ no caminho). */
+function LinkStripe({ id }: { id: string }) {
+  return (
+    <a
+      href={linkPainelStripe(id)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block break-all text-small underline underline-offset-4"
+    >
+      {id}
+    </a>
+  );
+}
+
+/** A forma de pagamento e o valor: em aberto, os dois preços; depois de pago, o que entrou, com os dados do pagamento. */
 function ValorDoPedido({ p }: { p: PedidoPainel }) {
   const r = p.itens[0];
-  if (p.metodo === 'whatsapp' && p.status !== 'pago' && p.totalPixCentavos !== undefined) {
+  const g = r.pagamento;
+  if (EM_ABERTO.includes(p.status) && p.totalPixCentavos !== undefined) {
     return (
       <>
         <p className="text-xl font-bold">{formatarPreco(p.totalPixCentavos)}</p>
         <p className="text-small text-tinta-suave">no Pix</p>
         <p className="mt-1 font-semibold">{formatarPreco(p.totalCentavos)}</p>
         <p className="text-small text-tinta-suave">no cartão</p>
+        {p.provedor === 'stripe' && (
+          <p className="mt-1 text-small text-tinta-suave">
+            Stripe · escolheu {p.metodo === 'pix' ? 'Pix' : 'cartão'}
+            {g.motivoCodigo ? ` · ${motivoNoPainel(g.motivoCodigo, p.metodo).resumo}` : ''}
+          </p>
+        )}
+        {p.provedor === 'stripe' && r.pagamentoExternoId && <LinkStripe id={r.pagamentoExternoId} />}
       </>
     );
   }
+  // a Stripe manda a bandeira em minúsculas ("visa", "mastercard")
+  const bandeira = g.cartaoBandeira ? g.cartaoBandeira.charAt(0).toUpperCase() + g.cartaoBandeira.slice(1) : '';
+  const forma =
+    p.metodo === 'pix'
+      ? 'Pix'
+      : p.metodo === 'cartao'
+        ? `Cartão ${bandeira} ${g.cartaoFinal ? `•••• ${g.cartaoFinal}` : ''}`.replace(/\s+/g, ' ').trim()
+        : 'WhatsApp';
   return (
     <>
       <p className="text-xl font-bold">{formatarPreco(p.recebidoCentavos)}</p>
       <p className="text-small text-tinta-suave">
-        {p.metodo === 'pix'
-          ? 'Pix'
-          : p.metodo === 'cartao'
-            ? `Cartão ${r.pagamento.cartaoBandeira ?? ''} ${r.pagamento.cartaoFinal ? `•••• ${r.pagamento.cartaoFinal}` : ''}`
-            : 'WhatsApp'}
+        {forma}
+        {g.cartaoPais ? ` · cartão ${g.cartaoPais}` : ''}
       </p>
-      {r.pagamento.pedidoId && <p className="break-all text-small text-tinta-suave">{r.pagamento.pedidoId}</p>}
+      <p className="text-small text-tinta-suave">{PROVEDOR[p.provedor]}</p>
+      {g.apresentado && <p className="text-small text-tinta-suave">Cliente viu {moedaApresentada(g.apresentado)}</p>}
+      {p.reembolsoCentavos > 0 && <p className="mt-1 text-small font-semibold">Reembolsado {formatarPreco(p.reembolsoCentavos)}</p>}
+      {p.provedor === 'stripe' ? (
+        <>
+          {r.paymentIntentId && <LinkStripe id={r.paymentIntentId} />}
+          {r.pagamentoExternoId && <LinkStripe id={r.pagamentoExternoId} />}
+        </>
+      ) : (
+        g.pedidoId && <p className="break-all text-small text-tinta-suave">{g.pedidoId}</p>
+      )}
     </>
+  );
+}
+
+/** A última recusa do cartão, ou o Pix que venceu, em português. O código da Stripe vai depois, para a busca. */
+function MotivoDoPagamento({ codigo, metodo }: { codigo: string; metodo: PedidoPainel['metodo'] }) {
+  const m = motivoNoPainel(codigo, metodo);
+  return (
+    <li>
+      {m.rotulo}: {m.frase}
+      {m.codigo && <span className="text-tinta-suave"> · código na Stripe: {m.codigo}</span>}
+    </li>
   );
 }
 
@@ -236,6 +414,7 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       <div className="lg:col-span-3">
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
         <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
+        {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
         {varios && <p className="mt-2 text-small font-semibold">{p.itens.length} itens</p>}
         <p className="mt-2 text-small text-tinta-suave">Criado {dataHora(p.criadoEm)}</p>
         {p.pagoEm && <p className="text-small text-tinta-suave">Pago {dataHora(p.pagoEm)}</p>}
@@ -247,10 +426,13 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
               <p className="mb-1 text-small font-semibold">
                 Voucher {i.codigo} · {formatarPreco(valorRecebido(i))}
                 {p.metodo === 'whatsapp' && i.totalPixCentavos !== undefined ? ` (${formatarPreco(i.totalPixCentavos)} no Pix)` : ''}
+                {i.statusItem && i.statusItem !== 'ativo' ? ` · ${ROTULO_ITEM[i.statusItem]}` : ''}
               </p>
             )}
             {ehTransfer(i) ? <DetalhesTransfer r={i} /> : <DetalhesPasseio r={i} />}
-            {!ehTransfer(i) && i.sugestao && <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>}
+            {!ehTransfer(i) && i.sugestao && (
+              <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>
+            )}
           </li>
         ))}
         {r.observacoes && <li className="py-3 text-small last:pb-0">Obs.: {r.observacoes}</li>}
@@ -272,23 +454,29 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
             {r.cliente.email}
           </a>
         </p>
-        <p className="text-small text-tinta-suave">Idioma: {r.idioma.toUpperCase()}</p>
+        <p className="text-small text-tinta-suave">
+          Idioma: {r.idioma.toUpperCase()}
+          {r.cliente.pais ? ` · País: ${r.cliente.pais}` : ''}
+        </p>
         {textoDaOrigem(r.origem) && <p className="text-small text-tinta-suave">Veio de: {textoDaOrigem(r.origem)}</p>}
       </div>
       <div className="lg:col-span-2 lg:text-right">
         <ValorDoPedido p={p} />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-12">
+      <div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">
         <Acoes p={p} filtro={filtro} />
-        <details className="text-small">
+        {/* com algum aviso (a Stripe não devolveu, valor diferente, pago depois do horário), o histórico já vem aberto */}
+        <details className="text-small" open={r.historico.some((h) => ehAviso(h.evento))}>
           <summary className="cursor-pointer font-semibold">Histórico</summary>
           <ul className="mt-2 space-y-1">
             {r.historico.map((h, n) => (
-              <li key={n}>
+              // o aviso leva as cores do rótulo "Contestado": a equipe precisa agir
+              <li key={n} className={ehAviso(h.evento) ? 'bg-erro-claro px-2 py-1 font-semibold text-[#7a1f12]' : undefined}>
                 {dataHora(h.em)} — {h.evento}
               </li>
             ))}
             {r.pagamento.motivo && <li>Motivo: {r.pagamento.motivo}</li>}
+            {r.pagamento.motivoCodigo && <MotivoDoPagamento codigo={r.pagamento.motivoCodigo} metodo={p.metodo} />}
           </ul>
         </details>
       </div>
@@ -305,6 +493,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
 
   const filtroAtual = typeof q.status === 'string' ? q.status : '';
   const busca = typeof q.q === 'string' ? q.q.trim().toLowerCase() : '';
+  // a rota das ações volta com ?erro=<código> quando recusa uma ação; a faixa vermelha mostra a frase fixa desse
+  // código (ERROS_DO_PAINEL), nunca o texto que veio no endereço
+  const erroAcao = fraseDoErro(typeof q.erro === 'string' ? q.erro : undefined);
   let todas: Reserva[] = [];
   let erroBanco = '';
   try {
@@ -326,7 +517,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   );
   const cotacoesNovas = await contarCotacoesNovas().catch(() => 0);
   const pagos = pedidos.filter((p) => p.status === 'pago');
-  const receita = pagos.reduce((s, p) => s + p.recebidoCentavos, 0);
+  // o que entrou, menos o que já voltou para o cliente
+  const receita = pagos.reduce((s, p) => s + p.recebidoCentavos - p.reembolsoCentavos, 0);
+  const contestacoes = avisosDeContestacao(contestacoesAbertas(pedidos));
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -337,8 +530,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <div>
             <h1 className="text-2xl font-bold">Pedidos</h1>
             <p className="text-small text-tinta-suave">
-              Pagamento online: {pagarmeConfigurado() ? 'ativo (Pagar.me)' : 'desativado — pedidos finalizados pelo WhatsApp'} · Pedidos em:{' '}
-              {ondeFicamAsReservas()}
+              Pagamento online: {textoPagamentoOnline()} · Pedidos em: {ondeFicamAsReservas()}
             </p>
           </div>
         </div>
@@ -368,6 +560,16 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           {cotacoesNovas === 1 ? '1 cotação nova' : `${cotacoesNovas} cotações novas`} para responder →
         </a>
       )}
+      {contestacoes.map((aviso) => (
+        <a key={aviso} href="/admin?status=contestados" className="mt-3 block bg-erro-claro px-5 py-3 font-semibold text-mar">
+          {aviso} →
+        </a>
+      ))}
+      {erroAcao && (
+        <p role="alert" className="mt-3 bg-erro-claro px-5 py-3 font-semibold text-mar">
+          {erroAcao}
+        </p>
+      )}
 
       <section className="mt-6 grid gap-3 sm:grid-cols-2" aria-label="Resumo">
         <div className="bg-white px-5 py-4">
@@ -375,7 +577,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <p className="text-2xl font-bold">{pagos.length}</p>
         </div>
         <div className="bg-white px-5 py-4">
-          <p className="text-small text-tinta-suave">Vendido (pagos)</p>
+          <p className="text-small text-tinta-suave">Vendido (pagos, menos reembolsos)</p>
           <p className="text-2xl font-bold">{formatarPreco(receita)}</p>
         </div>
       </section>
@@ -398,7 +600,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           <label htmlFor="q" className="sr-only">
             Buscar
           </label>
-          <input id="q" name="q" defaultValue={busca} placeholder="Buscar pedido, voucher, nome, hotel…" className="campo min-h-11 w-64 py-2" />
+          <input
+            id="q"
+            name="q"
+            defaultValue={busca}
+            placeholder="Buscar pedido, voucher, nome, hotel…"
+            className="campo min-h-11 w-64 py-2"
+          />
           <button type="submit" className="min-h-11 bg-mar px-5 font-semibold text-white">
             Buscar
           </button>

@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { IDIOMAS } from '@/i18n/config';
+import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
+import { FORMAS_PAGAMENTO, formasDisponiveis, type FormaPagamento } from '@/lib/formas-pagamento';
+import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { origemDaVisita } from '@/lib/origem-servidor';
+import { podeAbrirSessao } from '@/lib/pagamento-stripe';
 import { reservaDoItem } from '@/lib/pedido-carrinho';
 import { criarPedido } from '@/lib/reservas';
 import { CIDADES_HOSPEDAGEM, emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
+import { abrirSessaoDoPedido, cancelarPedidoAberto, itemAgendado, vouchersDoPedido } from './pedido-stripe';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
+
+/** Até quantos pedidos um mesmo IP pode fazer em 10 minutos (cada um abre uma sessão na Stripe). */
+const LIMITE_POR_IP = 20;
+const JANELA_SEGUNDOS = 600;
 
 const texto = (max: number) => z.string().trim().min(1).max(max);
 
@@ -39,17 +48,28 @@ const Esquema = z.object({
     .default({}),
   observacoes: z.string().trim().max(600).optional().default(''),
   aceite: z.literal(true),
+  /** A forma de pagamento online (cartão ou Pix). Sem ela, e sem pagamento online para este cliente, o caminho do WhatsApp. */
+  pagamento: z.enum(FORMAS_PAGAMENTO as [FormaPagamento, ...FormaPagamento[]]).optional(),
   /** Campo-isca contra robôs: precisa vir vazio. */
   site: z.string().max(0).optional(),
 });
 
-function erro(campo: string, status = 400) {
-  return NextResponse.json({ ok: false, erro: campo }, { status });
+function erro(campo: string, status = 400, extra: Record<string, unknown> = {}) {
+  return NextResponse.json({ ok: false, erro: campo, ...extra }, { status });
 }
 
+const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
 /**
- * Fecha o carrinho do cookie num pedido: os dados do titular uma vez só, um pagamento (pelo WhatsApp, até
- * o pagamento online entrar) e um voucher por item. Os itens e os preços vêm do servidor, nunca do navegador.
+ * Fecha o carrinho do cookie num pedido: os dados do titular uma vez só, um pagamento e um voucher por item. Os
+ * itens e os preços vêm do servidor, nunca do navegador. Com uma forma de pagamento online, o pedido nasce
+ * pendente (provedor stripe, a forma escolhida, os totais do cartão e do Pix de cada item: a sessão cobra
+ * valorACobrar na forma) e volta com `{ codigo, token, clientSecret, forma }` para o checkout embutido; o pedido só
+ * vira pago pelo webhook, e o cookie do carrinho fica até lá. Sem pagamento online para este cliente (interruptor
+ * PAGAMENTO_ONLINE), o caminho do WhatsApp de hoje.
+ * Erros: 400 com o campo; 409 'mudou'; 403 'forma' (com as formas que ainda valem); 400 'pagamento' (o pagamento
+ * online está no ar e a forma não veio); 429 'limite'; 502 'stripe' (o pedido fica cancelado e o carrinho continua);
+ * 503 'banco'.
  */
 export async function POST(req: Request) {
   const r = Esquema.safeParse(await req.json().catch(() => null));
@@ -60,15 +80,36 @@ export async function POST(req: Request) {
 
   const loja = await cookies();
   const codigoCarrinho = loja.get(COOKIE_CARRINHO)?.value;
+  const agora = new Date();
   try {
-    const { itens, origem } = await lerCarrinho(codigoCarrinho);
-    const conferidas = itens.flatMap((i) => {
-      const c = conferirEscolha(i.escolha);
+    // um robô não enche o painel de pedidos pendentes nem abre sessões à toa na Stripe
+    if (!(await permitir(chaveDoLimite('pedido', ipDaRequisicao(req.headers)), LIMITE_POR_IP, JANELA_SEGUNDOS, agora)))
+      return erro('limite', 429);
+
+    const carrinho = await lerCarrinho(codigoCarrinho);
+    const conferidas = carrinho.itens.flatMap((i) => {
+      const c = conferirEscolha(i.escolha, agora);
       return c.ok ? [{ id: i.id, c }] : [];
     });
     // um item venceu agora (a data ou o horário passou) ou o carrinho mudou em outra aba: o cliente confere antes
     const igual = conferidas.length === e.ids.length && conferidas.every(({ id }) => e.ids.includes(id));
     if (!codigoCarrinho || !igual) return erro('mudou', 409);
+
+    // a forma de pagamento: só as que o checkout oferece agora a este cliente (o interruptor, a Stripe e o prazo de cada forma)
+    const admin = sessaoValida(loja.get(COOKIE_ADMIN)?.value);
+    const formas = await formasDisponiveis(
+      conferidas.map(({ c }) => itemAgendado(c.escolha)),
+      agora,
+      { admin },
+    );
+    let forma: FormaPagamento | undefined;
+    if (e.pagamento) {
+      if (!formas.includes(e.pagamento)) return erro('forma', 403, { formas });
+      forma = e.pagamento;
+    } else if (formas.length) {
+      // com pagamento online no ar, o formulário sempre manda a forma
+      return erro('pagamento');
+    }
 
     const dados = {
       idioma: e.idioma,
@@ -80,7 +121,8 @@ export async function POST(req: Request) {
       hospedagem: e.hospedagem,
       observacoes: e.observacoes || undefined,
       // a campanha guardada no carrinho vale se o cookie da visita já tiver vencido
-      origem: { ...origem, ...(await origemDaVisita()) },
+      origem: { ...carrinho.origem, ...(await origemDaVisita()) },
+      pagamento: forma,
     };
     const novas = [];
     for (const { id, c } of conferidas) {
@@ -95,8 +137,34 @@ export async function POST(req: Request) {
     await gravarCarrinho(codigoCarrinho, { pedidoId: pedido.id, email: dados.cliente.email }).catch((err) =>
       console.error('[pedido] falha ao marcar o carrinho', err),
     );
-    loja.delete(COOKIE_CARRINHO);
-    return NextResponse.json({ ok: true, codigo: pedido.codigo, token: pedido.token, itens: novas.length });
+    const resposta = { ok: true, codigo: pedido.codigo, token: pedido.token, itens: novas.length };
+
+    // o cliente refez o pedido a partir do mesmo carrinho (mudou um item, voltou do formulário da Stripe): o anterior,
+    // ainda em aberto, não pode mais ser pago. Só agora, com o novo gravado: se ele falhasse, o anterior continuava valendo
+    const anterior = carrinho.pedido;
+    if (anterior && podeAbrirSessao(anterior.status)) {
+      await cancelarPedidoAberto(anterior.codigo, `Cancelado: o cliente refez o pedido (${pedido.codigo})`).catch((err) =>
+        console.error(`[pedido] falha ao cancelar o pedido anterior ${anterior.codigo}`, mensagem(err)),
+      );
+    }
+
+    if (!forma) {
+      // o caminho do WhatsApp: o carrinho acabou aqui
+      loja.delete(COOKIE_CARRINHO);
+      return NextResponse.json(resposta);
+    }
+
+    try {
+      const sessao = await abrirSessaoDoPedido(await vouchersDoPedido(pedido.codigo), forma, agora);
+      // o cookie do carrinho fica: o carrinho só acaba quando o pedido virar pago (GET /api/carrinho cuida disso)
+      return NextResponse.json({ ...resposta, forma, clientSecret: sessao.clientSecret });
+    } catch (err) {
+      console.error(`[pedido] a sessão de pagamento do pedido ${pedido.codigo} não pôde ser criada: ${mensagem(err)}`);
+      await cancelarPedidoAberto(pedido.codigo, 'Cancelado: a sessão de pagamento não pôde ser criada').catch((e2) =>
+        console.error(`[pedido] falha ao cancelar o pedido ${pedido.codigo}`, mensagem(e2)),
+      );
+      return erro('stripe', 502);
+    }
   } catch (err) {
     console.error('[pedido] falha ao gravar o pedido', err);
     return erro('banco', 503);

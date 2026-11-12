@@ -23,8 +23,15 @@ import {
 } from '@/lib/reserva-publica';
 import { obterReserva, provedorDaReserva } from '@/lib/reservas';
 
-// o link privado leva o token: a página não conta a ninguém de onde o cliente veio
-export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: 'no-referrer' };
+// o link privado leva o token: a página não conta a ninguém de onde o cliente veio. Na aba, "Sua reserva | Orla Nativa".
+export async function generateMetadata({ params }: PageProps<'/[locale]/reserva/[codigo]'>): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    ...(isIdioma(locale) ? { title: dicionario(locale).reserva.titulo } : {}),
+    robots: { index: false, follow: false },
+    referrer: 'no-referrer',
+  };
+}
 export const dynamic = 'force-dynamic';
 
 export default async function PaginaReserva({ params, searchParams }: PageProps<'/[locale]/reserva/[codigo]'>) {

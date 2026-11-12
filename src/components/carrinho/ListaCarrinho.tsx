@@ -4,6 +4,7 @@ import Image from 'next/image';
 import type { ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
+import { ComDolar } from '../ComDolar';
 
 export interface TextosLista {
   mudar: string;
@@ -69,18 +70,23 @@ export function ListaCarrinho({
                 {d}
               </p>
             ))}
+            {/* "R$ 69,30 no Pix" e "≈ US$ 12,46" ficam inteiros: a linha só quebra entre os dois pedaços (o mesmo no cartão) */}
             <p className="mt-1.5">
-              <span className="cifra font-semibold">{brl(i.totalPixCentavos)}</span>{' '}
-              <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
-              {usd(i.totalPixCentavos) && (
-                <span className="whitespace-nowrap text-small text-(--color-tinta-suave)"> · {usd(i.totalPixCentavos)}</span>
-              )}
+              <ComDolar dolar={usd(i.totalPixCentavos)} className="text-small text-(--color-tinta-suave)">
+                <span className="whitespace-nowrap">
+                  <span className="cifra font-semibold">{brl(i.totalPixCentavos)}</span>{' '}
+                  <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+                </span>
+              </ComDolar>
             </p>
             {/* quando o valor no cartão e o "Mudar" não cabem lado a lado, o "Mudar" desce para a linha de baixo, à direita */}
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-small">
               <p className="flex-1 text-(--color-tinta-suave)">
-                <span className="numeros">{brl(i.totalCentavos)}</span> {T.noCartao}
-                {usd(i.totalCentavos) && <span className="whitespace-nowrap"> · {usd(i.totalCentavos)}</span>}
+                <ComDolar dolar={usd(i.totalCentavos)}>
+                  <span className="whitespace-nowrap">
+                    <span className="numeros">{brl(i.totalCentavos)}</span> {T.noCartao}
+                  </span>
+                </ComDolar>
               </p>
               <a href={i.href} className="link ml-auto">
                 {T.mudar}

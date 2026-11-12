@@ -1,11 +1,12 @@
 /**
- * Prints rápidos com Playwright: celular (390 px) e computador (1440 px), sempre do site construído.
+ * Prints rápidos com Playwright: celular (390 px) e computador (1440 px), do site construído ou do site no ar.
  *
- * Antes, em segundo plano e um servidor só: npm run build e depois npm run start.
+ * Antes, no computador, em segundo plano e um servidor só: npm run build e depois npm run start.
  * Uso: node scripts/prints.mjs [opções] <página> [<página>...]
  *   página: /es/checkout, ou nome=/pt/pedido/ON-ABC123?t=TOKEN (o nome vira o nome do arquivo)
  * Opções:
- *   --base=http://localhost:3000  endereço do site construído (o padrão é o do npm run start)
+ *   --base=http://localhost:3000  endereço do site construído (o padrão é o do npm run start); com um
+ *                                 endereço de fora (--base=https://orlanativa.online), print do site no ar
  *   --saida=.impeccable/review    pasta dos prints
  *   --inteira                     também a página inteira (só no fim da etapa)
  *   --com-mapa                    mapa 3D e cliques nos pinos (só quando a etapa mexer no mapa)
@@ -56,16 +57,37 @@ const paginas = soltos.map((a) => {
   return { caminho, id: bruto.toLowerCase().replace(/[^a-z0-9-]+/g, '-') };
 });
 
-// 1. só o site construído: o npm run dev não serve os arquivos do build
-const buildId = (await readFile('.next/BUILD_ID', 'utf8').catch(() => '')).trim();
-if (!buildId) sair('Não achei o site construído (.next/BUILD_ID). Rode antes, em segundo plano: npm run build e depois npm run start.');
-const teste = await fetch(`${base}/_next/static/${buildId}/_buildManifest.js`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
-if (!teste) sair(`Nada respondeu em ${base}. Suba o site construído em segundo plano: npm run start`);
-if (teste.status !== 200) {
-  sair(
-    `O servidor em ${base} não é o site construído de agora (parece o npm run dev ou um build antigo). Rode npm run build e depois npm run start.`,
-  );
+// 1. no computador, só o site construído: o npm run dev não serve os arquivos do build. O site no ar não tem o
+// build daqui para comparar: segue sem essa conferência. Endereço quebrado ou sem http:// conta como local (a
+// conferência avisa), e também os endereços da rede de casa (192.168…, 10…, 172.16 a 31…)
+const local = (() => {
+  try {
+    const nome = new URL(base).hostname;
+    return (
+      !nome ||
+      ['localhost', '0.0.0.0', '[::1]'].includes(nome) ||
+      nome.endsWith('.localhost') ||
+      /^((127|10)(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})$/.test(nome)
+    );
+  } catch {
+    return true;
+  }
+})();
+// no site no ar, o cookie do carrinho (no /checkout) e o ?t= de um pedido gravariam no banco de verdade
+if (!local && (opcoes.cookies || paginas.some((p) => /[?&]t=/.test(p.caminho)))) {
+  sair('No site no ar, --cookies e páginas com ?t= gravariam no banco de verdade. Use o site construído aqui (npm run start).');
 }
+if (local) {
+  const buildId = (await readFile('.next/BUILD_ID', 'utf8').catch(() => '')).trim();
+  if (!buildId) sair('Não achei o site construído (.next/BUILD_ID). Rode antes, em segundo plano: npm run build e depois npm run start.');
+  const teste = await fetch(`${base}/_next/static/${buildId}/_buildManifest.js`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+  if (!teste) sair(`Nada respondeu em ${base}. Suba o site construído em segundo plano: npm run start`);
+  if (teste.status !== 200) {
+    sair(
+      `O servidor em ${base} não é o site construído de agora (parece o npm run dev ou um build antigo). Rode npm run build e depois npm run start.`,
+    );
+  }
+} else console.log(`Prints do site no ar (${base}): sem conferir o build daqui.`);
 
 // 2. um print por vez: a trava impede outra execução ao mesmo tempo
 const trava = path.join('.impeccable', '.prints.lock');

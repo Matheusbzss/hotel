@@ -10,7 +10,11 @@ import { cambioParaTela } from '@/lib/cambio-tela';
 import { COOKIE_CARRINHO, itensVisiveis, lerCarrinho } from '@/lib/carrinho-servidor';
 import { pagamentoDoCheckout } from '@/lib/reserva-publica';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+/** A aba mostra o mesmo título da página ("Finalizar reserva | Orla Nativa"); o checkout continua fora do Google. */
+export async function generateMetadata({ params }: PageProps<'/[locale]/checkout'>): Promise<Metadata> {
+  const { locale } = await params;
+  return { ...(isIdioma(locale) ? { title: dicionario(locale).checkout.titulo } : {}), robots: { index: false, follow: false } };
+}
 
 /** O checkout único: fecha o carrinho do cliente num pedido só. */
 export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/checkout'>) {

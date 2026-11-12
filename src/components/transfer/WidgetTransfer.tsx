@@ -27,6 +27,7 @@ import { CampoData } from '../CampoData';
 import { FormularioCotacao } from '../FormularioCotacao';
 import { useCarrinho } from '../carrinho/CarrinhoContexto';
 import { Cifra } from '../Cifra';
+import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
 import { useGrupo } from '../grupo/GrupoContexto';
 
@@ -560,26 +561,32 @@ export function WidgetTransfer({
       ) : veiculo && precoEscolhido !== null ? (
         <>
           <div className="mt-5 border-t border-(--color-borda) pt-4">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="font-semibold">
-                {idaVolta ? T.totalIdaVolta : T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
-                {usdCentavos(pixEscolhido ?? 0) && (
-                  <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)">
-                    {' '}
-                    · {usdCentavos(pixEscolhido ?? 0)}
-                  </span>
-                )}
+            {/* como no cartão do passeio, mas o rótulo é comprido: ele quebra entre as palavras, com o "no Pix" e o
+                "no cartão" inteiros, e o valor só desce para a linha de baixo quando o rótulo ficaria espremido (7.5rem) */}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="min-w-[7.5rem] flex-1 font-semibold">
+                <ComDolar dolar={usdCentavos(pixEscolhido ?? 0)} className="text-small font-normal text-(--color-tinta-suave)">
+                  {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap text-(--color-sucesso)">{T.noPix}</span>
+                </ComDolar>
               </span>
-              <span aria-hidden="true">
+              <span aria-hidden="true" className="ml-auto">
                 <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="cifra text-figure-lg" />
               </span>
             </div>
-            <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
-              <span>
-                {idaVolta ? T.totalIdaVolta : T.total} {T.noCartao}
-                {usd(precoEscolhido) && <span className="whitespace-nowrap"> · {usd(precoEscolhido)}</span>}
+            <p
+              className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)"
+              aria-hidden="true"
+            >
+              <span className="min-w-[7.5rem] flex-1">
+                <ComDolar dolar={usd(precoEscolhido)}>
+                  {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap">{T.noCartao}</span>
+                </ComDolar>
               </span>
-              <Cifra centavos={Math.round(precoEscolhido * 100)} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
+              <Cifra
+                centavos={Math.round(precoEscolhido * 100)}
+                locale={locale}
+                className="numeros ml-auto font-semibold text-(--color-tinta)"
+              />
             </p>
             <span className="sr-only" aria-live="polite">
               {`${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}. ${T.noCartao}: ${cifra(precoEscolhido)}.`}

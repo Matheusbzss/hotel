@@ -76,7 +76,7 @@ Como a chave fica presa ao site: a chave do servidor é restrita às permissões
 ## Rede de segurança e limites por IP
 
 - `conferirNaStripe(r, { origem, ip, agora })` (src/app/api/pedido/pedido-stripe.ts): o servidor relê a sessão na Stripe (`sincronizarComStripe`) e aplica o resultado pela mesma porta do webhook (`aplicarSessao`); o navegador nunca decide. Só para pedido pendente da Stripe e no máximo uma consulta a cada 10 segundos por pedido (`INTERVALO_ENTRE_CONSULTAS_MS`). A consulta de status (`/api/reservas/[codigo]`, a cada 4 segundos com o checkout aberto) ainda espera 60 segundos de pagamento (`ESPERA_ANTES_DE_CONSULTAR_MS`); a página do pedido, ao ser carregada, não espera. A hora da consulta é gravada ANTES de ir à Stripe, com a trava de versão do pedido.
-- Limites por IP (`permitir`, src/lib/limite-ip.ts, tabela `limites_ip`): login do painel, 10 tentativas a cada 15 minutos; carrinho, 60 a cada 10 minutos; criar pedido, 20 a cada 10 minutos; abrir sessão de pagamento (`/pagar`), 20 a cada 10 minutos, com 429 acima disso; consultas à Stripe, 30 por minuto (`CONSULTAS_POR_IP`): acima do teto a consulta é pulada, sem erro.
+- Limites por IP (`permitir`, src/lib/limite-ip.ts, tabela `limites_ip`): login do painel, 10 tentativas a cada 15 minutos; carrinho, 60 a cada 10 minutos; criar pedido, 20 a cada 10 minutos; pedido de cotação ou mensagem (`/api/cotacoes`), 10 a cada 10 minutos; abrir sessão de pagamento (`/pagar`), 20 a cada 10 minutos, com 429 acima disso; consultas à Stripe, 30 por minuto (`CONSULTAS_POR_IP`): acima do teto a consulta é pulada, sem erro.
 
 ## Status do pedido (`pedidos.status`)
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // As rotas do Next e o arquivo das reservas não rodam em node puro (usam o atalho "@/" e módulos só do servidor).
-// Estes testes leem o código deles e seguram três travas que não podem se perder numa mudança futura. O
+// Estes testes leem o código deles e seguram quatro travas que não podem se perder numa mudança futura. O
 // comportamento de ponta a ponta é conferido na simulação da Stripe, fora do npm test. Só leitura: nada é gravado.
 
 /** O código de um arquivo de src/, sem as linhas de comentário. */
@@ -57,4 +57,17 @@ test('sem o banco, toda gravação de um voucher leva o que é do pedido aos out
     /async function levarAosIrmaos\(gravada: Reserva\): Promise<void> \{\s+if \(usarBanco\(\) \|\| !gravada\.pedido\) return;/,
   );
   assert.match(reservas, /copiarDoPedido\(atual\.reserva, gravada\)/);
+});
+
+test('o pedido de cotação tem o limite por IP antes de gravar, com a mesma resposta 429 das outras rotas', () => {
+  const rota = codigo('app', 'api', 'cotacoes', 'route.ts');
+  assert.match(rota, /import \{ chaveDoLimite, ipDaRequisicao, permitir \} from '@\/lib\/limite-ip';/);
+  assert.match(rota, /const LIMITE_POR_IP = \d+;\s+const JANELA_SEGUNDOS = \d+;/);
+  // a mesma chamada do pedido e do carrinho, com a chave da rota e o IP de quem chamou
+  const trava = rota.search(
+    /if \(!\(await permitir\(chaveDoLimite\('cotacao', ipDaRequisicao\(req\.headers\)\), LIMITE_POR_IP, JANELA_SEGUNDOS\)\)\)\s+return erro\('limite', 429\);/,
+  );
+  assert.notEqual(trava, -1);
+  // vem antes de gravar: o envio barrado nunca chega ao painel
+  assert.ok(trava < rota.indexOf('criarCotacao('));
 });

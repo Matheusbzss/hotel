@@ -31,8 +31,15 @@ import { obterPedido, provedorDaReserva, type StatusReserva } from '@/lib/reserv
 import { formatarDataIso } from '@/lib/validacao';
 import { linkWhatsApp } from '@/lib/whatsapp';
 
-// o link privado leva o token: a página não conta a ninguém de onde o cliente veio
-export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: 'no-referrer' };
+// o link privado leva o token: a página não conta a ninguém de onde o cliente veio. Na aba, "Sua reserva | Orla Nativa".
+export async function generateMetadata({ params }: PageProps<'/[locale]/pedido/[codigo]'>): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    ...(isIdioma(locale) ? { title: dicionario(locale).reserva.titulo } : {}),
+    robots: { index: false, follow: false },
+    referrer: 'no-referrer',
+  };
+}
 export const dynamic = 'force-dynamic';
 
 /** A página do pedido do carrinho, em todos os estados: pagar, confirmando, pago com os vouchers, expirado, cancelado… */

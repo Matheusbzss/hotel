@@ -6,7 +6,11 @@ import { IDS_LUGARES, type IdLugar } from '@/data/transfer';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+/** A aba mostra o mesmo título da página ("Finalizar traslado | Orla Nativa"); a página continua fora do Google. */
+export async function generateMetadata({ params }: PageProps<'/[locale]/transfer/checkout'>): Promise<Metadata> {
+  const { locale } = await params;
+  return { ...(isIdioma(locale) ? { title: dicionario(locale).transfer.checkoutTitulo } : {}), robots: { index: false, follow: false } };
+}
 
 type Busca = Record<string, string | string[] | undefined>;
 

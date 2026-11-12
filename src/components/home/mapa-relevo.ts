@@ -363,15 +363,21 @@ export async function criarMapa(o: OpcoesMapa): Promise<Mapa | null> {
       const el = elPino.get(p.id);
       if (!el) continue;
       const t = noTela(p.ponto, w, h);
+      const pw = el.offsetWidth;
+      const ph = el.offsetHeight;
+      // o nome da cidade fica inteiro dentro do mapa: perto da lateral, ele desliza para dentro e o ponto continua
+      // na cidade; se o nome não cabe em cima, o pino some, como já some quando o ponto sai da tela
+      const dx = limitar(0, 4 - (t.x - pw / 2), w - 4 - (t.x + pw / 2));
       el.style.setProperty('--px', `${t.x.toFixed(1)}px`);
       el.style.setProperty('--py', `${t.y.toFixed(1)}px`);
-      const visivel = t.frente && t.x > 8 && t.x < w - 8 && t.y > 8 && t.y < h - 8;
+      el.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      // o topo do pino com folga, para ele não piscar quando a câmera acompanha a inclinação do celular: some quando o
+      // topo chega a 4 px da borda de cima e só volta quando passa de 10 px
+      const topo = t.y + 7 - ph;
+      const cabeEmCima = el.dataset.visivel === 'sim' ? topo > 4 : topo > 10;
+      const visivel = t.frente && t.x > 8 && t.x < w - 8 && cabeEmCima && t.y < h - 8;
       el.dataset.visivel = visivel ? 'sim' : 'nao';
-      if (visivel) {
-        const pw = el.offsetWidth;
-        const ph = el.offsetHeight;
-        ocupados.push({ x0: t.x - pw / 2 - 4, x1: t.x + pw / 2 + 4, y0: t.y - ph - 2, y1: t.y + 9 });
-      }
+      if (visivel) ocupados.push({ x0: t.x + dx - pw / 2 - 4, x1: t.x + dx + pw / 2 + 4, y0: t.y - ph - 2, y1: t.y + 9 });
     }
     const pousou = !inicioVoo;
     for (const p of praias) {

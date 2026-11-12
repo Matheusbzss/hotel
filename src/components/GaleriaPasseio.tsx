@@ -81,7 +81,7 @@ export function GaleriaPasseio({ fotos, alts, textos: T }: { fotos: string[]; al
       </div>
       {fotos.length > 1 && (
         <p
-          className="numeros vidro vidro-escuro absolute right-3 top-20 rounded-full px-3 py-1.5 text-small md:right-6 md:top-24"
+          className="galeria-contador numeros vidro vidro-escuro absolute right-3 top-20 rounded-full px-3 py-1.5 text-small md:right-6 md:top-24"
           aria-hidden="true"
         >
           {atual + 1}/{fotos.length}

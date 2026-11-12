@@ -551,6 +551,11 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-escu
 html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-claro {
   display: none !important;
 }
+/* com a lista de idiomas ou o menu do celular aberto, o contador das fotos (1/11) sai de cena: no celular ele fica
+   logo abaixo da barra e aparecia no vão entre a barra e a lista, colado no canto dela, e através do vidro do menu */
+body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
+  visibility: hidden;
+}
 
 /* ------------------------------------------------------------------ */
 /* Página inicial                                                       */
@@ -894,6 +899,14 @@ html:not([data-rolou]) body:has(.topo-foto, .topo-passeio) .cabecalho .logo-clar
     background: var(--color-acao);
     color: var(--color-tinta);
     box-shadow: none;
+  }
+  /* perto da lateral do mapa, o pino inteiro (nome, foco e área de toque) desliza para dentro e só o ponto volta para
+     cima da cidade (rotular, em mapa-relevo.ts) */
+  .mapa-palco[data-3d='on'] .pino {
+    transform: translate(calc(var(--px, -999px) + var(--dx, 0px)), var(--py, -999px)) translate(-50%, calc(-100% + 7px));
+  }
+  .mapa-palco[data-3d='on'] .pino-ponto {
+    transform: translateX(calc(-1 * var(--dx, 0px)));
   }
 
   /* nomes das praias: só os da cidade escolhida, sem encostar um no outro */

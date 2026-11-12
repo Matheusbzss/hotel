@@ -35,6 +35,10 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
   const compacto = CODIGO[atual].length > 2;
   const detalhes = useRef<HTMLDetailsElement>(null);
   const [aberto, setAberto] = useState(false);
+  // o que vem depois do "?" no endereço (o filtro de /passeios?cidade=…, o ?t= da reserva e do pedido): lido do
+  // navegador cada vez que a lista abre, para a troca de idioma não perder nada. Sem JavaScript, o link leva à mesma
+  // página sem a busca. Sem useSearchParams: o cabeçalho está nas páginas estáticas, e ele pediria um <Suspense>.
+  const [busca, setBusca] = useState('');
   const fechar = () => detalhes.current?.removeAttribute('open');
 
   useEffect(() => {
@@ -62,7 +66,11 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
       <details
         ref={detalhes}
         className="group"
-        onToggle={(e) => setAberto(e.currentTarget.open)}
+        onToggle={(e) => {
+          const aberta = e.currentTarget.open;
+          setAberto(aberta);
+          if (aberta) setBusca(window.location.search);
+        }}
         onBlur={(e) => {
           // o foco foi para OUTRO controle (Tab): fecha a lista. Sem relatedTarget (o foco foi para o body), não
           // fecha aqui: no WebKit, tocar num item da lista não lhe dá foco e dispara este blur no botão antes do
@@ -99,7 +107,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
           {ORDEM.filter((i) => IDIOMAS.includes(i)).map((i) => (
             <li key={i}>
               <Link
-                href={rota(i, caminho.startsWith('/guias') && !isIdiomaGuia(i) ? '/' : caminho)}
+                href={rota(i, caminho.startsWith('/guias') && !isIdiomaGuia(i) ? '/' : caminho + busca)}
                 prefetch={false}
                 hrefLang={HREFLANG[i]}
                 lang={HREFLANG[i]}

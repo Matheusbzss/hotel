@@ -13,6 +13,7 @@ import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from './CampoData';
 import { useCarrinho } from './carrinho/CarrinhoContexto';
 import { Cifra } from './Cifra';
+import { ComDolar } from './ComDolar';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
 
@@ -234,11 +235,14 @@ export function WidgetReserva({
                   role="radio"
                   aria-checked={o.id === opcao.id}
                   onClick={() => setOpcaoId(o.id)}
-                  className="filtro flex-col items-start !gap-0 py-2.5 text-left"
+                  className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2.5 text-left"
                 >
                   <span>{o.nome}</span>
-                  <span className="numeros text-small font-normal">
-                    {brl(precoPixCentavos(o.tabela.precoCentavos))} {T.noPix}
+                  {/* em tela estreita, com preço alto, o "no Pix" desce para a linha de baixo, dentro do botão; o conteúdo fica
+                      no alto, para os nomes dos botões lado a lado ficarem na mesma altura quando só um preço desce. O preço
+                      pode usar 8 px do recuo antes de descer (-mr-2): em 360 px ele fica numa linha só, como sempre foi */}
+                  <span className="numeros -mr-2 text-small font-normal">
+                    {brl(precoPixCentavos(o.tabela.precoCentavos))} <span className="whitespace-nowrap">{T.noPix}</span>
                   </span>
                 </button>
               ))}
@@ -318,24 +322,33 @@ export function WidgetReserva({
         {regras.length > 0 && <p className="mt-4 text-small text-(--color-tinta-suave)">{regras.join(' ')}</p>}
 
         <div className="mt-5 border-t border-(--color-borda) pt-4">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="font-semibold">
-              {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
-              {usd(totalPix) && (
-                <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)"> · {usd(totalPix)}</span>
-              )}
+          {/* "Total no Pix" e "≈ US$ 24,93" ficam inteiros; quando o rótulo e o valor não cabem lado a lado (tela estreita,
+              total alto), o valor desce para a linha de baixo, à direita, em vez de alargar o cartão e a página rolar de lado */}
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <span className="flex-1 font-semibold">
+              <ComDolar dolar={usd(totalPix)} className="text-small font-normal text-(--color-tinta-suave)">
+                <span className="whitespace-nowrap">
+                  {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+                </span>
+              </ComDolar>
             </span>
             {/* os números rolam na tela; o leitor de tela ouve só os valores finais */}
-            <span aria-hidden="true">
+            <span aria-hidden="true" className="ml-auto">
               <Cifra centavos={totalPix} locale={locale} className="cifra text-figure-lg" />
             </span>
           </div>
-          <p className="mt-1 flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)" aria-hidden="true">
-            <span>
-              {T.total} {T.noCartao}
-              {usd(orc.totalCentavos) && <span className="whitespace-nowrap"> · {usd(orc.totalCentavos)}</span>}
+          <p
+            className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)"
+            aria-hidden="true"
+          >
+            <span className="flex-1">
+              <ComDolar dolar={usd(orc.totalCentavos)}>
+                <span className="whitespace-nowrap">
+                  {T.total} {T.noCartao}
+                </span>
+              </ComDolar>
             </span>
-            <Cifra centavos={orc.totalCentavos} locale={locale} className="numeros font-semibold text-(--color-tinta)" />
+            <Cifra centavos={orc.totalCentavos} locale={locale} className="numeros ml-auto font-semibold text-(--color-tinta)" />
           </p>
           <span className="sr-only" aria-live="polite">
             {`${T.total} ${T.noPix}: ${brl(totalPix)}. ${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}.`}

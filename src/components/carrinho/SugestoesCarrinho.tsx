@@ -138,11 +138,14 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
                     role="radio"
                     aria-checked={o.id === opcao.id}
                     onClick={() => setOpcaoId(o.id)}
-                    className="filtro flex-col items-start !gap-0 py-2 text-left"
+                    className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2 text-left"
                   >
                     <span>{o.nome}</span>
-                    <span className="numeros text-small font-normal">
-                      {brl(o.totalPixCentavos)} {T.noPix}
+                    {/* com grupo grande, em tela estreita, o "no Pix" desce para a linha de baixo, dentro do botão; o conteúdo
+                        fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura. O preço pode usar 8 px do
+                        recuo antes de descer (-mr-2), como no cartão do passeio */}
+                    <span className="numeros -mr-2 text-small font-normal">
+                      {brl(o.totalPixCentavos)} <span className="whitespace-nowrap">{T.noPix}</span>
                     </span>
                   </button>
                 ))}

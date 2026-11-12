@@ -177,8 +177,9 @@ export const itensQueValem = (itens: ItemCarrinho[], agora?: Date) => itens.filt
 /* ------------------------------------------------------------------ */
 /* Como cada item aparece                                              */
 
+// o "·" fica preso à palavra de antes (espaço que não quebra): a linha nunca começa com ele, no máximo termina
 const quando = (data: string, hora: string, idioma: Idioma) =>
-  `${formatarDataIso(data, LOCALE_INTL[idioma])} · ${formatarHora(hora, idioma)}`;
+  `${formatarDataIso(data, LOCALE_INTL[idioma])} · ${formatarHora(hora, idioma)}`;
 
 /** O item como o cliente vê no carrinho e no checkout. Escolha que não vale mais (data passada) → null. */
 export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, agora?: Date): ItemVisivel | null {
@@ -190,7 +191,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
     return {
       id: item.id,
       tipo: 'passeio',
-      titulo: opcao ? `${texto(p.nome, idioma)} · ${texto(opcao.nome, idioma)}` : texto(p.nome, idioma),
+      titulo: opcao ? `${texto(p.nome, idioma)} · ${texto(opcao.nome, idioma)}` : texto(p.nome, idioma),
       foto: p.fotos[0] ?? '',
       detalhes: [
         quando(c.escolha.data, c.escolha.hora, idioma),
@@ -219,7 +220,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
     detalhes: [
       quando(t.ida.data, t.ida.hora, idioma),
       ...(t.volta ? [fmt(d.carrinho.volta, { quando: quando(t.volta.data, t.volta.hora, idioma) })] : []),
-      `${texto(VEICULOS[t.veiculo].nome, idioma)} · ${textoPassageiros(t.passageiros, d.transfer)}`,
+      `${texto(VEICULOS[t.veiculo].nome, idioma)} · ${textoPassageiros(t.passageiros, d.transfer)}`,
     ],
     href: `${rota(idioma, '/transfer')}?mudar=${item.id}#reservar`,
     totalCentavos: c.totalCentavos,

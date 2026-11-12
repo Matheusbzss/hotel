@@ -20,6 +20,7 @@ import {
   type CidadeHospedagem,
 } from '@/lib/validacao';
 import { Campo, descricao } from '../Campo';
+import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
 import { CheckoutEmbutido, type TextosCheckoutEmbutido } from '../pagamento/CheckoutEmbutido';
@@ -82,6 +83,17 @@ interface SessaoAberta {
 }
 
 const SEM_EXTRAS: ExtrasItem = { ida: '', volta: '', idades: [] };
+/** A ajuda do telefone com cada número de exemplo inteiro numa linha: não quebra no espaço nem no hífen ("1234-" / "5678"). */
+const numerosInteiros = (texto: string) =>
+  texto.split(/(\+\d[\d -]*\d)/).map((parte, n) =>
+    n % 2 ? (
+      <span key={n} className="whitespace-nowrap">
+        {parte}
+      </span>
+    ) : (
+      parte
+    ),
+  );
 const codigoDoProduto = (i: ItemVisivel) => (i.escolha.tipo === 'passeio' ? i.escolha.slug : 'transfer');
 
 /**
@@ -399,8 +411,11 @@ export function FormularioCarrinho({
               {/* o preço desce para a linha de baixo quando não cabe ao lado do rótulo, como no total do formulário */}
               <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <span className="flex-1 font-semibold">
-                  {C.total} <span className="text-(--color-d2)">{sessao.forma === 'pix' ? P.noPix : P.noCartao}</span>
-                  {usd(valor) && <span className="whitespace-nowrap text-small font-normal text-(--tinta-suave)"> · {usd(valor)}</span>}
+                  <ComDolar dolar={usd(valor)} className="text-small font-normal text-(--tinta-suave)">
+                    <span className="whitespace-nowrap">
+                      {C.total} <span className="text-(--color-d2)">{sessao.forma === 'pix' ? P.noPix : P.noCartao}</span>
+                    </span>
+                  </ComDolar>
                 </span>
                 <span className="numeros titulo ml-auto leading-none">{brl(valor)}</span>
               </div>
@@ -548,7 +563,7 @@ export function FormularioCarrinho({
                 </span>
               ) : (
                 <span id="telefone-ajuda" className="ajuda">
-                  {C.telefoneAjuda}
+                  {numerosInteiros(C.telefoneAjuda)}
                 </span>
               )}
             </div>
@@ -750,14 +765,16 @@ export function FormularioCarrinho({
             {/* quando o rótulo e o preço não cabem lado a lado (tela estreita, total alto), o preço desce para a linha de
                 baixo, à direita, em vez de empurrar a página para o lado */}
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              {/* "Total no Pix" e "≈ US$ 12,46" ficam inteiros: o rótulo só quebra entre os dois pedaços */}
               <span className="flex-1 font-semibold">
-                {C.total} <span className="text-(--color-d2)">{destaquePix ? P.noPix : P.noCartao}</span>
-                {usd(destaquePix ? totalPixCentavos : totalCentavos) && (
-                  <span className="whitespace-nowrap text-small font-normal text-(--tinta-suave)">
-                    {' '}
-                    · {usd(destaquePix ? totalPixCentavos : totalCentavos)}
+                <ComDolar
+                  dolar={usd(destaquePix ? totalPixCentavos : totalCentavos)}
+                  className="text-small font-normal text-(--tinta-suave)"
+                >
+                  <span className="whitespace-nowrap">
+                    {C.total} <span className="text-(--color-d2)">{destaquePix ? P.noPix : P.noCartao}</span>
                   </span>
-                )}
+                </ComDolar>
               </span>
               <span className="numeros titulo ml-auto leading-none" aria-live="polite">
                 {brl(destaquePix ? totalPixCentavos : totalCentavos)}
@@ -765,10 +782,11 @@ export function FormularioCarrinho({
             </div>
             <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
               <span>
-                {C.total} {destaquePix ? P.noCartao : P.noPix}
-                {usd(destaquePix ? totalCentavos : totalPixCentavos) && (
-                  <span className="whitespace-nowrap"> · {usd(destaquePix ? totalCentavos : totalPixCentavos)}</span>
-                )}
+                <ComDolar dolar={usd(destaquePix ? totalCentavos : totalPixCentavos)}>
+                  <span className="whitespace-nowrap">
+                    {C.total} {destaquePix ? P.noCartao : P.noPix}
+                  </span>
+                </ComDolar>
               </span>
               <span className="numeros font-semibold">{brl(destaquePix ? totalCentavos : totalPixCentavos)}</span>
             </p>

@@ -3,6 +3,7 @@
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
+import { ComDolar } from '../ComDolar';
 
 export interface TextosResumo {
   total: string;
@@ -42,18 +43,23 @@ export function ResumoCarrinho({
   return (
     <div>
       <div className="flex items-baseline justify-between gap-4">
+        {/* "Total no Pix" e "≈ US$ 12,46" ficam inteiros: o rótulo só quebra entre os dois pedaços */}
         <span className="font-semibold">
-          {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
-          {usd(totalPixCentavos) && (
-            <span className="whitespace-nowrap text-small font-normal text-(--color-tinta-suave)"> · {usd(totalPixCentavos)}</span>
-          )}
+          <ComDolar dolar={usd(totalPixCentavos)} className="text-small font-normal text-(--color-tinta-suave)">
+            <span className="whitespace-nowrap">
+              {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+            </span>
+          </ComDolar>
         </span>
         <strong className="cifra text-figure">{brl(totalPixCentavos)}</strong>
       </div>
       <p className="flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)">
         <span>
-          {T.total} {T.noCartao}
-          {usd(totalCentavos) && <span className="whitespace-nowrap"> · {usd(totalCentavos)}</span>}
+          <ComDolar dolar={usd(totalCentavos)}>
+            <span className="whitespace-nowrap">
+              {T.total} {T.noCartao}
+            </span>
+          </ComDolar>
         </span>
         <span className="numeros font-semibold text-(--color-tinta)">{brl(totalCentavos)}</span>
       </p>

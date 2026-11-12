@@ -10,6 +10,7 @@ import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/hor
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
+import { ComDolar } from '../ComDolar';
 import { useCarrinho } from './CarrinhoContexto';
 
 export interface TextosSugestoes {
@@ -48,6 +49,15 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
   const brl = (c: number) => formatarCifra(c, locale);
   // o aproximado em dólar só no preço "desde"; os botões de opção ficam sem, por decisão do dono
   const usdDesde = textoDolar(s.opcoes[0].totalPixCentavos, dolar, T.dolar, locale);
+  const preco = (
+    <>
+      {varias && <span className="text-(--color-tinta-suave)">{T.aPartirDe} </span>}
+      <span className="whitespace-nowrap">
+        <span className="cifra font-semibold">{brl(s.opcoes[0].totalPixCentavos)}</span>{' '}
+        <span className="font-semibold text-(--color-sucesso)">{T.noPix}</span>
+      </span>
+    </>
+  );
 
   async function confirmar() {
     setErro('');
@@ -92,11 +102,13 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
         </div>
         <div className="flex-1">
           <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{s.nome}</p>
+          {/* "R$ 69,30 con Pix" fica inteiro (em todos os idiomas; o "desde" pode ficar na linha de cima) e o dólar desce
+              sem o "·" quando não cabe ao lado. O preço inteiro também faz o botão descer para a linha de baixo em tela
+              estreita, em vez de espremer o texto: igual em todas as sugestões da lista */}
           <p className="text-small">
-            {varias && <span className="text-(--color-tinta-suave)">{T.aPartirDe} </span>}
-            <span className="cifra font-semibold">{brl(s.opcoes[0].totalPixCentavos)}</span>{' '}
-            <span className="font-semibold text-(--color-sucesso)">{T.noPix}</span>
-            {usdDesde && <span className="whitespace-nowrap text-(--color-tinta-suave)"> · {usdDesde}</span>}
+            <ComDolar dolar={usdDesde} className="text-(--color-tinta-suave)">
+              {preco}
+            </ComDolar>
           </p>
           <p className="text-small text-(--color-tinta-suave)">{s.pessoasTexto}</p>
         </div>

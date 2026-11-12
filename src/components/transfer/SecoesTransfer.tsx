@@ -8,6 +8,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { textosCotacao } from '@/lib/cotacao';
 import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { ComDolar } from '../ComDolar';
 
 /** Os textos do cartão de reserva do transfer. */
 export function textosWidgetTransfer(d: Dicionario) {
@@ -72,12 +73,20 @@ export function PrecosTransfer({
     const usdCartao = usd(centavos);
     return (
       <>
-        <span className="cifra text-lead font-semibold">{formatarCifra(precoPixCentavos(centavos), locale)}</span>{' '}
-        <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
-        {usdPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)"> · {usdPix}</span>}
+        {/* "R$ 297,00 con Pix" e "≈ US$ 53,41" ficam inteiros: a linha só quebra entre os dois pedaços, sem o "·" no
+            começo da linha de baixo (o mesmo no cartão) */}
+        <ComDolar dolar={usdPix} className="text-small text-(--color-tinta-suave)">
+          <span className="whitespace-nowrap">
+            <span className="cifra text-lead font-semibold">{formatarCifra(precoPixCentavos(centavos), locale)}</span>{' '}
+            <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+          </span>
+        </ComDolar>
         <span className="block text-small text-(--color-tinta-suave)">
-          <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(centavos, locale)}</span> {d.preco.noCartao}
-          {usdCartao && <span className="whitespace-nowrap"> · {usdCartao}</span>}
+          <ComDolar dolar={usdCartao}>
+            <span className="whitespace-nowrap">
+              <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(centavos, locale)}</span> {d.preco.noCartao}
+            </span>
+          </ComDolar>
         </span>
       </>
     );

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { migalhas } from '@/lib/dados-estruturados';
 import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { BarraReservaMovel } from '@/components/BarraReservaMovel';
+import { ComDolar, Pedaco, Pedacos } from '@/components/ComDolar';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { MapaCasa } from '@/components/casas/MapaCasa';
 import { ReservaCasa } from '@/components/casas/ReservaCasa';
@@ -171,15 +172,27 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
         <div className="mt-10 grid gap-12 lg:mt-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
             <div className="chegar">
-              <p className="flex flex-wrap items-baseline gap-x-1.5">
-                <span className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</span>
-                <strong className="cifra text-figure">{diariaPix}</strong>
-                <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
-                {usdDiariaPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usdDiariaPix}</span>}
+              {/* cada pedaço fica inteiro e o "·" do dólar só aparece ao lado de outro pedaço, nunca no começo da linha */}
+              <p>
+                <Pedacos folga="justa" comPonto={Boolean(usdDiariaPix)}>
+                  <Pedaco className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</Pedaco>
+                  <Pedaco forte className="cifra text-figure">
+                    {diariaPix}
+                  </Pedaco>
+                  <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{d.preco.noPix}</Pedaco>
+                  {usdDiariaPix && (
+                    <Pedaco ponto className="text-small text-(--color-tinta-suave)">
+                      {usdDiariaPix}
+                    </Pedaco>
+                  )}
+                </Pedacos>
               </p>
               <p className="text-small text-(--color-tinta-suave)">
-                <span className="numeros font-semibold text-(--color-tinta)">{cifra(menorDiaria(c))}</span> {d.preco.noCartao}
-                {usd(menorDiaria(c)) && <span className="whitespace-nowrap"> · {usd(menorDiaria(c))}</span>}
+                <ComDolar dolar={usd(menorDiaria(c))}>
+                  <span className="whitespace-nowrap">
+                    <span className="numeros font-semibold text-(--color-tinta)">{cifra(menorDiaria(c))}</span> {d.preco.noCartao}
+                  </span>
+                </ComDolar>
               </p>
             </div>
             <p className="chegar mt-4 max-w-[52ch] text-lead">{texto(c.resumo, locale)}</p>

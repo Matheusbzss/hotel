@@ -5,6 +5,7 @@ import { altDaFoto } from '@/data/fotos-alt';
 import type { Dicionario } from '@/i18n';
 import type { Idioma } from '@/i18n/config';
 import { linkEmail } from '@/lib/email';
+import { PONTO_PRESO } from '@/lib/ponto';
 
 /** A política de cancelamento em linhas de células: a situação, o que você recebe e o prazo. */
 export function TabelaGarantias({ d, className = '' }: { d: Dicionario; className?: string }) {
@@ -92,9 +93,10 @@ export function Garantias({ idioma, d, hrefPolitica }: { idioma: Idioma; d: Dici
                 <dt className="font-semibold">{g.se}</dt>
                 <dd>
                   {g.recebe}
-                  {/* o prazo vem na mesma linha, preso ao ponto por um espaço que não quebra (o ponto nunca fica sozinho no fim) */}
+                  {/* o prazo vem na mesma linha, com o ponto preso às palavras dos dois lados por espaços que não quebram: a
+                      linha nunca começa nem termina no ponto */}
                   <span className="text-(--color-tinta-suave)">
-                    {' · '}
+                    {PONTO_PRESO}
                     {g.prazo}
                   </span>
                 </dd>

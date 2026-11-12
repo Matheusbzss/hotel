@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
-import { Fragment } from 'react';
 import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
+import { ComDolar, Pedaco, Pedacos } from '@/components/ComDolar';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
 import type { TotaisDasFormas } from '@/components/pagamento/EscolhaPagamento';
@@ -153,6 +153,27 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));
   const partes = (totalCentavos: number, totalPixCentavos?: number): ParteDoTotal[] =>
     emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas) : [{ centavos: totalCentavos }];
+  // cada valor fica inteiro com o rótulo ("R$ 138,60 con Pix") e o "·" só aparece entre dois pedaços da mesma linha
+  const linhaDeValores = (lista: ParteDoTotal[]) => {
+    const pedacos = lista.flatMap((parte, n) => {
+      const chave = parte.forma ?? 'total';
+      const u = usd(parte.centavos);
+      return [
+        <Pedaco key={`${chave}-valor`} ponto={n > 0} className="whitespace-nowrap">
+          {valor(parte)}
+        </Pedaco>,
+        ...(u
+          ? [
+              <Pedaco key={`${chave}-dolar`} ponto className="text-(--tinta-suave)">
+                {u}
+              </Pedaco>,
+            ]
+          : []),
+      ];
+    });
+    // um valor só, sem dólar (português): o texto de sempre
+    return pedacos.length > 1 ? <Pedacos>{pedacos}</Pedacos> : valor(lista[0]);
+  };
   const doPedido: ParteDoTotal[] = emAberto ? partes(pedido.totalCentavos, pedido.totalPixCentavos) : [{ centavos: fechado }];
   const principal = doPedido[0];
   const segunda: ParteDoTotal | undefined = doPedido[1];
@@ -260,32 +281,25 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                       </p>
                     </>
                   ) : (
-                    <p className="numeros mt-1.5 text-small">
-                      {partes(r.totalCentavos, r.totalPixCentavos).map((parte, n) => (
-                        <Fragment key={parte.forma ?? 'total'}>
-                          {n > 0 && ' · '}
-                          {valor(parte)}
-                          {usd(parte.centavos) && <span className="whitespace-nowrap text-(--tinta-suave)"> · {usd(parte.centavos)}</span>}
-                        </Fragment>
-                      ))}
-                    </p>
+                    <p className="numeros mt-1.5 text-small">{linhaDeValores(partes(r.totalCentavos, r.totalPixCentavos))}</p>
                   )}
                 </li>
               ))}
             </ul>
             <div className="tom-campo px-6 py-5 md:px-8">
               <p className="font-semibold">{d.status[status]}</p>
+              {/* cada valor fica inteiro com o rótulo e o dólar ao lado; o que não couber desce sem o "·" na frente */}
               <p className="numeros mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
                 <span className="text-lead font-semibold">
-                  {valor(principal)}
-                  {usd(principal.centavos) && (
-                    <span className="whitespace-nowrap text-small font-normal text-(--tinta-suave)"> · {usd(principal.centavos)}</span>
-                  )}
+                  <ComDolar dolar={usd(principal.centavos)} className="text-small font-normal text-(--tinta-suave)">
+                    <span className="whitespace-nowrap">{valor(principal)}</span>
+                  </ComDolar>
                 </span>
                 {segunda && (
                   <span className="text-small">
-                    {valor(segunda)}
-                    {usd(segunda.centavos) && <span className="whitespace-nowrap"> · {usd(segunda.centavos)}</span>}
+                    <ComDolar dolar={usd(segunda.centavos)}>
+                      <span className="whitespace-nowrap">{valor(segunda)}</span>
+                    </ComDolar>
                   </span>
                 )}
               </p>

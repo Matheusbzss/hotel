@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import type { Cidade } from '@/data/passeios';
 import { fmt } from '@/i18n/config';
+import { semQuebraNoPonto } from '@/lib/ponto';
 import type { Caixa, Mapa } from './mapa-relevo';
 
 export interface CidadeMapa {
@@ -246,7 +247,8 @@ export function MapaRegiao({
             </div>
           )}
         </div>
-        <p className="mapa-fonte">{T.fonte}</p>
+        {/* o "·" fica preso às palavras dos dois lados: a linha nunca começa nem termina nele */}
+        <p className="mapa-fonte">{semQuebraNoPonto(T.fonte)}</p>
       </div>
     </section>
   );

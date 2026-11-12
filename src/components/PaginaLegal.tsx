@@ -5,6 +5,7 @@ import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
 import { migalhas } from '@/lib/dados-estruturados';
 import { linkEmail } from '@/lib/email';
+import { PONTO_PRESO } from '@/lib/ponto';
 import type { ReactNode } from 'react';
 import { DadosEstruturados } from './DadosEstruturados';
 import { IconeEmail } from './IconeEmail';
@@ -70,8 +71,11 @@ export function PaginaLegal({
             <IconeEmail className="size-5" />
             {acao.botao}
           </a>
+          {/* o "·" fica preso às palavras dos dois lados: a linha nunca começa nem termina nele */}
           <p className="text-small text-(--tinta-suave)">
-            {fmt(d.legal.atualizado, { data })}&nbsp;· {EMPRESA.marca}
+            {fmt(d.legal.atualizado, { data })}
+            {PONTO_PRESO}
+            <span className="whitespace-nowrap">{EMPRESA.marca}</span>
           </p>
         </div>
       </header>

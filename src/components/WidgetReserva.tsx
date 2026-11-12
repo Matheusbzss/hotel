@@ -13,7 +13,7 @@ import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from './CampoData';
 import { useCarrinho } from './carrinho/CarrinhoContexto';
 import { Cifra } from './Cifra';
-import { ComDolar } from './ComDolar';
+import { ComDolar, Pedaco, Pedacos } from './ComDolar';
 import { Contador } from './grupo/Contador';
 import { pessoasDoGrupo, useGrupo } from './grupo/GrupoContexto';
 
@@ -210,18 +210,28 @@ export function WidgetReserva({
     <div id="reservar" className="scroll-mt-24">
       <div className="rounded-cartao border border-(--color-borda) bg-(--color-papel) p-5 sm:p-6">
         <h2 className="text-lead font-semibold">{T.titulo}</h2>
-        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
-          {mostrarOpcoes && <span className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</span>}
-          <strong className="cifra text-figure">{brl(precoPixCentavos(menorPreco))}</strong>
-          <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
-          {usd(precoPixCentavos(menorPreco)) && (
-            <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usd(precoPixCentavos(menorPreco))}</span>
-          )}
-          <span className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</span>
+        {/* cada pedaço fica inteiro e o "·" do dólar só aparece ao lado de outro pedaço, nunca no começo da linha */}
+        <p className="mt-1">
+          <Pedacos folga="justa" comPonto={Boolean(usd(precoPixCentavos(menorPreco)))}>
+            {mostrarOpcoes && <Pedaco className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</Pedaco>}
+            <Pedaco forte className="cifra text-figure">
+              {brl(precoPixCentavos(menorPreco))}
+            </Pedaco>
+            <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{T.noPix}</Pedaco>
+            {usd(precoPixCentavos(menorPreco)) && (
+              <Pedaco ponto className="text-small text-(--color-tinta-suave)">
+                {usd(precoPixCentavos(menorPreco))}
+              </Pedaco>
+            )}
+            <Pedaco className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</Pedaco>
+          </Pedacos>
         </p>
         <p className="text-small text-(--color-tinta-suave)">
-          <span className="numeros font-semibold text-(--color-tinta)">{brl(menorPreco)}</span> {T.noCartao}
-          {usd(menorPreco) && <span className="whitespace-nowrap"> · {usd(menorPreco)}</span>}
+          <ComDolar dolar={usd(menorPreco)}>
+            <span className="whitespace-nowrap">
+              <span className="numeros font-semibold text-(--color-tinta)">{brl(menorPreco)}</span> {T.noCartao}
+            </span>
+          </ComDolar>
         </p>
 
         {mostrarOpcoes && (

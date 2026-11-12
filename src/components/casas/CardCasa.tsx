@@ -8,6 +8,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { menorDiaria } from '@/lib/diarias';
 import { cotacaoDolar, textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { ComDolar, Pedaco, Pedacos } from '../ComDolar';
 import { CartaoInclinavel } from '../Inclinar';
 
 /**
@@ -51,15 +52,27 @@ export async function CardCasa({
       <div className="cartao-texto" aria-hidden="true">
         <h3 className="cartao-titulo">{texto(c.nome, idioma)}</h3>
         <p className="mt-1 text-small text-(--color-tinta-suave)">{tamanho}</p>
-        <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
-          <span className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</span>
-          <strong className="cifra text-figure">{diariaPix}</strong>
-          <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
-          {usdPix && <span className="whitespace-nowrap text-small text-(--color-tinta-suave)">· {usdPix}</span>}
+        {/* cada pedaço fica inteiro e o "·" do dólar só aparece ao lado de outro pedaço, nunca no começo da linha */}
+        <p className="mt-2">
+          <Pedacos folga="justa" comPonto={Boolean(usdPix)}>
+            <Pedaco className="text-small text-(--color-tinta-suave)">{t.diariaAPartir}</Pedaco>
+            <Pedaco forte className="cifra text-figure">
+              {diariaPix}
+            </Pedaco>
+            <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{d.preco.noPix}</Pedaco>
+            {usdPix && (
+              <Pedaco ponto className="text-small text-(--color-tinta-suave)">
+                {usdPix}
+              </Pedaco>
+            )}
+          </Pedacos>
         </p>
         <p className="text-small text-(--color-tinta-suave)">
-          <span className="numeros font-semibold text-(--color-tinta)">{diaria}</span> {d.preco.noCartao}
-          {usdCartao && <span className="whitespace-nowrap"> · {usdCartao}</span>}
+          <ComDolar dolar={usdCartao}>
+            <span className="whitespace-nowrap">
+              <span className="numeros font-semibold text-(--color-tinta)">{diaria}</span> {d.preco.noCartao}
+            </span>
+          </ComDolar>
         </p>
       </div>
     </CartaoInclinavel>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
 import { formatarCifra } from '@/lib/cifra';
+import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { podeMudar } from '@/lib/pagamento-stripe';
 import type { ErroDoPainel } from '@/lib/pedidos-painel';
@@ -132,6 +133,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (manual.status === 'pago' && !r.pagamento.pagoEm) r.pagamento.pagoEm = new Date().toISOString();
     return registrar(r, manual.evento);
   });
-  if (virouPago && atualizada) await avisarCompra(atualizada);
+  if (virouPago && atualizada) {
+    await avisarCompra(atualizada);
+    // o e-mail do pagamento aprovado, com os vouchers (Etapa 6), depois da resposta; uma vez só por pedido
+    agendarEmailDoPedido('pagamento-aprovado', codigoDoPedido);
+  }
   return voltar();
 }

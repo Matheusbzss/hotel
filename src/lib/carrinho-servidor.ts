@@ -1,5 +1,5 @@
 import 'server-only';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
@@ -293,6 +293,18 @@ export interface PedidoDoCarrinho {
   forma?: FormaPagamento;
 }
 
+/**
+ * Os lembretes do carrinho abandonado (src/lib/carrinho-lembretes.ts): quando cada um saiu e quando o cliente voltou
+ * pelo link do e-mail. No banco é a tabela carrinhos_lembretes, separada para não mexer no atualizado_em do carrinho
+ * (que é a última vez que o CLIENTE mexeu nele); nos arquivos do computador, um campo do próprio arquivo.
+ */
+export interface LembretesDoCarrinho {
+  lembrete1Em?: string;
+  lembrete2Em?: string;
+  voltouEm?: string;
+  voltouLembrete?: 1 | 2;
+}
+
 export interface CarrinhoGuardado {
   itens: ItemCarrinho[];
   email?: string;
@@ -301,16 +313,33 @@ export interface CarrinhoGuardado {
   pedido?: PedidoDoCarrinho;
   /** A campanha do anúncio de onde o cliente veio. */
   origem?: Origem;
-  /** Só nos arquivos do computador: no banco, são as colunas criado_em e checkout_em. */
+  /**
+   * Só nos arquivos do computador: no banco, são as colunas id, idioma, criado_em, atualizado_em e checkout_em e a
+   * tabela carrinhos_lembretes. O id é o que vai no link assinado dos lembretes (nunca o código do cookie).
+   */
+  id?: string;
+  idioma?: Idioma;
   criadoEm?: string;
+  atualizadoEm?: string;
   checkoutEm?: string;
+  lembretes?: LembretesDoCarrinho;
 }
 
 export const novoCodigoCarrinho = () => randomBytes(18).toString('base64url');
 export const codigoCarrinhoValido = (c: string | undefined): c is string => !!c && /^[A-Za-z0-9_-]{20,40}$/.test(c);
 
+/** O carrinho fica guardado 60 dias, só no cookie deste site (o navegador não lê o código). */
+export const OPCOES_COOKIE_CARRINHO = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 60 * 60 * 24 * 60,
+};
+
 // No banco na Vercel (ou no computador com RESERVAS_NO_BANCO=1); senão, arquivos em .data/carrinhos/.
-const PASTA = path.join(process.cwd(), '.data', 'carrinhos');
+export const PASTA_CARRINHOS = path.join(process.cwd(), '.data', 'carrinhos');
+const PASTA = PASTA_CARRINHOS;
 
 /**
  * O carrinho que virou um pedido da Stripe continua aberto enquanto nada foi pago: com o pedido pendente ou
@@ -390,17 +419,23 @@ export async function gravarCarrinho(
     return;
   }
   const atual = await lerCarrinho(codigo);
+  const agora = new Date().toISOString();
   await fs.mkdir(PASTA, { recursive: true });
   await fs.writeFile(
     path.join(PASTA, `${codigo}.json`),
     JSON.stringify(
       {
+        // como no banco: o id e o idioma do carrinho, e a última vez que o cliente mexeu nele (para os lembretes)
+        id: atual.id ?? randomUUID(),
+        idioma: mudanca.idioma ?? atual.idioma,
         itens: mudanca.itens ?? atual.itens,
         email: mudanca.email ?? atual.email,
         pedidoId: mudanca.pedidoId ?? atual.pedidoId,
         origem: mudanca.origem && Object.keys(mudanca.origem).length ? mudanca.origem : atual.origem,
-        criadoEm: atual.criadoEm ?? new Date().toISOString(),
+        criadoEm: atual.criadoEm ?? agora,
+        atualizadoEm: agora,
         checkoutEm: atual.checkoutEm,
+        lembretes: atual.lembretes,
       },
       null,
       2,
@@ -420,44 +455,97 @@ export async function marcarCheckout(codigo: string | undefined): Promise<void> 
   // o pedido é lido do banco de reservas a cada leitura: não entra no arquivo
   const { pedido: _pedido, ...atual } = await lerCarrinho(codigo);
   if (!atual.itens.length || atual.checkoutEm) return;
-  await fs.writeFile(path.join(PASTA, `${codigo}.json`), JSON.stringify({ ...atual, checkoutEm: agora }, null, 2));
+  await fs.writeFile(path.join(PASTA, `${codigo}.json`), JSON.stringify({ ...atual, checkoutEm: agora, atualizadoEm: agora }, null, 2));
 }
 
-/** Os carrinhos criados a partir de uma data (ou todos), só com o que o funil das estatísticas usa. */
+/** Uma linha de carrinhos_lembretes como o banco devolve (a relação é de um para um, mas o PostgREST pode mandar lista). */
+interface LinhaLembretes {
+  lembrete_1_em: string | null;
+  lembrete_2_em: string | null;
+  voltou_em: string | null;
+}
+interface LinhaDoFunil {
+  criado_em: string;
+  checkout_em: string | null;
+  pedido_id: string | null;
+  pedidos: { status: string; criado_em: string } | null;
+  carrinhos_lembretes?: LinhaLembretes | LinhaLembretes[] | null;
+}
+
+const umSo = <T>(v: T | T[] | null | undefined): T | undefined => (Array.isArray(v) ? v[0] : (v ?? undefined));
+
+/** Os lembretes de uma linha do funil, só com o que existe. */
+function lembretesDaLinha(l: LinhaLembretes | undefined): Pick<CarrinhoNoFunil, 'lembrete1Em' | 'lembrete2Em' | 'voltouEm'> {
+  return {
+    ...(l?.lembrete_1_em ? { lembrete1Em: l.lembrete_1_em } : {}),
+    ...(l?.lembrete_2_em ? { lembrete2Em: l.lembrete_2_em } : {}),
+    ...(l?.voltou_em ? { voltouEm: l.voltou_em } : {}),
+  };
+}
+
+/** As linhas dos carrinhos, de 1000 em 1000; `comLembretes`: junto com carrinhos_lembretes (a migração da Etapa 6). */
+async function linhasDoFunil(desde: string | undefined, comLembretes: boolean): Promise<LinhaDoFunil[]> {
+  const campos = `criado_em, checkout_em, pedido_id, pedidos(status, criado_em)${comLembretes ? ', carrinhos_lembretes(lembrete_1_em, lembrete_2_em, voltou_em)' : ''}`;
+  const linhas: LinhaDoFunil[] = [];
+  for (let de = 0; ; de += 1000) {
+    let consulta = supabase().from('carrinhos').select(campos);
+    if (desde) consulta = consulta.gte('criado_em', desde);
+    const { data, error } = await consulta.order('criado_em', { ascending: false }).range(de, de + 999);
+    if (error) throw new Error(`Banco de dados: ${error.message}`);
+    const pagina = data as unknown as LinhaDoFunil[];
+    linhas.push(...pagina);
+    if (pagina.length < 1000) return linhas;
+  }
+}
+
+/**
+ * Os carrinhos criados a partir de uma data (ou todos), só com o que o funil e os lembretes das estatísticas usam.
+ * A busca volta 3 dias antes da data: um carrinho criado um pouco antes do período pode ter recebido o lembrete
+ * dentro dele (o funil continua contando só os criados no período, src/lib/estatisticas.ts).
+ */
 export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[]> {
+  const inicio = desde ? new Date(Date.parse(desde) - 3 * 86_400_000).toISOString() : undefined;
   if (usarBanco()) {
-    const lista: CarrinhoNoFunil[] = [];
-    for (let de = 0; ; de += 1000) {
-      let consulta = supabase().from('carrinhos').select('criado_em, checkout_em, pedido_id, pedidos(status)');
-      if (desde) consulta = consulta.gte('criado_em', desde);
-      const { data, error } = await consulta.order('criado_em', { ascending: false }).range(de, de + 999);
-      if (error) throw new Error(`Banco de dados: ${error.message}`);
-      for (const c of data) {
-        lista.push({
-          criadoEm: c.criado_em,
-          ...(c.checkout_em ? { checkoutEm: c.checkout_em } : {}),
-          fezPedido: c.pedido_id !== null,
-          pagou: c.pedidos?.status === 'pago',
-        });
-      }
-      if (data.length < 1000) return lista;
+    let linhas: LinhaDoFunil[];
+    try {
+      linhas = await linhasDoFunil(inicio, true);
+    } catch (e) {
+      // a migração dos lembretes (carrinhos_lembretes) ainda não foi aplicada: o funil sai sem eles
+      console.error(`[estatisticas] carrinhos sem os lembretes: ${e instanceof Error ? e.message : String(e)}`);
+      linhas = await linhasDoFunil(inicio, false);
     }
+    return linhas.map((c) => ({
+      criadoEm: c.criado_em,
+      ...(c.checkout_em ? { checkoutEm: c.checkout_em } : {}),
+      fezPedido: c.pedido_id !== null,
+      ...(c.pedidos?.criado_em ? { pedidoEm: c.pedidos.criado_em } : {}),
+      pagou: c.pedidos?.status === 'pago',
+      ...lembretesDaLinha(umSo(c.carrinhos_lembretes)),
+    }));
   }
   const nomes = (await fs.readdir(PASTA).catch(() => [] as string[])).filter((n) => n.endsWith('.json'));
-  const status = new Map((await listarReservas()).map((r) => [r.pedido?.codigo ?? r.codigo, r.status]));
+  const pedidos = new Map((await listarReservas()).map((r) => [r.pedido?.codigo ?? r.codigo, r]));
   const lista = await Promise.all(
     nomes.map(async (nome) => {
       const arquivo = path.join(PASTA, nome);
       const c = JSON.parse(await fs.readFile(arquivo, 'utf8')) as CarrinhoGuardado;
+      const pedido = c.pedidoId ? pedidos.get(c.pedidoId) : undefined;
+      const l = c.lembretes;
       return {
         criadoEm: c.criadoEm ?? (await fs.stat(arquivo)).mtime.toISOString(),
         ...(c.checkoutEm ? { checkoutEm: c.checkoutEm } : {}),
         fezPedido: Boolean(c.pedidoId),
-        pagou: Boolean(c.pedidoId) && status.get(c.pedidoId as string) === 'pago',
+        ...(pedido ? { pedidoEm: pedido.criadaEm } : {}),
+        pagou: pedido?.status === 'pago',
+        ...lembretesDaLinha({
+          lembrete_1_em: l?.lembrete1Em ?? null,
+          lembrete_2_em: l?.lembrete2Em ?? null,
+          voltou_em: l?.voltouEm ?? null,
+        }),
       };
     }),
   );
-  return desde ? lista.filter((c) => c.criadoEm >= desde) : lista;
+  return inicio ? lista.filter((c) => Date.parse(c.criadoEm) >= Date.parse(inicio)) : lista;
 }
 
 /** Os itens que ainda valem, já com o texto e o preço no idioma. */

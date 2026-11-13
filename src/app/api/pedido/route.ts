@@ -5,6 +5,7 @@ import { IDIOMAS } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
+import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { FORMAS_PAGAMENTO, formasDisponiveis, type FormaPagamento } from '@/lib/formas-pagamento';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { origemDaVisita } from '@/lib/origem-servidor';
@@ -137,6 +138,9 @@ export async function POST(req: Request) {
     await gravarCarrinho(codigoCarrinho, { pedidoId: pedido.id, email: dados.cliente.email }).catch((err) =>
       console.error('[pedido] falha ao marcar o carrinho', err),
     );
+    // o e-mail do pedido recebido, com o link privado (Etapa 6): sai depois da resposta e só se o pedido ainda estiver
+    // esperando o pagamento nessa hora (o que deu errado na sessão de pagamento, logo abaixo, cancela o pedido antes)
+    agendarEmailDoPedido('pedido-recebido', pedido.codigo);
     const resposta = { ok: true, codigo: pedido.codigo, token: pedido.token, itens: novas.length };
 
     // o cliente refez o pedido a partir do mesmo carrinho (mudou um item, voltou do formulário da Stripe): o anterior,

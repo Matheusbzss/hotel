@@ -6,6 +6,7 @@ import { GraficoColunas, type Coluna } from '@/components/admin/GraficoColunas';
 import { CIDADES } from '@/data/passeios';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { carrinhosDoFunil } from '@/lib/carrinho-servidor';
+import { emailLigado, remetente, responderPara } from '@/lib/email/enviar';
 import {
   PERIODOS,
   calcularEstatisticas,
@@ -16,8 +17,10 @@ import {
   type CarrinhoNoFunil,
   type Fatia,
   type Funil,
+  type Lembretes,
   type Ponto,
 } from '@/lib/estatisticas';
+import { LEMBRETES_POR_DIA } from '@/lib/lembretes';
 import { formatarPreco } from '@/lib/precos';
 import { listarReservas, type Reserva } from '@/lib/reservas';
 import { urlDoSite } from '@/lib/site';
@@ -68,7 +71,19 @@ function Comparacao({ atual, anterior }: { atual: number; anterior?: number }) {
   );
 }
 
-function Numero({ rotulo, valor, nota, atual, anterior }: { rotulo: string; valor: string; nota?: string; atual: number; anterior?: number }) {
+function Numero({
+  rotulo,
+  valor,
+  nota,
+  atual,
+  anterior,
+}: {
+  rotulo: string;
+  valor: string;
+  nota?: string;
+  atual: number;
+  anterior?: number;
+}) {
   return (
     <div className="bg-white px-4 py-4 sm:px-5">
       <p className="text-small text-tinta-suave">{rotulo}</p>
@@ -155,6 +170,67 @@ function BlocoFunil({ f, anterior }: { f: Funil; anterior?: Funil }) {
   );
 }
 
+/** O que os lembretes do carrinho abandonado trouxeram de volta: carrinhos lembrados, quem voltou pelo link e quem comprou. */
+function BlocoLembretes({ l, anterior }: { l: Lembretes; anterior?: Lembretes }) {
+  if (!l.carrinhos) {
+    return (
+      <p className="text-tinta-suave">
+        {emailLigado() ? 'Nenhum lembrete enviado neste período.' : 'Nenhum lembrete enviado: os e-mails estão desligados.'}
+      </p>
+    );
+  }
+  const etapas = [
+    { nome: 'Carrinhos lembrados', n: l.carrinhos, nota: contagem(l.enviados, 'e-mail enviado no período', 'e-mails enviados no período') },
+    { nome: 'Voltaram pelo link do e-mail', n: l.voltaram, nota: `${porcento(l.voltaram, l.carrinhos)} dos carrinhos lembrados` },
+    { nome: 'Fizeram o pedido', n: l.pedidos, nota: `${porcento(l.pedidos, l.voltaram)} de quem voltou` },
+    { nome: 'Pagaram', n: l.pagos, nota: `${porcento(l.pagos, l.pedidos)} dos pedidos` },
+  ];
+  return (
+    <>
+      <p className="text-small text-tinta-suave">Carrinhos que voltaram pelo e-mail e viraram pedido</p>
+      <p className="text-2xl font-bold">{l.pedidos}</p>
+      <Comparacao atual={l.pedidos} anterior={anterior?.pedidos} />
+      <ul className="mt-4 space-y-3">
+        {etapas.map((e, i) => (
+          <Linha key={e.nome} nome={e.nome} valor={String(e.n)} nota={e.nota} largura={parte(e.n, l.carrinhos)} cor={CORES_ETAPAS[i]} />
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Os e-mails automáticos (Etapa 6): ligados só com a chave do Resend na Vercel. */
+function Emails() {
+  const ligado = emailLigado();
+  const itens: [string, boolean][] = [
+    ['Envio de e-mails (Resend)', ligado],
+    ['Lembretes do carrinho (a cada 15 minutos)', ligado && Boolean(process.env.CRON_SECRET)],
+  ];
+  return (
+    <>
+      <ul className="divide-y divide-superficie">
+        {itens.map(([nome, ok]) => (
+          <li key={nome} className="flex items-center justify-between gap-3 py-2">
+            <span>{nome}</span>
+            <span className={`shrink-0 text-small font-semibold ${ok ? 'text-sucesso' : 'text-tinta-suave'}`}>
+              {ok ? '● Ligado' : '○ Desligado'}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-small text-tinta-suave">
+        {ligado
+          ? `Saem de ${remetente()}. As respostas dos clientes vão para ${responderPara()}.`
+          : 'Falta a chave RESEND_API_KEY na Vercel. Sem ela, nenhum e-mail sai e o site segue normal.'}
+      </p>
+      <p className="mt-1 text-small text-tinta-suave">
+        Pedido recebido, pagamento aprovado com os vouchers, Pix vencido, link do pedido e até {LEMBRETES_POR_DIA} lembretes de carrinho por
+        dia.
+      </p>
+    </>
+  );
+}
+
 /** O que já está ligado para a Meta e o Google aprenderem com as vendas. Cada item liga com uma variável na Vercel. */
 function Medicao() {
   const segredo = process.env.GOOGLE_ARQUIVO_SEGREDO;
@@ -180,7 +256,12 @@ function Medicao() {
         <div className="mt-3">
           <p className="text-small text-tinta-suave">Endereço do arquivo, para colar no Google Ads:</p>
           <div className="mt-1 flex gap-2">
-            <input readOnly aria-label="Endereço do arquivo" value={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`} className="campo min-w-0 flex-1" />
+            <input
+              readOnly
+              aria-label="Endereço do arquivo"
+              value={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`}
+              className="campo min-w-0 flex-1"
+            />
             <BotaoCopiar texto={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`} />
           </div>
         </div>
@@ -208,8 +289,14 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
     erroBanco = String(e instanceof Error ? e.message : e);
   }
 
-  const inicios = [...reservas.map((r) => r.pagamento.pagoEm ?? r.criadaEm), ...carrinhos.map((c) => c.criadoEm)].map((d) => hojeEmBuzios(new Date(d)));
-  const escolhido = escolherPeriodo(pedido, hoje, inicios.reduce((a, b) => (a < b ? a : b), hoje));
+  const inicios = [...reservas.map((r) => r.pagamento.pagoEm ?? r.criadaEm), ...carrinhos.map((c) => c.criadoEm)].map((d) =>
+    hojeEmBuzios(new Date(d)),
+  );
+  const escolhido = escolherPeriodo(
+    pedido,
+    hoje,
+    inicios.reduce((a, b) => (a < b ? a : b), hoje),
+  );
   const { chave, periodo, anterior } = escolhido;
   const e = calcularEstatisticas(reservas, carrinhos, escolhido);
   const { resumo: r, resumoAnterior: antes } = e;
@@ -221,7 +308,13 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
   /** O endereço da página com o período e a visão de agora, mudando só o que veio. */
   function endereco(mudanca: Record<string, string | undefined>) {
     const busca = new URLSearchParams();
-    const tudo = { periodo: chave === 'outro' ? undefined : chave, de: chave === 'outro' ? periodo.de : undefined, ate: chave === 'outro' ? periodo.ate : undefined, ver, ...mudanca };
+    const tudo = {
+      periodo: chave === 'outro' ? undefined : chave,
+      de: chave === 'outro' ? periodo.de : undefined,
+      ate: chave === 'outro' ? periodo.ate : undefined,
+      ver,
+      ...mudanca,
+    };
     for (const [nome, valor] of Object.entries(tudo)) if (valor) busca.set(nome, valor);
     return `/admin/estatisticas?${busca}`;
   }
@@ -248,7 +341,9 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Estatísticas</h1>
-          <p className="text-small text-tinta-suave">Só pedidos pagos, no dia do pagamento e pelo valor que entrou (no Pix, com o desconto)</p>
+          <p className="text-small text-tinta-suave">
+            Só pedidos pagos, no dia do pagamento e pelo valor que entrou (no Pix, com o desconto)
+          </p>
         </div>
         <a href="/admin" className="min-h-10 bg-white px-4 py-2 font-semibold">
           Voltar aos pedidos
@@ -320,10 +415,18 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
       </section>
 
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Ver os gráficos">
-        <a href={endereco({ ver: 'dia' })} aria-current={!porSemana ? 'true' : undefined} className={`filtro ${!porSemana ? '!bg-mar !text-sol' : '!bg-white'}`}>
+        <a
+          href={endereco({ ver: 'dia' })}
+          aria-current={!porSemana ? 'true' : undefined}
+          className={`filtro ${!porSemana ? '!bg-mar !text-sol' : '!bg-white'}`}
+        >
           Por dia
         </a>
-        <a href={endereco({ ver: 'semana' })} aria-current={porSemana ? 'true' : undefined} className={`filtro ${porSemana ? '!bg-mar !text-sol' : '!bg-white'}`}>
+        <a
+          href={endereco({ ver: 'semana' })}
+          aria-current={porSemana ? 'true' : undefined}
+          className={`filtro ${porSemana ? '!bg-mar !text-sol' : '!bg-white'}`}
+        >
           Por semana
         </a>
       </div>
@@ -356,9 +459,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
         <details className="mt-3 bg-white px-5 py-3">
           <summary className="cursor-pointer text-small font-semibold">Ver em tabela</summary>
           <table className="mt-3 w-full text-small tabular-nums">
-            <caption className="sr-only">
-              Pedidos pagos e faturamento {quando}, só com o que teve venda
-            </caption>
+            <caption className="sr-only">Pedidos pagos e faturamento {quando}, só com o que teve venda</caption>
             <thead>
               <tr className="border-b border-borda text-left">
                 <th className="py-1 font-semibold">{porSemana ? 'Semana' : 'Dia'}</th>
@@ -381,6 +482,18 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
           </table>
         </details>
       )}
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <Cartao
+          titulo="Lembretes do carrinho"
+          nota="Quem digitou o e-mail no checkout e não terminou recebe até 2 lembretes: 1 hora e 24 horas depois"
+        >
+          <BlocoLembretes l={e.lembretes} anterior={e.lembretesAnterior} />
+        </Cartao>
+        <Cartao titulo="E-mails automáticos" nota="O que sai sozinho para o cliente, no idioma da compra">
+          <Emails />
+        </Cartao>
+      </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <Cartao titulo="Funil do carrinho" nota="Os carrinhos criados no período e até onde cada um chegou">

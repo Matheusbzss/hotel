@@ -6,6 +6,7 @@ import { isIdioma, type Idioma } from '@/i18n/config';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import {
   COOKIE_CARRINHO,
+  OPCOES_COOKIE_CARRINHO,
   carrinhoReaproveitavel,
   codigoCarrinhoValido,
   conferirEscolha,
@@ -33,14 +34,8 @@ const idiomaDe = (v: unknown): Idioma => (typeof v === 'string' && isIdioma(v) ?
 const LIMITE_POR_IP = 60;
 const JANELA_SEGUNDOS = 600;
 
-/** O carrinho fica guardado 60 dias, só no cookie deste site (o navegador não lê o código). */
-const OPCOES_COOKIE = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: 60 * 60 * 24 * 60,
-};
+/** O carrinho fica guardado 60 dias, só no cookie deste site (o mesmo do link dos lembretes, /api/carrinho/voltar). */
+const OPCOES_COOKIE = OPCOES_COOKIE_CARRINHO;
 
 type Loja = Awaited<ReturnType<typeof cookies>>;
 
@@ -127,7 +122,7 @@ export async function DELETE(req: Request) {
 
 /**
  * Guarda que o cliente abriu o checkout (para o funil das estatísticas) ou o e-mail que ele digitou lá
- * (para lembrar quem não terminou, na Fase 5).
+ * (para o lembrete do carrinho abandonado, src/lib/carrinho-lembretes.ts).
  */
 export async function PATCH(req: Request) {
   const corpo = (await req.json().catch(() => null)) as { email?: unknown; checkout?: unknown } | null;

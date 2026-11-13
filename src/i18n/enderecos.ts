@@ -23,6 +23,9 @@ const SECOES: Record<string, Traducao> = {
   'politica-de-cancelamento': { en: 'cancellation-policy', es: 'politica-de-cancelacion' },
   'politica-de-privacidade': { en: 'privacy-policy', es: 'politica-de-privacidad' },
   'termos-de-uso': { en: 'terms-of-use', es: 'terminos-de-uso' },
+  // as páginas da Etapa 6, fora do Google: o link do pedido por e-mail e a saída da lista dos lembretes
+  'consultar-pedido': { en: 'find-my-order', es: 'consultar-pedido' },
+  'sair-da-lista': { en: 'unsubscribe', es: 'darse-de-baja' },
 };
 
 /** O endereço de cada passeio, pelo slug de src/data/passeios.ts. Só entra aqui o que muda de um idioma para outro. */

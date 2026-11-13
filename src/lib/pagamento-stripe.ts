@@ -334,11 +334,13 @@ export async function aplicarSessao(
   const agoraIso = agora.toISOString();
   const quem = origem === 'webhook' ? 'webhook da Stripe' : 'consulta à Stripe';
   let virouPago = false;
+  let virouExpirado = false;
   let repetido: string | undefined;
 
   // atualizarReserva pode chamar de novo em caso de conflito: tudo que decide o resultado nasce aqui dentro
   const reserva = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = false;
+    virouExpirado = false;
     repetido = undefined;
     r.pagamento.ultimaConsulta = agoraIso;
     const corrente = !r.pagamentoExternoId || r.pagamentoExternoId === sessao.id;
@@ -400,18 +402,20 @@ export async function aplicarSessao(
       if (horarioJaPassou(r, agora)) registrar(r, AVISO_PAGO_DEPOIS_DO_HORARIO);
       return r;
     }
+    virouExpirado = leitura.status === 'expirado';
     const porque = leitura.motivoCodigo === 'pix_expirado' ? 'Pix não pago no prazo' : 'O tempo para pagar terminou';
     return registrar(r, `${leitura.status === 'expirado' ? porque : `Status ${leitura.status}`} (${quem})`);
   });
 
   if (virouPago && reserva) await pedidoPago(reserva, leitura);
+  if (virouExpirado && reserva) await pedidoExpirou(reserva, leitura);
   return { reserva, leitura, virouPago, ...(repetido ? { pagamentoRepetido: repetido } : {}) };
 }
 
 /**
  * O que acontece UMA vez, quando o pedido vira pago de verdade (a mudança confirmada por atualizarReserva):
- * o evento de compra para a Meta e, nas etapas seguintes, o e-mail e o cadastro de hóspedes. Falhas aqui
- * nunca desfazem o pagamento: só ficam no registro do servidor.
+ * o evento de compra para a Meta, o e-mail com os vouchers (Etapa 6) e, na Etapa 7, o cadastro de hóspedes. Falhas
+ * aqui nunca desfazem o pagamento: só ficam no registro do servidor.
  */
 export async function pedidoPago(reserva: Reserva, dados: LeituraSessao): Promise<void> {
   try {
@@ -424,8 +428,30 @@ export async function pedidoPago(reserva: Reserva, dados: LeituraSessao): Promis
   }
 }
 
-/** Etapa 6: o e-mail de confirmação com os vouchers. Ainda não existe; o gancho fica aqui. */
-async function enviarConfirmacaoPorEmail(_reserva: Reserva, _dados: LeituraSessao): Promise<void> {}
+/**
+ * Etapa 6: o e-mail do pagamento aprovado, com um voucher por item (src/lib/email/pedidos.ts). Sai depois da
+ * resposta (after), para o webhook responder na hora; o mesmo e-mail não sai duas vezes (o histórico do pedido e a
+ * chave de idempotência do Resend). Sem RESEND_API_KEY, nada sai.
+ */
+async function enviarConfirmacaoPorEmail(reserva: Reserva, _dados: LeituraSessao): Promise<void> {
+  const { agendarEmailDoPedido } = await import('./email/pedidos.ts');
+  agendarEmailDoPedido('pagamento-aprovado', reserva.pedido?.codigo ?? reserva.codigo);
+}
+
+/**
+ * O pedido virou expirado (a sessão venceu, ou o Pix gerado não foi pago no prazo): no Pix, o e-mail com o link para
+ * pagar de novo (Etapa 6), um por sessão vencida. O cartão que vence sem pagamento não manda nada: o cliente já
+ * recebeu o link do pedido no e-mail do pedido recebido. Uma falha aqui não muda o pedido.
+ */
+async function pedidoExpirou(reserva: Reserva, dados: LeituraSessao): Promise<void> {
+  if ((dados.forma ?? reserva.pagamento.metodo) !== 'pix') return;
+  try {
+    const { agendarEmailDoPedido } = await import('./email/pedidos.ts');
+    agendarEmailDoPedido('pix-vencido', reserva.pedido?.codigo ?? reserva.codigo, { sessaoId: dados.sessaoId });
+  } catch (e) {
+    console.error(`[pagamento] falha ao agendar o e-mail do Pix vencido ${reserva.pedido?.codigo ?? reserva.codigo}`, e);
+  }
+}
 
 /** Etapa 7: o cadastro dos hóspedes da casa depois do sinal pago. Ainda não existe; o gancho fica aqui. */
 async function cadastrarHospedes(_reserva: Reserva, _dados: LeituraSessao): Promise<void> {}

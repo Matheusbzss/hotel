@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { EMPRESA } from '@/config/empresa';
 import { fmt, isIdiomaGuia, rota, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
+import { textosConsulta } from '@/lib/consulta-textos';
 import { linkEmail } from '@/lib/email';
 import { IconeInstagram } from './IconeInstagram';
 import { IconeWhatsApp } from './IconeWhatsApp';
@@ -44,6 +45,12 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
         </div>
         <div className="space-y-3 md:text-right">
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-small md:justify-end">
+            {/* quem perdeu o link do pedido recebe de novo pelo e-mail da compra (Etapa 6) */}
+            <li>
+              <Link href={rota(idioma, '/consultar-pedido')} className="link">
+                {textosConsulta(idioma).linkRodape}
+              </Link>
+            </li>
             {/* os guias só existem nas duas versões do espanhol: cada uma leva à sua lista */}
             {isIdiomaGuia(idioma) && (
               <li>

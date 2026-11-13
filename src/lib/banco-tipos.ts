@@ -148,6 +148,41 @@ export type Database = {
           },
         ]
       }
+      carrinhos_lembretes: {
+        Row: {
+          carrinho_id: string
+          criado_em: string
+          lembrete_1_em: string | null
+          lembrete_2_em: string | null
+          voltou_em: string | null
+          voltou_lembrete: number | null
+        }
+        Insert: {
+          carrinho_id: string
+          criado_em?: string
+          lembrete_1_em?: string | null
+          lembrete_2_em?: string | null
+          voltou_em?: string | null
+          voltou_lembrete?: number | null
+        }
+        Update: {
+          carrinho_id?: string
+          criado_em?: string
+          lembrete_1_em?: string | null
+          lembrete_2_em?: string | null
+          voltou_em?: string | null
+          voltou_lembrete?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carrinhos_lembretes_carrinho_id_fkey"
+            columns: ["carrinho_id"]
+            isOneToOne: true
+            referencedRelation: "carrinhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       casas: {
         Row: {
           ativo: boolean
@@ -384,6 +419,21 @@ export type Database = {
           status?: string
           telefone?: string | null
           tipo?: string
+        }
+        Relationships: []
+      }
+      emails_sem_lembrete: {
+        Row: {
+          criado_em: string
+          email: string
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+        }
+        Update: {
+          criado_em?: string
+          email?: string
         }
         Relationships: []
       }

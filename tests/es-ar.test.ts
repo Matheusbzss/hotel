@@ -17,7 +17,9 @@ import { caminhoInterno, caminhoPublico } from '../src/i18n/enderecos.ts';
 import { ajustesAR } from '../src/i18n/es-ar.ts';
 import { dicionario } from '../src/i18n/index.ts';
 import { formatarCifra } from '../src/lib/cifra.ts';
+import { TEXTOS_CONSULTA } from '../src/lib/consulta-textos.ts';
 import { EsquemaCotacao } from '../src/lib/cotacao.ts';
+import { TEXTOS_EMAIL } from '../src/lib/email/textos.ts';
 import { formatarHora } from '../src/lib/horarios.ts';
 import { DDIS, PAIS_PADRAO } from '../src/lib/validacao.ts';
 import { AVISOS_VOUCHER, IMPORTANTE_VOUCHER } from '../src/lib/voucher-textos.ts';
@@ -159,6 +161,21 @@ for (const arquivo of [
   for (const t of literais(readFileSync(arquivo, 'utf8'))) CORPUS.push({ fonte: `fonte ${arquivo}`, es: t, ar: t });
 }
 
+// 8. a Etapa 6, fora dos dicionários: os e-mails automáticos (src/lib/email/textos.ts) e as páginas "Consultar mi
+// pedido" e de sair da lista dos lembretes (src/lib/consulta-textos.ts), com as mesmas chaves nas duas versões
+for (const [fonte, es, ar] of [
+  ['email', TEXTOS_EMAIL.es, TEXTOS_EMAIL['es-ar']],
+  ['consulta', TEXTOS_CONSULTA.es, TEXTOS_CONSULTA['es-ar']],
+] as const) {
+  const doAr = new Map(folhas(ar));
+  assert.deepEqual(
+    [...doAr.keys()],
+    folhas(es).map(([c]) => c),
+    `${fonte}: o es-ar tem de ter as chaves do es`,
+  );
+  for (const [caminho, t] of folhas(es)) CORPUS.push({ fonte: `${fonte} ${caminho}`, es: t, ar: doAr.get(caminho) as string });
+}
+
 /* ------------------------------------------------------------------------------------------------------------ */
 /* As regras                                                                                                    */
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -237,6 +254,9 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   voucher: 1,
   foto: 9,
   TEXTOS_GUIA: 1,
+  // Etapa 6: os e-mails automáticos e as páginas "Consultar mi pedido" e de sair da lista (as frases com verbo)
+  email: 15,
+  consulta: 10,
 };
 /** A fonte de um texto do corpus, no nível das chaves de FRASES_COM_VERSAO_ARGENTINA. */
 const grupoDaFonte = (fonte: string): string => {

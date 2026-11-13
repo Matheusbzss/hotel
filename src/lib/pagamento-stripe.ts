@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import type { Json } from './banco-tipos';
+import { mensagemDoErro } from './erros.ts';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
 import { inicioDoItem, type FormaPagamento } from './formas-pagamento.ts';
@@ -424,7 +425,7 @@ export async function pedidoPago(reserva: Reserva, dados: LeituraSessao): Promis
     await enviarConfirmacaoPorEmail(reserva, dados);
     await cadastrarHospedes(reserva, dados);
   } catch (e) {
-    console.error(`[pagamento] falha nos avisos do pedido pago ${reserva.pedido?.codigo ?? reserva.codigo}`, e);
+    console.error(`[pagamento] falha nos avisos do pedido pago ${reserva.pedido?.codigo ?? reserva.codigo}: ${mensagemDoErro(e)}`);
   }
 }
 
@@ -449,7 +450,7 @@ async function pedidoExpirou(reserva: Reserva, dados: LeituraSessao): Promise<vo
     const { agendarEmailDoPedido } = await import('./email/pedidos.ts');
     agendarEmailDoPedido('pix-vencido', reserva.pedido?.codigo ?? reserva.codigo, { sessaoId: dados.sessaoId });
   } catch (e) {
-    console.error(`[pagamento] falha ao agendar o e-mail do Pix vencido ${reserva.pedido?.codigo ?? reserva.codigo}`, e);
+    console.error(`[pagamento] falha ao agendar o e-mail do Pix vencido ${reserva.pedido?.codigo ?? reserva.codigo}: ${mensagemDoErro(e)}`);
   }
 }
 

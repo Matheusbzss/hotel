@@ -3,6 +3,7 @@ import { eventoDeCompra } from './conversoes';
 import { agruparPedidos } from './pedidos-painel';
 import { obterPedido, type Reserva } from './reservas';
 import { urlDoSite } from './site';
+import { mensagemDoErro } from './erros.ts';
 
 const VERSAO_DA_API = 'v25.0';
 
@@ -31,6 +32,6 @@ export async function avisarCompra(r: Reserva): Promise<void> {
     });
     if (!resposta.ok) console.error(`[conversoes] a Meta recusou a compra ${pedido.codigo}: ${await resposta.text()}`);
   } catch (e) {
-    console.error(`[conversoes] falha ao avisar a compra ${r.codigo}`, e);
+    console.error(`[conversoes] falha ao avisar a compra ${r.codigo}: ${mensagemDoErro(e)}`);
   }
 }

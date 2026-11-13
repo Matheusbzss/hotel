@@ -17,6 +17,7 @@ import { chaveDaRecusa, type ChaveRecusa } from './recusas';
 import { ehTransfer, type Provedor, type Reserva, type StatusReserva } from './reservas';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
+import { mensagemDoErro } from './erros.ts';
 
 /**
  * Dados da reserva que podem aparecer para o cliente (com o link secreto). Nunca saem daqui: o token, o
@@ -231,7 +232,7 @@ export async function pagamentoDoCheckout(
   // qualquer falha aqui deixa o checkout no caminho do WhatsApp, que sempre funciona
   const { formas, semPix } = itens.length
     ? await formasDoPagamento(itensPagaveisDoCarrinho(itens), agora, { admin }).catch((e) => {
-        console.error('[checkout] não deu para decidir as formas de pagamento', e);
+        console.error(`[checkout] não deu para decidir as formas de pagamento: ${mensagemDoErro(e)}`);
         return { formas: [], semPix: undefined };
       })
     : { formas: [], semPix: undefined };

@@ -6,6 +6,7 @@ import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { soCampanha } from '@/lib/origem';
 import { origemDaVisita } from '@/lib/origem-servidor';
 import { emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
+import { mensagemDoErro } from '@/lib/erros';
 
 export const runtime = 'nodejs';
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[cotacoes] falha ao gravar', err);
+    console.error(`[cotacoes] falha ao gravar: ${mensagemDoErro(err)}`);
     return erro('banco', 503);
   }
 }

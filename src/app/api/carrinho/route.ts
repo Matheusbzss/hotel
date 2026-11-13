@@ -23,6 +23,7 @@ import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { soCampanha } from '@/lib/origem';
 import { origemDaVisita } from '@/lib/origem-servidor';
 import { emailValido } from '@/lib/validacao';
+import { mensagemDoErro } from '@/lib/erros';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,7 +61,7 @@ async function resposta(loja: Loja, codigo: string | undefined, idioma: Idioma) 
 }
 
 function falha(erro: string, status: number, e?: unknown) {
-  if (e) console.error(`[carrinho] ${erro}`, e);
+  if (e) console.error(`[carrinho] ${erro}: ${mensagemDoErro(e)}`);
   return NextResponse.json({ ok: false, erro }, { status, headers: SEM_CACHE });
 }
 

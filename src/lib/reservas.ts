@@ -9,6 +9,7 @@ import type { Origem } from './origem';
 import { provedorDaReserva, quandoAcontece } from './pedidos-painel';
 import { copiarDoPedido, deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
+import { mensagemDoErro } from './erros.ts';
 
 /**
  * Banco de reservas.
@@ -519,7 +520,9 @@ async function levarAosIrmaos(gravada: Reserva): Promise<void> {
       if (!feito) throw new Error(`Conflito ao atualizar a reserva ${codigo}.`);
     }
   } catch (e) {
-    console.error(`[reservas] o voucher ${gravada.codigo} foi gravado, mas a cópia para os outros do pedido ${pedido} falhou`, e);
+    console.error(
+      `[reservas] o voucher ${gravada.codigo} foi gravado, mas a cópia para os outros do pedido ${pedido} falhou: ${mensagemDoErro(e)}`,
+    );
   }
 }
 

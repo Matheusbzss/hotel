@@ -14,6 +14,7 @@ import { reservaDoItem } from '@/lib/pedido-carrinho';
 import { criarPedido } from '@/lib/reservas';
 import { CIDADES_HOSPEDAGEM, emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
 import { abrirSessaoDoPedido, cancelarPedidoAberto, itemAgendado, vouchersDoPedido } from './pedido-stripe';
+import { mensagemDoErro } from '@/lib/erros';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -137,7 +138,7 @@ export async function POST(req: Request) {
     const pedido = await criarPedido(novas);
     // o pedido já existe: se marcar o carrinho falhar, o cliente não pode ver erro e enviar de novo
     await gravarCarrinho(codigoCarrinho, { pedidoId: pedido.id, email: dados.cliente.email }).catch((err) =>
-      console.error('[pedido] falha ao marcar o carrinho', err),
+      console.error(`[pedido] falha ao marcar o carrinho: ${mensagemDoErro(err)}`),
     );
     // o e-mail do pedido recebido, com o link privado (Etapa 6): sai depois da resposta e só se o pedido ainda estiver
     // esperando o pagamento nessa hora (o que deu errado na sessão de pagamento, logo abaixo, cancela o pedido antes)
@@ -171,7 +172,7 @@ export async function POST(req: Request) {
       return erro('stripe', 502);
     }
   } catch (err) {
-    console.error('[pedido] falha ao gravar o pedido', err);
+    console.error(`[pedido] falha ao gravar o pedido: ${mensagemDoErro(err)}`);
     return erro('banco', 503);
   }
 }

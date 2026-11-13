@@ -53,7 +53,7 @@ export async function permitir(chave: string, limite: number, janelaSegundos: nu
   if (!banco) return contarEmMemoria(chave, janelaSegundos, agora.getTime()) <= limite;
   const { data, error } = await banco.supabase().rpc('contar_limite', { p_chave: chave, p_janela_segundos: janelaSegundos });
   if (error || typeof data !== 'number') {
-    console.error(`[limite-ip] falha ao contar ${chave}: ${error?.message ?? 'resposta inesperada'}`);
+    console.error(`[limite-ip] falha ao contar ${chave.split(':')[0]}: ${error?.message ?? 'resposta inesperada'}`);
     return true;
   }
   return data <= limite;

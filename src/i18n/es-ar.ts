@@ -258,6 +258,8 @@ export const ajustesAR: AjustesAR = {
       'Pagás en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
     indisponivelTexto:
       'Estamos terminando de activar el pago online. Tu reserva queda registrada con todos los datos y completás el pago con nuestro equipo por WhatsApp.',
+    semStripe:
+      'El formulario de pago no se cargó. Probá sin el bloqueador de anuncios en este sitio o con otra red, como los datos del celular. Si sigue sin funcionar, escribinos por e-mail.',
     erros: {
       obrigatorio: 'Completá este campo.',
       email: 'Revisá el e-mail.',

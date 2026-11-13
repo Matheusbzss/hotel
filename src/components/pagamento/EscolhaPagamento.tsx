@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
@@ -22,7 +23,7 @@ export interface TextosEscolhaPagamento {
   pixRecebedor: string;
   /** "{p}% de desconto no Pix" (preco.descontoPix). */
   descontoPix: string;
-  /** Quando o Pix não dá mais tempo (o serviço começa em menos de 2 horas): a frase do prazo. */
+  /** Quando o Pix não vale mais (o primeiro serviço começa em menos de 2 horas): a frase do prazo. */
   semPixPrazo: string;
   /** Quando o valor do pedido passa do limite de um Pix: a frase do limite. */
   semPixLimite: string;
@@ -56,9 +57,9 @@ export function formaPadrao(formas: FormaPagamento[], idioma: Idioma, atual?: Fo
 
 /**
  * Cartão ou Pix, cada um com o valor em R$ (e o ≈ US$ nos idiomas que já o mostram). O Pix some quando o servidor
- * não o liberou (o serviço começa em menos de 2 horas e 10 minutos, ou o valor passa do limite de um Pix), e a frase
- * do motivo explica. Embaixo do Pix, o aviso do nome que aparece no app do banco. Só apresenta: quem decide as formas
- * é o servidor (formasDoPagamento).
+ * não o liberou (o primeiro serviço começa em menos de 2 horas, ou o valor passa do limite de um Pix), e a frase do
+ * motivo explica, num quadro, para não passar despercebida. Com o Pix marcado, embaixo das duas opções, o aviso do nome
+ * que aparece no app do banco. Só apresenta: quem decide as formas é o servidor (formasDoPagamento).
  */
 export function EscolhaPagamento({
   formas,
@@ -89,6 +90,9 @@ export function EscolhaPagamento({
   // o Pix primeiro, como o total no Pix vem em destaque no site inteiro
   const opcoes = (['pix', 'cartao'] as const).filter((forma) => formas.includes(forma));
   const desconto = fmt(T.descontoPix, { p: DESCONTO_PIX_PORCENTO });
+  const pixMarcado = escolhida === 'pix' && opcoes.includes('pix');
+  // o aviso do recebedor fica fora da caixa do Pix: o rádio do Pix aponta para ele, para o leitor de tela ler junto
+  const idRecebedor = useId();
 
   return (
     <fieldset className={`min-w-0 ${className}`}>
@@ -111,6 +115,7 @@ export function EscolhaPagamento({
                 value={forma}
                 checked={ativa}
                 onChange={() => aoEscolher(forma)}
+                aria-describedby={forma === 'pix' && pixMarcado ? idRecebedor : undefined}
                 className="sr-only"
               />
               <span className="flex items-center justify-between gap-4">
@@ -143,21 +148,26 @@ export function EscolhaPagamento({
                 )}
               </span>
               {forma === 'pix' && (
-                <>
-                  <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
-                    {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
-                    {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
-                  </span>
-                  {/* com o Pix marcado, antes de pagar: o app do banco pode mostrar outro nome no recebedor, e isso não é
-                      golpe. Só com ele marcado, para a tela do celular não crescer à toa (o aviso volta em cima do QR) */}
-                  {ativa && <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">{T.pixRecebedor}</span>}
-                </>
+                <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
+                  {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
+                  {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
+                </span>
               )}
             </label>
           );
         })}
       </div>
-      {!formas.includes('pix') && <p className="ajuda mt-3">{fraseSemPix(T, semPix)}</p>}
+      {/* com o Pix marcado, antes de pagar: o app do banco pode mostrar outro nome no recebedor, e isso não é golpe. Só com
+          ele marcado, para a tela do celular não crescer à toa (o aviso volta em cima do QR). Fica embaixo das duas opções,
+          e não dentro da caixa do Pix: ao trocar a escolha, nenhuma caixa muda de altura e a do cartão não sai de baixo do
+          dedo; quem se mexe é só o que vem depois das opções */}
+      {pixMarcado && (
+        <p id={idRecebedor} className="mt-3 text-small text-(--color-tinta-suave)">
+          {T.pixRecebedor}
+        </p>
+      )}
+      {/* sem o Pix, o motivo num quadro: em letra miúda e cinza, a frase passava despercebida perto dos valores */}
+      {!formas.includes('pix') && <p className="mt-3 bg-superficie px-4 py-3 text-small">{fraseSemPix(T, semPix)}</p>}
     </fieldset>
   );
 }

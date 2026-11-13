@@ -163,6 +163,8 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     seguro: C.seguro,
     processando: C.processando,
     erroGenerico: C.erros.generico,
+    semStripe: C.semStripe,
+    tentarDeNovo: d.reserva.tentarNovamente,
     confirmando: P.confirmando,
     confirmandoTexto: P.confirmandoTexto,
     atualizaSozinho: varios ? P.atualizaSozinho : d.reserva.atualizaSozinho,

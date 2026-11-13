@@ -127,6 +127,10 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
       d.pedido.reembolsadoTexto,
       d.status.contestado,
       d.carrinho.continuarPagamento,
+      // Etapa 5: para que serve o e-mail do checkout e o aviso de quando o formulário da Stripe não carrega
+      d.checkout.emailAjuda,
+      d.checkout.emailPrivacidade,
+      d.checkout.semStripe,
       ...Object.values(d.recusa),
     ];
     for (const t of novos) {

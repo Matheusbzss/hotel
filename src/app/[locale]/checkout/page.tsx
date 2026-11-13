@@ -8,6 +8,7 @@ import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { COOKIE_CARRINHO, itensVisiveis, lerCarrinho } from '@/lib/carrinho-servidor';
+import { linkEmail } from '@/lib/email';
 import { pagamentoDoCheckout } from '@/lib/reserva-publica';
 
 /** A aba mostra o mesmo título da página ("Finalizar reserva | Orla Nativa"); o checkout continua fora do Google. */
@@ -50,6 +51,8 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
             notaCambio={cambio.nota}
             pagamentoOnline={pagamentoOnline}
             pedidoAberto={pedidoAberto}
+            // o e-mail da equipe, montado aqui (o endereço vem dos dados da empresa, que não vão para o navegador inteiros)
+            contato={{ href: linkEmail(d.contato.assunto, d.contato.msg), rotulo: d.contato.botao }}
             textos={{
               checkout: d.checkout,
               transfer: d.transfer,
@@ -60,10 +63,12 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
               dataPasseio: d.passeio.data,
               escolhaData: d.grupo.escolhaData,
               aPartirDe: d.comum.aPartirDe,
+              tentarDeNovo: d.reserva.tentarNovamente,
             }}
             links={{
               termos: rota(locale, '/termos-de-uso'),
               politica: rota(locale, '/politica-de-cancelamento'),
+              privacidade: rota(locale, '/politica-de-privacidade'),
               reserva: rota(locale, '/reserva'),
               pedido: rota(locale, '/pedido'),
               passeios: rota(locale, '/passeios'),

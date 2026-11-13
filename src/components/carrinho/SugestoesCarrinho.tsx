@@ -24,6 +24,8 @@ export interface TextosSugestoes {
   cheio: string;
   escolhaHorario: string;
   noPix: string;
+  /** "no cartão": só o checkout sem o Pix usa (`soCartao`). */
+  noCartao?: string;
   /** "≈ US$ {v}" */
   dolar: string;
   dataPasseio: string;
@@ -32,8 +34,22 @@ export interface TextosSugestoes {
   aPartirDe: string;
 }
 
+type OpcaoSugerida = SugestaoVisivel['opcoes'][number];
+
 /** Um passeio sugerido: o preço para o grupo e, ao tocar em "Adicionar", a data e o horário ali mesmo. */
-function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale: string; dolar: number | null; textos: TextosSugestoes }) {
+function Sugestao({
+  s,
+  locale,
+  dolar,
+  soCartao,
+  textos: T,
+}: {
+  s: SugestaoVisivel;
+  locale: string;
+  dolar: number | null;
+  soCartao: boolean;
+  textos: TextosSugestoes;
+}) {
   const { adicionar } = useCarrinho();
   const [aberta, setAberta] = useState(false);
   const [data, setData] = useState(s.data);
@@ -47,14 +63,22 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
   const varias = s.opcoes.length > 1;
   const livres = horasDisponiveis(s.horas, data);
   const brl = (c: number) => formatarCifra(c, locale);
+  // o preço no Pix, como no site inteiro; no checkout sem o Pix (o prazo ou o limite de valor), o do cartão, que é o que
+  // este pedido cobraria pelo passeio sugerido
+  const noCartao = soCartao ? T.noCartao : undefined;
+  const valor = (o: OpcaoSugerida) => (noCartao ? o.totalCentavos : o.totalPixCentavos);
   // o aproximado em dólar só no preço "desde"; os botões de opção ficam sem, por decisão do dono
-  const usdDesde = textoDolar(s.opcoes[0].totalPixCentavos, dolar, T.dolar, locale);
+  const usdDesde = textoDolar(valor(s.opcoes[0]), dolar, T.dolar, locale);
   const preco = (
     <>
       {varias && <span className="text-(--color-tinta-suave)">{T.aPartirDe} </span>}
       <span className="whitespace-nowrap">
-        <span className="cifra font-semibold">{brl(s.opcoes[0].totalPixCentavos)}</span>{' '}
-        <span className="font-semibold text-(--color-sucesso)">{T.noPix}</span>
+        <span className="cifra font-semibold">{brl(valor(s.opcoes[0]))}</span>{' '}
+        {noCartao ? (
+          <span className="font-semibold">{noCartao}</span>
+        ) : (
+          <span className="font-semibold text-(--color-sucesso)">{T.noPix}</span>
+        )}
       </span>
     </>
   );
@@ -157,7 +181,7 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
                         fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura. O preço pode usar 8 px do
                         recuo antes de descer (-mr-2), como no cartão do passeio */}
                     <span className="numeros -mr-2 text-small font-normal">
-                      {brl(o.totalPixCentavos)} <span className="whitespace-nowrap">{T.noPix}</span>
+                      {brl(valor(o))} <span className="whitespace-nowrap">{noCartao ?? T.noPix}</span>
                     </span>
                   </button>
                 ))}
@@ -207,12 +231,15 @@ function Sugestao({ s, locale, dolar, textos: T }: { s: SugestaoVisivel; locale:
 export function SugestoesCarrinho({
   locale,
   dolar = null,
+  soCartao = false,
   textos: T,
   className = 'border-t border-(--color-borda) pt-4',
 }: {
   locale: string;
   /** Reais por dólar, para o "≈ US$" (null no português e sem cotação). */
   dolar?: number | null;
+  /** No checkout sem o Pix: os preços no cartão (com `textos.noCartao`). */
+  soCartao?: boolean;
   textos: TextosSugestoes;
   className?: string;
 }) {
@@ -223,7 +250,7 @@ export function SugestoesCarrinho({
       <h3 className="font-semibold">{T.sugestoesTitulo}</h3>
       <ul className="mt-1 divide-y divide-(--color-borda)">
         {sugestoes.map((s) => (
-          <Sugestao key={s.slug} s={s} locale={locale} dolar={dolar} textos={T} />
+          <Sugestao key={s.slug} s={s} locale={locale} dolar={dolar} soCartao={soCartao} textos={T} />
         ))}
       </ul>
     </section>

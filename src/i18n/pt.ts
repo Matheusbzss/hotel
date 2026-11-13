@@ -607,6 +607,10 @@ const pt = {
     seusDados: 'Seus dados',
     nome: 'Nome completo',
     email: 'E-mail',
+    // embaixo do campo, onde o e-mail é pedido (LGPD): para que ele serve, com o link da política de privacidade
+    // (emailPrivacidade). Os lembretes são os do carrinho que não virou compra (docs/emails.md): no máximo dois
+    emailAjuda: 'Usamos o e-mail para o seu pedido e, se a compra não terminar, para mandar até 2 lembretes.',
+    emailPrivacidade: 'Política de Privacidade',
     telefone: 'Telefone / WhatsApp',
     telefoneAjuda: 'Com o código do país. Ex.: +55 21 99999-9999 ou +54 9 11 1234-5678',
     ddi: 'Código do país',
@@ -641,6 +645,10 @@ const pt = {
     processando: 'Processando…',
     avisoTotal: 'O pagamento é sempre do valor total da reserva.',
     seguro: 'Cartão processado com segurança pela Stripe. Os dados do cartão vão direto para ela e não ficam com a gente.',
+    // quando o formulário da Stripe não carrega (bloqueador de anúncios, rede de empresa ou de hotel): o pedido já existe,
+    // e embaixo vêm os botões "Tentar de novo" e "Enviar e-mail"
+    semStripe:
+      'O formulário de pagamento não carregou. Desligue o bloqueador de anúncios neste site ou use outra rede, como os dados do celular, e tente de novo. Se não der certo, fale com a gente por e-mail.',
     resumo: 'Resumo da reserva',
     total: 'Total',
     indisponivelTitulo: 'Pagamento online em ativação',

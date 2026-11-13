@@ -188,9 +188,22 @@ test('perto do prazo do Pix, o QR dura só até ele: a sessão usa a mesma conta
   assert.equal(parametrosDaSessao({ ...DADOS, itens: [perto] }).payment_method_options, undefined);
 });
 
-test('fora do prazo do Pix (menos de 10 minutos de QR), a sessão do Pix não é criada; a do cartão é', () => {
-  // o passeio das 14h05: o prazo do Pix é 12h05, e o QR teria só 5 minutos
-  const tarde = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:05' } };
+test('nos últimos 10 minutos do prazo do Pix, o QR vale os 10 minutos mínimos; com as 2 horas cravadas, também', () => {
+  // o passeio das 14h05: o prazo do Pix é 12h05, faltam 5 minutos, e o QR vale 10 (passa um pouco do prazo)
+  const quase = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:05' } };
+  assert.deepEqual(parametrosDaSessao({ ...DADOS, itens: [quase], forma: 'pix' }).payment_method_options, {
+    pix: { expires_after_seconds: 10 * 60 },
+  });
+  // o passeio das 14h: meio-dia é exatamente o prazo, e o Pix ainda abre
+  const cravado = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:00' } };
+  assert.deepEqual(parametrosDaSessao({ ...DADOS, itens: [cravado], forma: 'pix' }).payment_method_options, {
+    pix: { expires_after_seconds: 10 * 60 },
+  });
+});
+
+test('fora do prazo do Pix (menos de 2 horas para o primeiro serviço), a sessão do Pix não é criada; a do cartão é', () => {
+  // o passeio das 13h59: o prazo do Pix foi às 11h59
+  const tarde = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '13:59' } };
   assert.throws(() => parametrosDaSessao({ ...DADOS, itens: [tarde], forma: 'pix' }), PixForaDoPrazo);
   assert.equal(parametrosDaSessao({ ...DADOS, itens: [tarde], forma: 'cartao' }).currency, 'brl');
   // um item sem data que dê para ler também não abre Pix

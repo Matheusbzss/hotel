@@ -573,6 +573,8 @@ const en: Dicionario = {
     seusDados: 'Your details',
     nome: 'Full name',
     email: 'Email',
+    emailAjuda: 'We use your email for your order and, if you don’t complete the purchase, to send up to 2 reminders.',
+    emailPrivacidade: 'Privacy Policy',
     telefone: 'Phone / WhatsApp',
     telefoneAjuda: 'Include the country code. E.g. +1 212 555 0100 or +54 9 11 1234-5678',
     ddi: 'Country code',
@@ -606,6 +608,8 @@ const en: Dicionario = {
     processando: 'Processing…',
     avisoTotal: 'Payment is always for the full amount of the booking.',
     seguro: 'Card payments are securely processed by Stripe. Your card details go straight to Stripe and are never stored by us.',
+    semStripe:
+      'The payment form didn’t load. Turn off your ad blocker for this site or switch to another network, such as mobile data, and try again. If it still doesn’t work, email us.',
     resumo: 'Booking summary',
     total: 'Total',
     indisponivelTitulo: 'Online payment being activated',

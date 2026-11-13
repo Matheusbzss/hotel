@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    125,
-    `${diferentes} frases diferem entre es e es-ar; esperava 125 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4 e a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    126,
+    `${diferentes} frases diferem entre es e es-ar; esperava 126 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, e o aviso do formulário da Stripe que não carrega, da Etapa 5). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 
@@ -171,6 +171,8 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     ['pedido.tentarOutroCartao', ar.pedido.tentarOutroCartao, es.pedido.tentarOutroCartao],
     ['recusa.dados', ar.recusa.dados, es.recusa.dados],
     ['recusa.vencido', ar.recusa.vencido, es.recusa.vencido],
+    // Etapa 5: o formulário da Stripe que não carrega
+    ['checkout.semStripe', ar.checkout.semStripe, es.checkout.semStripe],
   ];
   const TRECHOS: Record<string, [string, string]> = {
     'checkout.pixExplicacao': ['Pagás en la app de tu banco', 'Pagas en la app de tu banco'],
@@ -179,6 +181,7 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     'pedido.tentarOutroCartao': ['Probá con otra tarjeta.', 'Prueba con otra tarjeta.'],
     'recusa.dados': ['Revisá el número', 'Revisa el número'],
     'recusa.vencido': ['usá otra tarjeta', 'usa otra tarjeta'],
+    'checkout.semStripe': ['Probá sin el bloqueador', 'Prueba sin el bloqueador'],
   };
   for (const [caminho, textoAr, textoEs] of PARES) {
     const [trechoAr, trechoEs] = TRECHOS[caminho];
@@ -198,6 +201,9 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     (d: typeof es) => d.pedido.confirmandoTexto,
     (d: typeof es) => d.recusa.generica,
     (d: typeof es) => d.status.contestado,
+    // Etapa 5: para que serve o e-mail do checkout ("si la compra no se completa")
+    (d: typeof es) => d.checkout.emailAjuda,
+    (d: typeof es) => d.checkout.emailPrivacidade,
   ]) {
     assert.equal(t(ar), t(es));
   }

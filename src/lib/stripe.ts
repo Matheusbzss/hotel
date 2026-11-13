@@ -25,8 +25,9 @@ export const VALIDADE_SESSAO_MINUTOS = 30;
 /** Um minuto de folga: a Stripe conta os 30 minutos a partir da criação, e o relógio daqui pode estar à frente. */
 const FOLGA_SEGUNDOS = 60;
 /**
- * O QR do Pix vale 30 minutos, ou menos perto do prazo do Pix (validadeDoPix, src/lib/formas-pagamento.ts, a regra
- * única do prazo). A constante mora lá, porque formas-pagamento.ts não pode carregar o SDK da Stripe.
+ * O QR do Pix vale até 30 minutos: o tempo que falta para o prazo do Pix, entre 10 e 30 minutos (validadeDoPix,
+ * src/lib/formas-pagamento.ts, a regra única do prazo). A constante mora lá, porque formas-pagamento.ts não pode
+ * carregar o SDK da Stripe.
  */
 export { PIX_EXPIRA_SEGUNDOS };
 
@@ -115,8 +116,9 @@ export const nomeDoItem = (item: ItemDaSessao, idioma: Idioma): string =>
 
 /**
  * Os parâmetros da sessão, separados da chamada à Stripe para dar para testar sem rede. No Pix, o QR vale o que
- * validadeDoPix diz para estes itens agora (30 minutos, ou só até o prazo do Pix); fora do prazo, PixForaDoPrazo: as
- * rotas só pedem o Pix quando ele aparece entre as formas, com o mesmo `agora`, então isso só acontece se a regra mudar.
+ * validadeDoPix diz para estes itens agora (o tempo até o prazo do Pix, entre 10 e 30 minutos); fora do prazo (menos de
+ * 2 horas para o primeiro serviço), PixForaDoPrazo: as rotas só pedem o Pix quando ele aparece entre as formas, com o
+ * mesmo `agora`, então isso só acontece se a regra mudar.
  */
 export function parametrosDaSessao(d: DadosDaSessao): Stripe.Checkout.SessionCreateParams {
   const { codigo } = d.pedido;
@@ -161,7 +163,8 @@ export function parametrosDaSessao(d: DadosDaSessao): Stripe.Checkout.SessionCre
       // na fatura do cartão: "ORLANATIVA* ON-ABC123" (o prefixo é o descritor da conta); o Pix ignora descritores
       ...(pix ? {} : { statement_descriptor_suffix: codigo }),
     },
-    // o QR do Pix: 30 minutos, ou só até o prazo do Pix (2 horas antes do primeiro serviço), contados de quando o QR aparece
+    // o QR do Pix: o tempo até o prazo do Pix (2 horas antes do primeiro serviço), entre 10 e 30 minutos, contados de
+    // quando o QR aparece
     ...(validadePix !== null ? { payment_method_options: { pix: { expires_after_seconds: validadePix } } } : {}),
     expires_at: Math.floor(agora.getTime() / 1000) + VALIDADE_SESSAO_MINUTOS * 60 + FOLGA_SEGUNDOS,
     return_url: d.returnUrl,

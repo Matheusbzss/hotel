@@ -273,7 +273,7 @@ const es: Dicionario = {
   home: {
     gancho: 'Llega y disfruta. Del resto nos ocupamos nosotros.',
     ganchoTexto:
-      'Paseos en Búzios, Arraial y Cabo Frio, casas de alta gama frente al mar y traslado privado, con precio cerrado y atención en español.',
+      'Paseos en Búzios, Arraial y Cabo Frio, casas de alta gama con vista al mar y traslado privado, con precio cerrado y atención en español.',
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Paseos en Búzios, Arraial y Cabo Frio, y traslado privado, con precio cerrado y atención en español.',
     ganchoCta: 'Ver paseos',
@@ -666,8 +666,7 @@ const es: Dicionario = {
   },
   casas: {
     titulo: 'Casas de temporada',
-    texto:
-      'Casas propias, de alta gama, con 5 habitaciones o más y frente a la playa. La reserva se hace aquí en el sitio, con un anticipo del 50%.',
+    texto: 'Casas de alta gama con vista al mar, para grupos grandes. La reserva se hace aquí en el sitio, con un anticipo del 50%.',
     emBreveTitulo: 'Muy pronto',
     emBreveTexto: 'Estamos preparando las primeras casas. ¿Quieres saber cuándo abre la reserva? Déjanos tus datos y te avisamos.',
     pedir: 'Avísame',
@@ -700,7 +699,7 @@ const es: Dicionario = {
     caucao: 'Depósito de garantía',
     sinalTexto: 'Anticipo del {p}% del total al reservar.',
     mapaTitulo: 'Dónde queda',
-    mapaTexto: 'Ubicación aproximada: {local}. La dirección exacta va en el voucher, después de reservar.',
+    mapaTexto: 'Ubicación aproximada: {local}. Nuestro equipo envía la ubicación exacta después de la reserva.',
     mapaFonte: 'Imagen satelital: Copernicus Sentinel-2',
     reservarTitulo: 'Reserva la casa',
     chegada: 'Llegada',

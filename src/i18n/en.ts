@@ -265,7 +265,7 @@ const en: Dicionario = {
   },
   home: {
     gancho: 'Arrive and enjoy. We take care of the rest.',
-    ganchoTexto: 'Tours in Búzios, Arraial and Cabo Frio, high-end beachfront houses and private transfers, at a fixed price.',
+    ganchoTexto: 'Tours in Búzios, Arraial and Cabo Frio, high-end homes with sea views and private transfers, at a fixed price.',
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Tours in Búzios, Arraial and Cabo Frio, plus private transfers, at a fixed price.',
     ganchoCta: 'See tours',
@@ -658,7 +658,7 @@ const en: Dicionario = {
   },
   casas: {
     titulo: 'Holiday homes',
-    texto: 'Our own luxury homes, with 5 bedrooms or more and right on the beach. You book right here on the site, with a 50% deposit.',
+    texto: 'High-end homes with sea views, for large groups. You book right here on the site, with a 50% deposit.',
     emBreveTitulo: 'Coming soon',
     emBreveTexto: 'We’re getting the first homes ready. Want to know when booking opens? Leave your details and we’ll let you know.',
     pedir: 'Let me know',
@@ -691,7 +691,7 @@ const en: Dicionario = {
     caucao: 'Security deposit',
     sinalTexto: 'A {p}% deposit of the total when you book.',
     mapaTitulo: 'Where it is',
-    mapaTexto: 'Approximate location: {local}. The exact address is on the voucher, after booking.',
+    mapaTexto: 'Approximate location: {local}. Our team sends the exact location after you book.',
     mapaFonte: 'Satellite image: Copernicus Sentinel-2',
     reservarTitulo: 'Book the home',
     chegada: 'Check-in',

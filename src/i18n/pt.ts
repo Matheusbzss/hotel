@@ -269,7 +269,7 @@ const pt = {
   home: {
     gancho: 'Chegue e aproveite. Do resto, a gente cuida.',
     ganchoTexto:
-      'Passeios em Búzios, Arraial e Cabo Frio, casas de alto padrão de frente para o mar e transfer privado, com preço fechado.',
+      'Passeios em Búzios, Arraial e Cabo Frio, casas de alto padrão com vista para o mar e transfer privado, com preço fechado.',
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Passeios em Búzios, Arraial e Cabo Frio e transfer privado, com preço fechado.',
     ganchoCta: 'Ver passeios',
@@ -664,8 +664,7 @@ const pt = {
   },
   casas: {
     titulo: 'Casas de temporada',
-    texto:
-      'Casas nossas, de alto padrão, com 5 quartos ou mais e de frente para a praia. A reserva é feita aqui no site, com sinal de 50%.',
+    texto: 'Casas de alto padrão com vista para o mar, para grupos grandes. A reserva é feita aqui no site, com sinal de 50%.',
     emBreveTitulo: 'Em breve',
     emBreveTexto: 'As primeiras casas estão sendo preparadas. Quer saber quando a reserva abrir? Deixe seus dados que a gente avisa.',
     pedir: 'Avise-me',
@@ -698,7 +697,7 @@ const pt = {
     caucao: 'Caução',
     sinalTexto: 'Sinal de {p}% do total na reserva.',
     mapaTitulo: 'Onde fica',
-    mapaTexto: 'Localização aproximada: {local}. O endereço exato vai no voucher, depois da reserva.',
+    mapaTexto: 'Localização aproximada: {local}. A localização exata é enviada pela nossa equipe depois da reserva.',
     mapaFonte: 'Imagem de satélite: Copernicus Sentinel-2',
     reservarTitulo: 'Reserve a casa',
     chegada: 'Chegada',

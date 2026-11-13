@@ -2,8 +2,8 @@ import type { TabelaDiarias } from '@/lib/diarias';
 import type { Cidade, Lista, Texto } from './passeios';
 
 /**
- * CASAS DE TEMPORADA DA ORLA NATIVA: casas nossas, de alto padrão, com 5 quartos ou mais, de frente
- * para a praia, reservadas no site com sinal de SINAL_PORCENTO (src/lib/diarias.ts) do total.
+ * CASAS DE TEMPORADA DA ORLA NATIVA: casas de alto padrão com vista para o mar, para grupos grandes (texto da
+ * pendência 6 do FASE-4), reservadas no site com sinal de SINAL_PORCENTO (src/lib/diarias.ts) do total.
  *
  * As casas ficam no banco (tabelas casas, casas_tarifas e casas_bloqueios; src/lib/casas.ts) e são
  * cadastradas no painel, em /admin/casas. Com as fotos, as informações e o endereço que o dono mandar:

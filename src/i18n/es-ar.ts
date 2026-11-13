@@ -282,8 +282,7 @@ export const ajustesAR: AjustesAR = {
     naoEncontradaTexto: 'Revisá el enlace que recibiste o escribinos por e-mail.',
   },
   casas: {
-    texto:
-      'Casas propias, de alta gama, con 5 habitaciones o más y frente a la playa. La reserva se hace acá en el sitio, con una seña del 50%.',
+    texto: 'Casas de alta gama con vista al mar, para grupos grandes. La reserva se hace acá en el sitio, con una seña del 50%.',
     emBreveTexto: 'Estamos preparando las primeras casas. ¿Querés saber cuándo abre la reserva? Dejanos tus datos y te avisamos.',
     pedir: 'Avisame',
     sinalTexto: 'Seña del {p}% del total al reservar.',

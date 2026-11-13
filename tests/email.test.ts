@@ -17,16 +17,29 @@ import {
 } from '../src/lib/email/enviar.ts';
 import { cabecalhosDeSair } from '../src/lib/email/links.ts';
 import {
+  EMAILS_DO_DIA_ANTES_DE_GUARDAR,
+  PEDIDOS_RECEBIDOS_POR_ENDERECO,
+  cabeNaCotaDoDia,
+  emailEssencial,
+  enderecoCabeNoDia,
+  resumoDoEndereco,
+} from '../src/lib/email/cota.ts';
+import {
+  emailAvisoDaDesistencia,
+  emailDesistenciaRecebida,
   emailLembrete,
   emailLinkDoPedido,
   emailPagamentoAprovado,
   emailPedidoRecebido,
   emailPixVencido,
+  nomeDaSaudacao,
   primeiroNome,
   type DadosDoPedido,
   type MensagemEmail,
+  type TipoEmail,
 } from '../src/lib/email/mensagens.ts';
 import { escaparHtml } from '../src/lib/email/modelo.ts';
+import { zerarLimitesEmMemoria } from '../src/lib/limite-ip.ts';
 import { TEXTOS_EMAIL } from '../src/lib/email/textos.ts';
 
 // Etapa 6: os e-mails automáticos. Cada e-mail é montado nos quatro idiomas com dados de exemplo e conferido por
@@ -84,12 +97,15 @@ const pedido = (idioma: Idioma, pago = false): DadosDoPedido => ({
 });
 
 const VALOR = { valor: 'R$ 270,00', dolar: '≈ US$ 49,10' };
+/** O preço de um item no idioma: com o ≈ US$ em espanhol e inglês, como no resto do site. */
+const precoDoItem = (idioma: Idioma, valor: string, dolar: string) => ({ valor, ...(idioma === 'pt' ? {} : { dolar }) });
 
 /** Todos os e-mails de um idioma, com o nome de cada um. */
 function todos(idioma: Idioma): [string, MensagemEmail][] {
   return [
     ['pedido recebido (WhatsApp)', emailPedidoRecebido({ ...pedido(idioma), caminho: 'whatsapp', totais: { pix: VALOR, cartao: VALOR } })],
     ['pedido recebido (online)', emailPedidoRecebido({ ...pedido(idioma), caminho: 'online', totais: { pix: VALOR } })],
+    ['desistência recebida', emailDesistenciaRecebida({ ...pedido(idioma), quando: '13 de novembro de 2026 às 14:32' })],
     [
       'pagamento aprovado',
       emailPagamentoAprovado({
@@ -113,14 +129,14 @@ function todos(idioma: Idioma): [string, MensagemEmail][] {
               {
                 nome: 'Passeio de Escuna em Búzios',
                 linhas: ['sáb., 14 nov. 2026 às 10h', '2 adultos'],
-                pix: 'R$ 135,00',
-                cartao: 'R$ 150,00',
+                pix: precoDoItem(idioma, 'R$ 135,00', '≈ US$ 24,50'),
+                cartao: precoDoItem(idioma, 'R$ 150,00', '≈ US$ 27,20'),
               },
               {
                 nome: 'Quadriciclo em Búzios',
                 linhas: ['dom., 15 nov. 2026 às 9h', '1 quadriciclo'],
-                pix: 'R$ 135,00',
-                cartao: 'R$ 120,00',
+                pix: precoDoItem(idioma, 'R$ 135,00', '≈ US$ 24,50'),
+                cartao: precoDoItem(idioma, 'R$ 120,00', '≈ US$ 21,80'),
               },
             ],
             totais: { pix: VALOR, cartao: VALOR },
@@ -201,17 +217,139 @@ test('os e-mails do pedido levam o link privado no botão e no texto, e o códig
   }
 });
 
-test('o que o cliente digitou nunca vira HTML: só o primeiro nome, escapado', () => {
+test('o que o cliente digitou nunca vira HTML nem link: na saudação, só o primeiro nome feito de letras', () => {
+  // com marcação, o nome não serve: a saudação sai sem nome, e nada do que foi digitado entra no e-mail
   const m = emailPedidoRecebido({ ...pedido('pt'), caminho: 'online', totais: { cartao: VALOR } });
-  assert.ok(!m.html.includes('<b>Ana</b>'));
-  assert.ok(m.html.includes('Olá, &lt;b&gt;Ana&lt;/b&gt;.'));
-  assert.ok(!m.html.includes('Souza'), 'só o primeiro nome');
+  assert.ok(!m.html.includes('<b>Ana</b>') && !m.html.includes('&lt;b&gt;Ana'), 'nada da marcação');
+  assert.ok(visivel(m.html).includes('Olá.') && m.texto.includes('Olá.'), 'a saudação sem nome');
+  assert.ok(!m.html.includes('Souza'));
+  // o nome comum: só o primeiro
+  const comNome = emailPedidoRecebido({ ...pedido('pt'), nome: 'Ana Souza', caminho: 'online', totais: { cartao: VALOR } });
+  assert.ok(comNome.html.includes('Olá, Ana.') && !comNome.html.includes('Souza'));
   assert.equal(primeiroNome('  Maria   Clara Souza '), 'Maria');
   assert.equal(primeiroNome('   '), '');
-  // sem nome, sem saudação (nada de "Olá, ." solto)
+  // letras com acento, hífen e apóstrofo valem; até 30
+  for (const [nome, primeiro] of [
+    ['María José', 'María'],
+    ["D'Angelo Rossi", "D'Angelo"],
+    ['Jean-Luc Picard', 'Jean-Luc'],
+    ['João', 'João'],
+    ['a'.repeat(30), 'a'.repeat(30)],
+  ])
+    assert.equal(nomeDaSaudacao(nome), primeiro, nome);
+  // link, número, sinal, e-mail, nome comprido demais: sem nome
+  for (const nome of [
+    'https://orlanativa-reembolso.example/pix?pedido=ON-ABC123 Silva',
+    'www.golpe.example Silva',
+    'ON-ABC123',
+    'Ana2',
+    'ana@exemplo.com',
+    '<b>Ana</b>',
+    '-Ana',
+    'a'.repeat(31),
+    '',
+  ])
+    assert.equal(nomeDaSaudacao(nome), '', nome);
+  const golpe = emailPedidoRecebido({
+    ...pedido('es'),
+    nome: 'https://orlanativa-reembolso.example/pix?pedido=ON-ABC123 Silva',
+    caminho: 'online',
+    totais: { cartao: VALOR },
+  });
+  assert.ok(!golpe.html.includes('reembolso.example') && !golpe.texto.includes('reembolso.example'), 'o link digitado não entra');
+  assert.ok(golpe.texto.includes('Hola.'));
+  // sem nome, a saudação sem nome (nada de "Hola, ." solto)
   const semNome = emailLinkDoPedido({ ...pedido('es'), nome: '' });
   assert.ok(!semNome.html.includes('Hola, .') && !semNome.texto.includes('Hola, .'));
+  assert.ok(semNome.texto.includes(TEXTOS_EMAIL.es.comum.olaSemNome));
   assert.equal(escaparHtml(`<a href="x">'&'</a>`), '&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;');
+});
+
+test('a confirmação da desistência: a data e a hora de Brasília, o código, o que acontece agora e "se não foi você"', () => {
+  for (const idioma of IDIOMAS) {
+    const D = TEXTOS_EMAIL[idioma].desistencia;
+    const m = emailDesistenciaRecebida({ ...pedido(idioma), quando: '13 de novembro de 2026 às 14:32' });
+    assert.ok(m.assunto.includes('ON-7K3P9Q'), idioma);
+    assert.ok(m.texto.includes('13 de novembro de 2026 às 14:32'), `${idioma}: a data e a hora`);
+    assert.match(D.recebido, /Bras[ií]lia/, `${idioma}: o horário de Brasília`);
+    // os 7 dias, o 1 dia útil e a política
+    assert.match(D.agora, /7/, idioma);
+    assert.match(D.agora, /1/, idioma);
+    assert.ok(m.texto.includes(D.agora) && m.texto.includes(D.naoFoiVoce), idioma);
+    // é o comprovante do cliente: os itens do pedido, sem voucher (o pedido continua pago até a equipe responder)
+    assert.ok(m.texto.includes('Passeio de Escuna em Búzios') && !m.texto.includes('ON-AB2CD3'), idioma);
+  }
+});
+
+test('o aviso da desistência para a equipe: o motivo entre « », o prazo, o link do painel, tudo escapado', () => {
+  const m = emailAvisoDaDesistencia({
+    codigo: 'ON-7K3P9Q',
+    quando: '13 de novembro de 2026 às 14:32',
+    prazo: 'dentro dos 7 dias do arrependimento (compra em 10/11/2026 09:00): reembolso integral',
+    primeiroServico: 'sáb., 14 nov. 2026 às 09h00',
+    motivo: "Mudei os planos <script>alert(1)</script> 'x'",
+    linkPainel: 'https://orlanativa.online/admin?q=ON-7K3P9Q',
+    site: SITE,
+  });
+  assert.equal(m.assunto, 'Desistência pelo site: pedido ON-7K3P9Q');
+  assert.ok(m.html.includes('href="https://orlanativa.online/admin?q=ON-7K3P9Q"'));
+  assert.ok(!m.html.includes('<script>'), 'o motivo nunca vira HTML');
+  assert.ok(m.texto.includes("Motivo escrito pelo cliente: «Mudei os planos <script>alert(1)</script> 'x'»"));
+  assert.ok(m.texto.includes('reembolso integral') && m.texto.includes('sáb., 14 nov. 2026'));
+  assert.match(m.texto, /nunca para uma conta ou chave escrita no motivo/);
+  for (const valor of DADOS_LEGAIS) assert.ok(!m.html.includes(valor) && !m.texto.includes(valor), valor);
+  // sem motivo, a frase diz que não veio
+  const semMotivo = emailAvisoDaDesistencia({
+    codigo: 'ON-7K3P9Q',
+    quando: 'x',
+    prazo: 'y',
+    primeiroServico: 'z',
+    motivo: '',
+    linkPainel: 'https://orlanativa.online/admin?q=ON-7K3P9Q',
+    site: SITE,
+  });
+  assert.ok(semMotivo.texto.includes('O cliente não escreveu motivo.'));
+});
+
+test('os links do voucher no e-mail não quebram no meio ("Descargar el PDF" inteiro): só depois do "·"', () => {
+  const m = emailPagamentoAprovado({ ...pedido('es', true), total: VALOR, anexos: false });
+  const links = m.html.match(/<a href="https:\/\/orlanativa\.online\/(reserva|api\/voucher)\/[^"]+"[^>]*>/g) ?? [];
+  assert.equal(links.length, 4, 'dois vouchers, dois links cada');
+  for (const a of links) assert.match(a, /white-space:nowrap;/);
+  assert.ok(m.html.includes('</a>&nbsp;&nbsp;·&nbsp; <a href='), 'o espaço comum depois do "·" é onde a linha quebra');
+});
+
+test('a cota do dia: passando de 60, só os essenciais saem; o mesmo endereço recebe no máximo 3 "pedido recebido"', async () => {
+  zerarLimitesEmMemoria();
+  delete process.env.SUPABASE_URL;
+  // um dia longe de hoje, para não somar com os outros testes
+  const dia = new Date('2030-01-15T12:00:00Z');
+  const outroDia = new Date('2030-01-16T00:30:00Z');
+  try {
+    assert.equal(EMAILS_DO_DIA_ANTES_DE_GUARDAR, 60);
+    for (let i = 0; i < EMAILS_DO_DIA_ANTES_DE_GUARDAR; i++) assert.equal(await cabeNaCotaDoDia('pedido-recebido', dia), true, `${i}`);
+    for (const tipo of ['pedido-recebido', 'link-do-pedido', 'lembrete-1', 'lembrete-2'] as TipoEmail[]) {
+      assert.equal(emailEssencial(tipo), false, tipo);
+      assert.equal(await cabeNaCotaDoDia(tipo, dia), false, `${tipo}: guardado`);
+    }
+    for (const tipo of ['pagamento-aprovado', 'pix-vencido', 'desistencia-recebida', 'desistencia-equipe'] as TipoEmail[]) {
+      assert.equal(emailEssencial(tipo), true, tipo);
+      assert.equal(await cabeNaCotaDoDia(tipo, dia), true, `${tipo}: sempre sai`);
+    }
+    // o dia do Resend vira à meia-noite UTC: a contagem recomeça
+    assert.equal(await cabeNaCotaDoDia('pedido-recebido', outroDia), true);
+    // o mesmo endereço, sem diferença de maiúsculas: 3 por dia; outro endereço não conta
+    assert.equal(PEDIDOS_RECEBIDOS_POR_ENDERECO, 3);
+    for (let i = 0; i < 3; i++) assert.equal(await enderecoCabeNoDia(i % 2 ? 'Maria@Exemplo.com' : 'maria@exemplo.com', dia), true);
+    assert.equal(await enderecoCabeNoDia('maria@exemplo.com ', dia), false);
+    assert.equal(await enderecoCabeNoDia('joao@exemplo.com', dia), true);
+    assert.equal(await enderecoCabeNoDia('maria@exemplo.com', outroDia), true);
+    // a chave da contagem leva um resumo do endereço, nunca o e-mail
+    assert.ok(!resumoDoEndereco('maria@exemplo.com').includes('maria'));
+    assert.equal(resumoDoEndereco('Maria@Exemplo.com'), resumoDoEndereco(' maria@exemplo.com'));
+  } finally {
+    zerarLimitesEmMemoria();
+  }
 });
 
 test('o WhatsApp da equipe só aparece no e-mail do pagamento aprovado', () => {
@@ -260,18 +398,25 @@ test('pedido recebido: o caminho do WhatsApp manda abrir o pedido (sem o número
   }
 });
 
-test('o lembrete do carrinho: os itens com o preço nas duas formas, o botão de voltar e o link de sair da lista', () => {
+test('o lembrete do carrinho: os itens com o preço (e o ≈ US$ em es e en), o botão de voltar e o link de sair da lista', () => {
   for (const idioma of IDIOMAS) {
     const L = TEXTOS_EMAIL[idioma].lembrete;
     const [, um] = todos(idioma).find(([n]) => n === 'lembrete 1') as [string, MensagemEmail];
     const [, dois] = todos(idioma).find(([n]) => n === 'lembrete 2') as [string, MensagemEmail];
     assert.equal(um.assunto, L.assunto1);
     assert.equal(dois.assunto, L.assunto2);
+    const dolar = (texto: string) => (idioma === 'pt' ? '' : ` (${texto})`);
     for (const m of [um, dois]) {
       assert.ok(m.html.includes('href="https://orlanativa.online/api/carrinho/voltar?t=volta.assinada"'), idioma);
       assert.ok(m.html.includes('href="https://orlanativa.online/api/email/sair?t=sair.assinado"'), idioma);
       assert.ok(m.html.includes(escaparHtml(L.sair)) && m.texto.includes(L.sair), `${idioma}: sair da lista`);
-      assert.ok(m.texto.includes(`R$ 135,00 ${L.noPix} · R$ 150,00 ${L.noCartao}`), `${idioma}: preço nas duas formas`);
+      // o preço de cada item nas formas que valem, com o aproximado em dólar ao lado em espanhol e inglês
+      assert.ok(
+        m.texto.includes(`R$ 135,00 ${L.noPix}${dolar('≈ US$ 24,50')} · R$ 150,00 ${L.noCartao}${dolar('≈ US$ 27,20')}`),
+        `${idioma}: preço nas duas formas`,
+      );
+      // quem já reservou por outro caminho pode ignorar
+      assert.ok(m.texto.includes(L.jaReservou) && visivel(m.html).includes(escaparHtml(L.jaReservou)), `${idioma}: já reservou`);
       // nada de urgência falsa
       assert.doesNotMatch(m.texto, /últimas? (vagas|plazas)|last chance|hurry|apresse|date prisa|antes que acabe/i, idioma);
     }
@@ -279,13 +424,36 @@ test('o lembrete do carrinho: os itens com o preço nas duas formas, o botão de
     const umItem = emailLembrete({
       idioma,
       n: 1,
-      itens: [{ nome: 'Passeio de Escuna em Búzios', linhas: ['2 adultos'], pix: 'R$ 135,00', cartao: 'R$ 150,00' }],
+      itens: [
+        {
+          nome: 'Passeio de Escuna em Búzios',
+          linhas: ['2 adultos'],
+          pix: { valor: 'R$ 135,00' },
+          cartao: { valor: 'R$ 150,00' },
+        },
+      ],
       totais: { pix: VALOR, cartao: VALOR },
       linkVoltar: 'https://x/voltar',
       linkSair: 'https://x/sair',
       site: SITE,
     });
     assert.ok(!umItem.texto.includes(`R$ 135,00 ${L.noPix}`), `${idioma}: preço repetido`);
+    // fora do prazo (ou acima do limite) do Pix, o lembrete não oferece o preço no Pix: só o cartão
+    const semPix = emailLembrete({
+      idioma,
+      n: 1,
+      itens: [
+        { nome: 'Passeio de Escuna em Búzios', linhas: ['2 adultos'], cartao: { valor: 'R$ 150,00' } },
+        { nome: 'Quadriciclo em Búzios', linhas: ['1 quadriciclo'], cartao: { valor: 'R$ 120,00' } },
+      ],
+      totais: { cartao: VALOR },
+      linkVoltar: 'https://x/voltar',
+      linkSair: 'https://x/sair',
+      site: SITE,
+    });
+    const C = TEXTOS_EMAIL[idioma].comum;
+    assert.ok(!semPix.texto.includes(L.noPix) && !semPix.texto.includes(C.totalNoPix), `${idioma}: sem o Pix`);
+    assert.ok(semPix.texto.includes(`R$ 150,00 ${L.noCartao}`) && semPix.texto.includes(C.totalNoCartao), `${idioma}: o cartão`);
   }
   // o "e-mail" nunca quebra no hífen no celular
   const recebido = emailPedidoRecebido({ ...pedido('pt'), caminho: 'online', totais: { cartao: VALOR } });
@@ -424,6 +592,44 @@ test('as respostas do Resend: repetido conta como enviado; cota e falha param o 
     // o domínio não verificado ou a chave sem permissão: problema da conta
     const dominio = await enviar([{ status: 403, corpo: { name: 'validation_error' } }]);
     assert.equal(falhaDaConta(dominio.r), true);
+  } finally {
+    delete process.env.RESEND_API_KEY;
+  }
+});
+
+test('o envio respeita a cota do dia: guardada, o e-mail não vai ao Resend e o lote dos lembretes para', async (t) => {
+  process.env.RESEND_API_KEY = 're_teste_123';
+  t.mock.method(console, 'log', () => {});
+  const erro = t.mock.method(console, 'error', () => {});
+  try {
+    const falso = fetchFalso([{ status: 200, corpo: { id: 'x' } }]);
+    const tipos: TipoEmail[] = [];
+    const r = await enviarEmail(
+      { ...EMAIL, tipo: 'lembrete-1', chave: 'lembrete-1/x' },
+      {
+        fetch: falso.fetch,
+        esperar: semEspera,
+        cota: async (tipo) => {
+          tipos.push(tipo);
+          return false;
+        },
+      },
+    );
+    assert.deepEqual(tipos, ['lembrete-1']);
+    assert.equal(falso.chamadas.length, 0, 'nada vai ao Resend');
+    assert.deepEqual(r, { enviado: false, motivo: 'cota', detalhe: 'guardada' });
+    assert.equal(falhaDaConta(r), true, 'o lote para e o lembrete volta para a fila');
+    assert.ok(!String(erro.mock.calls[0]?.arguments[0]).includes(EMAIL.para), 'o registro não leva o e-mail');
+    // a contagem que falha deixa o e-mail sair
+    const outro = fetchFalso([{ status: 200, corpo: { id: 'email_2' } }]);
+    const r2 = await enviarEmail(EMAIL, {
+      fetch: outro.fetch,
+      esperar: semEspera,
+      cota: async () => {
+        throw new Error('banco fora');
+      },
+    });
+    assert.deepEqual(r2, { enviado: true, id: 'email_2' });
   } finally {
     delete process.env.RESEND_API_KEY;
   }

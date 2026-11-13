@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { COOKIE_ADMIN, adminConfigurado, chamadaDoAgendamento, sessaoValida } from '@/lib/admin-auth';
 import { supabase as bancoDeDados, supabaseConfigurado, testarSupabase } from '@/lib/banco';
+import { apagarEmailsVencidos } from '@/lib/carrinho-lembretes';
 import { idadeDaCotacaoDias } from '@/lib/dolar';
 import { emailLigado } from '@/lib/email/enviar';
 import { modoPagamentoOnline } from '@/lib/formas-pagamento';
@@ -61,25 +62,40 @@ async function limpezaDosHospedes(): Promise<Record<string, boolean | string | n
 }
 
 /**
+ * O e-mail digitado num carrinho que não virou pedido sai 90 dias depois da última mudança no carrinho
+ * (apagarEmailsVencidos, src/lib/carrinho-lembretes.ts; é o prazo da política de privacidade): só no agendamento diário.
+ */
+async function limpezaDosCarrinhos(): Promise<Record<string, boolean | string | number>> {
+  try {
+    return { ok: true, emailsApagados: await apagarEmailsVencidos() };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
  * Verificação de saúde: banco de reservas (Blob), banco de dados (Supabase), câmbio do dólar, pagamento e
  * configurações. Abre só para o admin logado ou para o agendamento diário da Vercel (vercel.json), que manda
- * "Authorization: Bearer CRON_SECRET" e também limpa o limite por IP e apaga o cadastro vencido dos hóspedes das
- * casas. Nenhum valor de chave sai daqui: da Stripe, só o modo (desligado, teste ou produção), pelo prefixo da chave.
+ * "Authorization: Bearer CRON_SECRET" e também limpa o limite por IP, apaga o cadastro vencido dos hóspedes das casas e
+ * apaga o e-mail dos carrinhos parados há mais de 90 dias sem pedido. Nenhum valor de chave sai daqui: da Stripe, só o
+ * modo (desligado, teste ou produção), pelo prefixo da chave.
  */
 export async function GET(req: Request) {
   const loja = await cookies();
   const agendamento = chamadaDoAgendamento(req);
   if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value) && !agendamento) return NextResponse.json({ ok: false }, { status: 401 });
-  const [banco, supabase, cambio, limites, hospedes] = await Promise.all([
+  const [banco, supabase, cambio, limites, hospedes, carrinhos] = await Promise.all([
     testarBanco(),
     testarSupabase(),
     cambioDolar(),
     agendamento ? limpezaDosLimites() : Promise.resolve(undefined),
     agendamento ? limpezaDosHospedes() : Promise.resolve(undefined),
+    agendamento ? limpezaDosCarrinhos() : Promise.resolve(undefined),
   ]);
-  const ok = !banco.erro && !supabase.erro && cambio.ok !== false && limites?.ok !== false && hospedes?.ok !== false;
+  const ok =
+    !banco.erro && !supabase.erro && cambio.ok !== false && limites?.ok !== false && hospedes?.ok !== false && carrinhos?.ok !== false;
   // fica nos registros da Vercel: é por eles que se confere o agendamento diário
-  console.log(`saude ok=${ok} ${JSON.stringify({ banco, supabase, cambio, limites, hospedes })}`);
+  console.log(`saude ok=${ok} ${JSON.stringify({ banco, supabase, cambio, limites, hospedes, carrinhos })}`);
   return NextResponse.json(
     {
       ok,
@@ -88,6 +104,7 @@ export async function GET(req: Request) {
       cambio,
       ...(limites ? { limites } : {}),
       ...(hospedes ? { hospedes } : {}),
+      ...(carrinhos ? { carrinhos } : {}),
       stripe: modoStripe(),
       pagamentoOnline: modoPagamentoOnline(),
       // os e-mails automáticos (Etapa 6): ligados só com a chave do Resend; o valor da chave nunca sai daqui

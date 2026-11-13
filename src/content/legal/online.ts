@@ -3,7 +3,7 @@ import { DESCONTO_PIX_PORCENTO } from '../../config/precos.ts';
 import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
 import { comAjustesAR, type ParAR } from './argentino.ts';
 import { AJUSTES_AR_CANCELAMENTO, CANCELAMENTO } from './cancelamento.ts';
-import { comMudancas, paresQueFicam, type MudancasDoDocumento } from './mudancas.ts';
+import { comMudancas, juntarMudancas, paresQueFicam, type MudancasDoDocumento } from './mudancas.ts';
 import { AJUSTES_AR_PRIVACIDADE, PRIVACIDADE } from './privacidade.ts';
 import { AJUSTES_AR_TERMOS, TERMOS } from './termos.ts';
 import { ATUALIZADO_EM, type DocumentoLegal } from './tipos.ts';
@@ -18,7 +18,11 @@ import { ATUALIZADO_EM, type DocumentoLegal } from './tipos.ts';
  *
  * Os nomes da Stripe ficam no texto: o recebedor do Pix no app do banco ainda não foi conferido numa conta brasileira
  * (a documentação da Stripe só fala da EBANX no Pix pela Link, de empresas dos EUA), então o texto diz que o nome
- * "pode aparecer" e dá a EBANX como exemplo. Conferir no Pix de teste e ajustar.
+ * "pode aparecer" e dá "EBANX ou Stripe" como exemplo, com a mesma frase do checkout (checkout.pixRecebedor) e da FAQ.
+ * Conferir no Pix de teste e ajustar os três juntos.
+ *
+ * A privacidade tem também a versão de hoje com os e-mails ligados (PRIVACIDADE_EMAILS): os e-mails do pedido e os
+ * lembretes do carrinho ligam só com a RESEND_API_KEY, sem depender do pagamento online.
  */
 
 const E = EMPRESA;
@@ -26,6 +30,11 @@ const P = DESCONTO_PIX_PORCENTO;
 
 /** A data da versão do pagamento online, que a página mostra em "Atualizado em": troque para o dia de ligar. */
 export const ATUALIZADO_EM_ONLINE = '2026-11-13';
+/**
+ * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
+ * carrinho): troque para o dia em que a RESEND_API_KEY entrar na Vercel.
+ */
+export const ATUALIZADO_EM_EMAILS = '2026-11-13';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */
@@ -60,7 +69,7 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
             'Prazo: o Pix vale até 2 horas antes do início do primeiro serviço do pedido (passeio, transfer ou entrada na casa). Depois disso, só cartão: um pedido já feito pode ser pago com cartão até 30 minutos antes do primeiro serviço.',
             'Código: o QR Code e o código copia e cola valem por 30 minutos, ou menos, quando o prazo do Pix termina antes. Se o código vencer sem pagamento, nada é cobrado, e dá para gerar outro na página do pedido enquanto o prazo permitir.',
             'Confirmação: é automática. A Stripe avisa o site assim que o banco confirma o pagamento, sem precisar de comprovante, e o voucher sai nesse momento.',
-            'Recebedor: no app do seu banco, o Pix pode aparecer em nome da empresa que processa o pagamento para a Stripe (como a EBANX), e não em nome da Orla Nativa.',
+            'Recebedor: no app do seu banco, o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
             'Limite: um Pix tem um valor máximo por pagamento, o equivalente a US$ 3.000,00 em reais. Por segurança, num pedido perto desse valor ou acima dele, o site oferece só o cartão.',
             'Reembolso: o que tiver de ser devolvido volta pela Stripe para a conta de onde o Pix saiu. Depois de 90 dias do pagamento, a Stripe não devolve mais por Pix: nesse caso, devolvemos por transferência para uma conta que você indicar.',
           ],
@@ -96,10 +105,10 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
           lista: [
             'Deadline: Pix is available up to 2 hours before the first service in your order starts (tour, transfer or check-in at the home). After that, by card only: an order already placed can be paid by card up to 30 minutes before the first service.',
             'Code: the QR code and the copy-and-paste code are valid for 30 minutes, or less when the Pix deadline ends sooner. If the code expires unpaid, nothing is charged, and you can generate a new one on your order page while the deadline allows.',
-            'Confirmation: it is automatic. Stripe tells the website as soon as the bank confirms the payment, with no receipt needed, and your voucher is issued at that moment.',
-            'Recipient: in your bank app, the Pix may show the name of the company that processes the payment for Stripe (such as EBANX), not Orla Nativa.',
+            'Confirmation: it is automatic. Stripe tells the website as soon as the bank confirms the payment, with no need to send proof of payment, and your voucher is issued at that moment.',
+            'Recipient: in your bank app, the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
             'Limit: a Pix has a maximum amount per payment, the equivalent of US$ 3,000.00 in reais. To be safe, for orders close to or above that amount, the website offers card payment only.',
-            'Refund: any amount to be returned goes back through Stripe to the account the Pix came from. More than 90 days after the payment, Stripe can no longer refund by Pix: in that case, we refund by bank transfer to an account you tell us.',
+            'Refund: any amount to be returned goes back through Stripe to the account the Pix came from. More than 90 days after the payment, Stripe can no longer refund by Pix: in that case, we refund by bank transfer to an account you give us.',
           ],
         },
       ],
@@ -109,11 +118,11 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
     trocas: [
       [
         `Contacto: e-mail ${E.email}. Después de la reserva, también te atendemos por WhatsApp.`,
-        `Contacto: e-mail ${E.email}. Después del pago confirmado, también te atendemos por WhatsApp.`,
+        `Contacto: e-mail ${E.email}. Una vez confirmado el pago, también te atendemos por WhatsApp.`,
       ],
       [
         'La reserva se confirma cuando se aprueba el pago. En ese momento emitimos un voucher con número único, que es tu comprobante.',
-        'La reserva se confirma cuando se aprueba el pago: con tarjeta, cuando la emisora lo aprueba; con Pix, cuando el banco confirma el pago, lo que suele tardar unos segundos. En ese momento emitimos un voucher para cada ítem del pedido, con número único, que es tu comprobante.',
+        'La reserva se confirma cuando se aprueba el pago: con tarjeta, cuando el banco emisor lo aprueba; con Pix, cuando el banco confirma el pago, lo que suele tardar unos segundos. En ese momento emitimos un voucher para cada ítem del pedido, con número único, que es tu comprobante.',
       ],
       [
         'El pago es por el valor total de la reserva, con Pix o tarjeta de crédito (en las casas de temporada, rige el punto 7). Mientras se activa el pago online, la reserva se registra en el sitio y el pago se completa con nuestro equipo por WhatsApp. El sitio no guarda los datos de tu tarjeta.',
@@ -134,7 +143,7 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
             'Plazo: el Pix vale hasta 2 horas antes del inicio del primer servicio del pedido (paseo, traslado o entrada a la casa). Después, solo con tarjeta: un pedido ya hecho se puede pagar con tarjeta hasta 30 minutos antes del primer servicio.',
             'Código: el código QR y el código copia y pega valen por 30 minutos, o menos, cuando el plazo del Pix termina antes. Si el código vence sin pago, no se cobra nada, y se puede generar otro en la página del pedido mientras el plazo lo permita.',
             'Confirmación: es automática. Stripe avisa al sitio apenas el banco confirma el pago, sin necesidad de comprobante, y el voucher sale en ese momento.',
-            'Destinatario: en la app de tu banco, el Pix puede aparecer a nombre de la empresa que procesa el pago para Stripe (como EBANX), y no a nombre de Orla Nativa.',
+            'Destinatario: en la app de tu banco, el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
             'Límite: un Pix tiene un monto máximo por pago, el equivalente a US$ 3.000,00 en reales. Por seguridad, en un pedido cercano a ese monto o superior, el sitio ofrece solo la tarjeta.',
             'Reembolso: lo que haya que devolver vuelve por Stripe a la cuenta de la que salió el Pix. Pasados 90 días del pago, Stripe ya no devuelve por Pix: en ese caso, devolvemos por transferencia a una cuenta que nos indiques.',
           ],
@@ -165,15 +174,15 @@ const MUDANCAS_CANCELAMENTO: Record<IdiomaConteudo, MudancasDoDocumento> = {
       ],
       [
         'Nesse caso, devolvemos imediatamente todos os valores pagos, com atualização monetária, desde que o serviço ainda não tenha acontecido. O pedido pode ser feito pelos mesmos canais usados na compra (veja o item 8).',
-        'Nesse caso, devolvemos imediatamente todos os valores pagos, com atualização monetária, desde que o serviço ainda não tenha acontecido: pedimos o estorno à Stripe assim que o seu pedido de desistência chega. Você pode desistir pelo próprio site, no link “Desistir da compra” da página do pedido, ou pelos canais do item 8.',
+        'Nesse caso, devolvemos imediatamente todos os valores pagos, com atualização monetária, desde que o serviço ainda não tenha acontecido: assim que o pedido de desistência chega, a equipe recebe um aviso e pede o estorno à Stripe em até 1 dia útil. Você pode desistir pelo próprio site, no link “Desistir da compra” da página do pedido, ou pelos canais do item 8.',
       ],
       [
         'O reembolso é feito pelo mesmo meio de pagamento usado na compra, e o estorno é solicitado em até 2 (dois) dias úteis após a confirmação do cancelamento.',
-        'O reembolso é feito pelo mesmo meio de pagamento usado na compra, pela Stripe, e o estorno é solicitado em até 2 (dois) dias úteis após a confirmação do cancelamento (no arrependimento do item 2, assim que o pedido chega).',
+        'O reembolso é feito pelo mesmo meio de pagamento usado na compra, pela Stripe, e o estorno é solicitado em até 2 (dois) dias úteis após a confirmação do cancelamento (no arrependimento do item 2, em até 1 dia útil depois que o pedido chega).',
       ],
       [
         'Pix: o valor volta para a conta de origem, em geral no mesmo dia do estorno.',
-        'Pix: o valor volta pela Stripe para a conta de onde o Pix saiu, em geral em poucos minutos. Depois de 90 dias do pagamento, a Stripe não devolve mais por Pix: nesse caso, devolvemos por transferência para uma conta que você indicar.',
+        'Pix: o valor volta pela Stripe para a conta de onde o Pix saiu; o prazo para ele aparecer na conta depende do banco. Depois de 90 dias do pagamento, a Stripe não devolve mais por Pix: nesse caso, devolvemos por transferência para uma conta que você indicar.',
       ],
       [
         'Cartão de crédito: o estorno é enviado à administradora do cartão e o crédito aparece na fatura conforme o prazo dela, normalmente em uma ou duas faturas.',
@@ -212,15 +221,15 @@ const MUDANCAS_CANCELAMENTO: Record<IdiomaConteudo, MudancasDoDocumento> = {
       ],
       [
         'In that case we immediately refund everything you paid, adjusted for inflation, provided the service has not yet taken place. You can make the request through the same channels used for the purchase (see item 8).',
-        'In that case we immediately refund everything you paid, adjusted for inflation, provided the service has not yet taken place: we request the refund from Stripe as soon as your withdrawal request arrives. You can withdraw on the website itself, with the “Cancel this purchase” link on your order page, or through the channels in item 8.',
+        'In that case we immediately refund everything you paid, adjusted for inflation, provided the service has not yet taken place: as soon as your withdrawal request arrives, our team is notified and requests the refund from Stripe within 1 business day. You can withdraw on the website itself, with the “Cancel this purchase” link on your order page, or through the channels in item 8.',
       ],
       [
         'Refunds are made to the same payment method used for the purchase, and the refund is requested within 2 (two) business days after the cancellation is confirmed.',
-        'Refunds are made to the same payment method used for the purchase, through Stripe, and the refund is requested within 2 (two) business days after the cancellation is confirmed (for a withdrawal under item 2, as soon as the request arrives).',
+        'Refunds are made to the same payment method used for the purchase, through Stripe, and the refund is requested within 2 (two) business days after the cancellation is confirmed (for a withdrawal under item 2, within 1 business day after the request arrives).',
       ],
       [
         'Pix: the amount returns to the original account, usually on the same day the refund is issued.',
-        'Pix: the amount goes back through Stripe to the account the Pix came from, usually within a few minutes. More than 90 days after the payment, Stripe can no longer refund by Pix: in that case, we refund by bank transfer to an account you tell us.',
+        'Pix: the amount goes back through Stripe to the account the Pix came from; how long it takes to show up depends on the bank. More than 90 days after the payment, Stripe can no longer refund by Pix: in that case, we refund by bank transfer to an account you give us.',
       ],
       [
         'Credit card: the refund is sent to the card issuer and the credit shows on your statement according to their timing, usually within one or two statements.',
@@ -244,7 +253,7 @@ const MUDANCAS_CANCELAMENTO: Record<IdiomaConteudo, MudancasDoDocumento> = {
           lista: [
             'Deadline: Pix is only available up to 2 hours before the first service in your order starts.',
             'Expired code: if the QR code expires unpaid, nothing is charged. Your order stays saved, and you can pay again on your order page while there is still time.',
-            'Confirmation: it is automatic, through Stripe, as soon as the bank confirms the payment. You do not need to send a receipt.',
+            'Confirmation: it is automatic, through Stripe, as soon as the bank confirms the payment. You do not need to send proof of payment.',
             'Double payment: if the same order is paid twice (for example, in two tabs), the extra payment goes back through Stripe to the account it came from, without you having to ask.',
           ],
         },
@@ -259,15 +268,15 @@ const MUDANCAS_CANCELAMENTO: Record<IdiomaConteudo, MudancasDoDocumento> = {
       ],
       [
         'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el servicio todavía no se haya realizado. El pedido se puede hacer por los mismos canales usados en la compra (ver el punto 8).',
-        'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el servicio todavía no se haya realizado: pedimos la devolución a Stripe apenas llega tu pedido de desistimiento. Se puede desistir en el propio sitio, con el enlace “Desistir de la compra” de la página del pedido, o por los canales del punto 8.',
+        'En ese caso devolvemos de inmediato todo lo que pagaste, con actualización monetaria, siempre que el servicio todavía no se haya realizado: apenas llega el pedido de desistimiento, el equipo recibe un aviso y pide la devolución a Stripe en un plazo máximo de 1 día hábil. Se puede desistir en el propio sitio, con el enlace “Desistir de la compra” de la página del pedido, o por los canales del punto 8.',
       ],
       [
         'El reembolso se hace por el mismo medio de pago usado en la compra, y la devolución se solicita dentro de los 2 (dos) días hábiles siguientes a la confirmación de la cancelación.',
-        'El reembolso se hace por el mismo medio de pago usado en la compra, por Stripe, y la devolución se solicita dentro de los 2 (dos) días hábiles siguientes a la confirmación de la cancelación (en el arrepentimiento del punto 2, apenas llega el pedido).',
+        'El reembolso se hace por el mismo medio de pago usado en la compra, por Stripe, y la devolución se solicita dentro de los 2 (dos) días hábiles siguientes a la confirmación de la cancelación (en el arrepentimiento del punto 2, en un plazo máximo de 1 día hábil desde que llega el pedido).',
       ],
       [
         'Pix: el valor vuelve a la cuenta de origen, en general el mismo día de la devolución.',
-        'Pix: el valor vuelve por Stripe a la cuenta de la que salió el Pix, en general en pocos minutos. Pasados 90 días del pago, Stripe ya no devuelve por Pix: en ese caso, devolvemos por transferencia a una cuenta que nos indiques.',
+        'Pix: el valor vuelve por Stripe a la cuenta de la que salió el Pix; el plazo para que aparezca en la cuenta depende del banco. Pasados 90 días del pago, Stripe ya no devuelve por Pix: en ese caso, devolvemos por transferencia a una cuenta que nos indiques.',
       ],
       [
         'Tarjeta de crédito: la devolución se envía al banco emisor de la tarjeta y el crédito aparece en el estado de cuenta según sus plazos, normalmente en uno o dos estados de cuenta.',
@@ -309,27 +318,23 @@ const NOVOS_PARES_CANCELAMENTO: readonly ParAR[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Política de privacidade: a Stripe (com os cookies antifraude do    */
-/* formulário de pagamento), o Resend e o lembrete do carrinho        */
+/* Política de privacidade: os e-mails (os do pedido, o Resend, o     */
+/* lembrete do carrinho e o prazo do e-mail no carrinho), que valem   */
+/* também sem o pagamento online, e a Stripe (com os cookies          */
+/* antifraude do formulário), só com o pagamento online               */
 
-const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
+/**
+ * O que a privacidade ganha quando os e-mails automáticos estão ligados (RESEND_API_KEY no build): os e-mails do pedido,
+ * o Resend, o lembrete do carrinho com o link para sair da lista e o prazo do e-mail no carrinho que não virou pedido
+ * (90 dias, apagarEmailsVencidos em src/lib/carrinho-lembretes.ts). Entra na versão de hoje, com os e-mails ligados, e
+ * na do pagamento online.
+ */
+const MUDANCAS_PRIVACIDADE_EMAILS: Record<IdiomaConteudo, MudancasDoDocumento> = {
   pt: {
     trocas: [
       [
-        'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O site não recebe nem guarda o número completo do cartão.',
-        'Pagamento: forma de pagamento, status, os códigos do pagamento na Stripe, o valor que você viu na sua moeda e o país informado no pagamento; no cartão, apenas a bandeira, os quatro últimos dígitos e o país do cartão. O número completo do cartão é digitado no formulário da Stripe e nunca passa pelos nossos servidores.',
-      ],
-      [
         'Guardar o seu carrinho e lembrar você de uma reserva que ficou sem terminar — legítimo interesse (art. 7º, IX). Você pode pedir para não receber esse lembrete.',
         'Guardar o seu carrinho e mandar por e-mail um lembrete da reserva que ficou sem terminar — legítimo interesse (art. 7º, IX). Todo lembrete traz um link para sair da lista.',
-      ],
-      [
-        'Bancos e empresas de pagamento: processamento dos pagamentos por Pix e cartão.',
-        'Stripe: processamento dos pagamentos com cartão e Pix e prevenção a fraudes. A Stripe recebe os dados do cartão e o que mais a cobrança exigir, e pode contar com empresas parceiras para processar o Pix.',
-      ],
-      [
-        'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas por área administrativa protegida por senha, e o site não guarda dados de cartão.',
-        'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas pela área administrativa protegida por senha. Você acompanha o seu pedido por um link privado. Os dados do cartão são digitados no formulário da Stripe e processados apenas por ela.',
       ],
     ],
     depois: [
@@ -341,6 +346,94 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
         'Vercel e Supabase: hospedagem do site e armazenamento seguro das reservas.',
         ['Resend: envio dos e-mails do pedido (confirmação, vouchers, avisos do pagamento e o lembrete do carrinho).'],
       ],
+      [
+        'Os dados das reservas são guardados por 5 (cinco) anos após o serviço, prazo relacionado às obrigações fiscais e aos direitos do consumidor. Dados usados com base no consentimento são mantidos até você revogá-lo. Depois disso, os dados são apagados ou anonimizados.',
+        [
+          'O e-mail digitado no checkout de um carrinho que não virou pedido é apagado 90 dias depois da última mudança no carrinho. De quem saiu da lista dos lembretes, guardamos só o e-mail, para não mandar outro lembrete.',
+        ],
+      ],
+      [
+        'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+        ['Quem abre o link para sair da lista dos lembretes recebe um cookie que dura um dia, só para confirmar a saída.'],
+      ],
+    ],
+  },
+  en: {
+    trocas: [
+      [
+        'To keep your cart and remind you of a booking you did not finish — legitimate interest (art. 7, IX). You can ask not to receive this reminder.',
+        'To keep your cart and email you a reminder of a booking you did not finish — legitimate interest (art. 7, IX). Every reminder has a link to unsubscribe.',
+      ],
+    ],
+    depois: [
+      [
+        'To process payments and refunds and prevent fraud — performance of a contract and legitimate interest (art. 7, V and IX).',
+        ['To email you the order confirmation, the vouchers and payment notices — performance of a contract (art. 7, V).'],
+      ],
+      [
+        'Vercel and Supabase: website hosting and secure storage of bookings.',
+        ['Resend: sending the order emails (confirmation, vouchers, payment notices and the cart reminder).'],
+      ],
+      [
+        'Booking data is kept for 5 (five) years after the service, in line with tax obligations and consumer rights. Data used on the basis of consent is kept until you withdraw it. After that, the data is deleted or anonymised.',
+        [
+          'The email typed at checkout for a cart that did not become an order is deleted 90 days after the cart was last changed. For people who left the reminder list, we keep only the email address, so that no other reminder is sent.',
+        ],
+      ],
+      [
+        'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+        ['If you open the link to leave the reminder list, a cookie that lasts one day is set, only to confirm that you want to leave.'],
+      ],
+    ],
+  },
+  es: {
+    trocas: [
+      [
+        'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
+        'Guardar tu carrito y enviarte por e-mail un recordatorio de la reserva que quedó sin terminar — interés legítimo (art. 7, IX). Cada recordatorio trae un enlace para salir de la lista.',
+      ],
+    ],
+    depois: [
+      [
+        'Procesar pagos y reembolsos y prevenir fraudes — ejecución de contrato e interés legítimo (art. 7, V y IX).',
+        ['Enviarte por e-mail la confirmación del pedido, los vouchers y los avisos del pago — ejecución de contrato (art. 7, V).'],
+      ],
+      [
+        'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
+        ['Resend: envío de los e-mails del pedido (confirmación, vouchers, avisos del pago y el recordatorio del carrito).'],
+      ],
+      [
+        'Los datos de las reservas se guardan por 5 (cinco) años después del servicio, plazo relacionado con las obligaciones fiscales y los derechos del consumidor. Los datos usados con base en el consentimiento se mantienen hasta que lo revoques. Después, se eliminan o se anonimizan.',
+        [
+          'El e-mail escrito en el checkout de un carrito que no se convirtió en pedido se borra 90 días después del último cambio en el carrito. De quien salió de la lista de recordatorios, guardamos solo el e-mail, para no enviar otro recordatorio.',
+        ],
+      ],
+      [
+        'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+        ['Quien abre el enlace para salir de la lista de recordatorios recibe una cookie que dura un día, solo para confirmar la salida.'],
+      ],
+    ],
+  },
+};
+
+/** O que a privacidade ganha com o pagamento online: a Stripe, os dados do pagamento e os cookies do formulário dela. */
+const MUDANCAS_PRIVACIDADE_PAGAMENTO: Record<IdiomaConteudo, MudancasDoDocumento> = {
+  pt: {
+    trocas: [
+      [
+        'Pagamento: forma de pagamento, status e, no caso de cartão, apenas bandeira e quatro últimos dígitos. O site não recebe nem guarda o número completo do cartão.',
+        'Pagamento: forma de pagamento, status, os códigos do pagamento na Stripe, o valor que você viu na sua moeda e o país informado no pagamento; no cartão, apenas a bandeira, os quatro últimos dígitos e o país do cartão. O número completo do cartão é digitado no formulário da Stripe e nunca passa pelos nossos servidores.',
+      ],
+      [
+        'Bancos e empresas de pagamento: processamento dos pagamentos por Pix e cartão.',
+        'Stripe: processamento dos pagamentos com cartão e Pix e prevenção a fraudes. A Stripe recebe os dados do cartão e o que mais a cobrança exigir, e pode contar com empresas parceiras para processar o Pix.',
+      ],
+      [
+        'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas por área administrativa protegida por senha, e o site não guarda dados de cartão.',
+        'O site usa conexão criptografada (HTTPS). As reservas ficam em armazenamento privado, acessível apenas pela área administrativa protegida por senha. Você acompanha o seu pedido por um link privado. Os dados do cartão são digitados no formulário da Stripe e processados apenas por ela.',
+      ],
+    ],
+    depois: [
       [
         'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
         [
@@ -356,10 +449,6 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
         'Payment: payment method, status, the payment codes at Stripe, the amount you saw in your currency and the country given at payment; for cards, only the brand, the last four digits and the card’s country. The full card number is typed into Stripe’s form and never passes through our servers.',
       ],
       [
-        'To keep your cart and remind you of a booking you did not finish — legitimate interest (art. 7, IX). You can ask not to receive this reminder.',
-        'To keep your cart and email you a reminder of a booking you did not finish — legitimate interest (art. 7, IX). Every reminder has a link to unsubscribe.',
-      ],
-      [
         'Banks and payment companies: processing Pix and card payments.',
         'Stripe: processing card and Pix payments and preventing fraud. Stripe receives your card details and whatever else the charge requires, and may rely on partner companies to process Pix.',
       ],
@@ -369,14 +458,6 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
       ],
     ],
     depois: [
-      [
-        'To process payments and refunds and prevent fraud — performance of a contract and legitimate interest (art. 7, V and IX).',
-        ['To email you the order confirmation, the vouchers and payment notices — performance of a contract (art. 7, V).'],
-      ],
-      [
-        'Vercel and Supabase: website hosting and secure storage of bookings.',
-        ['Resend: sending the order emails (confirmation, vouchers, payment notices and the cart reminder).'],
-      ],
       [
         'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
         [
@@ -392,10 +473,6 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
         'Pago: forma de pago, estado, los códigos del pago en Stripe, el monto que viste en tu moneda y el país informado en el pago; con tarjeta, solo la marca, los cuatro últimos dígitos y el país de la tarjeta. El número completo de la tarjeta se escribe en el formulario de Stripe y nunca pasa por nuestros servidores.',
       ],
       [
-        'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
-        'Guardar tu carrito y enviarte por e-mail un recordatorio de la reserva que quedó sin terminar — interés legítimo (art. 7, IX). Cada recordatorio trae un enlace para salir de la lista.',
-      ],
-      [
         'Bancos y empresas de pago: procesamiento de pagos con Pix y tarjeta.',
         'Stripe: procesamiento de los pagos con tarjeta y con Pix y prevención de fraudes. Stripe recibe los datos de la tarjeta y lo que el cobro requiera, y puede trabajar con empresas asociadas para procesar el Pix.',
       ],
@@ -406,14 +483,6 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
     ],
     depois: [
       [
-        'Procesar pagos y reembolsos y prevenir fraudes — ejecución de contrato e interés legítimo (art. 7, V y IX).',
-        ['Enviarte por e-mail la confirmación del pedido, los vouchers y los avisos del pago — ejecución de contrato (art. 7, V).'],
-      ],
-      [
-        'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
-        ['Resend: envío de los e-mails del pedido (confirmación, vouchers, avisos del pago y el recordatorio del carrito).'],
-      ],
-      [
         'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
         [
           'En la página de pago, el formulario de Stripe, que está dentro de nuestro sitio, usa cookies y datos del dispositivo y de la navegación para que el pago funcione y para prevenir fraudes. Esos datos van a Stripe, que los usa según su propia política de privacidad (stripe.com/privacy). No dependen del aviso de cookies, porque son necesarios para pagar.',
@@ -423,11 +492,18 @@ const MUDANCAS_PRIVACIDADE: Record<IdiomaConteudo, MudancasDoDocumento> = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/* As três versões, nos quatro idiomas                                */
+/** A versão do pagamento online: as mudanças do pagamento e as dos e-mails juntas. */
+const MUDANCAS_PRIVACIDADE_ONLINE: Record<IdiomaConteudo, MudancasDoDocumento> = {
+  pt: juntarMudancas(MUDANCAS_PRIVACIDADE_PAGAMENTO.pt, MUDANCAS_PRIVACIDADE_EMAILS.pt),
+  en: juntarMudancas(MUDANCAS_PRIVACIDADE_PAGAMENTO.en, MUDANCAS_PRIVACIDADE_EMAILS.en),
+  es: juntarMudancas(MUDANCAS_PRIVACIDADE_PAGAMENTO.es, MUDANCAS_PRIVACIDADE_EMAILS.es),
+};
 
-/** O documento na versão do pagamento online (pt, en, es pelas mudanças; es-ar pelos pares que ficam mais os novos). */
-function versaoOnline(
+/* ------------------------------------------------------------------ */
+/* As versões, nos quatro idiomas                                     */
+
+/** O documento numa outra versão (pt, en, es pelas mudanças; es-ar pelos pares que ficam mais os novos). */
+function outraVersao(
   hoje: Traduzido<DocumentoLegal>,
   mudancas: Record<IdiomaConteudo, MudancasDoDocumento>,
   paresDeHoje: readonly ParAR[],
@@ -441,20 +517,24 @@ function versaoOnline(
   };
 }
 
-const TERMOS_ON = versaoOnline(TERMOS, MUDANCAS_TERMOS, AJUSTES_AR_TERMOS, NOVOS_PARES_TERMOS);
-const CANCELAMENTO_ON = versaoOnline(CANCELAMENTO, MUDANCAS_CANCELAMENTO, AJUSTES_AR_CANCELAMENTO, NOVOS_PARES_CANCELAMENTO);
-const PRIVACIDADE_ON = versaoOnline(PRIVACIDADE, MUDANCAS_PRIVACIDADE, AJUSTES_AR_PRIVACIDADE, []);
+const TERMOS_ON = outraVersao(TERMOS, MUDANCAS_TERMOS, AJUSTES_AR_TERMOS, NOVOS_PARES_TERMOS);
+const CANCELAMENTO_ON = outraVersao(CANCELAMENTO, MUDANCAS_CANCELAMENTO, AJUSTES_AR_CANCELAMENTO, NOVOS_PARES_CANCELAMENTO);
+const PRIVACIDADE_ON = outraVersao(PRIVACIDADE, MUDANCAS_PRIVACIDADE_ONLINE, AJUSTES_AR_PRIVACIDADE, []);
+const PRIVACIDADE_EM = outraVersao(PRIVACIDADE, MUDANCAS_PRIVACIDADE_EMAILS, AJUSTES_AR_PRIVACIDADE, []);
 
 /** Os Termos de Uso com o pagamento online no ar, nos quatro idiomas. */
 export const TERMOS_ONLINE = TERMOS_ON.doc;
 /** A Política de Cancelamento com o pagamento online no ar, nos quatro idiomas. */
 export const CANCELAMENTO_ONLINE = CANCELAMENTO_ON.doc;
-/** A Política de Privacidade com o pagamento online no ar, nos quatro idiomas. */
+/** A Política de Privacidade com o pagamento online no ar (e os e-mails), nos quatro idiomas. */
 export const PRIVACIDADE_ONLINE = PRIVACIDADE_ON.doc;
-/** Os pares argentinos de cada versão online (para os testes conferirem, como os AJUSTES_AR_* de hoje). */
+/** A Política de Privacidade de hoje (sem o pagamento online) com os e-mails automáticos ligados, nos quatro idiomas. */
+export const PRIVACIDADE_EMAILS = PRIVACIDADE_EM.doc;
+/** Os pares argentinos de cada versão (para os testes conferirem, como os AJUSTES_AR_* de hoje). */
 export const AJUSTES_AR_TERMOS_ONLINE = TERMOS_ON.pares;
 export const AJUSTES_AR_CANCELAMENTO_ONLINE = CANCELAMENTO_ON.pares;
 export const AJUSTES_AR_PRIVACIDADE_ONLINE = PRIVACIDADE_ON.pares;
+export const AJUSTES_AR_PRIVACIDADE_EMAILS = PRIVACIDADE_EM.pares;
 
 /** Os três textos legais e a data da versão que vale. */
 export interface TextosLegais {
@@ -465,11 +545,21 @@ export interface TextosLegais {
 }
 
 /**
- * Os textos legais que as páginas mostram: com o pagamento online no ar para o público (pagamentoOnlineNoAr, src/lib/
- * formas-pagamento.ts), a versão dele; senão, o texto de hoje, sem mudar nada.
+ * Os textos legais que as páginas mostram (lidos no build: as páginas legais são estáticas):
+ * - com o pagamento online no ar para o público (pagamentoOnlineNoAr, src/lib/formas-pagamento.ts), a versão dele, que
+ *   já traz os e-mails;
+ * - sem ele e com os e-mails ligados (emailLigado, src/lib/email/enviar.ts: a RESEND_API_KEY), o texto de hoje com a
+ *   privacidade que cita os e-mails, o Resend, o lembrete do carrinho e o prazo do e-mail no carrinho;
+ * - senão, o texto de hoje, sem mudar nada.
  */
-export function textosLegais(online: boolean): TextosLegais {
-  return online
-    ? { termos: TERMOS_ONLINE, cancelamento: CANCELAMENTO_ONLINE, privacidade: PRIVACIDADE_ONLINE, atualizadoEm: ATUALIZADO_EM_ONLINE }
-    : { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE, atualizadoEm: ATUALIZADO_EM };
+export function textosLegais(online: boolean, emails: boolean = false): TextosLegais {
+  if (online)
+    return {
+      termos: TERMOS_ONLINE,
+      cancelamento: CANCELAMENTO_ONLINE,
+      privacidade: PRIVACIDADE_ONLINE,
+      atualizadoEm: ATUALIZADO_EM_ONLINE,
+    };
+  if (emails) return { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE_EMAILS, atualizadoEm: ATUALIZADO_EM_EMAILS };
+  return { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE, atualizadoEm: ATUALIZADO_EM };
 }

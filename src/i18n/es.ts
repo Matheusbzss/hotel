@@ -427,7 +427,7 @@ const es: Dicionario = {
       p: '¿Es seguro pagar en el sitio?',
       r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
       rOnline:
-        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario puede aparecer con el nombre de la empresa que procesa el pago.',
+        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
     },
   ],
   passeios: {

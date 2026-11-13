@@ -3,18 +3,31 @@ import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '../cifra';
+import { AVISO_DESISTENCIA, desistenciaPedida, prazoDoArrependimento } from '../desistencia';
 import { cotacaoDolar, textoDolar } from '../dolar';
-import { mostrarWhatsApp } from '../formas-pagamento';
+import {
+  formasDoPagamento,
+  inicioDoItem,
+  mostrarWhatsApp,
+  pagamentoOnlineNoAr,
+  type FormaPagamento,
+  type ItemPagavel,
+} from '../formas-pagamento';
+import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
 import { provedorDaReserva, valorRecebido } from '../pedidos-painel';
-import { paraPublico, statusDoVoucher } from '../reserva-publica';
+import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
 import { formatarDataIso } from '../validacao';
 import { linkWhatsApp } from '../whatsapp';
+import { enderecoCabeNoDia } from './cota';
 import { depoisDaResposta } from './depois';
-import { emailLigado, enviarEmail, saiu, type Anexo } from './enviar';
+import { emailLigado, enviarEmail, responderPara, saiu, type Anexo } from './enviar';
+import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL, type TipoEmailDoPedido } from './marcas';
 import {
+  emailAvisoDaDesistencia,
+  emailDesistenciaRecebida,
   emailLinkDoPedido,
   emailPagamentoAprovado,
   emailPedidoRecebido,
@@ -23,31 +36,30 @@ import {
   type ItemDoPedido,
   type MensagemEmail,
   type SiteDoEmail,
+  type TotaisDasFormas,
   type ValorEmail,
 } from './mensagens';
+
+export { MARCA_DO_EMAIL, type TipoEmailDoPedido } from './marcas';
 
 /**
  * Os e-mails de um pedido (Etapa 6): busca o pedido, monta o e-mail no idioma do cliente e envia pelo Resend.
  * - pedido-recebido: quando o pedido nasce (POST /api/pedido), no caminho do WhatsApp ou com o pagamento online
- *   esperando; não sai se o pedido já foi pago ou cancelado até a hora do envio.
+ *   esperando; não sai se o pedido já foi pago ou cancelado até a hora do envio, nem passando de 3 no dia para o mesmo
+ *   endereço (src/lib/email/cota.ts).
  * - pagamento-aprovado: quando o pedido vira pago (pedidoPago, em src/lib/pagamento-stripe.ts, e "marcar como pago"
- *   no painel, nos pedidos do WhatsApp), com um voucher por item, o PDF de cada um anexado e o WhatsApp da equipe.
- * - pix-vencido: quando o Pix vence sem pagamento (o pedido vira expirado no webhook ou na consulta à Stripe).
+ *   no painel, nos pedidos do WhatsApp), com um voucher por item, o PDF de cada um anexado e o WhatsApp da equipe. Antes
+ *   de enviar, fica no histórico o aviso de que ele está saindo (AVISO_EMAIL_PAGO_SAINDO): se a função for cortada no
+ *   meio ou o envio falhar, o painel destaca.
+ * - pix-vencido: quando o Pix vence sem pagamento (o pedido vira expirado no webhook ou na consulta à Stripe), com os
+ *   totais só das formas que ainda valem para o pedido; sem nenhuma, não sai (não há como pagar de novo).
  * - link-do-pedido: pedido na página "Consultar meu pedido".
+ * - desistencia-recebida: a confirmação do pedido de desistência pelo site, com a data e a hora em que chegou; junto,
+ *   o aviso à equipe (enviarAvisoDaDesistencia).
  * Cada envio fica no histórico do pedido ("E-mail ao cliente: …"), e o mesmo e-mail não sai de novo quando o aviso
  * chega repetido (a linha no histórico e a chave de idempotência do Resend). Sem RESEND_API_KEY, nada sai e nada é
  * lido do banco. Nada aqui desfaz um pagamento: quem chama agenda com agendarEmailDoPedido, depois da resposta.
  */
-
-export type TipoEmailDoPedido = 'pedido-recebido' | 'pagamento-aprovado' | 'pix-vencido' | 'link-do-pedido';
-
-/** A linha do histórico de cada envio (o painel mostra, em português, para a equipe). */
-export const MARCA_DO_EMAIL: Record<TipoEmailDoPedido, string> = {
-  'pedido-recebido': 'E-mail ao cliente: pedido recebido',
-  'pagamento-aprovado': 'E-mail ao cliente: pagamento aprovado, com os vouchers',
-  'pix-vencido': 'E-mail ao cliente: Pix vencido',
-  'link-do-pedido': 'E-mail ao cliente: link do pedido (pedido em "Consultar meu pedido")',
-};
 
 /** Os PDFs dos vouchers vão anexados até este tamanho somado; acima disso, o e-mail leva só os links. */
 const MAXIMO_ANEXOS_BYTES = 5 * 1024 * 1024;
@@ -65,6 +77,8 @@ function cabeNoStatus(tipo: TipoEmailDoPedido, r: Reserva): boolean {
       return r.status === 'expirado' && r.pagamento.metodo === 'pix';
     case 'link-do-pedido':
       return true;
+    case 'desistencia-recebida':
+      return desistenciaPedida(r);
   }
 }
 
@@ -123,11 +137,38 @@ function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean): I
 }
 
 /** Um valor em reais no idioma, com o aproximado em dólar em espanhol e inglês (quando há cotação). */
-function valorNoIdioma(centavos: number, idioma: Idioma, taxa: number | null): ValorEmail {
+export function valorNoIdioma(centavos: number, idioma: Idioma, taxa: number | null): ValorEmail {
   const intl = LOCALE_INTL[idioma];
   const dolar = idioma === 'pt' ? '' : textoDolar(centavos, taxa, dicionario(idioma).preco.dolar, intl);
   return { valor: formatarCifra(centavos, intl), ...(dolar ? { dolar } : {}) };
 }
+
+/** Só os totais das formas que valem. */
+export function totaisQueValem(formas: readonly FormaPagamento[], ambos: Required<TotaisDasFormas>): TotaisDasFormas {
+  return { ...(formas.includes('pix') ? { pix: ambos.pix } : {}), ...(formas.includes('cartao') ? { cartao: ambos.cartao } : {}) };
+}
+
+/**
+ * As formas cujo preço um e-mail com o carrinho (o lembrete) mostra: com o pagamento online no ar, as que o checkout
+ * ofereceria agora (o Pix só no prazo e no limite dele, src/lib/formas-pagamento.ts); no caminho do WhatsApp, as duas,
+ * como na tela.
+ */
+export async function formasDoCarrinho(itens: ItemPagavel[], agora: Date): Promise<FormaPagamento[]> {
+  if (!pagamentoOnlineNoAr()) return ['pix', 'cartao'];
+  return (await formasDoPagamento(itens, agora, { admin: false })).formas;
+}
+
+/**
+ * Uma data e hora no idioma, no horário de Brasília: "13 de novembro de 2026 às 14:32", "13 de noviembre de 2026 a las
+ * 14:32" (24 horas, como se lê no Brasil, na Argentina e no Chile), "November 13, 2026 at 2:32 PM".
+ */
+const quandoNoIdioma = (iso: string, idioma: Idioma) =>
+  new Intl.DateTimeFormat(LOCALE_INTL[idioma], {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'America/Sao_Paulo',
+    ...(idioma === 'en' ? {} : { hourCycle: 'h23' as const }),
+  }).format(new Date(iso));
 
 /** Os PDFs dos vouchers pagos, se couberem; qualquer falha deixa o e-mail só com os links. */
 async function anexosDosVouchers(lista: Reserva[]): Promise<Anexo[]> {
@@ -180,6 +221,11 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
   const sessao = opcoes.sessaoId ?? r.pagamentoExternoId ?? '';
   const marca = tipo === 'pix-vencido' ? `${MARCA_DO_EMAIL[tipo]} (${sessao})` : MARCA_DO_EMAIL[tipo];
   if (tipo !== 'link-do-pedido' && r.historico.some((h) => h.evento.startsWith(marca))) return;
+  // o "pedido recebido" sai para o endereço que a pessoa digitou, sem confirmação: no máximo 3 por endereço por dia
+  if (tipo === 'pedido-recebido' && !(await enderecoCabeNoDia(r.cliente.email))) {
+    console.log(`[email] ${tipo} ${pedido}: não enviado (limite do dia para este endereço)`);
+    return;
+  }
 
   const idioma = opcoes.idioma ?? r.idioma;
   const taxa = idioma === 'pt' ? null : await cotacaoDolar().catch(() => null);
@@ -208,6 +254,8 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       break;
     }
     case 'pagamento-aprovado': {
+      // antes de tudo, o aviso de que o e-mail está saindo: se a função for cortada no meio, ele fica no histórico
+      await anotar(r.codigo, AVISO_EMAIL_PAGO_SAINDO);
       anexos = await anexosDosVouchers(lista);
       const recebido = lista.reduce((soma, v) => soma + valorRecebido(v), 0);
       const forma = r.pagamento.metodo === 'whatsapp' ? undefined : r.pagamento.metodo;
@@ -222,15 +270,30 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       chave = `pagamento-aprovado/${pedido}`;
       break;
     }
-    case 'pix-vencido':
-      mensagem = emailPixVencido({ ...base, totais: ambos });
+    case 'pix-vencido': {
+      // os totais só das formas que ainda valem para o pedido (a mesma regra da página do pedido: o Pix até 2 horas
+      // antes do primeiro serviço e dentro do limite; o cartão até 30 minutos antes); sem nenhuma, não há o que pagar
+      const { formas } = await formasDoPagamento(itensPagaveis(lista), new Date(), { admin: true });
+      if (!formas.length) {
+        console.log(`[email] ${tipo} ${pedido}: não enviado (nenhuma forma de pagamento vale mais para o pedido)`);
+        return;
+      }
+      mensagem = emailPixVencido({ ...base, totais: totaisQueValem(formas, ambos) });
       chave = `pix-vencido/${sessao || pedido}`;
       break;
+    }
     case 'link-do-pedido':
       mensagem = emailLinkDoPedido(base);
       // o mesmo pedido de link, repetido em 10 minutos, sai uma vez só
       chave = `link-do-pedido/${pedido}/${Math.floor(Date.now() / 600_000)}`;
       break;
+    case 'desistencia-recebida': {
+      // a data e a hora são as da linha gravada no histórico: é o recebimento que o e-mail confirma
+      const linha = r.historico.find((h) => h.evento.startsWith(AVISO_DESISTENCIA));
+      mensagem = emailDesistenciaRecebida({ ...base, quando: quandoNoIdioma(linha?.em ?? new Date().toISOString(), idioma) });
+      chave = `desistencia-recebida/${pedido}`;
+      break;
+    }
   }
 
   const resultado = await enviarEmail({
@@ -254,4 +317,61 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
 /** Agenda o e-mail para depois da resposta (o webhook e as rotas respondem na hora). */
 export function agendarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: string, opcoes: OpcoesDoEmailDoPedido = {}): void {
   depoisDaResposta(`${tipo} ${codigo}`, () => enviarEmailDoPedido(tipo, codigo, opcoes));
+}
+
+/** O primeiro serviço do pedido, para a equipe: "sáb., 14 nov. 2026 às 09h00" (os itens devolvidos sozinhos não contam). */
+function primeiroServico(lista: Reserva[]): string {
+  const ativos = lista.filter((v) => v.statusItem !== 'cancelado' && v.statusItem !== 'reembolsado');
+  const [primeiro] = itensPagaveis(ativos.length ? ativos : lista)
+    .map(inicioDoItem)
+    .sort((a, b) => `${a.data} ${a.hora}`.localeCompare(`${b.data} ${b.hora}`));
+  return primeiro ? `${formatarDataIso(primeiro.data, 'pt-BR')} às ${formatarHora(primeiro.hora, 'pt')}` : '—';
+}
+
+/**
+ * O aviso do pedido de desistência para a equipe, no e-mail de resposta (EMAIL_RESPOSTA; padrão, o da empresa): o
+ * código, quando chegou, se está dentro dos 7 dias, o primeiro serviço, o motivo e o link do pedido no painel. Uma vez
+ * por pedido (a linha MARCA_DO_AVISO_A_EQUIPE no histórico e a chave de idempotência). Sem a chave do Resend, não sai:
+ * a faixa do topo do painel continua contando o pedido.
+ */
+export async function enviarAvisoDaDesistencia(codigo: string, motivo: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): desistencia-equipe ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const linha = r.historico.find((h) => h.evento.startsWith(AVISO_DESISTENCIA));
+  if (!linha || r.historico.some((h) => h.evento.startsWith(MARCA_DO_AVISO_A_EQUIPE))) return;
+  const mensagem = emailAvisoDaDesistencia({
+    codigo: pedido,
+    quando: quandoNoIdioma(linha.em, 'pt'),
+    prazo: prazoDoArrependimento(r.pagamento.pagoEm ?? r.criadaEm, new Date(linha.em)),
+    primeiroServico: primeiroServico(lista),
+    motivo,
+    linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
+    site: siteDoEmail(),
+  });
+  const resultado = await enviarEmail({
+    tipo: 'desistencia-equipe',
+    referencia: pedido,
+    para: responderPara(),
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `desistencia-equipe/${pedido}`,
+  });
+  if (saiu(resultado)) await anotar(r.codigo, MARCA_DO_AVISO_A_EQUIPE);
+}
+
+/**
+ * Os dois e-mails do pedido de desistência, depois da resposta: a confirmação ao cliente, no e-mail do pedido, e o aviso
+ * à equipe. `motivo` já vem limpo (limparMotivo).
+ */
+export function agendarAvisosDaDesistencia(codigo: string, motivo: string): void {
+  // cada um na sua tarefa: a falha de um não segura o outro
+  depoisDaResposta(`desistencia-recebida ${codigo}`, () => enviarEmailDoPedido('desistencia-recebida', codigo));
+  depoisDaResposta(`desistencia-equipe ${codigo}`, () => enviarAvisoDaDesistencia(codigo, motivo));
 }

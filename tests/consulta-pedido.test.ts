@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   CONSULTAS_POR_IP,
   ENVIOS_POR_PEDIDO,
+  JANELA_ENVIOS_SEGUNDOS,
   RESPOSTA_DA_CONSULTA,
   consultarPedido,
   emailConfere,
@@ -109,5 +110,7 @@ test('formato errado nem chega a buscar; o limite de envios por pedido segura a 
   assert.equal(await consultarPedido({ email: 'maria@exemplo.com', codigo: 'ON-7K3P9Q' }, d.deps), false);
   assert.deepEqual(d.enviados, []);
   assert.equal(CONSULTAS_POR_IP, 5);
+  // no máximo 3 e-mails com o link do mesmo pedido por dia (a cota do Resend é de 100 por dia, somando tudo)
   assert.equal(ENVIOS_POR_PEDIDO, 3);
+  assert.equal(JANELA_ENVIOS_SEGUNDOS, 86_400);
 });

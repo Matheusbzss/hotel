@@ -2,8 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { frasesDoDocumento } from '../src/content/legal/argentino.ts';
 import { CANCELAMENTO } from '../src/content/legal/cancelamento.ts';
-import { comMudancas, paresQueFicam } from '../src/content/legal/mudancas.ts';
-import { ATUALIZADO_EM_ONLINE, CANCELAMENTO_ONLINE, PRIVACIDADE_ONLINE, TERMOS_ONLINE, textosLegais } from '../src/content/legal/online.ts';
+import { comMudancas, juntarMudancas, paresQueFicam } from '../src/content/legal/mudancas.ts';
+import {
+  ATUALIZADO_EM_EMAILS,
+  ATUALIZADO_EM_ONLINE,
+  CANCELAMENTO_ONLINE,
+  PRIVACIDADE_EMAILS,
+  PRIVACIDADE_ONLINE,
+  TERMOS_ONLINE,
+  textosLegais,
+} from '../src/content/legal/online.ts';
 import { PRIVACIDADE } from '../src/content/legal/privacidade.ts';
 import { TERMOS } from '../src/content/legal/termos.ts';
 import { ATUALIZADO_EM, type DocumentoLegal } from '../src/content/legal/tipos.ts';
@@ -96,10 +104,10 @@ test('os termos online: o pagamento pela Stripe no site, a seção do Pix e o Wh
 test('a política de cancelamento online: o arrependimento pelo site, o estorno pela Stripe e os pedidos pagos por Pix', () => {
   const pt = tudo(CANCELAMENTO_ONLINE.pt);
   for (const trecho of [
-    'pedimos o estorno à Stripe assim que o seu pedido de desistência chega',
+    'assim que o pedido de desistência chega, a equipe recebe um aviso e pede o estorno à Stripe em até 1 dia útil',
     '“Desistir da compra”',
     'em até 2 (dois) dias úteis',
-    'no arrependimento do item 2, assim que o pedido chega',
+    'no arrependimento do item 2, em até 1 dia útil depois que o pedido chega',
     'volta pela Stripe para a conta de onde o Pix saiu',
     'Depois de 90 dias do pagamento',
     '10. Pedidos pagos por Pix',
@@ -209,4 +217,90 @@ test('os textos novos do Pix e da desistência: sem "promoção" e sem preço es
     assert.match(d.checkout.pixRecebedor, /EBANX/, idioma);
     assert.match(d.checkout.pixRecebedor, /Orla Nativa/, idioma);
   }
+});
+
+/** O recebedor do Pix, igual nos termos, no checkout e na FAQ: "pode aparecer", com os dois nomes de exemplo. */
+const RECEBEDOR: Record<(typeof IDIOMAS)[number], string> = {
+  pt: 'pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
+  en: 'may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
+  es: 'puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+  'es-ar': 'puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+};
+
+test('o nome do recebedor do Pix é o mesmo nos termos, no checkout e na FAQ de segurança', () => {
+  for (const idioma of IDIOMAS) {
+    const d = dicionario(idioma);
+    assert.ok(tudo(texto(TERMOS_ONLINE, idioma)).includes(RECEBEDOR[idioma]), `${idioma}: termos`);
+    assert.ok(d.checkout.pixRecebedor.includes(RECEBEDOR[idioma]), `${idioma}: checkout`);
+    assert.ok((d.faq[9].rOnline ?? '').includes(RECEBEDOR[idioma]), `${idioma}: FAQ`);
+    // nada da frase antiga, que dava a EBANX como a única empresa "para a Stripe"
+    assert.doesNotMatch(tudo(texto(TERMOS_ONLINE, idioma)), /para a Stripe \(como|for Stripe \(such as|para Stripe \(como/, idioma);
+  }
+});
+
+test('a política online promete o que a equipe cumpre: o estorno em até 1 dia útil e o prazo do Pix pelo banco', () => {
+  for (const idioma of IDIOMAS) {
+    const t = tudo(texto(CANCELAMENTO_ONLINE, idioma));
+    // nada de "poucos minutos" no reembolso do Pix: o prazo depende do banco
+    assert.doesNotMatch(t, /poucos minutos|few minutes|pocos minutos/i, idioma);
+    assert.match(t, /depende do banco|depends on the bank|depende del banco/, idioma);
+    // nada de "assim que o pedido chega" para o estorno: a equipe pede em até 1 dia útil
+    assert.doesNotMatch(t, /estorno à Stripe assim que|refund from Stripe as soon as|devolución a Stripe apenas llega/, idioma);
+    assert.match(t, /1 dia útil|1 business day|1 día hábil/, idioma);
+  }
+  // os detalhes do inglês e do espanhol que a revisão apontou
+  const en = `${tudo(TERMOS_ONLINE.en)}\n${tudo(CANCELAMENTO_ONLINE.en)}`;
+  assert.doesNotMatch(en, /receipt needed|send a receipt|account you tell us/);
+  assert.match(en, /proof of payment/);
+  assert.match(en, /an account you give us/);
+  const es = tudo(TERMOS_ONLINE.es);
+  assert.match(es, /Una vez confirmado el pago, también te atendemos por WhatsApp\./);
+  assert.match(es, /cuando el banco emisor lo aprueba/);
+  assert.doesNotMatch(es, /Después del pago confirmado|la emisora/);
+});
+
+test('com os e-mails ligados (e o pagamento online desligado), a privacidade de hoje cita os e-mails, o Resend e o prazo', () => {
+  const comEmails = textosLegais(false, true);
+  // termos e cancelamento continuam os de hoje; só a privacidade muda
+  assert.equal(comEmails.termos, TERMOS);
+  assert.equal(comEmails.cancelamento, CANCELAMENTO);
+  assert.equal(comEmails.privacidade, PRIVACIDADE_EMAILS);
+  assert.equal(comEmails.atualizadoEm, ATUALIZADO_EM_EMAILS);
+  assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM);
+  // com o pagamento online no ar, a versão dele (que já traz os e-mails), com ou sem a chave
+  assert.equal(textosLegais(true, true).privacidade, PRIVACIDADE_ONLINE);
+  assert.equal(textosLegais(true, false).privacidade, PRIVACIDADE_ONLINE);
+  const pt = tudo(PRIVACIDADE_EMAILS.pt);
+  for (const trecho of [
+    'Resend: envio dos e-mails do pedido',
+    'Mandar por e-mail a confirmação do pedido',
+    'Todo lembrete traz um link para sair da lista.',
+    'é apagado 90 dias depois da última mudança no carrinho',
+    'guardamos só o e-mail, para não mandar outro lembrete',
+    'recebe um cookie que dura um dia, só para confirmar a saída',
+  ])
+    assert.ok(pt.includes(trecho), trecho);
+  // sem nada do pagamento online: a Stripe só entra com ele
+  assert.ok(!pt.includes('Stripe') && pt.includes('Bancos e empresas de pagamento'));
+  for (const idioma of IDIOMAS) {
+    const t = tudo(texto(PRIVACIDADE_EMAILS, idioma));
+    assert.ok(t.includes('Resend') && t.includes('90'), idioma);
+    // a versão online também tem o prazo do e-mail no carrinho e o cookie do "sair da lista", depois do da Stripe
+    const online = tudo(texto(PRIVACIDADE_ONLINE, idioma));
+    assert.ok(online.includes('90'), `${idioma}: online`);
+    assert.ok(online.indexOf('stripe.com/privacy') < online.search(/(un|one|um) d[ií]a|one day|um dia/), `${idioma}: a ordem`);
+    // o resto é o texto de hoje
+    const hoje = new Set(frasesDoDocumento(texto(PRIVACIDADE, idioma)));
+    const novas = frasesDoDocumento(texto(PRIVACIDADE_EMAILS, idioma)).filter((f) => !hoje.has(f));
+    assert.equal(novas.length, 5, `${idioma}: a frase do lembrete trocada e quatro novas`);
+  }
+});
+
+test('juntarMudancas: as frases novas depois de uma mesma frase entram juntas, na ordem das listas', () => {
+  const es = PRIVACIDADE.es;
+  const frase = es.secoes[0].paragrafos[0];
+  const junto = comMudancas(es, juntarMudancas({ depois: [[frase, ['Uno.']]] }, { depois: [[frase, ['Dos.']]] }));
+  assert.deepEqual(junto.secoes[0].paragrafos.slice(0, 3), [frase, 'Uno.', 'Dos.']);
+  // a mesma frase trocada nas duas listas continua falhando alto
+  assert.throws(() => comMudancas(es, juntarMudancas({ trocas: [[frase, 'A.']] }, { trocas: [[frase, 'B.']] })), /Troca repetida/);
 });

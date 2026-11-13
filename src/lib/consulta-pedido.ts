@@ -17,9 +17,12 @@ export const RESPOSTA_DA_CONSULTA = { ok: true } as const;
 /** Até quantas consultas por IP em 10 minutos (uma pessoa faz uma ou duas). */
 export const CONSULTAS_POR_IP = 5;
 export const JANELA_CONSULTAS_SEGUNDOS = 600;
-/** Até quantos e-mails com o link do mesmo pedido por hora: ninguém enche a caixa do cliente. */
+/**
+ * Até quantos e-mails com o link do mesmo pedido por dia: ninguém enche a caixa do cliente nem gasta a cota do Resend
+ * (src/lib/email/cota.ts).
+ */
 export const ENVIOS_POR_PEDIDO = 3;
-export const JANELA_ENVIOS_SEGUNDOS = 3600;
+export const JANELA_ENVIOS_SEGUNDOS = 86_400;
 
 /**
  * O código como o cliente digita, no formato do site: "on-7k3p9q", "ON 7K3P9Q", "ON7K3P9Q" e "7K3P9Q" viram
@@ -46,7 +49,7 @@ export interface PedidoConsultado {
 export interface DependenciasDaConsulta {
   /** O pedido pelo código do pedido ou de um voucher dele; null se não existir. */
   buscar(codigo: string): Promise<PedidoConsultado | null>;
-  /** Ainda cabe mais um e-mail com o link deste pedido nesta hora. */
+  /** Ainda cabe mais um e-mail com o link deste pedido hoje. */
   podeEnviar(codigoDoPedido: string): Promise<boolean>;
   /** Manda o link privado do pedido para o e-mail do próprio pedido. */
   enviar(codigoDoPedido: string): Promise<void>;

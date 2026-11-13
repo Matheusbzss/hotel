@@ -244,16 +244,6 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   {contato.rotulo}
                 </a>
               )}
-              {desistencia && (
-                <DesistirDaCompra
-                  className="mt-8"
-                  codigoPedido={codigo}
-                  token={token}
-                  estado={desistencia}
-                  hrefPolitica={rota(locale, '/politica-de-cancelamento')}
-                  textos={textosDaDesistencia(d)}
-                />
-              )}
             </>
           )}
         </div>
@@ -327,6 +317,18 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
               )}
             </div>
           </div>
+          {/* discreto, embaixo de tudo, depois dos vouchers (como na página de um item só): a desistência pela mesma
+              ferramenta da compra (Decreto 7.962/2013). No celular, as colunas ficam uma embaixo da outra */}
+          {desistencia && (
+            <DesistirDaCompra
+              className="mt-6"
+              codigoPedido={codigo}
+              token={token}
+              estado={desistencia}
+              hrefPolitica={rota(locale, '/politica-de-cancelamento')}
+              textos={textosDaDesistencia(d)}
+            />
+          )}
         </div>
       </div>
     </main>

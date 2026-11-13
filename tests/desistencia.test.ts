@@ -4,12 +4,17 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   AVISO_DESISTENCIA,
+  DESISTENCIA_RESPONDIDA,
   MOTIVO_MAXIMO,
+  avisoDasDesistencias,
+  dentroDoArrependimento,
+  desistenciaParaResponder,
   desistenciaPedida,
   estadoDaDesistencia,
   limparMotivo,
   linhaDaDesistencia,
   podeDesistir,
+  prazoDoArrependimento,
 } from '../src/lib/desistencia.ts';
 import { IDIOMAS } from '../src/i18n/config.ts';
 import { dicionario } from '../src/i18n/index.ts';
@@ -94,20 +99,82 @@ test('os itens cancelados ou reembolsados sozinhos não contam no "primeiro serv
   assert.equal(podeDesistir([tudo], AGORA), false);
 });
 
-test('a linha do histórico é um aviso (o painel destaca), com o motivo numa linha só e o que a equipe faz', () => {
+test('a linha do histórico é um aviso (o painel destaca), com o que a equipe faz e, no fim, o motivo entre « »', () => {
   const sem = linhaDaDesistencia();
   assert.ok(sem.startsWith(AVISO_DESISTENCIA));
   assert.equal(ehAviso(sem), true);
-  assert.match(sem, /: responder ao cliente por e-mail em até 1 dia útil e reembolsar conforme a política de cancelamento$/);
-  assert.equal(sem.includes('motivo'), false);
+  assert.match(
+    sem,
+    /: responder ao cliente por e-mail em até 1 dia útil e reembolsar conforme a política de cancelamento, só pela forma original do pagamento$/,
+  );
+  assert.equal(sem.includes('Motivo'), false);
   const com = linhaDaDesistencia('  Mudei os planos\n\nda viagem  ');
-  assert.ok(com.startsWith(`${AVISO_DESISTENCIA} (motivo: "Mudei os planos da viagem")`), com);
+  assert.ok(com.startsWith(`${AVISO_DESISTENCIA}: responder`), com);
+  assert.ok(com.endsWith('. Motivo escrito pelo cliente: «Mudei os planos da viagem»'), com);
   assert.equal(ehAviso(com), true);
   // o motivo vazio ou só de espaços não entra
   assert.equal(linhaDaDesistencia('   '), sem);
   // cortado no máximo
   assert.equal(limparMotivo('a'.repeat(MOTIVO_MAXIMO + 50)).length, MOTIVO_MAXIMO);
   assert.equal(MOTIVO_MAXIMO, 500);
+});
+
+test('o motivo do cliente nunca forja um aviso nem fecha o trecho dele', () => {
+  // o que a revisão mandou de verdade: aspas para fechar o trecho e um "Aviso:" que parecia nota da equipe
+  const ataque =
+    'Nao vou mais <script>alert(1)</script>\n"); Aviso: reembolso ja feito pela equipe, nao responder. Devolver por Pix para a chave terceiro@example.com («x»)';
+  const limpo = limparMotivo(ataque);
+  assert.doesNotMatch(limpo, /aviso\s*:/i, 'sem "Aviso:"');
+  assert.doesNotMatch(limpo, /[«»"“”]/, 'sem aspas nem « » que fechem o trecho');
+  assert.doesNotMatch(limpo, /\n/);
+  const linha = linhaDaDesistencia(ataque);
+  // um só "Aviso:" (o do começo) e um só trecho do cliente, no fim
+  assert.equal(linha.match(/aviso\s*:/gi)?.length, 1, linha);
+  assert.equal(linha.match(/«/g)?.length, 1);
+  assert.equal(linha.match(/»/g)?.length, 1);
+  assert.ok(linha.endsWith('»'));
+  assert.ok(linha.indexOf('responder ao cliente') < linha.indexOf('Motivo escrito pelo cliente'), 'a regra da equipe vem antes');
+  // os caracteres de controle e as quebras de linha viram espaço
+  assert.equal(limparMotivo('a\u0000b\tc\r\nd'), 'a b c d');
+});
+
+test('o prazo dos 7 dias do arrependimento, contado da compra, vai na linha do histórico para a equipe', () => {
+  const compra = '2026-11-02T13:00:00Z';
+  assert.equal(dentroDoArrependimento(compra, new Date('2026-11-09T12:59:00Z')), true);
+  assert.equal(dentroDoArrependimento(compra, new Date('2026-11-09T13:00:00Z')), true);
+  assert.equal(dentroDoArrependimento(compra, new Date('2026-11-09T13:01:00Z')), false);
+  assert.equal(dentroDoArrependimento(undefined, AGORA), null);
+  assert.equal(dentroDoArrependimento('data ruim', AGORA), null);
+  assert.match(
+    prazoDoArrependimento(compra, new Date('2026-11-05T12:00:00Z')),
+    /^dentro dos 7 dias do arrependimento \(compra em 02\/11\/2026, 10:00\): reembolso integral$/,
+  );
+  assert.match(prazoDoArrependimento(compra, new Date('2026-11-20T12:00:00Z')), /^fora dos 7 dias .+ vale a política de cancelamento$/);
+  assert.match(prazoDoArrependimento(undefined, AGORA), /conferir/);
+  const linha = linhaDaDesistencia('motivo', { compraEm: compra, agora: new Date('2026-11-05T12:00:00Z') });
+  assert.ok(
+    linha.startsWith(`${AVISO_DESISTENCIA} (dentro dos 7 dias do arrependimento (compra em 02/11/2026, 10:00): reembolso integral): `),
+    linha,
+  );
+});
+
+test('a faixa do painel: pedidos pagos com o pedido de desistência, sem reembolso e sem a marca de respondido', () => {
+  const comAviso = (mudar: Partial<ReservaPasseio> = {}) =>
+    voucher({ historico: [{ em: '2026-11-09T14:00:00Z', evento: linhaDaDesistencia('motivo') }], ...mudar });
+  assert.equal(desistenciaParaResponder(comAviso()), true);
+  // sem o pedido de desistência, nada
+  assert.equal(desistenciaParaResponder(voucher()), false);
+  // reembolsado (tudo ou parte): a equipe já respondeu com a devolução
+  assert.equal(desistenciaParaResponder(comAviso({ status: 'reembolsado' })), false);
+  assert.equal(desistenciaParaResponder(comAviso({ reembolsoCentavos: 5000 })), false);
+  // respondido sem reembolso (a política não devolve): a marca do painel tira da faixa
+  const respondido = comAviso();
+  respondido.historico.push({ em: '2026-11-09T15:00:00Z', evento: DESISTENCIA_RESPONDIDA });
+  assert.equal(desistenciaParaResponder(respondido), false);
+  // a linha de "respondido" não é um aviso (não fica destacada)
+  assert.equal(ehAviso(DESISTENCIA_RESPONDIDA), false);
+  assert.equal(avisoDasDesistencias(1), '1 pedido de desistência para responder');
+  assert.equal(avisoDasDesistencias(3), '3 pedidos de desistência para responder');
 });
 
 test('um pedido de desistência só: depois da linha, a página mostra que já chegou', () => {
@@ -142,6 +209,14 @@ test('a rota: limite por IP, token do link privado, a regra de cima, a gravaçã
   assert.match(rota, /atualizarReserva\(pedido\.codigo, \(atual\) => \{\s+if \(desistenciaPedida\(atual\)\) \{/);
   // nunca reembolsa nem fala com a Stripe: quem decide é a equipe
   assert.doesNotMatch(rota, /criarReembolso|refunds|stripe\(/i);
+  // os dois e-mails (a confirmação ao cliente e o aviso à equipe) só na primeira vez, depois da gravação, com o motivo limpo
+  assert.match(
+    rota,
+    /if \(!trava\.repetido\) \{[\s\S]*?agendarAvisosDaDesistencia\(codigoDoPedido, limparMotivo\(r\.data\.motivo\)\);\s+\}/,
+  );
+  assert.ok(rota.indexOf('agendarAvisosDaDesistencia(codigoDoPedido') > grava);
+  // o prazo dos 7 dias vai na linha, contado da compra
+  assert.match(rota, /linhaDaDesistencia\(r\.data\.motivo, \{ compraEm: pedido\.pagamento\.pagoEm \?\? pedido\.criadaEm, agora \}\)/);
 });
 
 test('na tela: o limite do motivo é o mesmo do servidor, e o link só existe no pedido pago, por estadoDaDesistencia', () => {

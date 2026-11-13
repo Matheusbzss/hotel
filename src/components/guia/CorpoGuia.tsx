@@ -44,6 +44,10 @@ function Detalhes({ itens, idioma }: { itens: NonNullable<Secao['detalhes']>; id
   );
 }
 
+// abaixo de 360 px, 12 px nas bordas da caixa e 8 px de cada lado das células (16 px entre as colunas): com a letra
+// normal, a tabela cabe na tela de 320 px e "130 mm" não quebra; de 360 px para cima, 16 px de cada lado, como sempre
+const FOLGA_CELULA = 'px-4 max-[360px]:px-2 max-[360px]:first:pl-3 max-[360px]:last:pr-3';
+
 /** Números curtos em linhas, que cabem inteiros no celular: o clima de cada mês. */
 function TabelaCompacta({ t }: { t: NonNullable<Secao['tabela']> }) {
   return (
@@ -53,7 +57,7 @@ function TabelaCompacta({ t }: { t: NonNullable<Secao['tabela']> }) {
         <thead>
           <tr>
             {t.colunas.map((c, i) => (
-              <th key={c} scope="col" className={`coluna px-4 py-2.5 font-semibold ${i ? 'text-right' : ''}`}>
+              <th key={c} scope="col" className={`coluna ${FOLGA_CELULA} py-2.5 font-semibold ${i ? 'text-right' : ''}`}>
                 {c}
               </th>
             ))}
@@ -62,11 +66,11 @@ function TabelaCompacta({ t }: { t: NonNullable<Secao['tabela']> }) {
         <tbody className="tabular-nums">
           {t.linhas.map(([nome, ...valores]) => (
             <tr key={nome}>
-              <th scope="row" className="border-t border-(--color-borda) px-4 py-2 font-semibold">
+              <th scope="row" className={`border-t border-(--color-borda) ${FOLGA_CELULA} py-2 font-semibold`}>
                 {nome}
               </th>
               {valores.map((v, i) => (
-                <td key={t.colunas[i + 1]} className="border-t border-(--color-borda) px-4 py-2 text-right">
+                <td key={t.colunas[i + 1]} className={`border-t border-(--color-borda) ${FOLGA_CELULA} py-2 text-right`}>
                   {v}
                 </td>
               ))}

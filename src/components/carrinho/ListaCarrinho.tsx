@@ -5,6 +5,7 @@ import type { ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { ComDolar } from '../ComDolar';
+import { TextoDoItem } from './TextoDoItem';
 
 export interface TextosLista {
   mudar: string;
@@ -44,7 +45,9 @@ export function ListaCarrinho({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{i.titulo}</p>
+              <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">
+                <TextoDoItem texto={i.titulo} letra="nome" />
+              </p>
               <button
                 type="button"
                 onClick={() => aoRemover(i.id)}
@@ -67,7 +70,7 @@ export function ListaCarrinho({
             </div>
             {i.detalhes.map((d) => (
               <p key={d} className="text-small text-(--color-tinta-suave)">
-                {d}
+                <TextoDoItem texto={d} letra="linha" />
               </p>
             ))}
             {/* "R$ 69,30 no Pix" e "≈ US$ 12,46" ficam inteiros: a linha só quebra entre os dois pedaços (o mesmo no cartão) */}

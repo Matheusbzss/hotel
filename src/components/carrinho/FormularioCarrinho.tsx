@@ -35,6 +35,7 @@ import { useCarrinho } from './CarrinhoContexto';
 import { textoQuantidade } from './GavetaCarrinho';
 import { ListaCarrinho } from './ListaCarrinho';
 import { SugestoesCarrinho } from './SugestoesCarrinho';
+import { TextoDoItem } from './TextoDoItem';
 
 type Erros = Partial<Record<string, string>>;
 
@@ -383,17 +384,24 @@ export function FormularioCarrinho({
           <span className="text-small font-normal text-(--color-tinta-suave)">· {textoQuantidade(K, sessao.lista.length)}</span>
         </h2>
         <ul className="mt-3 divide-y divide-(--color-borda)">
+          {/* quando o texto não cabe ao lado do preço (tela muito estreita ou letra grande), o preço desce para a linha de
+              baixo, à direita, em vez de ficar por cima do texto: a coluna do texto não encolhe abaixo da sua maior parte
+              que não quebra ("8 passageiros") */}
           {sessao.lista.map((i) => (
-            <li key={i.id} className="flex items-start justify-between gap-4 py-3">
-              <div className="min-w-0">
-                <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{i.titulo}</p>
+            <li key={i.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
+              <div className="flex-1">
+                <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">
+                  <TextoDoItem texto={i.titulo} letra="nome" />
+                </p>
                 {i.detalhes.map((linha) => (
                   <p key={linha} className="text-small text-(--color-tinta-suave)">
-                    {linha}
+                    <TextoDoItem texto={linha} letra="linha" />
                   </p>
                 ))}
               </div>
-              <span className="numeros shrink-0 font-semibold">{brl(sessao.forma === 'pix' ? i.totalPixCentavos : i.totalCentavos)}</span>
+              <span className="numeros ml-auto shrink-0 font-semibold">
+                {brl(sessao.forma === 'pix' ? i.totalPixCentavos : i.totalCentavos)}
+              </span>
             </li>
           ))}
         </ul>

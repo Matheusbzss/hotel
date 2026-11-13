@@ -1,0 +1,334 @@
+import { EMPRESA, enderecoCompleto } from '../../config/empresa.ts';
+import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
+import { comAjustesAR, type ParAR } from './argentino.ts';
+import type { DocumentoLegal } from './tipos.ts';
+
+const E = EMPRESA;
+
+/** Português, inglês e o espanhol neutro (es, com "tú"). O espanhol da Argentina sai de BASE.es + AJUSTES_AR, no fim. */
+const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
+  pt: {
+    titulo: 'Termos de Uso',
+    descricao:
+      'As regras para usar o site e comprar passeios com a Orla Nativa. Ao fazer uma reserva, você declara que leu e concorda com elas.',
+    resumo: `Estas são as regras para usar o site ${E.dominio} e comprar passeios com a ${E.marca}. Ao fazer uma reserva, você declara que leu e concorda com elas.`,
+    secoes: [
+      {
+        titulo: '1. Quem somos',
+        paragrafos: [
+          `O site ${E.dominio} é operado por ${E.razaoSocial}, CNPJ ${E.cnpj}, com sede na ${enderecoCompleto}.`,
+          `Contato: e-mail ${E.email}. Depois da reserva, o atendimento também é feito pelo WhatsApp.`,
+        ],
+      },
+      {
+        titulo: '2. O que vendemos',
+        paragrafos: [
+          'Somos uma agência de turismo que vende, pela internet, passeios e transfers em Búzios, Cabo Frio, Arraial do Cabo e região, executados por operadores locais parceiros (donos das embarcações, veículos e equipes).',
+          'Cuidamos da venda, do atendimento, da emissão do voucher e dos reembolsos. A execução do passeio e do transfer é feita pelo operador parceiro. Perante você, respondemos nos termos do Código de Defesa do Consumidor.',
+        ],
+      },
+      {
+        titulo: '3. Reserva e confirmação',
+        paragrafos: [
+          'A reserva é confirmada quando o pagamento é aprovado. Nesse momento emitimos um voucher com número único, que é o seu comprovante.',
+        ],
+        lista: [
+          'Você é responsável por informar dados corretos (nome, contato, data, número de pessoas e hospedagem).',
+          'O horário é escolhido na compra e consta no voucher, mas pode mudar por causa da maré, do clima ou da temporada. Nos passeios sem busca na hospedagem, a equipe envia o ponto de encontro pelo WhatsApp após a compra.',
+          'Se não houver disponibilidade na data escolhida, avisaremos e você escolhe entre nova data ou reembolso integral.',
+          'Menores de 18 anos devem estar acompanhados por um responsável.',
+        ],
+      },
+      {
+        titulo: '4. Preços e pagamento',
+        paragrafos: [
+          'Os preços estão em reais (R$) e indicam se são por pessoa, por veículo ou por embarcação. O total aparece antes do pagamento.',
+          'O pagamento é do valor total da reserva, por Pix ou cartão de crédito (nas casas de temporada, vale o item 7). Enquanto o pagamento online é ativado, você registra a reserva no site e finaliza o pagamento com a nossa equipe pelo WhatsApp. O site não guarda os dados do seu cartão.',
+          'Taxas cobradas no local por terceiros (como taxas municipais ou de embarque), alimentação e itens opcionais não estão incluídos, salvo quando indicado na página do passeio.',
+        ],
+      },
+      {
+        titulo: '5. Cancelamento, remarcação e reembolso',
+        paragrafos: [
+          'As regras estão na Política de Cancelamento e Reembolso, que faz parte destes termos. Em resumo: nos passeios e no transfer, reembolso integral com 24 horas ou mais de antecedência e, em caso de chuva, mau tempo ou condições do mar, reembolso integral ou nova data, à sua escolha; e, em todas as compras online, direito de arrependimento de 7 dias (art. 49 do CDC), desde que o serviço ainda não tenha acontecido.',
+        ],
+      },
+      {
+        titulo: '6. Segurança durante os passeios',
+        paragrafos: ['Para a segurança de todos:'],
+        lista: [
+          'siga as orientações da tripulação, do guia ou do condutor;',
+          'use colete salva-vidas, capacete e demais equipamentos quando solicitado;',
+          'para pilotar quadriciclo é preciso ter habilitação e não ter consumido bebida alcoólica;',
+          'informe antes da reserva qualquer condição de saúde relevante (por exemplo, gestação, problemas cardíacos ou respiratórios, especialmente para mergulho e voo);',
+          'o operador pode recusar o embarque de quem estiver colocando em risco a própria segurança ou a dos outros.',
+        ],
+      },
+      {
+        titulo: '7. Casas de temporada',
+        paragrafos: [
+          'As casas de temporada são reservadas no site, com sinal de 50% do valor. As regras de cada casa (diárias, mínimo de noites e cancelamento) aparecem na página da casa antes da reserva, e a localização exata é enviada pela nossa equipe pelo WhatsApp, depois do pagamento confirmado.',
+        ],
+      },
+      {
+        titulo: '8. Uso do site',
+        paragrafos: [
+          'Você se compromete a usar o site de boa-fé, sem tentar fraudar pagamentos, acessar áreas restritas ou prejudicar o funcionamento do serviço.',
+          'Textos, ilustrações, logotipos e demais conteúdos do site pertencem à agência ou são usados com autorização, e não podem ser copiados para fins comerciais sem permissão.',
+        ],
+      },
+      {
+        titulo: '9. Privacidade',
+        paragrafos: [
+          'O tratamento dos seus dados pessoais segue a Lei Geral de Proteção de Dados (Lei nº 13.709/2018) e está descrito na nossa Política de Privacidade.',
+        ],
+      },
+      {
+        titulo: '10. Alterações',
+        paragrafos: ['Podemos atualizar estes termos. A versão válida para a sua reserva é a publicada no site na data da compra.'],
+      },
+      {
+        titulo: '11. Lei aplicável e foro',
+        paragrafos: [
+          'Estes termos seguem a legislação brasileira, em especial o Código de Defesa do Consumidor. Fica eleito o foro do domicílio do consumidor para resolver eventuais conflitos. Antes disso, fale com a gente: a maioria das questões se resolve rapidamente pelo WhatsApp ou por e-mail.',
+        ],
+      },
+    ],
+  },
+  en: {
+    titulo: 'Terms of Use',
+    descricao:
+      'The rules for using this site and buying tours from Orla Nativa. By making a booking, you confirm that you have read and agree to them.',
+    resumo: `These are the rules for using ${E.dominio} and buying tours from ${E.marca}. By making a booking, you confirm that you have read and agree to them.`,
+    secoes: [
+      {
+        titulo: '1. Who we are',
+        paragrafos: [
+          `${E.dominio} is operated by ${E.razaoSocial}, CNPJ (Brazilian company registration number) ${E.cnpj}, with its registered office at ${enderecoCompleto}, Brazil.`,
+          `Contact: email ${E.email}. After booking, we also assist you on WhatsApp.`,
+        ],
+      },
+      {
+        titulo: '2. What we sell',
+        paragrafos: [
+          'We are a travel agency that sells, online, tours and transfers in Búzios, Cabo Frio, Arraial do Cabo and the surrounding area, run by local partner operators (the owners of the boats, vehicles and crews).',
+          'We handle the sale, customer service, the voucher and refunds. The tour or transfer itself is run by the partner operator. Towards you, we are responsible under the Brazilian Consumer Protection Code.',
+        ],
+      },
+      {
+        titulo: '3. Booking and confirmation',
+        paragrafos: [
+          'Your booking is confirmed when the payment is approved. At that moment we issue a voucher with a unique number, which is your proof of purchase.',
+        ],
+        lista: [
+          'You are responsible for providing correct details (name, contact, date, number of people and accommodation).',
+          'The time is chosen at purchase and shown on the voucher, but it may change with the tide, the weather or the season. For tours without hotel pick-up, our team sends the meeting point on WhatsApp after purchase.',
+          'If there is no availability on the chosen date, we will let you know and you choose between a new date or a full refund.',
+          'Under-18s must be accompanied by a responsible adult.',
+        ],
+      },
+      {
+        titulo: '4. Prices and payment',
+        paragrafos: [
+          'Prices are in Brazilian reais (R$) and state whether they are per person, per vehicle or per boat. The total is shown before payment.',
+          'Payment is for the full amount of the booking, by Pix or credit card (for holiday homes, see item 7). While online payment is being activated, you register the booking on the website and complete the payment with our team on WhatsApp. The website does not store your card details.',
+          'Fees charged on site by third parties (such as municipal or boarding fees), food and optional extras are not included unless stated on the tour page.',
+        ],
+      },
+      {
+        titulo: '5. Cancellations, date changes and refunds',
+        paragrafos: [
+          'The rules are set out in the Cancellation and Refund Policy, which is part of these terms. In short: for tours and transfers, a full refund 24 hours or more in advance and, in case of rain, bad weather or sea conditions, a full refund or a new date, your choice; and, for all online purchases, a 7-day withdrawal right (article 49 of the Consumer Protection Code), provided the service has not yet taken place.',
+        ],
+      },
+      {
+        titulo: '6. Safety during the tours',
+        paragrafos: ['For everyone’s safety:'],
+        lista: [
+          'follow the instructions of the crew, guide or driver;',
+          'wear a life jacket, helmet and other equipment when asked;',
+          'to ride a quad bike you need a driving licence and must not have drunk alcohol;',
+          'tell us before booking about any relevant health condition (for example pregnancy, heart or breathing problems, especially for diving and flights);',
+          'the operator may refuse boarding to anyone putting their own or others’ safety at risk.',
+        ],
+      },
+      {
+        titulo: '7. Holiday homes',
+        paragrafos: [
+          'Holiday homes are booked on the site with a 50% deposit. Each home’s rules (nightly rates, minimum stay and cancellation) are shown on its page before booking, and our team sends the exact location on WhatsApp once the payment is confirmed.',
+        ],
+      },
+      {
+        titulo: '8. Use of the website',
+        paragrafos: [
+          'You agree to use the website in good faith, without attempting payment fraud, accessing restricted areas or disrupting the service.',
+          'Texts, illustrations, logos and other content on the website belong to the agency or are used with permission, and may not be copied for commercial purposes without authorisation.',
+        ],
+      },
+      {
+        titulo: '9. Privacy',
+        paragrafos: [
+          'We process your personal data in accordance with the Brazilian General Data Protection Law (Law 13,709/2018), as described in our Privacy Policy.',
+        ],
+      },
+      {
+        titulo: '10. Changes',
+        paragrafos: [
+          'We may update these terms. The version that applies to your booking is the one published on the website on the purchase date.',
+        ],
+      },
+      {
+        titulo: '11. Governing law and jurisdiction',
+        paragrafos: [
+          'These terms are governed by Brazilian law, in particular the Consumer Protection Code. Any dispute will be settled in the courts of the consumer’s place of residence. Before that, talk to us: most issues are solved quickly on WhatsApp or by email.',
+        ],
+      },
+    ],
+  },
+  es: {
+    titulo: 'Términos de Uso',
+    descricao:
+      'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.',
+    resumo: `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.`,
+    secoes: [
+      {
+        titulo: '1. Quiénes somos',
+        paragrafos: [
+          `El sitio ${E.dominio} es operado por ${E.razaoSocial}, CNPJ (registro de empresas de Brasil) ${E.cnpj}, con sede en ${enderecoCompleto}, Brasil.`,
+          `Contacto: e-mail ${E.email}. Después de la reserva, también te atendemos por WhatsApp.`,
+        ],
+      },
+      {
+        titulo: '2. Qué vendemos',
+        paragrafos: [
+          'Somos una agencia de turismo que vende por internet paseos y traslados en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos).',
+          'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a ti, respondemos según el Código de Defensa del Consumidor de Brasil.',
+        ],
+      },
+      {
+        titulo: '3. Reserva y confirmación',
+        paragrafos: [
+          'La reserva se confirma cuando se aprueba el pago. En ese momento emitimos un voucher con número único, que es tu comprobante.',
+        ],
+        lista: [
+          'Eres responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+          'El horario se elige en la compra y figura en el voucher, pero puede cambiar según la marea, el clima o la temporada. En los paseos sin recogida en el alojamiento, el equipo envía el punto de encuentro por WhatsApp después de la compra.',
+          'Si no hay disponibilidad en la fecha elegida, te avisamos y eliges entre una nueva fecha o el reembolso total.',
+          'Los menores de 18 años deben estar acompañados por un adulto responsable.',
+        ],
+      },
+      {
+        titulo: '4. Precios y pago',
+        paragrafos: [
+          'Los precios están en reales (R$) e indican si son por persona, por vehículo o por embarcación. El total aparece antes del pago.',
+          'El pago es por el valor total de la reserva, con Pix o tarjeta de crédito (en las casas de temporada, rige el punto 7). Mientras se activa el pago online, la reserva se registra en el sitio y el pago se completa con nuestro equipo por WhatsApp. El sitio no guarda los datos de tu tarjeta.',
+          'Las tasas cobradas en el lugar por terceros (como tasas municipales o de embarque), las comidas y los opcionales no están incluidos, salvo que la página del paseo lo indique.',
+        ],
+      },
+      {
+        titulo: '5. Cancelación, cambio de fecha y reembolso',
+        paragrafos: [
+          'Las reglas están en la Política de Cancelación y Reembolso, que forma parte de estos términos. En resumen: en los paseos y traslados, reembolso total con 24 horas o más de anticipación y, en caso de lluvia, mal tiempo o condiciones del mar, reembolso total o nueva fecha, a tu elección; y, en todas las compras online, derecho de arrepentimiento de 7 días (art. 49 del Código de Defensa del Consumidor), siempre que el servicio todavía no se haya realizado.',
+        ],
+      },
+      {
+        titulo: '6. Seguridad durante los paseos',
+        paragrafos: ['Para la seguridad de todos:'],
+        lista: [
+          'sigue las indicaciones de la tripulación, del guía o del conductor;',
+          'usa chaleco salvavidas, casco y demás equipos cuando se te pida;',
+          'para manejar una cuatrimoto necesitas licencia de conducir y no haber tomado alcohol;',
+          'infórmanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+          'el operador puede negar el embarque a quien ponga en riesgo su seguridad o la de los demás.',
+        ],
+      },
+      {
+        titulo: '7. Casas de temporada',
+        paragrafos: [
+          'Las casas de temporada se reservan en el sitio, con un anticipo del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+        ],
+      },
+      {
+        titulo: '8. Uso del sitio',
+        paragrafos: [
+          'Te comprometes a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+          'Los textos, ilustraciones, logotipos y demás contenidos del sitio pertenecen a la agencia o se usan con autorización, y no pueden copiarse con fines comerciales sin permiso.',
+        ],
+      },
+      {
+        titulo: '9. Privacidad',
+        paragrafos: [
+          'El tratamiento de tus datos personales sigue la Ley General de Protección de Datos de Brasil (Ley 13.709/2018) y se describe en nuestra Política de Privacidad.',
+        ],
+      },
+      {
+        titulo: '10. Cambios',
+        paragrafos: [
+          'Podemos actualizar estos términos. La versión válida para tu reserva es la publicada en el sitio en la fecha de compra.',
+        ],
+      },
+      {
+        titulo: '11. Ley aplicable y jurisdicción',
+        paragrafos: [
+          'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escríbenos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+        ],
+      },
+    ],
+  },
+};
+
+/**
+ * O espanhol da Argentina: só as frases destes Términos que mudam do neutro, com o texto que o site tinha antes
+ * ("vos", imperativo sem acento, cuatriciclo, seña). Cada par é [frase neutra inteira, a mesma frase em argentino].
+ * Se alguém editar a frase neutra sem mexer aqui, comAjustesAR() falha na carga e aponta a frase.
+ */
+export const AJUSTES_AR_TERMOS: readonly ParAR[] = [
+  [
+    'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.',
+    'Las reglas para usar el sitio y comprar paseos con Orla Nativa. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.',
+  ],
+  [
+    `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declaras que las leíste y que estás de acuerdo.`,
+    `Estas son las reglas para usar el sitio ${E.dominio} y comprar paseos con ${E.marca}. Al hacer una reserva, declarás que las leíste y que estás de acuerdo.`,
+  ],
+  [
+    'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a ti, respondemos según el Código de Defensa del Consumidor de Brasil.',
+    'Nos ocupamos de la venta, la atención, la emisión del voucher y los reembolsos. El paseo o traslado lo realiza el operador asociado. Frente a vos, respondemos según el Código de Defensa del Consumidor de Brasil.',
+  ],
+  [
+    'Eres responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+    'Sos responsable de informar datos correctos (nombre, contacto, fecha, cantidad de personas y alojamiento).',
+  ],
+  [
+    'Si no hay disponibilidad en la fecha elegida, te avisamos y eliges entre una nueva fecha o el reembolso total.',
+    'Si no hay disponibilidad en la fecha elegida, te avisamos y elegís entre una nueva fecha o el reembolso total.',
+  ],
+  [
+    'sigue las indicaciones de la tripulación, del guía o del conductor;',
+    'seguí las indicaciones de la tripulación, del guía o del conductor;',
+  ],
+  ['usa chaleco salvavidas, casco y demás equipos cuando se te pida;', 'usá chaleco salvavidas, casco y demás equipos cuando se te pida;'],
+  [
+    'para manejar una cuatrimoto necesitas licencia de conducir y no haber tomado alcohol;',
+    'para manejar un cuatriciclo necesitás licencia de conducir y no haber tomado alcohol;',
+  ],
+  [
+    'infórmanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+    'informanos antes de reservar cualquier condición de salud relevante (por ejemplo embarazo, problemas cardíacos o respiratorios, sobre todo para buceo y vuelo);',
+  ],
+  [
+    'Las casas de temporada se reservan en el sitio, con un anticipo del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+    'Las casas de temporada se reservan en el sitio, con una seña del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
+  ],
+  [
+    'Te comprometes a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+    'Te comprometés a usar el sitio de buena fe, sin intentar fraudes en los pagos, acceder a áreas restringidas ni perjudicar el funcionamiento del servicio.',
+  ],
+  [
+    'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escríbenos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+    'Estos términos se rigen por la legislación brasileña, en especial el Código de Defensa del Consumidor. Cualquier conflicto se resolverá en los tribunales del domicilio del consumidor. Antes de eso, escribinos: la mayoría de las cuestiones se resuelven rápido por WhatsApp o por e-mail.',
+  ],
+];
+
+/** Os Términos nos quatro idiomas: as páginas leem com texto(TERMOS, locale) (src/i18n/conteudo.ts). */
+export const TERMOS: Traduzido<DocumentoLegal> = { ...BASE, 'es-ar': comAjustesAR(BASE.es, AJUSTES_AR_TERMOS) };

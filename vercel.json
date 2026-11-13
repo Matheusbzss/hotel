@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["gru1"],
+  "crons": [
+    { "path": "/api/saude", "schedule": "0 9 * * *" },
+    { "path": "/api/casas/sincronizar", "schedule": "0 * * * *" },
+    { "path": "/api/cambio/atualizar", "schedule": "30 16 * * 1-5" },
+    { "path": "/api/carrinho/lembretes", "schedule": "*/15 * * * *" }
+  ]
+}

@@ -1,0 +1,1 @@
+{"fonte":"Terrain Tiles da AWS (terrarium, SRTM) e litoral do OpenStreetMap (© colaboradores do OpenStreetMap, ODbL).","caixa":{"x0":-15903,"x1":16954,"y0":-22131,"y1":22119},"altura":{"largura":256,"altura":347,"decodificar":"h = (R * 256 + G) / 10 - 50"}}

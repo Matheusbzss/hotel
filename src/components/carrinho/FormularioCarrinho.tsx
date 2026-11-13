@@ -121,6 +121,7 @@ export function FormularioCarrinho({
   contato,
   pagamentoOnline,
   pedidoAberto,
+  lembretesLigados = false,
 }: {
   idioma: Idioma;
   locale: string;
@@ -149,6 +150,8 @@ export function FormularioCarrinho({
   pagamentoOnline?: PagamentoOnlineCarrinho;
   /** O carrinho está ligado a um pedido que ainda espera o pagamento: o link para continuar de onde parou. */
   pedidoAberto?: { href: string };
+  /** Os e-mails estão ligados (RESEND_API_KEY): só então a ajuda do e-mail fala dos lembretes do carrinho. */
+  lembretesLigados?: boolean;
 }) {
   const C = textos.checkout;
   const T = textos.transfer;
@@ -565,13 +568,13 @@ export function FormularioCarrinho({
                 onBlur={guardarEmail}
                 maxLength={160}
                 aria-invalid={Boolean(erros.email)}
-                aria-describedby={descricao('email', erros.email, C.emailAjuda)}
+                aria-describedby={descricao('email', erros.email, lembretesLigados ? C.emailAjuda : undefined)}
                 required
               />
               {/* para que serve o e-mail, ali onde ele é pedido (LGPD): ele fica guardado no carrinho assim que o cliente
                   sai do campo, para os lembretes de quem não terminou a compra. A política abre em outra aba, como os
                   links do aceite, para não perder o que já foi preenchido. Com o erro, o erro fica no lugar */}
-              {!erros.email && (
+              {!erros.email && lembretesLigados && (
                 <span id="email-ajuda" className="ajuda">
                   {`${C.emailAjuda} `}
                   <Link href={links.privacidade} target="_blank" className="link">

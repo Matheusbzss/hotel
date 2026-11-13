@@ -9,6 +9,7 @@ import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { COOKIE_CARRINHO, itensVisiveis, lerCarrinho } from '@/lib/carrinho-servidor';
 import { linkEmail } from '@/lib/email';
+import { emailLigado } from '@/lib/email/enviar';
 import { pagamentoDoCheckout } from '@/lib/reserva-publica';
 
 /** A aba mostra o mesmo título da página ("Finalizar reserva | Orla Nativa"); o checkout continua fora do Google. */
@@ -51,6 +52,8 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
             notaCambio={cambio.nota}
             pagamentoOnline={pagamentoOnline}
             pedidoAberto={pedidoAberto}
+            // a ajuda do e-mail só fala dos lembretes quando os e-mails estão ligados (sem a chave do Resend, nada sai)
+            lembretesLigados={emailLigado()}
             // o e-mail da equipe, montado aqui (o endereço vem dos dados da empresa, que não vão para o navegador inteiros)
             contato={{ href: linkEmail(d.contato.assunto, d.contato.msg), rotulo: d.contato.botao }}
             textos={{

@@ -171,6 +171,9 @@ const en: Dicionario = {
   opinioes: {
     titulo: 'What travellers say',
     nota: 'Rated {n} out of 5',
+    naOrigem: '{contagem} on {origem}',
+    sobreAgencia: 'About Orla Nativa',
+    sobreDestino: 'About Búzios',
     lerMais: 'Read more',
     lerMenos: 'Read less',
     original: {
@@ -287,17 +290,7 @@ const en: Dicionario = {
     destinosQtd: '{n} tours',
     destinosUm: '1 tour',
     comoTitulo: 'How it works',
-    etapas: [
-      { inicio: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
-      {
-        inicio: 'Pay by Pix or card.',
-        texto: 'Always the full amount, with no hidden fees.',
-      },
-      {
-        inicio: 'Board with the voucher on your phone.',
-        texto: 'The voucher already shows the time, with a unique number and a PDF.',
-      },
-    ],
+    etapas: ['Pick the tour and the date.', 'Pay by Pix or card.', 'Board with the voucher on your phone.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
@@ -312,6 +305,12 @@ const en: Dicionario = {
       'Voucher of the confirmed booking, with the time',
     ],
     garantiasTitulo: 'Rules and notices',
+    garantiasCurtas: [
+      { titulo: 'Rain, wind or rough sea', texto: 'A full refund or a new date, your choice.' },
+      { titulo: 'Free cancellation', texto: 'Up to 24 hours before the tour.' },
+      { titulo: 'One voucher per tour', texto: 'With a unique number, on your phone and as a PDF.' },
+      { titulo: 'No hidden fees', texto: 'Pix with {p}% off or card, always the full amount.' },
+    ],
     garantiasColunas: ['If', 'You get', 'When'],
     garantias: [
       { se: 'It rains, it’s windy or the sea is rough', recebe: 'A full refund or a new date, your choice', prazo: 'At no cost' },
@@ -329,7 +328,6 @@ const en: Dicionario = {
         prazo: 'Does not apply',
       },
     ],
-    garantiasNota: 'Refunds go back to the same payment method and are requested within 2 business days.',
     diaTitulo: 'On the day',
     diaRegras: [
       'Be at the boarding point 30 minutes before the departure time. If the tour picks you up at your hotel, wait at reception at the pick-up time shown on your voucher.',
@@ -341,13 +339,10 @@ const en: Dicionario = {
       'Look after your personal belongings during the tour.',
       'The route may change on the day because of wind and sea conditions.',
     ],
-    garantiasLink: 'Read the full policy',
+    garantiasLink: 'See all the rules',
     faqTitulo: 'Before you book',
-    faqFatos: [
-      'Based in Armação dos Búzios, Brazil',
-      'Online service in English, Español and Português',
-      'Pix and credit card, always the full amount',
-    ],
+    faqFatos: ['Based in Búzios, Brazil', 'Service in English, Español and Português', 'Pix and card'],
+    faqTodas: 'See all questions',
     faqBotao: 'See tours',
     faqLink: 'Send us an email',
     legendas: {

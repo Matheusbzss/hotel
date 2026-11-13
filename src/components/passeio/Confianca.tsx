@@ -1,11 +1,13 @@
 import type { Dicionario } from '@/i18n';
 
-/** Ícones de traço no peso dos outros do site (24 px, traço 1,75). */
-const ICONES = {
+/** Ícones de traço no peso dos outros do site (24 px, traço 1,75); as garantias da inicial usam os mesmos. */
+export const ICONES = {
   cancelar: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1ZM8 3v4M16 3v4M4 10h16M10 13l4 4M14 13l-4 4',
   chuva: 'M12 2v1M3 12a9 9 0 0 1 18 0H3ZM12 12v6a2 2 0 0 1-4 0',
   voucher: 'M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V6ZM14 6v12',
   pagamento: 'M12 3l7 3v5c0 4.4-2.9 8.2-7 10-4.1-1.8-7-5.6-7-10V6l7-3ZM9 12l2 2 4-4',
+  // o cartão (Pix ou cartão, sem taxa escondida)
+  cartao: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM3 10h18M7 15h4',
 } as const;
 
 /**

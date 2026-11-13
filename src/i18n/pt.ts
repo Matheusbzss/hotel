@@ -169,6 +169,12 @@ const pt = {
   opinioes: {
     titulo: 'Opiniões de quem já foi',
     nota: 'Nota {n} de 5',
+    // a nota em cima da seção, só das avaliações da agência: "5 opiniões no Tripadvisor" quando vieram todas do
+    // mesmo site ({contagem} é o passeio.opinioesContagem)
+    naOrigem: '{contagem} no {origem}',
+    // a etiqueta de cada avaliação: sobre a agência ou sobre a cidade (com o lugar, quando houver)
+    sobreAgencia: 'Sobre Orla Nativa',
+    sobreDestino: 'Sobre Búzios',
     lerMais: 'Ler mais',
     lerMenos: 'Ler menos',
     original: {
@@ -287,17 +293,9 @@ const pt = {
     destinosQtd: '{n} passeios',
     destinosUm: '1 passeio',
     comoTitulo: 'Como funciona',
-    etapas: [
-      { inicio: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
-      {
-        inicio: 'Pague por Pix ou cartão.',
-        texto: 'Sempre o valor total, sem taxa escondida.',
-      },
-      {
-        inicio: 'Embarque com o voucher no celular.',
-        texto: 'O voucher já vem com o horário, tem número único e PDF.',
-      },
-    ],
+    // uma linha por passo (Etapa 8, menos texto): o preço com a regra de criança está na vitrine, o valor total
+    // sem taxa e o voucher com número único estão nas garantias
+    etapas: ['Escolha o passeio e a data.', 'Pague por Pix ou cartão.', 'Embarque com o voucher no celular.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
@@ -312,6 +310,16 @@ const pt = {
       'Voucher da reserva confirmada, com o horário',
     ],
     garantiasTitulo: 'Regras e avisos',
+    // as 4 garantias curtas da inicial, nesta ordem (cada uma com o seu ícone em BlocosHome.tsx): chuva,
+    // cancelamento, voucher e pagamento. Só o que já vale com o pagamento online desligado: nada de "voucher na
+    // hora" nem de pagamento pela Stripe. {p} é o desconto do Pix (src/config/precos.ts)
+    garantiasCurtas: [
+      { titulo: 'Chuva, vento ou mar agitado', texto: 'Reembolso total ou nova data, você escolhe.' },
+      { titulo: 'Cancelamento grátis', texto: 'Até 24 horas antes do passeio.' },
+      { titulo: 'Um voucher por passeio', texto: 'Com número único, no celular e em PDF.' },
+      { titulo: 'Sem taxa escondida', texto: 'Pix com {p}% de desconto ou cartão, sempre o valor total.' },
+    ],
+    // a tabela completa da política de cancelamento (o "Em resumo" da página da política)
     garantiasColunas: ['Se', 'Você recebe', 'Prazo'],
     garantias: [
       { se: 'Chover, ventar ou o mar não deixar', recebe: 'Reembolso integral ou nova data, você escolhe', prazo: 'Sem custo' },
@@ -329,7 +337,7 @@ const pt = {
         prazo: 'Não se aplica',
       },
     ],
-    garantiasNota: 'O reembolso volta pelo mesmo meio de pagamento e é pedido em até 2 dias úteis.',
+    // o que vale no dia: saiu da inicial na Etapa 8 e fica na página de cada passeio, fechado até a pessoa tocar
     diaTitulo: 'No dia do passeio',
     diaRegras: [
       'Chegue ao ponto de embarque 30 minutos antes do horário. Com busca no hotel, esteja na recepção no horário da busca, que está no voucher.',
@@ -341,13 +349,12 @@ const pt = {
       'Cuide dos seus objetos pessoais durante o passeio.',
       'O roteiro pode mudar no dia por causa do vento e do mar.',
     ],
-    garantiasLink: 'Ler a política completa',
+    garantiasLink: 'Ver todas as regras',
     faqTitulo: 'Antes de reservar',
-    faqFatos: [
-      'Base em Armação dos Búzios – RJ',
-      'Atendimento online em português, español e english',
-      'Pix e cartão de crédito, sempre o valor total',
-    ],
+    // a faixa curta de confiança, logo abaixo do título das perguntas
+    faqFatos: ['Base em Búzios', 'Atendimento em português, español e english', 'Pix e cartão'],
+    // abre, na mesma página, as perguntas que não estão entre as 5 principais (src/data/perguntas.ts)
+    faqTodas: 'Ver todas as perguntas',
     faqBotao: 'Ver passeios',
     faqLink: 'Mandar um e-mail',
     legendas: {

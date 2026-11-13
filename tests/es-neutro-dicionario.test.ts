@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    123,
-    `${diferentes} frases diferem entre es e es-ar; esperava 123 (as 111 que ficaram do lote 2, o exemplo de telefone e as 11 da Etapa 4). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    124,
+    `${diferentes} frases diferem entre es e es-ar; esperava 124 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4 e a garantia da chuva da Etapa 8). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 

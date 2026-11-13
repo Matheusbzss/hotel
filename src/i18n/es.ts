@@ -175,6 +175,9 @@ const es: Dicionario = {
   opinioes: {
     titulo: 'Opiniones de quienes ya fueron',
     nota: 'Puntaje {n} de 5',
+    naOrigem: '{contagem} en {origem}',
+    sobreAgencia: 'Sobre Orla Nativa',
+    sobreDestino: 'Sobre Búzios',
     lerMais: 'Leer más',
     lerMenos: 'Leer menos',
     original: {
@@ -293,17 +296,7 @@ const es: Dicionario = {
     destinosQtd: '{n} paseos',
     destinosUm: '1 paseo',
     comoTitulo: 'Cómo funciona',
-    etapas: [
-      { inicio: 'Elige el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
-      {
-        inicio: 'Paga con Pix o tarjeta.',
-        texto: 'Siempre el valor total, sin cargos escondidos.',
-      },
-      {
-        inicio: 'Embarca con el voucher en el celular.',
-        texto: 'El voucher ya viene con el horario, tiene número único y PDF.',
-      },
-    ],
+    etapas: ['Elige el paseo y la fecha.', 'Paga con Pix o tarjeta.', 'Embarca con el voucher en el celular.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Elige el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
@@ -318,6 +311,12 @@ const es: Dicionario = {
       'Voucher de la reserva confirmada, con el horario',
     ],
     garantiasTitulo: 'Reglas y avisos',
+    garantiasCurtas: [
+      { titulo: 'Lluvia, viento o mar picado', texto: 'Reembolso total o nueva fecha, tú eliges.' },
+      { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
+      { titulo: 'Un voucher por paseo', texto: 'Con número único, en el celular y en PDF.' },
+      { titulo: 'Sin cargos escondidos', texto: 'Pix con {p}% de descuento o tarjeta, siempre el valor total.' },
+    ],
     garantiasColunas: ['Si', 'Recibes', 'Plazo'],
     garantias: [
       { se: 'Llueve, hay viento o el mar no lo permite', recebe: 'Reembolso total o nueva fecha, tú eliges', prazo: 'Sin costo' },
@@ -335,7 +334,6 @@ const es: Dicionario = {
         prazo: 'No aplica',
       },
     ],
-    garantiasNota: 'El reembolso vuelve por el mismo medio de pago y se solicita dentro de los 2 días hábiles siguientes.',
     diaTitulo: 'El día del paseo',
     diaRegras: [
       'Llega al punto de embarque 30 minutos antes del horario. Si el paseo te busca en el hotel, espera en la recepción a la hora de la recogida, que figura en el voucher.',
@@ -347,13 +345,10 @@ const es: Dicionario = {
       'Cuida tus objetos personales durante el paseo.',
       'El recorrido puede cambiar en el día según el viento y el mar.',
     ],
-    garantiasLink: 'Leer la política completa',
+    garantiasLink: 'Ver todas las reglas',
     faqTitulo: 'Antes de reservar',
-    faqFatos: [
-      'Base en Armação dos Búzios, Brasil',
-      'Atención online en español, english y português',
-      'Pix y tarjeta de crédito, siempre el valor total',
-    ],
+    faqFatos: ['Base en Búzios, Brasil', 'Atención en español, english y português', 'Pix y tarjeta'],
+    faqTodas: 'Ver todas las preguntas',
     faqBotao: 'Ver paseos',
     faqLink: 'Mandar un e-mail',
     legendas: {

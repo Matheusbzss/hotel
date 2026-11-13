@@ -6,6 +6,7 @@ import {
   notaDaAgencia,
   opinioesDoSite,
   ordenarParaPasseio,
+  origemDaNota,
   trechoDaAvaliacao,
   trechosDoCartao,
   type Avaliacao,
@@ -103,6 +104,25 @@ test('a nota da agência conta só as avaliações da agência e arredonda para 
   // sem avaliação da agência com nota, não há o que mostrar
   assert.deepEqual(notaDaAgencia([]), { media: 0, total: 0 });
   assert.deepEqual(notaDaAgencia([avaliacaoCom({ id: 'so-cidade', nota: 5, sobre: 'destino' })]), { media: 0, total: 0 });
+});
+
+test('a nota da inicial diz de onde vieram as notas só quando vieram todas do mesmo site (Etapa 8)', () => {
+  // as 5 publicadas hoje: todas da agência, com nota, do Tripadvisor → "5,0 · 5 opiniões no Tripadvisor"
+  const hoje = Array.from({ length: 5 }, (_, i) => avaliacaoCom({ id: `t${i}`, sobre: 'agencia' }));
+  assert.equal(origemDaNota(hoje), 'tripadvisor');
+  assert.deepEqual(notaDaAgencia(hoje), { media: 5, total: 5 });
+  // a da cidade não entra na nota, então não muda a origem
+  assert.equal(
+    origemDaNota([...hoje, avaliacaoCom({ id: 'cidade', origem: 'google', sobre: 'destino', lugar: 'Rua das Pedras' })]),
+    'tripadvisor',
+  );
+  // nem a da agência sem nota
+  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'sem-nota', origem: 'google', nota: undefined })]), 'tripadvisor');
+  // com uma do Google que entra na nota, a origem fica de fora: o site não diz "no Tripadvisor"
+  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'google', origem: 'google' })]), undefined);
+  // sem nota da agência, nada
+  assert.equal(origemDaNota([]), undefined);
+  assert.equal(origemDaNota([avaliacaoCom({ id: 'so-cidade', sobre: 'destino' })]), undefined);
 });
 
 test('no cartão do passeio: quem cita o passeio vem primeiro e es-ar conta como es', () => {

@@ -16,7 +16,7 @@ import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
-import { avaliacoesDoSite, opinioesDoSite } from '@/lib/avaliacao';
+import { avaliacoesDoSite, notaDaAgencia, opinioesDoSite, origemDaNota } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
@@ -47,7 +47,10 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const passeios = passeiosAtivos();
   // sem o banco, a página abre sem a seção: as opiniões nunca podem derrubar a inicial
   // (a leitura tem a etiqueta 'avaliacoes': publicar no painel atualiza o site sem novo deploy)
-  const opinioes = opinioesDoSite(await avaliacoesDoSite().catch(() => []), locale);
+  const publicadas = await avaliacoesDoSite().catch(() => []);
+  const opinioes = opinioesDoSite(publicadas, locale);
+  // a nota em cima das opiniões conta todas as publicadas da agência, não só as que aparecem na seção
+  const nota = { ...notaDaAgencia(publicadas), origem: origemDaNota(publicadas) };
   const quantos = (n: number) => (n === 1 ? H.destinosUm : fmt(H.destinosQtd, { n }));
   const daCidade = (c: Cidade) => passeios.filter((p) => p.cidade === c);
   const cidades = (Object.keys(CIDADES) as Cidade[])
@@ -116,15 +119,16 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
         }}
       />
 
-      <Garantias idioma={locale} d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
-      {/* o tutorial com os prints do site fica desligado até as telas de horário e de pagamento existirem */}
+      {/* do mapa para baixo (Etapa 8, proposta B): foto e faixa clara se alternam. O tutorial com os prints do site
+          fica desligado até o pagamento de teste */}
       {TUTORIAL_ATIVO ? (
         <Tutorial idioma={locale} d={d} telas={[1, 2, 3, 4].map((n) => telaTutorial(locale, n))} />
       ) : (
         <ComoFunciona idioma={locale} d={d} />
       )}
-      <Opinioes itens={opinioes} idioma={locale} d={d} />
-      <Perguntas d={d} />
+      <Garantias d={d} hrefPolitica={rota(locale, '/politica-de-cancelamento')} />
+      <Opinioes itens={opinioes} nota={nota} idioma={locale} d={d} />
+      <Perguntas idioma={locale} d={d} />
 
       <DadosEstruturados
         dados={{

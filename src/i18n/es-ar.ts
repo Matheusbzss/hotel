@@ -72,20 +72,7 @@ export const ajustesAR: AjustesAR = {
     precosTexto: '{n} paseos. Decinos la fecha y quiénes van: cada valor se vuelve el total de tu grupo.',
     destinosTitulo: 'Elegí la ciudad',
     destinosTexto: 'Búzios, Arraial do Cabo y Cabo Frio están cerca una de otra: te alojás en una y paseás por las tres.',
-    etapas: [
-      {
-        inicio: 'Elegí el paseo y la fecha.',
-        texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.',
-      },
-      {
-        inicio: 'Pagá con Pix o tarjeta.',
-        texto: 'Siempre el valor total, sin cargos escondidos.',
-      },
-      {
-        inicio: 'Embarcá con el voucher en el celular.',
-        texto: 'El voucher ya viene con el horario, tiene número único y PDF.',
-      },
-    ],
+    etapas: ['Elegí el paseo y la fecha.', 'Pagá con Pix o tarjeta.', 'Embarcá con el voucher en el celular.'],
     tutorial: [
       {
         titulo: 'Elegí el paseo y la fecha.',
@@ -103,6 +90,13 @@ export const ajustesAR: AjustesAR = {
         titulo: 'Embarcá con el voucher en el celular.',
         texto: 'El voucher ya viene con el horario, tiene número único y PDF.',
       },
+    ],
+    // só a primeira muda ("vos elegís"); a lista entra inteira
+    garantiasCurtas: [
+      { titulo: 'Lluvia, viento o mar picado', texto: 'Reembolso total o nueva fecha, vos elegís.' },
+      { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
+      { titulo: 'Un voucher por paseo', texto: 'Con número único, en el celular y en PDF.' },
+      { titulo: 'Sin cargos escondidos', texto: 'Pix con {p}% de descuento o tarjeta, siempre el valor total.' },
     ],
     garantiasColunas: ['Si', 'Recibís', 'Plazo'],
     garantias: [

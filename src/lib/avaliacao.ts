@@ -100,6 +100,15 @@ export function notaDaAgencia(avaliacoes: Avaliacao[]): { media: number; total: 
 }
 
 /**
+ * De onde vieram as notas que entram em notaDaAgencia, quando vieram todas do mesmo site ("5,0 · 5 opiniões no
+ * Tripadvisor"). Com origens misturadas, ou sem nota da agência, nenhuma: o site não diz de onde vieram.
+ */
+export function origemDaNota(avaliacoes: Avaliacao[]): Origem | undefined {
+  const origens = new Set(avaliacoes.flatMap((a) => (daAgencia(a) && a.nota ? [a.origem] : [])));
+  return origens.size === 1 ? [...origens][0] : undefined;
+}
+
+/**
  * As opiniões do cartão do passeio: só as da agência, com as que citam o passeio (produtoSlug) primeiro,
  * depois as do idioma da página ('es-ar' conta como 'es'), das mais novas para as mais antigas.
  * Nota menor nunca some: a ordem não olha a nota.

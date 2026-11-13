@@ -57,7 +57,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   let reservas = await obterPedido(codigo).catch(() => []);
   if (!reservas[0] || !tokenConfere(reservas[0], token)) {
     return (
-      <main id="conteudo" className="tom-fundo moldura pb-32 pt-16">
+      <main id="conteudo" className="pagina-curta tom-fundo moldura pb-32 pt-16">
         <h1 className="display text-head">{d.reserva.naoEncontrada}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{d.reserva.naoEncontradaTexto}</p>
         {/* sem pedido válido, o contato é o e-mail: o WhatsApp só aparece depois da reserva */}

@@ -96,7 +96,7 @@ export function PaginaLegal({
           <div className="pb-3">{indice}</div>
         </details>
         <nav aria-label={d.legal.indice} className="hidden text-small lg:col-span-4 lg:block">
-          <div className="sticky top-8">
+          <div className="sticky top-24">
             <p className="font-semibold">{d.legal.indice}</p>
             {indice}
           </div>

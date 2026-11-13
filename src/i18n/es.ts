@@ -581,6 +581,9 @@ const es: Dicionario = {
     seusDados: 'Tus datos',
     nome: 'Nombre completo',
     email: 'E-mail',
+    // impessoal ("si la compra no se completa"): sem verbo em tú, o es-ar lê esta mesma frase
+    emailAjuda: 'Usamos el e-mail para tu pedido y, si la compra no se completa, para enviarte hasta 2 recordatorios.',
+    emailPrivacidade: 'Política de Privacidad',
     telefone: 'Teléfono / WhatsApp',
     telefoneAjuda: 'Con el código del país. Ej.: +56 9 1234 5678 o +54 9 11 1234-5678',
     ddi: 'Código de país',
@@ -614,6 +617,8 @@ const es: Dicionario = {
     processando: 'Procesando…',
     avisoTotal: 'El pago es siempre por el valor total de la reserva.',
     seguro: 'Tarjeta procesada de forma segura por Stripe. Los datos de la tarjeta van directo a Stripe y no quedan con nosotros.',
+    semStripe:
+      'El formulario de pago no se cargó. Prueba sin el bloqueador de anuncios en este sitio o con otra red, como los datos del celular. Si sigue sin funcionar, escríbenos por e-mail.',
     resumo: 'Resumen de la reserva',
     total: 'Total',
     indisponivelTitulo: 'Pago online en activación',

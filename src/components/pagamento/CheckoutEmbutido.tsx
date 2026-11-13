@@ -141,6 +141,10 @@ export interface TextosCheckoutEmbutido {
   recusa: Record<ChaveRecusa, string>;
   processando: string;
   erroGenerico: string;
+  /** Quando o formulário da Stripe não carrega (bloqueador de anúncios, rede de empresa): o que fazer (checkout.semStripe). */
+  semStripe: string;
+  /** "Tentar de novo" (reserva.tentarNovamente): carrega o formulário da Stripe outra vez, ali mesmo. */
+  tentarDeNovo: string;
 }
 
 export function CheckoutEmbutido({
@@ -153,6 +157,7 @@ export function CheckoutEmbutido({
   pixDisponivel,
   semPix: semPixDoServidor,
   urlVolta,
+  contato,
   textos: T,
   aoTrocarForma,
 }: {
@@ -172,11 +177,13 @@ export function CheckoutEmbutido({
   semPix?: MotivoSemPix;
   /** A página do pedido com o token: para onde a página vai ao concluir ou quando o servidor fecha o pedido. */
   urlVolta: string;
+  /** O e-mail da equipe, para quando o formulário da Stripe não carrega. */
+  contato?: { href: string; rotulo: string };
   textos: TextosCheckoutEmbutido;
   /** Avisa quem mostra o total que o cliente trocou para o Pix. */
   aoTrocarForma?: (forma: FormaPagamento) => void;
 }) {
-  const [stripe] = useState(stripeDoNavegador);
+  const [stripe, setStripe] = useState(stripeDoNavegador);
   const [semStripe, setSemStripe] = useState(false);
   const [segredo, setSegredo] = useState(clientSecret);
   const [formaAtual, setFormaAtual] = useState(forma);
@@ -188,6 +195,8 @@ export function CheckoutEmbutido({
   const [semPix, setSemPix] = useState(false);
   const [motivoDoServidor, setMotivoDoServidor] = useState<MotivoSemPix | undefined>();
   const avisoRef = useRef<HTMLDivElement>(null);
+  const erroRef = useRef<HTMLParagraphElement>(null);
+  const semStripeRef = useRef<HTMLParagraphElement>(null);
 
   // a página inteira recarrega: o estado de verdade (pago, confirmando, expirado) vem do servidor. Tem de ser assim
   // (nunca router.push): a página do pedido leva o token do cliente no endereço e nasce sem as tags de anúncio
@@ -203,6 +212,22 @@ export function CheckoutEmbutido({
       vivo = false;
     };
   }, [stripe]);
+
+  // o aviso (e o erro de pagar com Pix) recebem o foco: o botão que o cliente tocou sumiu ou ficou desligado, e sem
+  // isso o próximo Tab recomeçaria do topo da página. O foco também traz o aviso para a vista
+  useEffect(() => {
+    if (semStripe) semStripeRef.current?.focus();
+  }, [semStripe]);
+  useEffect(() => {
+    if (erro) erroRef.current?.focus();
+  }, [erro]);
+
+  // o Stripe.js que não carregou é pedido de novo (stripeDoNavegador esquece a tentativa que falhou), ali mesmo, sem
+  // recarregar a página: o pedido e a sessão continuam os mesmos
+  function carregarDeNovo() {
+    setSemStripe(false);
+    setStripe(stripeDoNavegador());
+  }
 
   // pausa enquanto troca de sessão: a anterior é expirada no servidor e o pedido pode passar um instante por
   // "expirado" antes de a sessão nova voltar a deixá-lo pendente
@@ -265,15 +290,33 @@ export function CheckoutEmbutido({
               {fraseSemPix(T, motivoDoServidor ?? semPixDoServidor)} {T.tentarOutroCartao}
             </p>
           )}
-          {erro && <p className="mt-2 text-small font-semibold">{erro}</p>}
+          {erro && (
+            <p ref={erroRef} tabIndex={-1} className="mt-2 text-small font-semibold outline-none">
+              {erro}
+            </p>
+          )}
         </div>
       )}
       {/* em cima do QR, antes de o cliente abrir o app do banco: o recebedor pode aparecer com outro nome, e não é golpe */}
       {formaAtual === 'pix' && !semStripe && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
       {semStripe ? (
-        <p role="alert" className="bg-erro-claro px-4 py-3 font-semibold text-mar">
-          {T.erroGenerico}
-        </p>
+        // o script da Stripe não carregou (bloqueador de anúncios, rede de empresa ou de hotel): o que fazer, o botão para
+        // carregar de novo ali mesmo e o e-mail da equipe. O pedido já existe e continua esperando o pagamento
+        <div className="rounded-cartao bg-erro-claro px-5 py-4 text-mar">
+          <p ref={semStripeRef} tabIndex={-1} role="alert" className="max-w-[52ch] font-semibold outline-none">
+            {T.semStripe}
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <button type="button" className="botao w-full sm:w-auto" onClick={carregarDeNovo}>
+              {T.tentarDeNovo}
+            </button>
+            {contato && (
+              <a href={contato.href} className="botao botao-vazado w-full sm:w-auto" data-evento="Contact">
+                {contato.rotulo}
+              </a>
+            )}
+          </div>
+        </div>
       ) : (
         // a Stripe desenha sem margem: o respiro fica aqui; enquanto troca de sessão, o quadro fica esmaecido
         <div
@@ -373,8 +416,15 @@ export function PagarPedido({
   const [criando, setCriando] = useState(false);
   const [erro, setErro] = useState('');
   const [esperou, setEsperou] = useState(false);
+  const erroRef = useRef<HTMLParagraphElement>(null);
   // as formas podem encolher depois de um router.refresh (o prazo passou): a marcada precisa continuar valendo
   const formaValida = forma && formas.includes(forma) ? forma : formaPadrao(formas, idioma);
+
+  // o erro de pagar recebe o foco: o botão ficou desligado durante o envio, e sem isso o próximo Tab recomeçaria do topo.
+  // O foco também rola a tela até ele, quando nasce fora da vista
+  useEffect(() => {
+    if (erro) erroRef.current?.focus();
+  }, [erro]);
 
   // quem voltou sem pagar vê "confirmando" sem nada chegar: depois de um tempo, aparece o botão de pagar; sem forma
   // nenhuma (faltam menos de 30 minutos para o serviço), a tela troca para o aviso de que o pedido não pode mais ser pago pelo site
@@ -443,6 +493,7 @@ export function PagarPedido({
             pixDisponivel={formas.includes('pix')}
             semPix={semPix}
             urlVolta={urlVolta}
+            contato={contato}
             textos={T}
             aoTrocarForma={setForma}
           />
@@ -501,11 +552,6 @@ export function PagarPedido({
               dolar={dolar}
               textos={T}
             />
-            {erro && (
-              <p className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
-                {erro}
-              </p>
-            )}
             <button
               type="button"
               className="botao mt-5 w-full sm:w-auto"
@@ -519,6 +565,12 @@ export function PagarPedido({
                   ? T.pagarDeNovo
                   : fmt(T.pagar, { valor: brl(valorDaForma(totais, formaValida)) })}
             </button>
+            {/* o erro nasce embaixo do botão, e não entre a escolha e ele: assim o botão não é empurrado para fora da tela */}
+            {erro && (
+              <p ref={erroRef} tabIndex={-1} className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
+                {erro}
+              </p>
+            )}
           </>
         ) : (
           semFormas

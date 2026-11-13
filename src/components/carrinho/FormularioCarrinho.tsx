@@ -118,6 +118,7 @@ export function FormularioCarrinho({
   notaCambio = '',
   textos,
   links,
+  contato,
   pagamentoOnline,
   pedidoAberto,
 }: {
@@ -139,8 +140,12 @@ export function FormularioCarrinho({
     dataPasseio: string;
     escolhaData: string;
     aPartirDe: string;
+    /** "Tentar de novo" (reserva.tentarNovamente), quando o formulário da Stripe não carrega. */
+    tentarDeNovo: string;
   };
-  links: { termos: string; politica: string; reserva: string; pedido: string; passeios: string };
+  links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
+  /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
+  contato?: { href: string; rotulo: string };
   pagamentoOnline?: PagamentoOnlineCarrinho;
   /** O carrinho está ligado a um pedido que ainda espera o pagamento: o link para continuar de onde parou. */
   pedidoAberto?: { href: string };
@@ -174,12 +179,17 @@ export function FormularioCarrinho({
   const [forma, setForma] = useState<FormaPagamento | null>(() => formaPadrao(formas, idioma));
   const [sessao, setSessao] = useState<SessaoAberta | null>(null);
   const emailGuardado = useRef('');
+  const erroRef = useRef<HTMLParagraphElement>(null);
 
   const temPasseio = itens.some((i) => i.tipo === 'passeio');
   const transfers = itens.filter((i) => i.transfer);
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   // passeio e transfer cobram o total; a casa (sinal) ainda não entra no carrinho
   const totais: TotaisDasFormas = { cartaoCentavos: totalCentavos, pixCentavos: totalPixCentavos };
+  // no pagamento online sem o Pix (o prazo de 2 horas ou o limite de valor de um Pix), a tela inteira mostra só o valor
+  // do cartão, como a página do pedido: os itens, as sugestões e o total. Um preço "no Pix" que não dá para pagar
+  // confundia, ao lado do botão que cobra o do cartão. No caminho do WhatsApp, os dois valores, como sempre
+  const soCartao = online && !formas.includes('pix');
   const brl = (c: number) => formatarCifra(c, locale);
   const usd = (c: number) => textoDolar(c, dolar, P.dolar, locale);
   const extrasDe = (id: string) => extras[id] ?? SEM_EXTRAS;
@@ -210,6 +220,12 @@ export function FormularioCarrinho({
   useEffect(() => {
     if (sessao) checkoutRef.current?.scrollIntoView({ block: 'start' });
   }, [sessao]);
+
+  // o erro do envio recebe o foco: o botão ficou desligado durante o envio, e sem isso o próximo Tab recomeçaria do topo.
+  // O foco também rola a tela até ele, quando nasce fora da vista. O "revise os campos" não: ali o foco vai para o campo
+  useEffect(() => {
+    if (erroGeral) erroRef.current?.focus();
+  }, [erroGeral]);
 
   /** O e-mail digitado fica no carrinho, para lembrar quem não terminou (Fase 5). */
   function guardarEmail() {
@@ -358,6 +374,7 @@ export function FormularioCarrinho({
           itens={itens}
           locale={locale}
           dolar={dolar}
+          soCartao={soCartao}
           textos={{
             mudar: K.mudar,
             remover: K.remover,
@@ -385,6 +402,8 @@ export function FormularioCarrinho({
       recusa: O.recusa,
       processando: C.processando,
       erroGenerico: C.erros.generico,
+      semStripe: C.semStripe,
+      tentarDeNovo: textos.tentarDeNovo,
     };
     // o resumo é o do pedido criado, não o do carrinho de agora: a gaveta ainda deixa tirar item, e a Stripe cobra o pedido
     const doPedido = totaisDoCarrinho(sessao.lista);
@@ -460,6 +479,7 @@ export function FormularioCarrinho({
               pixDisponivel={formas.includes('pix')}
               semPix={semPix}
               urlVolta={urlVolta}
+              contato={contato}
               textos={textosCheckout}
               aoTrocarForma={(nova) => setSessao((s) => (s ? { ...s, forma: nova } : s))}
             />
@@ -486,8 +506,11 @@ export function FormularioCarrinho({
         dolar: P.dolar,
       }
     : null;
-  // no total em destaque, a forma escolhida; a outra embaixo (sem pagamento online, o Pix em destaque, como no site)
-  const destaquePix = !online || forma !== 'cartao';
+  // no total em destaque, a forma escolhida (sem pagamento online, o Pix, como no site); a outra embaixo, só se ela também
+  // vale para este pedido (sem o Pix, o quadro mostra só o total no cartão)
+  const destaque: FormaPagamento = online && forma ? forma : 'pix';
+  const outra = (['pix', 'cartao'] as const).find((f) => f !== destaque && (!online || formas.includes(f)));
+  const rotuloDaForma = (f: FormaPagamento) => (f === 'pix' ? P.noPix : P.noCartao);
 
   return (
     <form
@@ -542,9 +565,20 @@ export function FormularioCarrinho({
                 onBlur={guardarEmail}
                 maxLength={160}
                 aria-invalid={Boolean(erros.email)}
-                aria-describedby={descricao('email', erros.email)}
+                aria-describedby={descricao('email', erros.email, C.emailAjuda)}
                 required
               />
+              {/* para que serve o e-mail, ali onde ele é pedido (LGPD): ele fica guardado no carrinho assim que o cliente
+                  sai do campo, para os lembretes de quem não terminou a compra. A política abre em outra aba, como os
+                  links do aceite, para não perder o que já foi preenchido. Com o erro, o erro fica no lugar */}
+              {!erros.email && (
+                <span id="email-ajuda" className="ajuda">
+                  {`${C.emailAjuda} `}
+                  <Link href={links.privacidade} target="_blank" className="link">
+                    {C.emailPrivacidade}
+                  </Link>
+                </span>
+              )}
             </Campo>
             <div>
               <span className="rotulo" id="telefone-rotulo">
@@ -777,9 +811,11 @@ export function FormularioCarrinho({
             className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pb-2 pt-5 sm:px-6"
             locale={locale}
             dolar={dolar}
+            soCartao={soCartao}
             textos={{
               ...K,
               noPix: P.noPix,
+              noCartao: P.noCartao,
               dolar: P.dolar,
               dataPasseio: textos.dataPasseio,
               escolhaData: textos.escolhaData,
@@ -793,38 +829,32 @@ export function FormularioCarrinho({
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
               {/* "Total no Pix" e "≈ US$ 12,46" ficam inteiros: o rótulo só quebra entre os dois pedaços */}
               <span className="flex-1 font-semibold">
-                <ComDolar
-                  dolar={usd(destaquePix ? totalPixCentavos : totalCentavos)}
-                  className="text-small font-normal text-(--tinta-suave)"
-                >
+                <ComDolar dolar={usd(valorDaForma(totais, destaque))} className="text-small font-normal text-(--tinta-suave)">
                   <span className="whitespace-nowrap">
-                    {C.total} <span className="text-(--color-d2)">{destaquePix ? P.noPix : P.noCartao}</span>
+                    {C.total} <span className="text-(--color-d2)">{rotuloDaForma(destaque)}</span>
                   </span>
                 </ComDolar>
               </span>
               <span className="numeros titulo ml-auto leading-none" aria-live="polite">
-                {brl(destaquePix ? totalPixCentavos : totalCentavos)}
+                {brl(valorDaForma(totais, destaque))}
               </span>
             </div>
-            <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
-              <span>
-                <ComDolar dolar={usd(destaquePix ? totalCentavos : totalPixCentavos)}>
-                  <span className="whitespace-nowrap">
-                    {C.total} {destaquePix ? P.noCartao : P.noPix}
-                  </span>
-                </ComDolar>
-              </span>
-              <span className="numeros font-semibold">{brl(destaquePix ? totalCentavos : totalPixCentavos)}</span>
-            </p>
+            {outra && (
+              <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
+                <span>
+                  <ComDolar dolar={usd(valorDaForma(totais, outra))}>
+                    <span className="whitespace-nowrap">
+                      {C.total} {rotuloDaForma(outra)}
+                    </span>
+                  </ComDolar>
+                </span>
+                <span className="numeros font-semibold">{brl(valorDaForma(totais, outra))}</span>
+              </p>
+            )}
             {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
             {dolar && notaCambio && <p className="mt-2 text-caption text-(--tinta-suave)">{notaCambio}</p>}
           </div>
           <div className="space-y-3">
-            {(erroGeral || (tentou && temErros)) && (
-              <p className="bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
-                {erroGeral || C.erros.revise}
-              </p>
-            )}
             {online && forma ? (
               <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando}>
                 {enviando ? C.processando : fmt(C.pagar, { valor: brl(valorDaForma(totais, forma)) })}
@@ -834,6 +864,12 @@ export function FormularioCarrinho({
                 <IconeWhatsApp className="size-5" />
                 {enviando ? C.processando : C.finalizarWhatsapp}
               </button>
+            )}
+            {/* o erro nasce embaixo do botão, e não em cima dele: assim o botão não é empurrado para fora da tela */}
+            {(erroGeral || (tentou && temErros)) && (
+              <p ref={erroRef} tabIndex={-1} className="bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
+                {erroGeral || C.erros.revise}
+              </p>
             )}
             <p className="text-small">{K.umPagamento}</p>
             <p className="text-small">{C.avisoTotal}</p>

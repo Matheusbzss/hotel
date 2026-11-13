@@ -102,8 +102,10 @@ export function PaginaLegal({
           </div>
         </nav>
         <article className="max-w-[68ch] lg:col-span-6 lg:col-start-7 lg:max-w-none">
+          {/* scroll-mt-24 (96 px): o cabeçalho flutuante vai até uns 64 px no celular e 72 px no computador; o título da
+              seção aberta pelo índice fica logo abaixo dele, com folga, e não escondido atrás (a mesma folga do #reservar) */}
           {doc.secoes.map((s) => (
-            <section key={s.titulo} id={ancora(s.titulo)} className="entrar mb-12 scroll-mt-8">
+            <section key={s.titulo} id={ancora(s.titulo)} className="entrar mb-12 scroll-mt-24">
               <h2 className="text-lead font-semibold">{s.titulo}</h2>
               {s.paragrafos.map((p) => (
                 <p key={p.slice(0, 40)} className="mt-3">

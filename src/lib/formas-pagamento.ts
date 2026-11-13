@@ -116,32 +116,37 @@ export function segundosAteOInicio(item: ItemAgendado, agora: Date): number {
   return faltamMinutos * 60 - agora.getUTCSeconds();
 }
 
-/** O QR do Pix vale 30 minutos (FASE-4.md, Etapa 5, item 2), o mesmo tempo da sessão de pagamento (src/lib/stripe.ts). */
+/** O QR do Pix vale no máximo 30 minutos (FASE-4.md, Etapa 5, item 2), o mesmo tempo da sessão de pagamento (src/lib/stripe.ts). */
 export const PIX_EXPIRA_SEGUNDOS = 30 * 60;
-/** Com menos que isto até o prazo do Pix, o QR não dá tempo de pagar: o Pix nem é oferecido e fica só o cartão. */
+/**
+ * E nunca menos que isto, para dar tempo de abrir o app do banco e pagar: o QR gerado nos últimos 10 minutos do prazo do
+ * Pix passa um pouco do prazo, e o pagamento que chega nesses minutos é confirmado sozinho, como qualquer Pix.
+ */
 export const PIX_VALIDADE_MINIMA_SEGUNDOS = 10 * 60;
 
 /**
- * Quantos segundos o QR do Pix vale se for gerado agora, ou null quando o Pix não deve ser oferecido. O Pix vale até
- * 2 horas antes do primeiro serviço do pedido (ANTECEDENCIA_MINIMA_MINUTOS). O QR dura 30 minutos, ou só até esse
- * prazo quando falta menos que isso; com menos de 10 minutos, null (só o cartão). É a regra única do prazo do Pix:
- * pixDisponivel (o que a tela oferece) e os parâmetros da sessão (expires_after_seconds, src/lib/stripe.ts) fazem esta
- * mesma conta, com o mesmo `agora`.
+ * Quantos segundos o QR do Pix vale se for gerado agora, ou null quando o Pix não deve ser oferecido. O Pix aparece até
+ * 2 horas antes do primeiro serviço do pedido (ANTECEDENCIA_MINIMA_MINUTOS), exatamente o que os textos dizem: com 2
+ * horas cravadas ainda aparece; um segundo depois, só o cartão. O QR dura o tempo que falta até esse prazo, mas nunca
+ * menos de 10 minutos (PIX_VALIDADE_MINIMA_SEGUNDOS) nem mais de 30 (PIX_EXPIRA_SEGUNDOS). É a regra única do prazo do
+ * Pix: pixDisponivel (o que a tela oferece) e os parâmetros da sessão (expires_after_seconds, src/lib/stripe.ts) fazem
+ * esta mesma conta, com o mesmo `agora`.
  * A Stripe aceita de 60 a 1.209.600 segundos e conta a partir de quando o cliente toca em pagar e o QR aparece, não da
  * criação da sessão (referência da API da Stripe, criação da Checkout Session, payment_method_options.pix.
  * expires_after_seconds: "The number of seconds after PaymentIntent confirmation when the Pix expires"). Quem demora
- * para tocar em pagar leva esse tempo a mais: no máximo os 31 minutos da sessão (com a folga), e o QR ainda vence pelo
- * menos 89 minutos antes do serviço.
+ * para tocar em pagar leva esse tempo a mais: no máximo os 31 minutos da sessão (com a folga). No pior caso (a sessão
+ * criada em cima do prazo, o toque no último minuto dela e o QR de 10 minutos) o QR vence uns 41 minutos depois do
+ * prazo, ainda 79 minutos antes do serviço e antes de o cartão fechar (30 minutos antes).
  */
 export function validadeDoPix(itens: ItemAgendado[], agora: Date = new Date()): number | null {
   if (!itens.length) return null;
   const ate = Math.min(...itens.map((item) => segundosAteOInicio(item, agora))) - ANTECEDENCIA_MINIMA_MINUTOS * 60;
-  // NaN (uma data que não dá para ler) também cai aqui
-  if (!(ate >= PIX_VALIDADE_MINIMA_SEGUNDOS)) return null;
-  return Math.min(PIX_EXPIRA_SEGUNDOS, ate);
+  // passou do prazo; NaN (uma data que não dá para ler) também cai aqui
+  if (!(ate >= 0)) return null;
+  return Math.min(PIX_EXPIRA_SEGUNDOS, Math.max(PIX_VALIDADE_MINIMA_SEGUNDOS, ate));
 }
 
-/** O Pix pode ser oferecido: o QR, gerado agora, ainda vale pelo menos 10 minutos antes do prazo do Pix (validadeDoPix). */
+/** O Pix pode ser oferecido: ainda faltam pelo menos 2 horas para o primeiro serviço do pedido (validadeDoPix). */
 export function pixDisponivel(itens: ItemAgendado[], agora: Date = new Date()): boolean {
   return validadeDoPix(itens, agora) !== null;
 }
@@ -202,8 +207,8 @@ export function cartaoDisponivel(itens: ItemAgendado[], agora: Date = new Date()
 export const mostrarWhatsApp = (status: StatusReserva): boolean => status === 'pago';
 
 /**
- * Por que o Pix não aparece, para a frase da tela: o prazo (o primeiro serviço começa em menos de 2 horas e 10 minutos)
- * ou o limite de valor de um Pix.
+ * Por que o Pix não aparece, para a frase da tela: o prazo (o primeiro serviço começa em menos de 2 horas) ou o limite
+ * de valor de um Pix.
  */
 export type MotivoSemPix = 'prazo' | 'limite';
 
@@ -214,9 +219,9 @@ export interface FormasDoPagamento {
 }
 
 /**
- * A regra das formas, sem rede nem variável de ambiente: o cartão até 30 minutos antes do primeiro serviço; o Pix
- * enquanto o QR ainda vale 10 minutos antes do prazo dele (validadeDoPix) e o valor no Pix cabe no limite de um Pix
- * (pixCabeNoLimite, com a cotação do dólar). Fora do prazo, o motivo é o prazo, mesmo que o valor também passe do limite.
+ * A regra das formas, sem rede nem variável de ambiente: o cartão até 30 minutos antes do primeiro serviço; o Pix até
+ * 2 horas antes dele (validadeDoPix), quando o valor no Pix cabe no limite de um Pix (pixCabeNoLimite, com a cotação do
+ * dólar). Fora do prazo, o motivo é o prazo, mesmo que o valor também passe do limite.
  */
 export function escolherFormas(itens: ItemPagavel[], agora: Date, cotacao: number | null | undefined): FormasDoPagamento {
   const semPix: MotivoSemPix | undefined = !pixDisponivel(itens, agora) ? 'prazo' : !pixCabeNoLimite(itens, cotacao) ? 'limite' : undefined;

@@ -118,6 +118,9 @@ test('o Pix vale até 2 horas antes do primeiro serviço; o cartão, até 30 min
   const tarde = [...ok, passeio('2026-11-02', '15:00')];
   assert.equal(pixDisponivel(tarde, AGORA), false);
   assert.equal(cartaoDisponivel(tarde, AGORA), true);
+  // o Pix vale até 2 horas antes, como os textos dizem: às 14h20, o passeio das 16h20 ainda tem Pix; o das 16h19, não
+  assert.equal(pixDisponivel([...ok, passeio('2026-11-02', '16:20')], AGORA), true);
+  assert.equal(pixDisponivel([...ok, passeio('2026-11-02', '16:19')], AGORA), false);
   // o cartão fecha 30 minutos antes (decisão do dono de 11/11): com 30 minutos exatos ainda vale; com 29, não
   assert.equal(cartaoDisponivel([passeio('2026-11-02', '14:50')], AGORA), true);
   assert.equal(cartaoDisponivel([passeio('2026-11-02', '14:49')], AGORA), false);
@@ -155,16 +158,19 @@ test('o prazo do Pix atravessa a meia-noite: o serviço da madrugada de amanhã 
   // o prazo do cartão também atravessa a virada: às 23h30 faltam 30 minutos (vale); às 23h31, 29 (não vale)
   assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T23:30')), true);
   assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T23:31')), false);
-  // 21h50, transfer à meia-noite: faltam 130 minutos, e o QR ainda vale os 10 minutos mínimos. O Pix vale; às 21h51, não
-  // (o QR teria só 9 minutos) e, às 22h (faltam exatamente 120), também não
+  // transfer à meia-noite: às 21h50 e às 21h51 (faltam 130 e 129 minutos) o Pix vale; às 22h, com as 2 horas cravadas,
+  // ainda vale; às 22h01 (faltam 119), não
   assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T21:50')), true);
-  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T21:51')), false);
-  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T22:00')), false);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T21:51')), true);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T22:00')), true);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T22:01')), false);
   // 23h30, transfer às 2h de amanhã: faltam 150 minutos. O Pix vale.
   assert.equal(pixDisponivel([transfer('2026-11-03', '02:00')], as('2026-11-02T23:30')), true);
-  // 23h30, transfer à 1h39 de amanhã: faltam 129 minutos. Só o cartão; um minuto depois (1h40), o Pix volta a valer.
-  assert.equal(pixDisponivel([transfer('2026-11-03', '01:39')], as('2026-11-02T23:30')), false);
-  assert.equal(pixDisponivel([transfer('2026-11-03', '01:40')], as('2026-11-02T23:30')), true);
+  // 23h30, transfer à 1h29 de amanhã: faltam 119 minutos. Só o cartão; um minuto depois (1h30, faltam 120), o Pix vale.
+  assert.equal(pixDisponivel([transfer('2026-11-03', '01:29')], as('2026-11-02T23:30')), false);
+  assert.equal(cartaoDisponivel([transfer('2026-11-03', '01:29')], as('2026-11-02T23:30')), true);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '01:30')], as('2026-11-02T23:30')), true);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '01:39')], as('2026-11-02T23:30')), true);
   // a virada do mês e a do ano seguem a mesma conta
   assert.equal(pixDisponivel([transfer('2026-12-01', '00:30')], as('2026-11-30T23:30')), false);
   assert.equal(pixDisponivel([transfer('2027-01-01', '00:30')], as('2026-12-31T23:30')), false);
@@ -258,7 +264,7 @@ test('o interruptor PAGAMENTO_ONLINE e as chaves da Stripe decidem se o checkout
   assert.equal(isFormaPagamento('boleto'), false);
 });
 
-test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, e nada com menos de 10 minutos', () => {
+test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, nunca menos de 10 minutos, e nada depois do prazo', () => {
   // os instantes vêm com o fuso de Búzios escrito (-03:00), para a conta não depender do relógio da máquina
   const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
   assert.equal(PIX_EXPIRA_SEGUNDOS, 30 * 60);
@@ -271,9 +277,14 @@ test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, e nad
   assert.equal(validadeDoPix(servico, as('2026-11-02T14:31:00')), 29 * 60);
   assert.equal(validadeDoPix(servico, as('2026-11-02T14:40:30')), 19 * 60 + 30);
   assert.equal(validadeDoPix(servico, as('2026-11-02T14:50:00')), 10 * 60);
-  // abaixo de 10 minutos, o Pix nem aparece (só o cartão)
-  assert.equal(validadeDoPix(servico, as('2026-11-02T14:50:01')), null);
-  assert.equal(validadeDoPix(servico, as('2026-11-02T15:00:00')), null);
+  // nos últimos 10 minutos do prazo, o Pix continua aparecendo, com o QR de 10 minutos (passa um pouco do prazo)
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:50:01')), 10 * 60);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:55:00')), 10 * 60);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:59:59')), 10 * 60);
+  // com as 2 horas cravadas, ainda aparece; um segundo depois, só o cartão
+  assert.equal(validadeDoPix(servico, as('2026-11-02T15:00:00')), 10 * 60);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T15:00:01')), null);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T15:01:00')), null);
   assert.equal(validadeDoPix(servico, as('2026-11-02T18:00:00')), null);
   // num pedido com vários itens, vale o que começa primeiro
   const pedido = [passeio('2026-11-03', '09:00'), transfer('2026-11-02', '17:00'), casa('2026-11-04')];
@@ -285,10 +296,11 @@ test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, e nad
   // sem itens, ou com uma data que não dá para ler, nunca
   assert.equal(validadeDoPix([], as('2026-11-02T09:00:00')), null);
   assert.equal(validadeDoPix([passeio('amanhã', '10:00')], as('2026-11-02T09:00:00')), null);
-  // e pixDisponivel é exatamente "validadeDoPix tem valor", segundo a segundo perto da virada dos 10 minutos
+  // e pixDisponivel é exatamente "validadeDoPix tem valor", segundo a segundo perto do prazo: até as 15h em ponto, sim
   for (let s = 0; s < 120; s += 7) {
-    const agora = new Date(as('2026-11-02T14:49:00').getTime() + s * 1000);
+    const agora = new Date(as('2026-11-02T14:59:00').getTime() + s * 1000);
     assert.equal(pixDisponivel(servico, agora), validadeDoPix(servico, agora) !== null, agora.toISOString());
+    assert.equal(pixDisponivel(servico, agora), s <= 60, agora.toISOString());
   }
   // os segundos até o começo do serviço, no fuso de Búzios
   assert.equal(segundosAteOInicio(passeio('2026-11-02', '17:00'), as('2026-11-02T16:59:30')), 30);
@@ -302,6 +314,31 @@ test('o QR, mesmo encurtado, fica dentro do que a Stripe aceita (de 60 a 1.209.6
     const v = validadeDoPix(servico, new Date(inicio + s * 1000));
     if (v !== null) assert.ok(v >= 60 && v <= 1_209_600 && v >= PIX_VALIDADE_MINIMA_SEGUNDOS && v <= PIX_EXPIRA_SEGUNDOS, String(v));
   }
+});
+
+test('o reservado para o mesmo dia perto do limite de 2 horas ainda paga com Pix, e o QR nunca vence perto do serviço', () => {
+  const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
+  // o caso da revisão: às 11h52, o passeio das 14h (que o site ainda deixa reservar) tem Pix, com o QR de 10 minutos
+  const passeioDas14 = [pago('2026-11-02', '14:00')];
+  assert.deepEqual(escolherFormas(passeioDas14, as('2026-11-02T11:52:00'), null), { formas: ['cartao', 'pix'] });
+  assert.equal(validadeDoPix(passeioDas14, as('2026-11-02T11:52:00')), 10 * 60);
+  // às 12h em ponto ainda; às 12h00min01s, só o cartão, e o motivo é o prazo
+  assert.deepEqual(escolherFormas(passeioDas14, as('2026-11-02T12:00:00'), null), { formas: ['cartao', 'pix'] });
+  assert.deepEqual(escolherFormas(passeioDas14, as('2026-11-02T12:00:01'), null), { formas: ['cartao'], semPix: 'prazo' });
+  // o pior caso: a sessão criada em cima do prazo, o toque em pagar no último minuto dela (31 minutos, com a folga) e o
+  // QR de 10 minutos. Ele vence 41 minutos depois do prazo: ainda 79 minutos antes do serviço, e antes de o cartão fechar
+  const minutosDaSessao = VALIDADE_SESSAO_MINUTOS + 1;
+  let piorFolga = Infinity;
+  // das 9h às 12h02, de 5 em 5 segundos (passa pelas 12h em ponto, o último instante com Pix)
+  for (let s = 0; s <= 3 * 3600 + 120; s += 5) {
+    const criada = new Date(as('2026-11-02T09:00:00').getTime() + s * 1000);
+    const v = validadeDoPix(passeioDas14, criada);
+    if (v === null) continue;
+    const venceEm = criada.getTime() / 1000 + minutosDaSessao * 60 + v;
+    piorFolga = Math.min(piorFolga, as('2026-11-02T14:00:00').getTime() / 1000 - venceEm);
+  }
+  assert.equal(piorFolga, 79 * 60);
+  assert.ok(piorFolga > ANTECEDENCIA_CARTAO_MINUTOS * 60);
 });
 
 test('o limite de um Pix: US$ 3.000 pela cotação, com 10% de folga; sem cotação, R$ 10.000,00', () => {

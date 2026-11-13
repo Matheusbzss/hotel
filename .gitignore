@@ -31,3 +31,6 @@ material-recebido/
 
 # capturas da ferramenta Playwright MCP (só no computador)
 .playwright-mcp/
+
+# cópias separadas do código que os agentes usam (git worktree)
+/.claude/worktrees/

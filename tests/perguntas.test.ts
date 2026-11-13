@@ -12,7 +12,7 @@ test('as 5 perguntas da inicial são as escolhidas, na ordem certa', () => {
     [
       'Sou estrangeiro. Posso reservar?',
       'Quais são as formas de pagamento?',
-      'É seguro pagar pelo site?',
+      'Como recebo o meu voucher?',
       'Vocês buscam no hotel?',
       'Criança paga?',
     ],
@@ -22,11 +22,21 @@ test('as 5 perguntas da inicial são as escolhidas, na ordem certa', () => {
     [
       'Soy extranjero. ¿Puedo reservar?',
       '¿Cuáles son las formas de pago?',
-      '¿Es seguro pagar en el sitio?',
+      '¿Cómo recibo mi voucher?',
       '¿Nos buscan en el hotel?',
       '¿Los niños pagan?',
     ],
   );
+});
+
+test('"é seguro pagar pelo site?" fica no "Ver todas": hoje o pagamento é fechado pelo WhatsApp', () => {
+  for (const idioma of IDIOMAS) {
+    const { principais, outras } = dividirPerguntas(dicionario(idioma).faq);
+    const segura = dicionario(idioma).faq[9];
+    assert.ok(!principais.includes(segura), idioma);
+    assert.ok(outras.includes(segura), idioma);
+  }
+  assert.equal(dicionario('pt').faq[9].p, 'É seguro pagar pelo site?');
 });
 
 test('em todos os idiomas: 5 principais, nenhuma pergunta some e nenhuma aparece duas vezes', () => {

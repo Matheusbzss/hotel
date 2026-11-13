@@ -4,15 +4,20 @@ import { obterPasseio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import { idiomaDeConteudo, texto } from '@/i18n/conteudo';
-import type { Avaliacao, Origem } from '@/lib/avaliacao';
+import { fotoDoCartao, iniciais, type Avaliacao, type Origem } from '@/lib/avaliacao';
 import { PONTO_PRESO } from '@/lib/ponto';
 import { FaixaFoto, TITULO_NA_FOTO } from './BlocosHome';
 import { TextoOpiniao } from './TextoOpiniao';
 
 /** O fundo da seção: uma lancha dos passeios da agência, ancorada ao entardecer. */
 const FOTO = '/fotos/lancha/lancha-entardecer.jpg';
+/**
+ * A foto é deitada (1320 × 950) e, no celular, a seção é alta: ela aparece umas 3 vezes mais larga que a tela.
+ * Com "100vw", o navegador baixava a versão de 1200 px; assim ele baixa a original (o servidor nunca amplia).
+ */
+const TAMANHO_FOTO = '(max-width: 767px) 340vw, 100vw';
 
-/** Os sites que dão nota (src/lib/avaliacao.ts), como aparecem em "5 opiniões no Tripadvisor". */
+/** Os sites que dão nota (src/lib/avaliacao.ts), como aparecem em "5 opiniões do Tripadvisor". */
 const NOME_DA_ORIGEM: Partial<Record<Origem, string>> = { google: 'Google', tripadvisor: 'Tripadvisor' };
 
 const ESTRELA = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z';
@@ -42,7 +47,7 @@ function Estrelas({ nota, rotulo }: { nota: number; rotulo: string }) {
   );
 }
 
-/** A foto de perfil; sem ela, a inicial do nome. */
+/** A foto de perfil da pessoa; sem ela (ou com a imagem padrão do Tripadvisor), as iniciais do nome. */
 function Retrato({ foto, nome }: { foto?: string; nome: string }) {
   if (foto) return <Image src={foto} alt={nome} width={48} height={48} className="size-12 shrink-0 rounded-full object-cover" />;
   return (
@@ -50,7 +55,7 @@ function Retrato({ foto, nome }: { foto?: string; nome: string }) {
       className="grid size-12 shrink-0 place-items-center rounded-full bg-(--color-superficie) font-[family-name:var(--font-semi)] text-lead font-semibold"
       aria-hidden="true"
     >
-      {nome[0]}
+      {iniciais(nome)}
     </span>
   );
 }
@@ -71,7 +76,7 @@ export function Opinioes({ itens, nota, idioma, d }: { itens: Avaliacao[]; nota:
   const site = nota.origem && NOME_DA_ORIGEM[nota.origem];
   const sobre = (a: Avaliacao) => (a.sobre === 'destino' ? [O.sobreDestino, a.lugar].filter(Boolean).join(PONTO_PRESO) : O.sobreAgencia);
   return (
-    <FaixaFoto src={FOTO} alt={altDaFoto(FOTO, idioma)} posicao="28% 50%" veu="cima" aria-labelledby="opinioes-titulo">
+    <FaixaFoto src={FOTO} alt={altDaFoto(FOTO, idioma)} posicao="28% 50%" veu="cima" sizes={TAMANHO_FOTO} aria-labelledby="opinioes-titulo">
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         {/* chegando pelo "ver todas as opiniões" do passeio, o título para abaixo da cápsula do menu */}
         <h2 id="opinioes-titulo" className={`${TITULO_NA_FOTO} scroll-mt-24`}>
@@ -95,15 +100,18 @@ export function Opinioes({ itens, nota, idioma, d }: { itens: Avaliacao[]; nota:
           </p>
         )}
       </div>
-      <ul className="trilho entrar mt-6 md:mt-8 lg:grid-cols-3">
+      {/* no celular, cada cartão com a sua altura (esticados até o mais longo, o curto ficava com um vão de vidro
+          vazio); no computador, 3 por linha, da mesma altura em cada linha, e a última linha centralizada (com 5, sobra
+          um buraco à direita na grade) */}
+      <ul className="trilho entrar mt-6 items-start md:mt-8 lg:flex lg:flex-wrap lg:items-stretch lg:justify-center">
         {itens.map((a) => {
           const passeio = a.produtoSlug ? obterPasseio(a.produtoSlug) : undefined;
           return (
-            <li key={a.id}>
+            <li key={a.id} className="lg:w-[calc((100%-2rem)/3)]">
               {/* no vidro, todo o texto vai na tinta: o cinza do texto suave perde contraste sobre a foto */}
               <article className="vidro vidro-claro flex h-full flex-col rounded-vidro p-5 md:p-6">
                 <div className="flex items-center gap-3">
-                  <Retrato foto={a.foto} nome={a.nome} />
+                  <Retrato foto={fotoDoCartao(a)} nome={a.nome} />
                   <div className="min-w-0">
                     <p className="font-[family-name:var(--font-semi)] font-semibold leading-tight">{a.nome}</p>
                     {(a.cidade || a.pais) && <p className="text-small">{[a.cidade, a.pais].filter(Boolean).join(', ')}</p>}

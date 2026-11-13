@@ -69,6 +69,45 @@ export const EsquemaAvaliacao = z.object({
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+/**
+ * As "fotos de perfil" que vieram dos prints do Tripadvisor (material-recebido/avaliacoes-tripadvisor/fotos/) são as
+ * imagens que o próprio Tripadvisor põe em quem não escolheu foto: os Alpes, as pirâmides, uma gôndola de Veneza...
+ * (a mesma moça de mala aparece em duas pessoas diferentes). Não são a pessoa nem a região, e os direitos são do
+ * Tripadvisor. Desde a Etapa 8, o cartão mostra as iniciais do nome no lugar delas. Os arquivos em
+ * public/avaliacoes/ e o campo foto no banco ficam como estão (o dono decide se apaga; docs/CREDITOS.md).
+ */
+const FOTOS_PADRAO_DO_TRIPADVISOR: ReadonlySet<string> = new Set(
+  [
+    'agustina-g',
+    'alexandra-s',
+    'anais-r',
+    'boris-i',
+    'carletta-d',
+    'hi-b',
+    'lucas-h',
+    'maria-raquel-a',
+    'natalia-m',
+    'newspapertaxi',
+    'robert-j',
+    'tiago-couto',
+  ].map((nome) => `/avaliacoes/${nome}.webp`),
+);
+
+/** A foto que o cartão da avaliação mostra: a da pessoa, nunca a imagem padrão do Tripadvisor. */
+export function fotoDoCartao(a: Pick<Avaliacao, 'foto'>): string | undefined {
+  return a.foto && !FOTOS_PADRAO_DO_TRIPADVISOR.has(a.foto) ? a.foto : undefined;
+}
+
+/** As iniciais do nome ("Anais R" → "AR"; "newspapertaxi" → "N"), para o círculo do cartão sem foto. */
+export function iniciais(nome: string): string {
+  return nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => Array.from(parte)[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 /** 'es-ar' conta como 'es': compara só a parte antes do traço. */
 const idiomaBase = (idioma?: string) => idioma?.split('-')[0];
 
@@ -100,8 +139,9 @@ export function notaDaAgencia(avaliacoes: Avaliacao[]): { media: number; total: 
 }
 
 /**
- * De onde vieram as notas que entram em notaDaAgencia, quando vieram todas do mesmo site ("5,0 · 5 opiniões no
- * Tripadvisor"). Com origens misturadas, ou sem nota da agência, nenhuma: o site não diz de onde vieram.
+ * De onde vieram as notas que entram em notaDaAgencia, quando vieram todas do mesmo site ("5,0 · 5 opiniões do
+ * Tripadvisor": as publicadas aqui, tiradas de lá, e não o total da página de lá). Com origens misturadas, ou sem
+ * nota da agência, nenhuma: o site não diz de onde vieram.
  */
 export function origemDaNota(avaliacoes: Avaliacao[]): Origem | undefined {
   const origens = new Set(avaliacoes.flatMap((a) => (daAgencia(a) && a.nota ? [a.origem] : [])));

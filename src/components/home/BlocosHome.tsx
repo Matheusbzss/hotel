@@ -59,19 +59,29 @@ interface Fundo {
   posicaoMd?: string;
   /** Escurece de leve o lado do texto, para o título branco ficar legível sem apagar a foto. */
   veu?: 'cima' | 'baixo';
+  /**
+   * A largura em que a foto aparece, para o navegador baixar o tamanho certo. Padrão: a da tela. Foto deitada numa
+   * faixa alta do celular aparece bem mais larga que a tela (ver Opinioes.tsx).
+   */
+  sizes?: string;
 }
 
-/** A foto real de fundo de uma faixa, de borda a borda, que só baixa quando chega perto (.adiar). */
-export function FotoDeFundo({ src, alt, posicao = '50% 50%', posicaoMd, veu }: Fundo) {
+/**
+ * A foto real de fundo de uma faixa, de borda a borda, que só baixa quando chega perto (.adiar). Até ela chegar (ou
+ * se não chegar), a faixa fica no azul do mar fundo, e não no cinza claro: o título branco já se lê desde o
+ * primeiro instante, e o texto alternativo da foto quebrada não aparece escrito no canto (fica transparente; o
+ * leitor de tela continua lendo).
+ */
+export function FotoDeFundo({ src, alt, posicao = '50% 50%', posicaoMd, veu, sizes = '100vw' }: Fundo) {
   return (
-    <div className="adiar absolute inset-0 -z-10">
+    <div className="adiar absolute inset-0 -z-10 bg-(--color-mar)">
       <Image
         src={src}
         alt={alt}
         fill
-        sizes="100vw"
+        sizes={sizes}
         quality={70}
-        className="object-cover object-(--pos) md:object-(--pos-md)"
+        className="object-cover object-(--pos) text-transparent md:object-(--pos-md)"
         style={{ '--pos': posicao, '--pos-md': posicaoMd ?? posicao } as CSSProperties}
       />
       {veu && <div className={`absolute inset-0 ${veu === 'cima' ? 'veu-cima' : 'veu-baixo'}`} aria-hidden="true" />}
@@ -86,12 +96,13 @@ export function FaixaFoto({
   posicao,
   posicaoMd,
   veu,
+  sizes,
   children,
   ...props
 }: Fundo & { children: ReactNode } & ComponentProps<'section'>) {
   return (
     <section className="relative isolate overflow-hidden py-14 md:py-24" {...props}>
-      <FotoDeFundo src={src} alt={alt} posicao={posicao} posicaoMd={posicaoMd} veu={veu} />
+      <FotoDeFundo src={src} alt={alt} posicao={posicao} posicaoMd={posicaoMd} veu={veu} sizes={sizes} />
       <div className="moldura">{children}</div>
     </section>
   );
@@ -131,12 +142,13 @@ const ICONES_FATOS = [
 /**
  * Regras e avisos na inicial (Etapa 8, proposta B): só as 4 garantias curtas, cada uma com o seu ícone, numa faixa
  * clara entre as duas fotos (Como funciona e as opiniões), e o caminho para a política completa. A tabela inteira
- * fica na página da política; o que vale no dia do passeio, na página de cada passeio.
+ * fica na página da política; o que vale no dia do passeio, na página de cada passeio e no voucher em PDF. As
+ * garantias do voucher na hora e do pagamento seguro só entram com o pagamento online no ar (promessas-online.ts).
  */
 export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: string }) {
   const H = d.home;
   const itens = H.garantiasCurtas.map((g, i) => ({
-    titulo: g.titulo,
+    titulo: fmt(g.titulo, { p: DESCONTO_PIX_PORCENTO }),
     texto: fmt(g.texto, { p: DESCONTO_PIX_PORCENTO }),
     icone: ICONES_GARANTIAS[i],
   }));
@@ -170,13 +182,14 @@ export function Garantias({ d, hrefPolitica }: { d: Dicionario; hrefPolitica: st
 
 /**
  * Como funciona: os passos, uma linha cada, em vidro escuro sobre a orla de Cabo Frio ao entardecer. O véu de cima
- * segura o título branco no céu lilás do computador (sem ele, 2:1 de contraste).
+ * segura o título branco no céu lilás do computador (sem ele, 2:1 de contraste). No celular, a foto sobe: aparecem o
+ * coqueiro e o céu, e a lixeira laranja do pé da foto sai do quadro.
  */
 export function ComoFunciona({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const H = d.home;
   const foto = '/fotos/cabo-frio/orla-entardecer.jpg';
   return (
-    <FaixaFoto src={foto} alt={altDaFoto(foto, idioma)} posicao="50% 60%" veu="cima" aria-labelledby="como-titulo">
+    <FaixaFoto src={foto} alt={altDaFoto(foto, idioma)} posicao="50% 20%" posicaoMd="50% 60%" veu="cima" aria-labelledby="como-titulo">
       <h2 id="como-titulo" className={TITULO_NA_FOTO}>
         {H.comoTitulo}
       </h2>
@@ -220,11 +233,14 @@ export function Perguntas({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
   const { principais, outras } = dividirPerguntas(d.faq);
   const foto = '/fotos/buzios/escuna-ancorada.jpg';
   return (
-    <section aria-labelledby="faq-titulo">
+    // a faixa de chão claro em cima separa esta foto da foto das opiniões, logo acima (sem ela, o mar de uma
+    // encostava no morro da outra, com cara de montagem)
+    <section className="pt-6 md:pt-8" aria-labelledby="faq-titulo">
       <div className="relative isolate overflow-hidden">
-        {/* no celular, o céu, os mastros e o morro; no computador a faixa é larga e baixa: mostra a escuna em cima e
-            deixa o título na água, abaixo dela (com a escuna atrás das letras, o branco perdia contraste) */}
-        <FotoDeFundo src={foto} alt={altDaFoto(foto, idioma)} posicao="50% 30%" posicaoMd="50% 70%" veu="baixo" />
+        {/* nos dois tamanhos, a escuna e o morro em cima e o título na água, logo abaixo da escuna (com o céu e os
+            mastros atrás, o título ficava sobre "postes no céu" no celular; com a escuna atrás das letras, o branco
+            perdia contraste) */}
+        <FotoDeFundo src={foto} alt={altDaFoto(foto, idioma)} posicao="50% 75%" posicaoMd="50% 70%" veu="baixo" />
         <div className="moldura pb-8 pt-24 md:pb-12 md:pt-52">
           <h2 id="faq-titulo" className={TITULO_NA_FOTO}>
             {H.faqTitulo}
@@ -251,10 +267,12 @@ export function Perguntas({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
             </div>
             {outras.length > 0 && (
               <details className="group/todas">
-                {/* ao abrir, o "Ver todas" sai e as outras perguntas entram no lugar dele */}
-                <summary className="link mt-3 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-semibold group-open/todas:hidden [&::-webkit-details-marker]:hidden">
-                  {H.faqTodas}
-                  <Icone caminho={CHEVRON} className="size-5" />
+                {/* o link fica no lugar ao abrir (o foco do teclado e do leitor de tela não se perde): "Ver todas" vira
+                    "Ver menos", e as outras perguntas entram logo abaixo dele */}
+                <summary className="link mt-3 inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-semibold [&::-webkit-details-marker]:hidden">
+                  <span className="group-open/todas:hidden">{H.faqTodas}</span>
+                  <span className="hidden group-open/todas:inline">{H.faqMenos}</span>
+                  <Icone caminho={CHEVRON} className="size-5 transition-transform duration-200 group-open/todas:rotate-180" />
                 </summary>
                 <div className="mt-(--vao-celula) grid gap-(--vao-celula)">
                   {outras.map((f) => (

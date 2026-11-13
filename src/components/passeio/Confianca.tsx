@@ -6,22 +6,24 @@ export const ICONES = {
   chuva: 'M12 2v1M3 12a9 9 0 0 1 18 0H3ZM12 12v6a2 2 0 0 1-4 0',
   voucher: 'M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V6ZM14 6v12',
   pagamento: 'M12 3l7 3v5c0 4.4-2.9 8.2-7 10-4.1-1.8-7-5.6-7-10V6l7-3ZM9 12l2 2 4-4',
-  // o cartão (Pix ou cartão, sem taxa escondida)
+  // o cartão (nas garantias da inicial: o Pix com desconto ou, com o pagamento online no ar, o pagamento seguro)
   cartao: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM3 10h18M7 15h4',
 } as const;
 
 /**
- * As garantias que tiram o risco da compra, perto do botão de reservar:
- * cancelamento grátis, reembolso se chover, voucher na hora e pagamento seguro.
+ * As garantias que tiram o risco da compra, perto do botão de reservar: cancelamento grátis, reembolso se o tempo
+ * cancelar o passeio, o voucher e o pagamento seguro. Enquanto o pagamento é fechado pelo WhatsApp, a linha do
+ * pagamento seguro vem vazia e sai do quadro (src/lib/promessas-online.ts).
  */
 export function Confianca({ d, className = '' }: { d: Dicionario; className?: string }) {
   const [cancelar, chuva, voucher] = d.passeio.garantias;
-  const itens: [keyof typeof ICONES, string][] = [
+  const todos: [keyof typeof ICONES, string][] = [
     ['cancelar', cancelar],
     ['chuva', chuva],
     ['voucher', voucher],
     ['pagamento', d.passeio.pagoSeguro],
   ];
+  const itens = todos.filter(([, texto]) => texto);
   return (
     <ul className={`grid gap-x-5 gap-y-2.5 text-small ${className}`}>
       {itens.map(([icone, texto]) => (

@@ -18,6 +18,7 @@ import { fmt, isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { avaliacoesDoSite, notaDaAgencia, opinioesDoSite, origemDaNota } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
+import { comPromessasOnline } from '@/lib/promessas-online';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 /** Foto real de cada cidade no cartão do mapa (das fotos dos passeios da agência). */
@@ -42,7 +43,8 @@ export async function generateMetadata({ params }: PageProps<'/[locale]'>): Prom
 export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
-  const d = dicionario(locale);
+  // o voucher na hora e o pagamento seguro (topo e garantias) só com o pagamento online no ar para o público
+  const d = comPromessasOnline(dicionario(locale));
   const H = d.home;
   const passeios = passeiosAtivos();
   // sem o banco, a página abre sem a seção: as opiniões nunca podem derrubar a inicial

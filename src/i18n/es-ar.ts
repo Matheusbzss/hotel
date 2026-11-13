@@ -21,12 +21,12 @@ export type AjustesAR = DeepPartial<Dicionario>;
 export const ajustesAR: AjustesAR = {
   meta: {
     descricao:
-      'Paseos en barco, buggy, cuatriciclo y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reservá online, pagá con Pix o tarjeta y recibí el voucher al instante.',
+      'Paseos en barco, buggy, cuatriciclo y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reservá online, pagá con Pix o tarjeta y cancelá gratis hasta 24 h antes.',
     passeiosDescricao:
-      '{n} paseos en barco, buggy, cuatriciclo y buceo en Búzios, Arraial do Cabo, Cabo Frio y Río. Compará los precios, reservá online y recibí el voucher al instante.',
+      '{n} paseos en barco, buggy, cuatriciclo y buceo en Búzios, Arraial do Cabo, Cabo Frio y Río. Compará los precios, reservá online y cancelá gratis hasta 24 h antes.',
     contatoDescricao:
       'Hablá con Orla Nativa: atención 100% online, en español, portugués e inglés, para paseos, traslados y reservas en Búzios y la Región de los Lagos.',
-    chamadaPasseio: 'Reservá online y recibí el voucher al instante.',
+    chamadaPasseio: 'Reservá online y cancelá gratis hasta 24 h antes.',
   },
   grupo: {
     escolhaData: 'Elegí la fecha',
@@ -91,17 +91,23 @@ export const ajustesAR: AjustesAR = {
         texto: 'El voucher ya viene con el horario, tiene número único y PDF.',
       },
     ],
-    // só a primeira muda ("vos elegís"); a lista entra inteira
+    // só a primeira muda ("vos elegís"); cada lista entra inteira (a de hoje e a do pagamento online)
     garantiasCurtas: [
-      { titulo: 'Lluvia, viento o mar picado', texto: 'Reembolso total o nueva fecha, vos elegís.' },
+      { titulo: 'Paseo cancelado por lluvia, viento o mar', texto: 'Reembolso total o nueva fecha, vos elegís.' },
       { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
-      { titulo: 'Un voucher por paseo', texto: 'Con número único, en el celular y en PDF.' },
-      { titulo: 'Sin cargos escondidos', texto: 'Pix con {p}% de descuento o tarjeta, siempre el valor total.' },
+      { titulo: 'Voucher con número único', texto: 'En el celular y en PDF.' },
+      { titulo: 'Pix con {p}% de descuento', texto: 'Sobre el precio con tarjeta.' },
+    ],
+    garantiasCurtasOnline: [
+      { titulo: 'Paseo cancelado por lluvia, viento o mar', texto: 'Reembolso total o nueva fecha, vos elegís.' },
+      { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
+      { titulo: 'Voucher al instante', texto: 'Con número único, en el celular y en PDF.' },
+      { titulo: 'Pago seguro', texto: 'Pix con {p}% de descuento o tarjeta, procesados por Stripe.' },
     ],
     garantiasColunas: ['Si', 'Recibís', 'Plazo'],
     garantias: [
       {
-        se: 'Llueve, hay viento o el mar no lo permite',
+        se: 'El paseo se cancela por lluvia, viento o mar',
         recebe: 'Reembolso total o nueva fecha, vos elegís',
         prazo: 'Sin costo',
       },
@@ -132,14 +138,14 @@ export const ajustesAR: AjustesAR = {
       },
     ],
     diaRegras: [
-      'Llegá al punto de embarque 30 minutos antes del horario. Si el paseo te busca en el hotel, esperá en la recepción a la hora de la recogida, que figura en el voucher.',
+      'Llegá al punto de encuentro 30 minutos antes del horario. Si el paseo te busca en el hotel, esperá en la recepción a la hora de la recogida, que figura en el voucher.',
       'El paseo sale a la hora marcada: si llegás después, perdés el paseo y no hay reembolso.',
-      'Llevá un documento con foto (DNI, cédula o pasaporte). En el barco pueden controlar la lista de pasajeros.',
+      'Llevá un documento con foto (DNI, cédula o pasaporte). En los paseos en barco pueden controlar la lista de pasajeros.',
       'Las tasas municipales, como la de embarque o de turismo, se pagan en el lugar.',
       'Embarazo, movilidad reducida o algún problema de salud: avisanos al reservar, porque algunos paseos tienen restricciones.',
       'Menores de 18 años solo con un adulto responsable.',
       'Cuidá tus objetos personales durante el paseo.',
-      'El recorrido puede cambiar en el día según el viento y el mar.',
+      'En los paseos en barco, el recorrido puede cambiar en el día según el viento y el mar.',
     ],
   },
   faq: [

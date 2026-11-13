@@ -23,6 +23,7 @@ import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
+import { comPromessasOnline } from '@/lib/promessas-online';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 export const dynamicParams = false;
@@ -52,7 +53,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const { locale, slug } = await params;
   const p = obterPasseio(slug);
   if (!isIdioma(locale) || !p) notFound();
-  const d = dicionario(locale);
+  // o voucher na hora e o pagamento seguro do quadro ao lado do Reservar só com o pagamento online no ar
+  const d = comPromessasOnline(dicionario(locale));
   const intl = LOCALE_INTL[locale];
   const aPartir = precoAPartirCentavos(p);
   const opcoes = opcoesPasseio(p);

@@ -44,24 +44,42 @@ async function limpezaDosLimites(): Promise<Record<string, boolean | string | nu
 }
 
 /**
+ * O cadastro dos hóspedes das casas sai do banco 30 dias depois da saída, ou logo que a estadia é cancelada ou
+ * devolvida (função apagar_hospedes_vencidos, Etapa 7): só no agendamento diário. Antes da migração das casas a função
+ * não existe (PGRST202) e ainda não há cadastro nenhum para apagar: fica só o aviso, sem marcar a verificação como falha.
+ */
+async function limpezaDosHospedes(): Promise<Record<string, boolean | string | number>> {
+  if (!supabaseConfigurado()) return { modo: 'sem-supabase' };
+  try {
+    const { data, error } = await bancoDeDados().rpc('apagar_hospedes_vencidos');
+    if (error?.code === 'PGRST202') return { ok: true, apagados: 0, aviso: 'função apagar_hospedes_vencidos ainda não está no banco' };
+    if (error) throw new Error(error.message);
+    return { ok: true, apagados: data };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
  * Verificação de saúde: banco de reservas (Blob), banco de dados (Supabase), câmbio do dólar, pagamento e
  * configurações. Abre só para o admin logado ou para o agendamento diário da Vercel (vercel.json), que manda
- * "Authorization: Bearer CRON_SECRET" e também limpa o limite por IP. Nenhum valor de chave sai daqui: da Stripe,
- * só o modo (desligado, teste ou produção), pelo prefixo da chave.
+ * "Authorization: Bearer CRON_SECRET" e também limpa o limite por IP e apaga o cadastro vencido dos hóspedes das
+ * casas. Nenhum valor de chave sai daqui: da Stripe, só o modo (desligado, teste ou produção), pelo prefixo da chave.
  */
 export async function GET(req: Request) {
   const loja = await cookies();
   const agendamento = chamadaDoAgendamento(req);
   if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value) && !agendamento) return NextResponse.json({ ok: false }, { status: 401 });
-  const [banco, supabase, cambio, limites] = await Promise.all([
+  const [banco, supabase, cambio, limites, hospedes] = await Promise.all([
     testarBanco(),
     testarSupabase(),
     cambioDolar(),
     agendamento ? limpezaDosLimites() : Promise.resolve(undefined),
+    agendamento ? limpezaDosHospedes() : Promise.resolve(undefined),
   ]);
-  const ok = !banco.erro && !supabase.erro && cambio.ok !== false && limites?.ok !== false;
+  const ok = !banco.erro && !supabase.erro && cambio.ok !== false && limites?.ok !== false && hospedes?.ok !== false;
   // fica nos registros da Vercel: é por eles que se confere o agendamento diário
-  console.log(`saude ok=${ok} ${JSON.stringify({ banco, supabase, cambio, limites })}`);
+  console.log(`saude ok=${ok} ${JSON.stringify({ banco, supabase, cambio, limites, hospedes })}`);
   return NextResponse.json(
     {
       ok,
@@ -69,6 +87,7 @@ export async function GET(req: Request) {
       supabase,
       cambio,
       ...(limites ? { limites } : {}),
+      ...(hospedes ? { hospedes } : {}),
       stripe: modoStripe(),
       pagamentoOnline: modoPagamentoOnline(),
       // os e-mails automáticos (Etapa 6): ligados só com a chave do Resend; o valor da chave nunca sai daqui

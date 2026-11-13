@@ -193,14 +193,20 @@ export type Database = {
           cancelamento: Json
           capacidade: number
           caucao_centavos: number | null
+          centro_lat: number | null
+          centro_lng: number | null
           check_in: string | null
           check_out: string | null
           cidade: string
           comodidades: Json
+          comodidades_marcadas: Json
           criado_em: string
           descricao: Json | null
+          destaques: Json
           diaria_base_centavos: number | null
+          diaria_fim_de_semana_centavos: number | null
           endereco: string | null
+          fim_de_semana_junto: boolean
           fotos: Json
           ical_erro: string | null
           ical_sincronizado_em: string | null
@@ -208,15 +214,19 @@ export type Database = {
           ical_url: string | null
           id: string
           lat_aprox: number | null
+          lavabos: number
           lng_aprox: number | null
           minimo_noites: number
           nome: Json
           quartos: number
+          quartos_detalhe: Json
           regras: Json
+          regras_proprias: Json
           resumo: Json | null
           slug: string
           suites: number | null
           taxa_limpeza_centavos: number | null
+          texto_bairro: Json | null
         }
         Insert: {
           ativo?: boolean
@@ -227,14 +237,20 @@ export type Database = {
           cancelamento?: Json
           capacidade: number
           caucao_centavos?: number | null
+          centro_lat?: number | null
+          centro_lng?: number | null
           check_in?: string | null
           check_out?: string | null
           cidade: string
           comodidades?: Json
+          comodidades_marcadas?: Json
           criado_em?: string
           descricao?: Json | null
+          destaques?: Json
           diaria_base_centavos?: number | null
+          diaria_fim_de_semana_centavos?: number | null
           endereco?: string | null
+          fim_de_semana_junto?: boolean
           fotos?: Json
           ical_erro?: string | null
           ical_sincronizado_em?: string | null
@@ -242,15 +258,19 @@ export type Database = {
           ical_url?: string | null
           id?: string
           lat_aprox?: number | null
+          lavabos?: number
           lng_aprox?: number | null
           minimo_noites?: number
           nome: Json
           quartos: number
+          quartos_detalhe?: Json
           regras?: Json
+          regras_proprias?: Json
           resumo?: Json | null
           slug: string
           suites?: number | null
           taxa_limpeza_centavos?: number | null
+          texto_bairro?: Json | null
         }
         Update: {
           ativo?: boolean
@@ -261,14 +281,20 @@ export type Database = {
           cancelamento?: Json
           capacidade?: number
           caucao_centavos?: number | null
+          centro_lat?: number | null
+          centro_lng?: number | null
           check_in?: string | null
           check_out?: string | null
           cidade?: string
           comodidades?: Json
+          comodidades_marcadas?: Json
           criado_em?: string
           descricao?: Json | null
+          destaques?: Json
           diaria_base_centavos?: number | null
+          diaria_fim_de_semana_centavos?: number | null
           endereco?: string | null
+          fim_de_semana_junto?: boolean
           fotos?: Json
           ical_erro?: string | null
           ical_sincronizado_em?: string | null
@@ -276,15 +302,19 @@ export type Database = {
           ical_url?: string | null
           id?: string
           lat_aprox?: number | null
+          lavabos?: number
           lng_aprox?: number | null
           minimo_noites?: number
           nome?: Json
           quartos?: number
+          quartos_detalhe?: Json
           regras?: Json
+          regras_proprias?: Json
           resumo?: Json | null
           slug?: string
           suites?: number | null
           taxa_limpeza_centavos?: number | null
+          texto_bairro?: Json | null
         }
         Relationships: []
       }
@@ -332,6 +362,129 @@ export type Database = {
             columns: ["item_pedido_id"]
             isOneToOne: false
             referencedRelation: "itens_pedido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      casas_hospedes: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          documento_numero: string
+          documento_tipo: string
+          id: string
+          item_pedido_id: string
+          nome: string
+          ordem: number
+          placa: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          documento_numero: string
+          documento_tipo: string
+          id?: string
+          item_pedido_id: string
+          nome: string
+          ordem?: number
+          placa?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          documento_numero?: string
+          documento_tipo?: string
+          id?: string
+          item_pedido_id?: string
+          nome?: string
+          ordem?: number
+          placa?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casas_hospedes_item_pedido_id_fkey"
+            columns: ["item_pedido_id"]
+            isOneToOne: false
+            referencedRelation: "itens_pedido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      casas_pacotes: {
+        Row: {
+          casa_id: string
+          criado_em: string
+          diaria_centavos: number
+          entrada: string
+          grupo: string | null
+          id: string
+          nome: Json
+          saida: string
+        }
+        Insert: {
+          casa_id: string
+          criado_em?: string
+          diaria_centavos: number
+          entrada: string
+          grupo?: string | null
+          id?: string
+          nome: Json
+          saida: string
+        }
+        Update: {
+          casa_id?: string
+          criado_em?: string
+          diaria_centavos?: number
+          entrada?: string
+          grupo?: string | null
+          id?: string
+          nome?: Json
+          saida?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casas_pacotes_casa_id_fkey"
+            columns: ["casa_id"]
+            isOneToOne: false
+            referencedRelation: "casas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      casas_pontos: {
+        Row: {
+          atualizado_em: string
+          casa_id: string
+          deslocamento_m: number
+          direcao_graus: number
+          lat: number
+          lng: number
+          marcado_em: string
+        }
+        Insert: {
+          atualizado_em?: string
+          casa_id: string
+          deslocamento_m?: number
+          direcao_graus?: number
+          lat: number
+          lng: number
+          marcado_em?: string
+        }
+        Update: {
+          atualizado_em?: string
+          casa_id?: string
+          deslocamento_m?: number
+          direcao_graus?: number
+          lat?: number
+          lng?: number
+          marcado_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casas_pontos_casa_id_fkey"
+            columns: ["casa_id"]
+            isOneToOne: true
+            referencedRelation: "casas"
             referencedColumns: ["id"]
           },
         ]
@@ -702,6 +855,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apagar_hospedes_vencidos: { Args: never; Returns: number }
       atualizar_item: {
         Args: { p_evento: string; p_status: string; p_voucher: string }
         Returns: boolean
@@ -725,6 +879,21 @@ export type Database = {
       }
       criar_reserva: {
         Args: { p_historico: Json; p_item: Json; p_pedido: Json }
+        Returns: boolean
+      }
+      marcar_ponto_da_casa: {
+        Args: { p_casa: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
+      ponto_da_casa: {
+        Args: { p_casa: string }
+        Returns: {
+          lat: number
+          lng: number
+        }[]
+      }
+      prender_datas_casas: {
+        Args: { p_estadias: Json; p_referencia: string }
         Returns: boolean
       }
       trocar_bloqueios_airbnb: {

@@ -189,6 +189,15 @@ export const FRASES_ARGENTINAS: [string, string][] = [
   ['Brochette', 'Brocheta'],
   ['picadas', 'aperitivos'],
   ['Baúl', 'Maletero'],
+  // as casas (Etapa 7): na Argentina, "hamaca" é o balanço e a rede é "hamaca paraguaya"; lavarropas, heladera e mesada
+  // são a lavadora, o refrigerador e a cubierta (a bancada) do neutro. As frases mais longas vêm antes das curtas.
+  ['Lavadero con lavarropas y pileta', 'Lavandería con lavadora y lavadero'],
+  ['Lavadero con lavarropas', 'Lavandería con lavadora'],
+  ['Hamaca paraguaya', 'Hamaca'],
+  ['hamaca paraguaya', 'hamaca'],
+  ['hamacas', 'columpios'],
+  ['heladera', 'refrigerador'],
+  ['mesada', 'cubierta'],
 ];
 
 const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -208,11 +217,12 @@ export function neutroDoArgentino(texto: string): string {
 /**
  * Palavras do espanhol neutro que terminam em -á/-é/-í(s) sem serem verbo em "vos" (em minúscula, como a varredura
  * compara): a varredura por terminação, que pega qualquer forma de vos, inclusive as que não estão na lista acima,
- * ignora só estas. Nomes próprios (Geribá, José, Maracaná) e o pretérito "llegué" entram aqui.
+ * ignora só estas. Nomes próprios (Geribá, José, Maracaná) e o pretérito "llegué" entram aqui; "sofá" e "sofás" vieram
+ * com as casas (Etapa 7).
  */
 export const INOCENTES_COM_ACENTO_FINAL = new Set(
   `más qué está estás sí así ahí aquí allí después demás además detrás atrás través país interés café josé geribá maracaná
-  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés`
+  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés sofá sofás`
     .split(/\s+/)
     .filter(Boolean),
 );

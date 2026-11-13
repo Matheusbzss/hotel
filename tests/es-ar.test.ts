@@ -25,6 +25,8 @@ import { formatarHora } from '../src/lib/horarios.ts';
 import { DDIS, PAIS_PADRAO } from '../src/lib/validacao.ts';
 import { AVISOS_VOUCHER, IMPORTANTE_VOUCHER } from '../src/lib/voucher-textos.ts';
 import { VERBOS_VOS, neutroDoArgentino, palavras, suspeitasDeVos } from './ajuda/regra-neutra.ts';
+import { CAMAS, COMODIDADES, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR } from '../src/data/comodidades.ts';
+import { CANCELAMENTO_DAS_CASAS, CASAS_PARA_CADASTRAR, regrasDeTodasAsCasas } from '../scripts/dados/casas.ts';
 
 // Etapa 3, lote 2, a integração: o /es é o espanhol neutro (com "tú") e o /es-ar é o texto argentino que o site
 // tinha antes (com "vos"), palavra por palavra, só nas frases que diferem. Os testes de cada frente
@@ -180,6 +182,16 @@ for (const [fonte, es, ar] of [
   for (const [caminho, t] of folhas(es)) CORPUS.push({ fonte: `${fonte} ${caminho}`, es: t, ar: doAr.get(caminho) as string });
 }
 
+// 9. a Etapa 7: as listas fixas das casas (src/data/comodidades.ts) e os textos das duas casas prontas para cadastrar
+// (scripts/dados/casas.ts), que vão para o banco. São neutros (sem tú nem vos); a versão argentina só entra onde a
+// palavra muda (a rede, "hamaca paraguaya", e a lavanderia, "lavarropas")
+for (const { trilha, campo } of [
+  ...campos({ COMODIDADES, CAMAS, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR }, 'casas listas'),
+  ...campos({ casas: CASAS_PARA_CADASTRAR, regras: regrasDeTodasAsCasas(12), cancelamento: CANCELAMENTO_DAS_CASAS }, 'casas cadastro'),
+]) {
+  juntar(trilha, lista(texto(campo, 'es')), lista(texto(campo, 'es-ar')));
+}
+
 /* ------------------------------------------------------------------------------------------------------------ */
 /* As regras                                                                                                    */
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -199,11 +211,12 @@ const USTEDES_DE_HOJE = 'el marinero arma el recorrido con ustedes';
 
 /**
  * As palavras argentinas trocadas no neutro (valija, chico no sentido de criança, arribos, médanos, cuatriciclo, acá...),
- * inclusive as três dos textos alternativos das fotos (brochette, picadas, baúl).
+ * inclusive as três dos textos alternativos das fotos (brochette, picadas, baúl) e as das casas (heladera, lavarropas,
+ * mesada).
  */
 const ARGENTINISMOS = `valija valijas chico chicos arribo arribos médano médanos cuatriciclo cuatriciclos acá seña señas campera
   resúmenes parador paradores plata colectivo colectivos remís pileta piletas boliche boliches pollera frutilla palta
-  brochette picadas baúl`
+  brochette picadas baúl heladera heladeras lavarropas mesada`
   .split(/\s+/)
   .filter(Boolean);
 
@@ -261,11 +274,14 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   'legal cancelamento-online': 12,
   'legal privacidade-online': 12,
   voucher: 1,
-  foto: 9,
+  // 9 de antes + 9 das casas (Etapa 7): mesada, hamacas, heladera, lavarropas e hamaca paraguaya
+  foto: 18,
   TEXTOS_GUIA: 1,
   // Etapa 6: os e-mails automáticos e as páginas "Consultar mi pedido" e de sair da lista (as frases com verbo)
   email: 15,
   consulta: 10,
+  // Etapa 7: as comodidades da rede ("hamaca paraguaya") e da lavanderia ("lavarropas")
+  casas: 2,
 };
 /** A fonte de um texto do corpus, no nível das chaves de FRASES_COM_VERSAO_ARGENTINA. */
 const grupoDaFonte = (fonte: string): string => {
@@ -537,14 +553,26 @@ test('(d) horas, moeda, hreflang e OG: as duas versões escrevem igual, mas se m
   assert.equal(OG_LOCALE['es-ar'], 'es_AR');
 });
 
-/** Fora do quadriciclo, as três fotos cujo texto alternativo tinha palavra argentina: [no es-ar, no es neutro]. */
+/**
+ * Fora do quadriciclo, as fotos cujo texto alternativo tem palavra argentina: [no es-ar, no es neutro]. As três de
+ * antes e as nove das casas (Etapa 7), onde a bancada, o balanço, a geladeira, a lavanderia e a rede mudam de nome.
+ */
 const ALTS_COM_PALAVRA_ARGENTINA: Record<string, [RegExp, RegExp]> = {
   '/fotos/cabo-frio/camarao-e-caipirinha.jpg': [/Brochette/, /Brocheta/],
   '/fotos/lancha/lancha-petiscos.jpg': [/picadas/, /aperitivos/],
   '/fotos/transfer/van-traseira-bagageiro.jpg': [/Baúl/, /Maletero/],
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-pia-e-vista.jpg': [/mesada/, /cubierta/],
+  '/fotos/casas/mansao-ferradura-vista-mar/banheiro-chuveiro-de-teto.jpg': [/mesada/, /cubierta/],
+  '/fotos/casas/mansao-ferradura-vista-mar/parquinho.jpg': [/hamacas/, /columpios/],
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-e-sala-de-tv.jpg': [/heladera/, /refrigerador/],
+  '/fotos/casas/mansao-ferradura-vista-mar/lavanderia.jpg': [/lavarropas/, /lavadora/],
+  '/fotos/casas/mansao-geriba-vista-mar/jardim-escada-e-rede.jpg': [/hamaca paraguaya/, /hamaca y/],
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-pia-dupla.jpg': [/mesada/, /cubierta/],
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-chuveiro-de-teto.jpg': [/mesada/, /cubierta/],
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-toalhas-laranja.jpg': [/mesada/, /cubierta/],
 };
 
-test('(d) fotos: o es-ar lê o texto do es, menos no quadriciclo ("cuatriciclo") e em 3 alts com palavra argentina', () => {
+test('(d) fotos: o es-ar lê o texto do es, menos no quadriciclo ("cuatriciclo") e nos alts com palavra argentina', () => {
   let comVersao = 0;
   for (const [foto, alt] of Object.entries(ALT_FOTOS)) {
     assert.equal(altDaFoto(foto, 'es'), alt.es, foto);
@@ -562,7 +590,7 @@ test('(d) fotos: o es-ar lê o texto do es, menos no quadriciclo ("cuatriciclo")
       continue;
     }
     const esperado = ALTS_COM_PALAVRA_ARGENTINA[foto];
-    assert.ok(esperado, `${foto}: versão argentina inesperada; só o quadriciclo e as 3 fotos com palavra argentina têm 'es-ar'`);
+    assert.ok(esperado, `${foto}: versão argentina inesperada; só o quadriciclo e as fotos com palavra argentina têm 'es-ar'`);
     assert.match(alt['es-ar'], esperado[0]);
     assert.match(alt.es, esperado[1]);
   }
@@ -572,7 +600,7 @@ test('(d) fotos: o es-ar lê o texto do es, menos no quadriciclo ("cuatriciclo")
   assert.equal(
     comVersao,
     fotosDoQuadriciclo + Object.keys(ALTS_COM_PALAVRA_ARGENTINA).length,
-    'fotos com versão argentina: as do quadriciclo (cuatrimoto no es) mais as 3 com palavra argentina',
+    'fotos com versão argentina: as do quadriciclo (cuatrimoto no es) mais as com palavra argentina',
   );
   assert.equal(altDaFoto('/fotos/nao-existe.jpg', 'es-ar', 'reserva'), 'reserva');
   assert.equal(altDaFoto('/fotos/buzios/escuna-no-mar.jpg', 'es-ar'), altDaFoto('/fotos/buzios/escuna-no-mar.jpg', 'es'));

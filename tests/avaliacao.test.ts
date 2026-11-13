@@ -1,11 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readdirSync } from 'node:fs';
 import {
   EsquemaAvaliacao,
   MAXIMO_NO_SITE,
+  fotoDoCartao,
+  iniciais,
   notaDaAgencia,
   opinioesDoSite,
   ordenarParaPasseio,
+  origemDaNota,
   trechoDaAvaliacao,
   trechosDoCartao,
   type Avaliacao,
@@ -103,6 +107,43 @@ test('a nota da agência conta só as avaliações da agência e arredonda para 
   // sem avaliação da agência com nota, não há o que mostrar
   assert.deepEqual(notaDaAgencia([]), { media: 0, total: 0 });
   assert.deepEqual(notaDaAgencia([avaliacaoCom({ id: 'so-cidade', nota: 5, sobre: 'destino' })]), { media: 0, total: 0 });
+});
+
+test('a nota da inicial diz de onde vieram as notas só quando vieram todas do mesmo site (Etapa 8)', () => {
+  // as 5 publicadas hoje: todas da agência, com nota, do Tripadvisor → "5,0 · 5 opiniões do Tripadvisor"
+  const hoje = Array.from({ length: 5 }, (_, i) => avaliacaoCom({ id: `t${i}`, sobre: 'agencia' }));
+  assert.equal(origemDaNota(hoje), 'tripadvisor');
+  assert.deepEqual(notaDaAgencia(hoje), { media: 5, total: 5 });
+  // a da cidade não entra na nota, então não muda a origem
+  assert.equal(
+    origemDaNota([...hoje, avaliacaoCom({ id: 'cidade', origem: 'google', sobre: 'destino', lugar: 'Rua das Pedras' })]),
+    'tripadvisor',
+  );
+  // nem a da agência sem nota
+  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'sem-nota', origem: 'google', nota: undefined })]), 'tripadvisor');
+  // com uma do Google que entra na nota, a origem fica de fora: o site não diz "do Tripadvisor"
+  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'google', origem: 'google' })]), undefined);
+  // sem nota da agência, nada
+  assert.equal(origemDaNota([]), undefined);
+  assert.equal(origemDaNota([avaliacaoCom({ id: 'so-cidade', sobre: 'destino' })]), undefined);
+});
+
+test('o cartão nunca mostra a imagem padrão do Tripadvisor como foto da pessoa: mostra as iniciais (Etapa 8)', () => {
+  // as 5 fotos publicadas hoje são as imagens que o Tripadvisor põe em quem não escolheu foto
+  for (const arquivo of readdirSync('public/avaliacoes')) {
+    assert.equal(fotoDoCartao({ foto: `/avaliacoes/${arquivo}` }), undefined, arquivo);
+  }
+  assert.ok(existsSync('public/avaliacoes/boris-i.webp'), 'os arquivos ficam onde estão: o dono decide se apaga');
+  // as do lote 2 e as da cidade também, para quando forem publicadas
+  assert.equal(fotoDoCartao({ foto: '/avaliacoes/robert-j.webp' }), undefined);
+  assert.equal(fotoDoCartao({ foto: '/avaliacoes/tiago-couto.webp' }), undefined);
+  // uma foto de verdade, que o dono mandar com a autorização da pessoa, aparece
+  assert.equal(fotoDoCartao({ foto: '/avaliacoes/maria-silva.webp' }), '/avaliacoes/maria-silva.webp');
+  assert.equal(fotoDoCartao({}), undefined);
+  assert.equal(iniciais('Anais R'), 'AR');
+  assert.equal(iniciais('Boris I'), 'BI');
+  assert.equal(iniciais('newspapertaxi'), 'N');
+  assert.equal(iniciais('  maria raquel a '), 'MR');
 });
 
 test('no cartão do passeio: quem cita o passeio vem primeiro e es-ar conta como es', () => {

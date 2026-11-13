@@ -15,6 +15,7 @@ export function Tutorial({ idioma, d, telas }: { idioma: Idioma; d: Dicionario; 
       src="/fotos/cabo-frio/orla-entardecer.jpg"
       alt={altDaFoto('/fotos/cabo-frio/orla-entardecer.jpg', idioma)}
       posicao="50% 60%"
+      veu="cima"
       aria-labelledby="como-titulo"
     >
       <h2 id="como-titulo" className="titulo text-white [text-shadow:0_1px_14px_rgb(0_0_0/0.35)]">

@@ -8,7 +8,9 @@ As fotos em `public/fotos/` são dos passeios e parceiros da agência, exceto as
 
 ## Fotos de perfil das avaliações
 
-`public/avaliacoes/`: as fotos de perfil de quem avaliou, recortadas dos prints do Tripadvisor que o dono mandou. Não têm licença comercial: o dono decidiu usar por conta dele, em 2026-11-06, sabendo que o certo é ter a autorização de cada pessoa.
+`public/avaliacoes/`: as imagens redondas recortadas dos prints do Tripadvisor que o dono mandou. Não têm licença comercial: o dono decidiu usar por conta dele, em 2026-11-06, achando que eram fotos de quem avaliou e sabendo que o certo é ter a autorização de cada pessoa.
+
+Em 2026-11-13 (revisão da Etapa 8) ficou claro que não são fotos das pessoas: são as imagens que o próprio Tripadvisor põe no perfil de quem não escolheu foto (os Alpes, as pirâmides, uma gôndola de Veneza, telhados de Florença; a mesma moça de mala aparece em duas pessoas diferentes). Os direitos são do Tripadvisor ou do banco de imagens dele. Por isso o site não mostra nenhuma delas: o cartão da avaliação mostra as iniciais do nome (`fotoDoCartao` em `src/lib/avaliacao.ts`). Os arquivos e o campo `foto` no banco ficaram como estavam, até o dono decidir. Foto de verdade de quem avaliou só entra com a autorização da pessoa.
 
 ## Mapa da página inicial
 

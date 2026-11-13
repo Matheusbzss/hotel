@@ -26,7 +26,7 @@ const tokens = (s: string): string[] => (s.match(new RegExp(`[${LETRA}]+`, 'g'))
  * arribos, médanos, cuatriciclo, acá, seña) mais alguns argentinismos fortes de vigia.
  */
 const PROIBIDAS_NO_NEUTRO = new Set(
-  `abrí alojás armá arrepentís avisá cancelás compará completá completás cuidá disfrutá elegí elegís embarcá escaneá
+  `abrí alojás armá arrepentís avisá cancelá cancelás compará completá completás cuidá disfrutá elegí elegís embarcá escaneá
    esperá guardá hablá hacé indicá ingresá intentá llegá llegás llevá necesitás pagá pagás paseás pegá perdés podés
    poné presentás probá querés recibí recibís registrás reservá revisá revisás seleccioná tenés terminás tocá
    avisame avisanos contactanos decinos dejanos envialo escribinos mandanos mostralo mostralos mostraselo
@@ -72,7 +72,7 @@ test('nenhuma das duas versões usa "usted"', () => {
 
 test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as palavras locais', () => {
   assert.equal(ar.home.gancho, 'Llegá y disfrutá. Del resto nos ocupamos nosotros.');
-  assert.equal(ar.meta.chamadaPasseio, 'Reservá online y recibí el voucher al instante.');
+  assert.equal(ar.meta.chamadaPasseio, 'Reservá online y cancelá gratis hasta 24 h antes.');
   // as duas frases do lote 1 também ficam em vos
   assert.equal(ar.preco.notaCambio, 'Pagás en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.');
   assert.equal(ar.carrinho.semCobranca, 'Todavía no te cobramos nada: revisás todo antes de pagar.');
@@ -100,7 +100,7 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
 
 test('o espanhol neutro traz o "tú" nas mesmas frases, com os acentos do imperativo com pronome', () => {
   assert.equal(es.home.gancho, 'Llega y disfruta. Del resto nos ocupamos nosotros.');
-  assert.equal(es.meta.chamadaPasseio, 'Reserva online y recibe el voucher al instante.');
+  assert.equal(es.meta.chamadaPasseio, 'Reserva online y cancela gratis hasta 24 h antes.');
   assert.equal(es.preco.notaCambio, 'Pagas en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.');
   assert.equal(es.carrinho.semCobranca, 'Todavía no te cobramos nada: revisas todo antes de pagar.');
   assert.equal(es.home.garantias[0].recebe, 'Reembolso total o nueva fecha, tú eliges');
@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    123,
-    `${diferentes} frases diferem entre es e es-ar; esperava 123 (as 111 que ficaram do lote 2, o exemplo de telefone e as 11 da Etapa 4). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    125,
+    `${diferentes} frases diferem entre es e es-ar; esperava 125 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4 e a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 

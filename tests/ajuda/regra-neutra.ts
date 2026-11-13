@@ -18,6 +18,8 @@ export const VERBOS_VOS: Record<string, string> = {
   revisás: 'revisas',
   pagás: 'pagas',
   cancelás: 'cancelas',
+  // Etapa 8: "cancelá gratis hasta 24 h antes" (as descrições para o Google)
+  cancelá: 'cancela',
   sabés: 'sabes',
   preferís: 'prefieres',
   seguís: 'sigues',

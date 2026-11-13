@@ -4,14 +4,14 @@ const en: Dicionario = {
   meta: {
     titulo: 'Tours in Búzios, Arraial do Cabo and Cabo Frio | Orla Nativa',
     descricao:
-      'Boat, buggy, quad bike and city tours in Búzios, Cabo Frio and Arraial do Cabo, Brazil. Book online, pay by Pix or card and get your voucher instantly.',
+      'Boat, buggy, quad bike and city tours in Búzios, Cabo Frio and Arraial do Cabo, Brazil. Book online, pay by Pix or card and cancel free up to 24 h before.',
     passeiosTitulo: 'All Tours in Búzios, Arraial and Cabo Frio',
     passeiosDescricao:
-      '{n} boat, buggy, quad bike and diving tours in Búzios, Arraial do Cabo, Cabo Frio and Rio. Compare prices, book online and get your voucher instantly.',
+      '{n} boat, buggy, quad bike and diving tours in Búzios, Arraial do Cabo, Cabo Frio and Rio. Compare prices, book online and cancel free up to 24 h before.',
     transferTitulo: 'Private Transfer Rio–Búzios and the Lakes Region',
     contatoDescricao:
       'Talk to Orla Nativa: 100% online service in English, Spanish and Portuguese for tours, transfers and bookings in Búzios and the Lakes Region.',
-    chamadaPasseio: 'Book online and get your voucher instantly.',
+    chamadaPasseio: 'Book online and cancel free up to 24 h before.',
   },
   nav: {
     inicio: 'Home',
@@ -172,6 +172,9 @@ const en: Dicionario = {
   opinioes: {
     titulo: 'What travellers say',
     nota: 'Rated {n} out of 5',
+    naOrigem: '{contagem} from {origem}',
+    sobreAgencia: 'About Orla Nativa',
+    sobreDestino: 'About Búzios',
     lerMais: 'Read more',
     lerMenos: 'Read less',
     original: {
@@ -269,7 +272,8 @@ const en: Dicionario = {
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Tours in Búzios, Arraial and Cabo Frio, plus private transfers, at a fixed price.',
     ganchoCta: 'See tours',
-    confianca: ['Instant voucher', 'Refund if it rains', 'Secure payment'],
+    confianca: ['Free cancellation up to 24 h before', 'Refund if weather cancels'],
+    confiancaOnline: ['Instant voucher', 'Refund if weather cancels', 'Secure payment'],
     vitrineTitulo: 'Tours and price per person',
     vitrineTexto: 'Choose the date and who’s going: each price shows your group’s total underneath.',
     mapaTitulo: 'Three towns on the same coast',
@@ -299,17 +303,7 @@ const en: Dicionario = {
     destinosQtd: '{n} tours',
     destinosUm: '1 tour',
     comoTitulo: 'How it works',
-    etapas: [
-      { inicio: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
-      {
-        inicio: 'Pay by Pix or card.',
-        texto: 'Always the full amount, with no hidden fees.',
-      },
-      {
-        inicio: 'Board with the voucher on your phone.',
-        texto: 'The voucher already shows the time, with a unique number and a PDF.',
-      },
-    ],
+    etapas: ['Pick the tour and the date.', 'Pay by Pix or card.', 'Board with the voucher on your phone.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Pick the tour and the date.', texto: 'The final price shows right away, with each tour’s rule for children.' },
@@ -324,9 +318,21 @@ const en: Dicionario = {
       'Voucher of the confirmed booking, with the time',
     ],
     garantiasTitulo: 'Rules and notices',
+    garantiasCurtas: [
+      { titulo: 'Tour cancelled due to rain, wind or sea', texto: 'A full refund or a new date, your choice.' },
+      { titulo: 'Free cancellation', texto: 'Up to 24 hours before the tour.' },
+      { titulo: 'Voucher with a unique number', texto: 'On your phone and as a PDF.' },
+      { titulo: 'Pix with {p}% off', texto: 'Off the card price.' },
+    ],
+    garantiasCurtasOnline: [
+      { titulo: 'Tour cancelled due to rain, wind or sea', texto: 'A full refund or a new date, your choice.' },
+      { titulo: 'Free cancellation', texto: 'Up to 24 hours before the tour.' },
+      { titulo: 'Instant voucher', texto: 'With a unique number, on your phone and as a PDF.' },
+      { titulo: 'Secure payment', texto: 'Pix with {p}% off or card, processed by Stripe.' },
+    ],
     garantiasColunas: ['If', 'You get', 'When'],
     garantias: [
-      { se: 'It rains, it’s windy or the sea is rough', recebe: 'A full refund or a new date, your choice', prazo: 'At no cost' },
+      { se: 'The tour is cancelled due to rain, wind or sea', recebe: 'A full refund or a new date, your choice', prazo: 'At no cost' },
       { se: 'You cancel 24 hours or more ahead', recebe: 'A full refund', prazo: 'Up to 24 h before' },
       {
         se: 'You change your mind about the purchase',
@@ -341,25 +347,22 @@ const en: Dicionario = {
         prazo: 'Does not apply',
       },
     ],
-    garantiasNota: 'Refunds go back to the same payment method and are requested within 2 business days.',
     diaTitulo: 'On the day',
     diaRegras: [
-      'Be at the boarding point 30 minutes before the departure time. If the tour picks you up at your hotel, wait at reception at the pick-up time shown on your voucher.',
+      'Be at the meeting point 30 minutes before the departure time. If the tour picks you up at your hotel, wait at reception at the pick-up time shown on your voucher.',
       'Tours leave on time: if you arrive later, you miss the tour and there is no refund.',
-      'Bring a photo ID (ID card or passport). On boats, the passenger list may be checked.',
+      'Bring a photo ID (ID card or passport). On boat tours, the passenger list may be checked.',
       'City fees, such as boarding or tourist fees, are paid on site.',
       'Pregnancy, reduced mobility or a health condition: tell us when booking, as some tours have restrictions.',
       'Under-18s only with a responsible adult.',
       'Look after your personal belongings during the tour.',
-      'The route may change on the day because of wind and sea conditions.',
+      'On boat tours, the route may change on the day because of wind and sea conditions.',
     ],
-    garantiasLink: 'Read the full policy',
+    garantiasLink: 'See all the rules',
     faqTitulo: 'Before you book',
-    faqFatos: [
-      'Based in Armação dos Búzios, Brazil',
-      'Online service in English, Español and Português',
-      'Pix and credit card, always the full amount',
-    ],
+    faqFatos: ['Based in Búzios, Brazil', 'Service in English, Español and Português', 'Pix and card'],
+    faqTodas: 'See all questions',
+    faqMenos: 'See fewer questions',
     faqBotao: 'See tours',
     faqLink: 'Send us an email',
     legendas: {
@@ -421,7 +424,7 @@ const en: Dicionario = {
   ],
   passeios: {
     titulo: 'Tours',
-    texto: '{n} tours in Búzios, Arraial do Cabo and Cabo Frio, with online booking and an instant voucher.',
+    texto: '{n} tours in Búzios, Arraial do Cabo and Cabo Frio, with online booking and free cancellation up to 24 h before.',
     nenhum: 'No tours match these filters.',
     limpar: 'Clear filters',
     resultado: '{n} tour',
@@ -450,8 +453,10 @@ const en: Dicionario = {
     semFotos: 'Photos of this tour coming soon.',
     precoPorPessoa: 'per person',
     escolhaOpcao: 'Choose the duration',
-    garantias: ['Free cancellation up to 24 h before', 'Refund if it rains', 'Instant voucher'],
-    pagoSeguro: 'Secure payment by Pix or card',
+    garantias: ['Free cancellation up to 24 h before', 'Refund if weather cancels', 'Voucher with a unique number'],
+    garantiasOnline: ['Free cancellation up to 24 h before', 'Refund if weather cancels', 'Instant voucher'],
+    pagoSeguro: '',
+    pagoSeguroOnline: 'Secure payment by Pix or card',
     encontro: 'Meeting point',
     encontroTexto: 'Sent by our team on WhatsApp after booking',
     // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio

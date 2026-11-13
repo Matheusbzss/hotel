@@ -8,14 +8,14 @@ const es: Dicionario = {
   meta: {
     titulo: 'Paseos en Búzios, Arraial do Cabo y Cabo Frio | Orla Nativa',
     descricao:
-      'Paseos en barco, buggy, cuatrimoto y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reserva online, paga con Pix o tarjeta y recibe el voucher al instante.',
+      'Paseos en barco, buggy, cuatrimoto y city tour en Búzios, Cabo Frio y Arraial do Cabo. Reserva online, paga con Pix o tarjeta y cancela gratis hasta 24 h antes.',
     passeiosTitulo: 'Todos los Paseos en Búzios, Arraial y Cabo Frio',
     passeiosDescricao:
-      '{n} paseos en barco, buggy, cuatrimoto y buceo en Búzios, Arraial do Cabo, Cabo Frio y Río. Compara los precios, reserva online y recibe el voucher al instante.',
+      '{n} paseos en barco, buggy, cuatrimoto y buceo en Búzios, Arraial do Cabo, Cabo Frio y Río. Compara los precios, reserva online y cancela gratis hasta 24 h antes.',
     transferTitulo: 'Traslado Privado Río–Búzios y Región de los Lagos',
     contatoDescricao:
       'Habla con Orla Nativa: atención 100% online, en español, portugués e inglés, para paseos, traslados y reservas en Búzios y la Región de los Lagos.',
-    chamadaPasseio: 'Reserva online y recibe el voucher al instante.',
+    chamadaPasseio: 'Reserva online y cancela gratis hasta 24 h antes.',
   },
   nav: {
     inicio: 'Inicio',
@@ -177,6 +177,9 @@ const es: Dicionario = {
   opinioes: {
     titulo: 'Opiniones de quienes ya fueron',
     nota: 'Puntaje {n} de 5',
+    naOrigem: '{contagem} de {origem}',
+    sobreAgencia: 'Sobre Orla Nativa',
+    sobreDestino: 'Sobre Búzios',
     lerMais: 'Leer más',
     lerMenos: 'Leer menos',
     original: {
@@ -277,7 +280,8 @@ const es: Dicionario = {
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Paseos en Búzios, Arraial y Cabo Frio, y traslado privado, con precio cerrado y atención en español.',
     ganchoCta: 'Ver paseos',
-    confianca: ['Voucher al instante', 'Reembolso si llueve', 'Pago seguro'],
+    confianca: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela'],
+    confiancaOnline: ['Voucher al instante', 'Reembolso si el clima cancela', 'Pago seguro'],
     vitrineTitulo: 'Paseos y precio por persona',
     vitrineTexto: 'Elige la fecha y quiénes van: debajo de cada precio aparece el total de tu grupo.',
     mapaTitulo: 'Tres ciudades en la misma costa',
@@ -307,17 +311,7 @@ const es: Dicionario = {
     destinosQtd: '{n} paseos',
     destinosUm: '1 paseo',
     comoTitulo: 'Cómo funciona',
-    etapas: [
-      { inicio: 'Elige el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
-      {
-        inicio: 'Paga con Pix o tarjeta.',
-        texto: 'Siempre el valor total, sin cargos escondidos.',
-      },
-      {
-        inicio: 'Embarca con el voucher en el celular.',
-        texto: 'El voucher ya viene con el horario, tiene número único y PDF.',
-      },
-    ],
+    etapas: ['Elige el paseo y la fecha.', 'Paga con Pix o tarjeta.', 'Embarca con el voucher en el celular.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Elige el paseo y la fecha.', texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.' },
@@ -332,9 +326,21 @@ const es: Dicionario = {
       'Voucher de la reserva confirmada, con el horario',
     ],
     garantiasTitulo: 'Reglas y avisos',
+    garantiasCurtas: [
+      { titulo: 'Paseo cancelado por lluvia, viento o mar', texto: 'Reembolso total o nueva fecha, tú eliges.' },
+      { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
+      { titulo: 'Voucher con número único', texto: 'En el celular y en PDF.' },
+      { titulo: 'Pix con {p}% de descuento', texto: 'Sobre el precio con tarjeta.' },
+    ],
+    garantiasCurtasOnline: [
+      { titulo: 'Paseo cancelado por lluvia, viento o mar', texto: 'Reembolso total o nueva fecha, tú eliges.' },
+      { titulo: 'Cancelación gratis', texto: 'Hasta 24 horas antes del paseo.' },
+      { titulo: 'Voucher al instante', texto: 'Con número único, en el celular y en PDF.' },
+      { titulo: 'Pago seguro', texto: 'Pix con {p}% de descuento o tarjeta, procesados por Stripe.' },
+    ],
     garantiasColunas: ['Si', 'Recibes', 'Plazo'],
     garantias: [
-      { se: 'Llueve, hay viento o el mar no lo permite', recebe: 'Reembolso total o nueva fecha, tú eliges', prazo: 'Sin costo' },
+      { se: 'El paseo se cancela por lluvia, viento o mar', recebe: 'Reembolso total o nueva fecha, tú eliges', prazo: 'Sin costo' },
       { se: 'Cancelas con 24 horas o más', recebe: 'Reembolso total', prazo: 'Hasta 24 h antes' },
       {
         se: 'Te arrepientes de la compra',
@@ -349,25 +355,22 @@ const es: Dicionario = {
         prazo: 'No aplica',
       },
     ],
-    garantiasNota: 'El reembolso vuelve por el mismo medio de pago y se solicita dentro de los 2 días hábiles siguientes.',
     diaTitulo: 'El día del paseo',
     diaRegras: [
-      'Llega al punto de embarque 30 minutos antes del horario. Si el paseo te busca en el hotel, espera en la recepción a la hora de la recogida, que figura en el voucher.',
+      'Llega al punto de encuentro 30 minutos antes del horario. Si el paseo te busca en el hotel, espera en la recepción a la hora de la recogida, que figura en el voucher.',
       'El paseo sale a la hora marcada: si llegas después, pierdes el paseo y no hay reembolso.',
-      'Lleva un documento con foto (DNI, cédula o pasaporte). En el barco pueden controlar la lista de pasajeros.',
+      'Lleva un documento con foto (DNI, cédula o pasaporte). En los paseos en barco pueden controlar la lista de pasajeros.',
       'Las tasas municipales, como la de embarque o de turismo, se pagan en el lugar.',
       'Embarazo, movilidad reducida o algún problema de salud: avísanos al reservar, porque algunos paseos tienen restricciones.',
       'Menores de 18 años solo con un adulto responsable.',
       'Cuida tus objetos personales durante el paseo.',
-      'El recorrido puede cambiar en el día según el viento y el mar.',
+      'En los paseos en barco, el recorrido puede cambiar en el día según el viento y el mar.',
     ],
-    garantiasLink: 'Leer la política completa',
+    garantiasLink: 'Ver todas las reglas',
     faqTitulo: 'Antes de reservar',
-    faqFatos: [
-      'Base en Armação dos Búzios, Brasil',
-      'Atención online en español, english y português',
-      'Pix y tarjeta de crédito, siempre el valor total',
-    ],
+    faqFatos: ['Base en Búzios, Brasil', 'Atención en español, English y português', 'Pix y tarjeta'],
+    faqTodas: 'Ver todas las preguntas',
+    faqMenos: 'Ver menos preguntas',
     faqBotao: 'Ver paseos',
     faqLink: 'Mandar un e-mail',
     legendas: {
@@ -429,7 +432,7 @@ const es: Dicionario = {
   ],
   passeios: {
     titulo: 'Paseos',
-    texto: '{n} paseos en Búzios, Arraial do Cabo y Cabo Frio, con reserva online y voucher al instante.',
+    texto: '{n} paseos en Búzios, Arraial do Cabo y Cabo Frio, con reserva online y cancelación gratis hasta 24 h antes.',
     nenhum: 'Ningún paseo con esos filtros.',
     limpar: 'Limpiar filtros',
     resultado: '{n} paseo',
@@ -458,8 +461,10 @@ const es: Dicionario = {
     semFotos: 'Pronto, fotos de este paseo.',
     precoPorPessoa: 'por persona',
     escolhaOpcao: 'Elige la duración',
-    garantias: ['Cancelación gratis hasta 24 h antes', 'Reembolso si llueve', 'Voucher al instante'],
-    pagoSeguro: 'Pago seguro con Pix o tarjeta',
+    garantias: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher con número único'],
+    garantiasOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher al instante'],
+    pagoSeguro: '',
+    pagoSeguroOnline: 'Pago seguro con Pix o tarjeta',
     encontro: 'Punto de encuentro',
     encontroTexto: 'Te lo envía el equipo por WhatsApp después de reservar',
     // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio

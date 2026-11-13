@@ -81,6 +81,8 @@ interface ConteudoVoucher {
   campos: [string, string[]][];
   mensagem: string;
   avisos: string[];
+  /** Só no passeio: o que vale no dia (a mesma lista da página do passeio), depois dos avisos. */
+  dia?: { titulo: string; regras: string[] };
 }
 
 function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVoucher {
@@ -117,6 +119,9 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
       horario?.busca ? d.reserva.proximo1Busca : d.reserva.proximo1Saida,
       ...noIdioma(AVISOS, idioma).slice(1),
     ],
+    // o que vale no dia saiu da página inicial na Etapa 8 e foi para a página do passeio e para o voucher: a chegada
+    // 30 minutos antes, o horário, o documento, as taxas pagas no local, a saúde, os menores, os objetos e o roteiro
+    dia: { titulo: d.home.diaTitulo, regras: d.home.diaRegras },
   };
 }
 
@@ -241,17 +246,25 @@ export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Pro
     folha.drawRectangle({ x: 0, y: height - faixa, width, height: faixa, color: COR.tinta });
     ya = height - 70;
   };
-  garantirEspaco(40);
-  texto(folha, noIdioma(IMPORTANTE, idioma), M, ya, negrito, 13);
-  ya -= 22;
-  for (const aviso of conteudo.avisos) {
-    const linhas = quebrar(`• ${aviso}`, regular, 11, width - 2 * M);
-    garantirEspaco(linhas.length * 16);
-    for (const l of linhas) {
-      texto(folha, l, M, ya, regular, 11);
-      ya -= 16;
+  // um bloco de lista com título: o título só fica no fim da folha se couber junto com a primeira linha
+  const bloco = (titulo: string, itens: string[]) => {
+    garantirEspaco(40);
+    texto(folha, titulo, M, ya, negrito, 13);
+    ya -= 22;
+    for (const item of itens) {
+      const linhas = quebrar(`• ${item}`, regular, 11, width - 2 * M);
+      garantirEspaco(linhas.length * 16);
+      for (const l of linhas) {
+        texto(folha, l, M, ya, regular, 11);
+        ya -= 16;
+      }
+      ya -= 2;
     }
-    ya -= 2;
+  };
+  bloco(noIdioma(IMPORTANTE, idioma), conteudo.avisos);
+  if (conteudo.dia) {
+    ya -= 16;
+    bloco(conteudo.dia.titulo, conteudo.dia.regras);
   }
 
   // rodapé com dados da empresa, em todas as páginas (o WhatsApp, só com o pagamento aprovado)

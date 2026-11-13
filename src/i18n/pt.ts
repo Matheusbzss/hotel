@@ -1,15 +1,17 @@
 const pt = {
   meta: {
     titulo: 'Passeios em Búzios, Arraial do Cabo e Cabo Frio | Orla Nativa',
+    // as descrições para o Google e o WhatsApp só prometem o que vale com o pagamento online ligado ou desligado
+    // (hoje o voucher sai quando a equipe confirma o pagamento, não na hora)
     descricao:
-      'Passeios de barco, buggy, quadriciclo e city tour em Búzios, Cabo Frio e Arraial do Cabo. Reserve online, pague por Pix ou cartão e receba o voucher na hora.',
+      'Passeios de barco, buggy, quadriciclo e city tour em Búzios, Cabo Frio e Arraial do Cabo. Reserve online, pague por Pix ou cartão e cancele grátis até 24 h antes.',
     passeiosTitulo: 'Todos os Passeios em Búzios, Arraial e Cabo Frio',
     passeiosDescricao:
-      '{n} passeios de barco, buggy, quadriciclo e mergulho em Búzios, Arraial do Cabo, Cabo Frio e Rio. Compare os preços, reserve online e receba o voucher na hora.',
+      '{n} passeios de barco, buggy, quadriciclo e mergulho em Búzios, Arraial do Cabo, Cabo Frio e Rio. Compare os preços, reserve online e cancele grátis até 24 h antes.',
     transferTitulo: 'Transfer Privado Rio–Búzios e Região dos Lagos',
     contatoDescricao:
       'Fale com a Orla Nativa: atendimento 100% online, em português, inglês e espanhol, para passeios, transfer e reservas em Búzios e na Região dos Lagos.',
-    chamadaPasseio: 'Reserve online e receba o voucher na hora.',
+    chamadaPasseio: 'Reserve online e cancele grátis até 24 h antes.',
   },
   nav: {
     inicio: 'Início',
@@ -172,6 +174,13 @@ const pt = {
   opinioes: {
     titulo: 'Opiniões de quem já foi',
     nota: 'Nota {n} de 5',
+    // a nota em cima da seção, só das avaliações da agência publicadas aqui: "5 opiniões do Tripadvisor" quando
+    // vieram todas do mesmo site ({contagem} é o passeio.opinioesContagem). "Do", e não "no": o total da página de
+    // lá é outro (lá há avaliações que ainda não vieram para o site)
+    naOrigem: '{contagem} do {origem}',
+    // a etiqueta de cada avaliação: sobre a agência ou sobre a cidade (com o lugar, quando houver)
+    sobreAgencia: 'Sobre Orla Nativa',
+    sobreDestino: 'Sobre Búzios',
     lerMais: 'Ler mais',
     lerMenos: 'Ler menos',
     original: {
@@ -273,7 +282,11 @@ const pt = {
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Passeios em Búzios, Arraial e Cabo Frio e transfer privado, com preço fechado.',
     ganchoCta: 'Ver passeios',
-    confianca: ['Voucher na hora', 'Reembolso se chover', 'Pagamento seguro'],
+    // as etiquetas de vidro do topo. Hoje o pagamento é fechado pelo WhatsApp e o voucher sai quando a equipe
+    // confirma: nada de "voucher na hora" nem de "pagamento seguro" no site. No deploy que liga o pagamento online
+    // para o público, entram as de confiancaOnline (src/lib/promessas-online.ts); o mesmo vale para as garantias
+    confianca: ['Cancelamento grátis até 24 h antes', 'Reembolso se o tempo cancelar'],
+    confiancaOnline: ['Voucher na hora', 'Reembolso se o tempo cancelar', 'Pagamento seguro'],
     vitrineTitulo: 'Passeios e preço por pessoa',
     vitrineTexto: 'Escolha a data e quem vai: embaixo de cada preço aparece o total do seu grupo.',
     mapaTitulo: 'Três cidades na mesma orla',
@@ -303,17 +316,9 @@ const pt = {
     destinosQtd: '{n} passeios',
     destinosUm: '1 passeio',
     comoTitulo: 'Como funciona',
-    etapas: [
-      { inicio: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
-      {
-        inicio: 'Pague por Pix ou cartão.',
-        texto: 'Sempre o valor total, sem taxa escondida.',
-      },
-      {
-        inicio: 'Embarque com o voucher no celular.',
-        texto: 'O voucher já vem com o horário, tem número único e PDF.',
-      },
-    ],
+    // uma linha por passo (Etapa 8, menos texto): o preço com a regra de criança está na vitrine, o voucher com
+    // número único e o desconto do Pix estão nas garantias
+    etapas: ['Escolha o passeio e a data.', 'Pague por Pix ou cartão.', 'Embarque com o voucher no celular.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
     tutorial: [
       { titulo: 'Escolha o passeio e a data.', texto: 'O preço final aparece na hora, já com a regra de criança de cada passeio.' },
@@ -328,9 +333,31 @@ const pt = {
       'Voucher da reserva confirmada, com o horário',
     ],
     garantiasTitulo: 'Regras e avisos',
+    // as 4 garantias curtas da inicial, nesta ordem (cada uma com o seu ícone em BlocosHome.tsx): chuva,
+    // cancelamento, voucher e pagamento. A da chuva diz a condição da política (item 4): vale quando o passeio é
+    // cancelado, não quando só chove. Hoje, só o que já vale com o pagamento online desligado; com ele no ar para o
+    // público, entram as de garantiasCurtasOnline (voucher na hora e pagamento seguro, o pedido do dono na Etapa 8).
+    // {p} é o desconto do Pix (src/config/precos.ts), sobre o preço no cartão
+    garantiasCurtas: [
+      { titulo: 'Passeio cancelado por chuva, vento ou mar', texto: 'Reembolso total ou nova data, você escolhe.' },
+      { titulo: 'Cancelamento grátis', texto: 'Até 24 horas antes do passeio.' },
+      { titulo: 'Voucher com número único', texto: 'No celular e em PDF.' },
+      { titulo: 'Pix com {p}% de desconto', texto: 'Sobre o preço no cartão.' },
+    ],
+    garantiasCurtasOnline: [
+      { titulo: 'Passeio cancelado por chuva, vento ou mar', texto: 'Reembolso total ou nova data, você escolhe.' },
+      { titulo: 'Cancelamento grátis', texto: 'Até 24 horas antes do passeio.' },
+      { titulo: 'Voucher na hora', texto: 'Com número único, no celular e em PDF.' },
+      { titulo: 'Pagamento seguro', texto: 'Pix com {p}% de desconto ou cartão, processados pela Stripe.' },
+    ],
+    // a tabela completa da política de cancelamento (o "Em resumo" da página da política)
     garantiasColunas: ['Se', 'Você recebe', 'Prazo'],
     garantias: [
-      { se: 'Chover, ventar ou o mar não deixar', recebe: 'Reembolso integral ou nova data, você escolhe', prazo: 'Sem custo' },
+      {
+        se: 'O passeio for cancelado por chuva, vento ou mar',
+        recebe: 'Reembolso integral ou nova data, você escolhe',
+        prazo: 'Sem custo',
+      },
       { se: 'Você cancelar com 24 horas ou mais', recebe: 'Reembolso integral', prazo: 'Até 24 h antes' },
       {
         se: 'Você desistir da compra',
@@ -345,25 +372,27 @@ const pt = {
         prazo: 'Não se aplica',
       },
     ],
-    garantiasNota: 'O reembolso volta pelo mesmo meio de pagamento e é pedido em até 2 dias úteis.',
+    // o que vale no dia: saiu da inicial na Etapa 8 e fica na página de cada passeio, fechado até a pessoa tocar, e no
+    // voucher em PDF. A mesma lista vale para todo passeio, de barco, de terra ou de ar: o que é só do barco diz isso
     diaTitulo: 'No dia do passeio',
     diaRegras: [
-      'Chegue ao ponto de embarque 30 minutos antes do horário. Com busca no hotel, esteja na recepção no horário da busca, que está no voucher.',
+      'Chegue ao ponto de encontro 30 minutos antes do horário. Com busca no hotel, esteja na recepção no horário da busca, que está no voucher.',
       'O passeio sai no horário marcado: quem chega depois perde o passeio, sem reembolso.',
-      'Leve um documento com foto (RG, CNH ou passaporte). No barco, a lista de passageiros pode ser conferida.',
+      'Leve um documento com foto (RG, CNH ou passaporte). Nos passeios de barco, a lista de passageiros pode ser conferida.',
       'Taxas da prefeitura, como a de embarque ou de turismo, são pagas no local.',
       'Gestação, mobilidade reduzida ou problema de saúde: avise na reserva, porque alguns passeios têm restrições.',
       'Menores de 18 anos só com um responsável.',
       'Cuide dos seus objetos pessoais durante o passeio.',
-      'O roteiro pode mudar no dia por causa do vento e do mar.',
+      'Nos passeios de barco, o roteiro pode mudar no dia por causa do vento e do mar.',
     ],
-    garantiasLink: 'Ler a política completa',
+    garantiasLink: 'Ver todas as regras',
     faqTitulo: 'Antes de reservar',
-    faqFatos: [
-      'Base em Armação dos Búzios – RJ',
-      'Atendimento online em português, español e english',
-      'Pix e cartão de crédito, sempre o valor total',
-    ],
+    // a faixa curta de confiança, logo abaixo do título das perguntas (cada idioma escrito na própria língua)
+    faqFatos: ['Base em Búzios', 'Atendimento em português, español e English', 'Pix e cartão'],
+    // abre, na mesma página, as perguntas que não estão entre as 5 principais (src/data/perguntas.ts); aberto, o
+    // mesmo link vira faqMenos e fecha de novo
+    faqTodas: 'Ver todas as perguntas',
+    faqMenos: 'Ver menos perguntas',
     faqBotao: 'Ver passeios',
     faqLink: 'Mandar um e-mail',
     legendas: {
@@ -426,7 +455,7 @@ const pt = {
   ],
   passeios: {
     titulo: 'Passeios',
-    texto: '{n} passeios em Búzios, Arraial do Cabo e Cabo Frio, com reserva online e voucher na hora.',
+    texto: '{n} passeios em Búzios, Arraial do Cabo e Cabo Frio, com reserva online e cancelamento grátis até 24 h antes.',
     nenhum: 'Nenhum passeio com esses filtros.',
     limpar: 'Limpar filtros',
     resultado: '{n} passeio',
@@ -455,8 +484,13 @@ const pt = {
     semFotos: 'Fotos deste passeio em breve.',
     precoPorPessoa: 'por pessoa',
     escolhaOpcao: 'Escolha a duração',
-    garantias: ['Cancelamento grátis até 24 h antes', 'Reembolso se chover', 'Voucher na hora'],
-    pagoSeguro: 'Pagamento seguro por Pix ou cartão',
+    // o quadro ao lado do Reservar: cancelamento, chuva e voucher (src/components/passeio/Confianca.tsx), e a linha do
+    // pagamento seguro, vazia enquanto o pagamento é fechado pelo WhatsApp (o quadro fica sem ela). Com o pagamento
+    // online no ar para o público, entram garantiasOnline e pagoSeguroOnline (src/lib/promessas-online.ts)
+    garantias: ['Cancelamento grátis até 24 h antes', 'Reembolso se o tempo cancelar', 'Voucher com número único'],
+    garantiasOnline: ['Cancelamento grátis até 24 h antes', 'Reembolso se o tempo cancelar', 'Voucher na hora'],
+    pagoSeguro: '',
+    pagoSeguroOnline: 'Pagamento seguro por Pix ou cartão',
     encontro: 'Ponto de encontro',
     encontroTexto: 'A equipe envia pelo WhatsApp depois da reserva',
     // o cartão compacto de opiniões perto da reserva: as avaliações são da agência, não de cada passeio

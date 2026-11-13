@@ -23,6 +23,7 @@ import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
+import { comPromessasOnline } from '@/lib/promessas-online';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
 
 export const dynamicParams = false;
@@ -52,7 +53,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const { locale, slug } = await params;
   const p = obterPasseio(slug);
   if (!isIdioma(locale) || !p) notFound();
-  const d = dicionario(locale);
+  // o voucher na hora e o pagamento seguro do quadro ao lado do Reservar só com o pagamento online no ar
+  const d = comPromessasOnline(dicionario(locale));
   const intl = LOCALE_INTL[locale];
   const aPartir = precoAPartirCentavos(p);
   const opcoes = opcoesPasseio(p);
@@ -211,6 +213,29 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                 ))}
               </ul>
             </section>
+
+            {/* o que vale no dia (embarque, documento, taxas, saúde, roteiro): saiu da página inicial na Etapa 8 e
+                fica aqui, fechado, até a pessoa tocar */}
+            <details className="entrar celula group mt-14">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <h2 className="text-lead font-semibold">{d.home.diaTitulo}</h2>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.75" />
+                </svg>
+              </summary>
+              <ul className="grid gap-2 px-4 pb-5 text-small">
+                {d.home.diaRegras.map((r) => (
+                  <li key={r} className="flex gap-2.5">
+                    <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-(--color-turquesa-texto)" aria-hidden="true" />
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </details>
           </div>
 
           <aside className="lg:col-span-5">

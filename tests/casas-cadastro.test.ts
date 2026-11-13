@@ -17,7 +17,7 @@ import {
 } from '../src/lib/casa-detalhes.ts';
 import { contaEstadia, diaDaSemana, noitesDoPacote, type TabelaEstadia } from '../src/lib/estadia.ts';
 import { noitesEntre } from '../src/lib/diarias.ts';
-import { CASAS_PARA_CADASTRAR, fotosNoSite, listasDaCasa, type CasaParaCadastrar } from '../scripts/dados/casas.ts';
+import { CASAS_PARA_CADASTRAR, fotosNoSite, listasDaCasa, oQueFaltaNoBanco, type CasaParaCadastrar } from '../scripts/dados/casas.ts';
 
 // As duas casas prontas para cadastrar (scripts/dados/casas.ts): as contas do dono ao centavo, os pacotes do ano, as
 // fotos sem metadados e o que não pode aparecer (o que o dono não confirmou, exagero, "promoção").
@@ -185,8 +185,87 @@ test('nada de "promoção", exagero, câmera, frente para o mar ou o que o dono 
   for (const id of ['wifi', 'estacionamento'] as const) assert.ok(!idsFerradura.includes(id), id);
   assert.equal(FERRADURA.regrasProprias.fumar, null);
   for (const c of CASAS_PARA_CADASTRAR) assert.equal(c.regrasProprias.cameras, null, c.slug);
-  // Geribá: sem máquina de lavar, berço ou proteção da piscina (não informados)
+  // Geribá: sem máquina de lavar, berço ou proteção da piscina (não informados); sem TV na sala (a foto 37 mostra um
+  // abajur, e o dono ainda não disse)
   assert.ok(!GERIBA.comodidadesMarcadas.some((m) => m.id === 'lavanderia'));
+  assert.ok(!GERIBA.comodidadesMarcadas.some((m) => m.id === 'tv-sala'));
+  const salaGeriba = ALT_FOTOS[`/fotos/casas/${GERIBA.slug}/sala-vista-pelo-vidro.jpg`];
+  assert.doesNotMatch(`${salaGeriba.pt} ${salaGeriba.es} ${salaGeriba.en}`, /\bTV\b|televis/i);
+});
+
+test('o resumo, a descrição e o primeiro destaque não abrem com a mesma frase', () => {
+  const primeiraFrase = (t: string) => t.split(/(?<=\.)\s/)[0].replace(/\.$/, '');
+  for (const c of CASAS_PARA_CADASTRAR) {
+    for (const idioma of ['pt', 'es', 'en'] as const) {
+      const resumo = primeiraFrase(c.resumo[idioma]);
+      const descricao = primeiraFrase(c.descricao[idioma]);
+      assert.notEqual(descricao, resumo, `${c.slug} ${idioma}`);
+      // a descrição não repete o começo do resumo (ela começa pelo que o resumo não diz)
+      assert.ok(!c.descricao[idioma].startsWith(c.resumo[idioma].slice(0, 30)), `${c.slug} ${idioma}`);
+      assert.notEqual(c.destaques[0].texto[idioma], resumo, `${c.slug} ${idioma}`);
+    }
+  }
+  // e nenhum repete a frase do anúncio da Ferradura ("Casa nova, design moderno, vista para o mar")
+  for (const t of [FERRADURA.resumo.pt, FERRADURA.descricao.pt, ...FERRADURA.destaques.map((d) => d.texto.pt)]) {
+    assert.doesNotMatch(t, /^Casa nova, (de )?design moderno, (com )?vista para o mar/);
+  }
+});
+
+test('as listas das colunas antigas levam a versão argentina onde a palavra muda (rede e lavanderia)', () => {
+  const geriba = listasDaCasa(GERIBA).comodidades;
+  assert.ok(geriba.es.includes('Hamaca en el jardín'));
+  assert.ok(geriba['es-ar']?.includes('Hamaca paraguaya en el jardín'));
+  assert.equal(geriba['es-ar']?.length, geriba.es.length);
+  const ferradura = listasDaCasa(FERRADURA).comodidades;
+  assert.ok(ferradura.es.includes('Lavandería con lavadora'));
+  assert.ok(ferradura['es-ar']?.includes('Lavadero con lavarropas'));
+  // onde nada muda, não há versão argentina (o /es-ar lê o es)
+  for (const c of CASAS_PARA_CADASTRAR) {
+    const { camas, regras, cancelamento } = listasDaCasa(c);
+    for (const l of [camas, regras, cancelamento]) assert.equal(l['es-ar'], undefined, c.slug);
+  }
+});
+
+test('o cadastro que caiu no meio: rodar de novo completa os pacotes e os bloqueios que faltam, sem duplicar', () => {
+  const nada = oQueFaltaNoBanco(FERRADURA, { pacotes: [], bloqueios: [] });
+  assert.equal(nada.pacotes.length, FERRADURA.pacotes.length);
+  assert.deepEqual(nada.bloqueios, FERRADURA.bloqueios);
+  assert.deepEqual(nada.conflitos, []);
+  // tudo gravado: nada a fazer
+  const gravado = {
+    pacotes: FERRADURA.pacotes.map((p) => ({ entrada: p.entrada, saida: p.saida, grupo: p.grupo ?? null })),
+    bloqueios: [
+      ...FERRADURA.bloqueios.map((b) => ({ inicio: b.inicio, fim: b.fim, origem: 'manual' })),
+      { inicio: '2027-03-01', fim: '2027-03-05', origem: 'site' },
+    ],
+  };
+  assert.deepEqual(oQueFaltaNoBanco(FERRADURA, gravado), { pacotes: [], bloqueios: [], conflitos: [] });
+  // os pacotes caíram (a casa e o bloqueio ficaram): só os pacotes voltam
+  const semPacotes = oQueFaltaNoBanco(FERRADURA, { ...gravado, pacotes: [] });
+  assert.equal(semPacotes.pacotes.length, FERRADURA.pacotes.length);
+  assert.deepEqual(semPacotes.bloqueios, []);
+  // os bloqueios caíram: só o bloqueio inicial volta (a reserva do site não conta como o bloqueio à mão)
+  const semBloqueio = oQueFaltaNoBanco(FERRADURA, { ...gravado, bloqueios: gravado.bloqueios.filter((b) => b.origem === 'site') });
+  assert.deepEqual(semBloqueio.pacotes, []);
+  assert.deepEqual(semBloqueio.bloqueios, FERRADURA.bloqueios);
+  // só uma das opções do Réveillon chegou: a outra volta (as opções do mesmo grupo podem dividir noites)
+  const soUmReveillon = oQueFaltaNoBanco(FERRADURA, {
+    ...gravado,
+    pacotes: gravado.pacotes.filter((p) => !(p.grupo === 'reveillon-2026' && p.entrada === '2026-12-29')),
+  });
+  assert.deepEqual(
+    soUmReveillon.pacotes.map((p) => [p.entrada, p.saida]),
+    [['2026-12-29', '2027-01-02']],
+  );
+  assert.deepEqual(soUmReveillon.conflitos, []);
+  // o dono mudou no painel: um Carnaval com outras datas e um bloqueio à mão mais curto não são gravados por cima
+  const mudou = oQueFaltaNoBanco(FERRADURA, {
+    pacotes: gravado.pacotes.map((p) => (p.entrada === '2027-02-05' ? { ...p, entrada: '2027-02-06' } : p)),
+    bloqueios: [{ inicio: '2026-11-06', fim: '2026-11-20', origem: 'manual' }],
+  });
+  assert.deepEqual(mudou.pacotes, []);
+  assert.deepEqual(mudou.bloqueios, []);
+  assert.equal(mudou.conflitos.length, 2);
 });
 
 test('as fotos: na ordem de capa, sem metadados, sem esticar, com nome neutro e texto alternativo', async () => {
@@ -201,9 +280,18 @@ test('as fotos: na ordem de capa, sem metadados, sem esticar, com nome neutro e 
   );
   assert.equal(FERRADURA.fotos.length, 35);
   assert.equal(GERIBA.fotos.length, 50);
-  // as que mostram onde a Ferradura fica ficaram de fora
+  // as que mostram onde a Ferradura fica ficaram de fora; a 19 entra recortada, sem os vizinhos da 36, e a pessoa da 33
+  // foi borrada (docs/CREDITOS.md)
   const usadas = FERRADURA.fotos.map((f) => f.origem);
   for (const n of ['34-', '36-']) assert.ok(!usadas.some((o) => o.startsWith(n)), n);
+  const fachada = FERRADURA.fotos.find((f) => f.origem.startsWith('19-'));
+  assert.ok(fachada?.recorte && fachada.motivoDaEdicao);
+  // o recorte tira o alto (o sobrado vizinho chega até y≈110) e a faixa da esquerda (a casa de telhado vermelho até x≈100)
+  assert.ok(fachada.recorte.y >= 112 && fachada.recorte.x >= 102);
+  assert.equal(fachada.recorte.x + fachada.recorte.largura, 720);
+  assert.equal(fachada.recorte.y + fachada.recorte.altura, 540);
+  const corredor = FERRADURA.fotos.find((f) => f.origem.startsWith('33-'));
+  assert.ok(corredor?.desfocar?.length === 1 && corredor.motivoDaEdicao);
   for (const c of CASAS_PARA_CADASTRAR) {
     assert.equal(new Set(c.fotos.map((f) => f.arquivo)).size, c.fotos.length, `${c.slug}: nome repetido`);
     for (const [i, foto] of fotosNoSite(c).entries()) {
@@ -215,8 +303,8 @@ test('as fotos: na ordem de capa, sem metadados, sem esticar, com nome neutro e 
       assert.equal(m.format, 'jpeg', foto);
       assert.ok(!m.exif && !m.xmp && !m.iptc && !m.icc, `${foto} ainda tem metadados`);
       assert.ok(Math.max(m.width ?? 0, m.height ?? 0) <= 1600, foto);
-      // a Ferradura veio com 720 px: não foi esticada
-      if (c === FERRADURA) assert.equal(m.width, 720, foto);
+      // a Ferradura veio com 720 px: não foi esticada (a recortada fica com a largura do recorte)
+      if (c === FERRADURA) assert.equal(m.width, c.fotos[i].recorte?.largura ?? 720, foto);
     }
   }
   // as vistas 46 a 50 da Geribá não dão nome de praia

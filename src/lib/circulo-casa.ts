@@ -1,16 +1,18 @@
 /**
  * O CÍRCULO DA LOCALIZAÇÃO APROXIMADA DE UMA CASA (Fase 4, Etapa 7). O dono marca a casa no mapa do painel; esse ponto
- * fica só no banco (tabela casas_pontos, que só o servidor lê) e nunca vai para a página. A página mostra um círculo
- * de RAIO_CIRCULO_M em volta de um CENTRO deslocado do ponto: a distância (de DESLOCAMENTO_MINIMO_M a
- * DESLOCAMENTO_MAXIMO_M) e a direção são sorteadas UMA vez, pelo próprio banco, quando o ponto é marcado. Se o dono
- * mudar o alfinete, o centro anda junto, com o mesmo deslocamento: um sorteio novo a cada vez deixaria cruzar os
- * círculos e achar a casa.
+ * fica só no banco, na tabela casas_pontos, que é FECHADA: nem o servidor do site lê a tabela direto, só as funções do
+ * painel (marcar_ponto_da_casa e ponto_da_casa). O ponto nunca vai para a página. A página mostra um círculo de
+ * RAIO_CIRCULO_M em volta de um CENTRO deslocado do ponto, que o banco grava na própria casa (casas.centro_lat e
+ * casas.centro_lng): a distância (de DESLOCAMENTO_MINIMO_M a DESLOCAMENTO_MAXIMO_M) e a direção são sorteadas UMA vez,
+ * pelo próprio banco, quando o ponto é marcado, e a linha do ponto não se apaga. Se o dono mudar o alfinete, o centro
+ * anda junto, com o mesmo deslocamento: um sorteio novo a cada vez deixaria cruzar os círculos e achar a casa.
  *
  * Como o deslocamento máximo (350 m) é menor que o raio (500 m), a casa fica sempre dentro do círculo.
  *
  * A conta do centro é a mesma do gatilho casas_pontos_centro (supabase/migrations/20261113223000_...): o ponto de
  * destino numa esfera, a partir de um ponto, uma direção (graus a partir do norte, no sentido do relógio) e uma
- * distância. tests/circulo-casa.test.ts confere a conta.
+ * distância. tests/circulo-casa.test.ts confere a conta; tests/casas-privado.test.ts confere que a página nunca cita a
+ * tabela do ponto nem a função que o lê.
  */
 
 export const RAIO_CIRCULO_M = 500;

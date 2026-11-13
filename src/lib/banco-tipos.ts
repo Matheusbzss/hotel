@@ -193,6 +193,8 @@ export type Database = {
           cancelamento: Json
           capacidade: number
           caucao_centavos: number | null
+          centro_lat: number | null
+          centro_lng: number | null
           check_in: string | null
           check_out: string | null
           cidade: string
@@ -235,6 +237,8 @@ export type Database = {
           cancelamento?: Json
           capacidade: number
           caucao_centavos?: number | null
+          centro_lat?: number | null
+          centro_lng?: number | null
           check_in?: string | null
           check_out?: string | null
           cidade: string
@@ -277,6 +281,8 @@ export type Database = {
           cancelamento?: Json
           capacidade?: number
           caucao_centavos?: number | null
+          centro_lat?: number | null
+          centro_lng?: number | null
           check_in?: string | null
           check_out?: string | null
           cidade?: string
@@ -449,8 +455,6 @@ export type Database = {
         Row: {
           atualizado_em: string
           casa_id: string
-          centro_lat: number
-          centro_lng: number
           deslocamento_m: number
           direcao_graus: number
           lat: number
@@ -460,8 +464,6 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           casa_id: string
-          centro_lat?: number
-          centro_lng?: number
           deslocamento_m?: number
           direcao_graus?: number
           lat: number
@@ -471,8 +473,6 @@ export type Database = {
         Update: {
           atualizado_em?: string
           casa_id?: string
-          centro_lat?: number
-          centro_lng?: number
           deslocamento_m?: number
           direcao_graus?: number
           lat?: number
@@ -880,6 +880,17 @@ export type Database = {
       criar_reserva: {
         Args: { p_historico: Json; p_item: Json; p_pedido: Json }
         Returns: boolean
+      }
+      marcar_ponto_da_casa: {
+        Args: { p_casa: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
+      ponto_da_casa: {
+        Args: { p_casa: string }
+        Returns: {
+          lat: number
+          lng: number
+        }[]
       }
       prender_datas_casas: {
         Args: { p_estadias: Json; p_referencia: string }

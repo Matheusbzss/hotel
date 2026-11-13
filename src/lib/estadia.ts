@@ -1,6 +1,7 @@
 import type { Texto } from '../data/passeios';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
-import { noitesEntre, sinalCentavos } from './diarias.ts';
+import { HORA_ENTRADA_CASA, noitesEntre, sinalCentavos } from './diarias.ts';
+import { ANTECEDENCIA_MINIMA_MINUTOS, agoraEmBuzios, paraMinutos } from './horarios.ts';
 import { precoPixCentavos } from './orcamento.ts';
 import { somarDias } from './validacao.ts';
 
@@ -11,6 +12,10 @@ import { somarDias } from './validacao.ts';
  * As regras (FASE-4, Etapa 7, e as decisões recomendadas de 13/11 em ETAPA-7-PLANO-DAS-CASAS.md):
  * - Diária de semana nas noites de segunda a sexta; diária de fim de semana nas noites de sábado e domingo.
  *   Ex.: entrada na sexta e saída na segunda = sexta (semana) + sábado + domingo (fim de semana).
+ * - Casa sem preço não vende: diária de semana vazia ou zero, diária de fim de semana zero, ou qualquer noite que sairia
+ *   por R$ 0,00 (motivo 'preco'). Nunca uma estadia de graça por um campo esquecido no painel.
+ * - Período de temporada: vale nas noites dele, mas nunca baixa o sábado e o domingo (nessas noites fica a maior entre a
+ *   diária da temporada e a de fim de semana). O feriado vale por cima de tudo.
  * - Mínimo de noites da casa (2 na semana); um período (temporada) pode pedir mais.
  * - Fim de semana junto: quem pega uma das noites de sexta, sábado ou domingo leva as três (entra até sexta e sai na
  *   segunda ou depois). Estadia de NOITES_LIVRES_DO_FIM_DE_SEMANA noites ou mais fica livre. Noite do fim de semana
@@ -51,16 +56,19 @@ export interface PeriodoDiaria {
   /** A primeira e a última NOITE do período (AAAA-MM-DD). */
   de: string;
   ate: string;
-  /** Vale para todas as noites do período, de semana e de fim de semana. */
+  /**
+   * O feriado vale em todas as noites do período. A temporada também, menos no sábado e no domingo, em que fica a
+   * maior entre ela e a diária de fim de semana (uma "alta temporada" para subir a semana não barateia o fim de semana).
+   */
   diariaCentavos: number;
   minimoNoites?: number;
 }
 
 /** O que entra na conta de uma casa (as colunas e as tabelas dela, lidas em src/lib/casa-detalhes.ts). */
 export interface TabelaEstadia {
-  /** A diária de semana (noites de segunda a sexta), em centavos. */
+  /** A diária de semana (noites de segunda a sexta), em centavos. Zero (ou vazia no banco): a casa fica sem preço. */
   diariaCentavos: number;
-  /** A diária das noites de sábado e domingo, em centavos. Vazia: vale a de semana. */
+  /** A diária das noites de sábado e domingo, em centavos. Vazia: vale a de semana. Zero: a casa fica sem preço. */
   diariaFimDeSemanaCentavos?: number | null;
   minimoNoites: number;
   /** A regra do fim de semana (sexta, sábado e domingo juntos). */
@@ -80,10 +88,10 @@ export interface NoiteDaEstadia {
 }
 
 /**
- * Por que a estadia não pode ser reservada: datas inválidas (ou entrada no passado), noite ocupada, pacote pela
- * metade, fim de semana pela metade ou menos noites que o mínimo.
+ * Por que a estadia não pode ser reservada: datas inválidas (ou entrada no passado), casa sem preço (uma diária vazia
+ * ou zero), noite ocupada, pacote pela metade, fim de semana pela metade ou menos noites que o mínimo.
  */
-export type MotivoEstadia = 'datas' | 'ocupada' | 'pacote' | 'fim-de-semana' | 'minimo';
+export type MotivoEstadia = 'datas' | 'preco' | 'ocupada' | 'pacote' | 'fim-de-semana' | 'minimo';
 
 export interface ContaEstadia {
   noites: NoiteDaEstadia[];
@@ -114,7 +122,11 @@ export interface ContaEstadia {
 export interface OpcoesEstadia {
   /** As noites já ocupadas (reservas, bloqueios à mão e calendário de fora). */
   ocupadas?: Iterable<string>;
-  /** Hoje em Búzios (AAAA-MM-DD): a entrada não pode ser antes, e noite que já passou não conta no fim de semana. */
+  /**
+   * O primeiro dia em que ainda dá para entrar (AAAA-MM-DD): o servidor passa primeiraEntradaPossivel(agora), e não a
+   * data de hoje pura. A entrada não pode ser antes, e a noite antes dele não conta no fim de semana (já passou ou já
+   * não dá para pagar).
+   */
   hoje?: string;
 }
 
@@ -123,6 +135,17 @@ export function dataValida(data: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return false;
   const d = new Date(`${data}T12:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === data;
+}
+
+/**
+ * O primeiro dia em que ainda dá para ENTRAR numa casa, agora, no fuso de Búzios: hoje, se ainda faltam
+ * ANTECEDENCIA_MINIMA_MINUTOS (2 horas) até a entrada das 15h, como em todo pedido novo (src/lib/horarios.ts); depois
+ * das 13h, amanhã. É o `hoje` que o servidor passa para contaEstadia: depois das 13h, a noite de hoje já não pode ser
+ * vendida e conta como passada. Ex.: na sexta às 18h, sábado a segunda passa (a sexta ficou para trás).
+ */
+export function primeiraEntradaPossivel(agora: Date = new Date()): string {
+  const { data, minutos } = agoraEmBuzios(agora);
+  return minutos + ANTECEDENCIA_MINIMA_MINUTOS <= paraMinutos(HORA_ENTRADA_CASA) ? data : somarDias(data, 1);
 }
 
 /** O dia da semana: 0 = domingo, 5 = sexta, 6 = sábado. */
@@ -176,13 +199,25 @@ export function pacotesSobrepostos(pacotes: readonly Pacote[]): [Pacote, Pacote]
 
 const dentro = (noite: string, p: PeriodoDiaria) => noite >= p.de && noite <= p.ate;
 
-/** A diária de uma noite fora de pacote: feriado, senão temporada, senão fim de semana ou semana. */
+/** Uma diária que dá para cobrar: um número de centavos maior que zero. */
+const diariaValida = (centavos: number | null | undefined): boolean => typeof centavos === 'number' && centavos > 0;
+
+/** A casa não tem preço: a diária de semana vazia ou zero, ou a de fim de semana zero (vazia é "vale a de semana"). */
+export const casaSemPreco = (t: Pick<TabelaEstadia, 'diariaCentavos' | 'diariaFimDeSemanaCentavos'>): boolean =>
+  !diariaValida(t.diariaCentavos) || (t.diariaFimDeSemanaCentavos != null && !diariaValida(t.diariaFimDeSemanaCentavos));
+
+/**
+ * A diária de uma noite fora de pacote: feriado; senão temporada, que no sábado e no domingo só vale se for maior que
+ * a de fim de semana; senão fim de semana ou semana.
+ */
 function diariaForaDePacote(t: TabelaEstadia, noite: string): { diariaCentavos: number; tipo: TipoNoite } {
-  const periodo =
-    t.periodos.find((p) => p.tipo === 'feriado' && dentro(noite, p)) ?? t.periodos.find((p) => p.tipo === 'temporada' && dentro(noite, p));
-  if (periodo) return { diariaCentavos: periodo.diariaCentavos, tipo: periodo.tipo };
-  if (noiteDeFimDeSemana(noite) && t.diariaFimDeSemanaCentavos != null)
-    return { diariaCentavos: t.diariaFimDeSemanaCentavos, tipo: 'fim-de-semana' };
+  const feriado = t.periodos.find((p) => p.tipo === 'feriado' && dentro(noite, p));
+  if (feriado) return { diariaCentavos: feriado.diariaCentavos, tipo: 'feriado' };
+  const fimDeSemana = noiteDeFimDeSemana(noite) && t.diariaFimDeSemanaCentavos != null ? t.diariaFimDeSemanaCentavos : null;
+  const temporada = t.periodos.find((p) => p.tipo === 'temporada' && dentro(noite, p));
+  if (temporada && (fimDeSemana === null || temporada.diariaCentavos >= fimDeSemana))
+    return { diariaCentavos: temporada.diariaCentavos, tipo: 'temporada' };
+  if (fimDeSemana !== null) return { diariaCentavos: fimDeSemana, tipo: 'fim-de-semana' };
   return { diariaCentavos: t.diariaCentavos, tipo: 'semana' };
 }
 
@@ -251,25 +286,30 @@ export function contaEstadia(t: TabelaEstadia, entrada: string, saida: string, o
     ...datas.flatMap((n) => t.periodos.filter((p) => dentro(n, p)).map((p) => p.minimoNoites ?? 0)),
   );
   const noitesOcupadas = datas.filter((n) => ocupadas.has(n));
+  // nenhuma noite sai de graça: a casa sem diária, ou um período com diária zero, fica sem preço
+  const semPreco = casaSemPreco(t) || noites.some((n) => !diariaValida(n.diariaCentavos));
 
   const motivo: MotivoEstadia | undefined =
     !datas.length || longaDemais
       ? 'datas'
-      : noitesOcupadas.length
-        ? 'ocupada'
-        : pacoteIncompleto
-          ? 'pacote'
-          : faltam.size
-            ? 'fim-de-semana'
-            : !pacotes.length && datas.length < minimoNoites
-              ? 'minimo'
-              : undefined;
+      : semPreco
+        ? 'preco'
+        : noitesOcupadas.length
+          ? 'ocupada'
+          : pacoteIncompleto
+            ? 'pacote'
+            : faltam.size
+              ? 'fim-de-semana'
+              : !pacotes.length && datas.length < minimoNoites
+                ? 'minimo'
+                : undefined;
 
-  const semDatas = motivo === 'datas';
-  const total = semDatas ? 0 : noites.reduce((s, n) => s + n.diariaCentavos, 0);
+  // sem datas ou sem preço, nenhum valor sai (a página nunca mostra R$ 0,00 como preço)
+  const semConta = motivo === 'datas' || motivo === 'preco';
+  const total = semConta ? 0 : noites.reduce((s, n) => s + n.diariaCentavos, 0);
   return {
-    noites: semDatas ? [] : noites,
-    pacotes: semDatas ? [] : pacotes,
+    noites: semConta ? [] : noites,
+    pacotes: semConta ? [] : pacotes,
     ...partesDaEstadia(total),
     minimoNoites,
     ok: !motivo,
@@ -280,13 +320,17 @@ export function contaEstadia(t: TabelaEstadia, entrada: string, saida: string, o
   };
 }
 
-/** A menor diária da casa, em qualquer noite: o "diária a partir de" da página. */
-export function menorDiariaCentavos(t: TabelaEstadia): number {
+/**
+ * A menor diária da casa, em qualquer noite: o "diária a partir de" da página. Sem preço (casaSemPreco), null: a
+ * página não mostra "a partir de R$ 0,00". Um período com diária zero não entra.
+ */
+export function menorDiariaCentavos(t: TabelaEstadia): number | null {
+  if (casaSemPreco(t)) return null;
   return Math.min(
     t.diariaCentavos,
     ...(t.diariaFimDeSemanaCentavos != null ? [t.diariaFimDeSemanaCentavos] : []),
-    ...t.periodos.map((p) => p.diariaCentavos),
-    ...t.pacotes.map((p) => p.diariaCentavos),
+    ...t.periodos.map((p) => p.diariaCentavos).filter(diariaValida),
+    ...t.pacotes.map((p) => p.diariaCentavos).filter(diariaValida),
   );
 }
 

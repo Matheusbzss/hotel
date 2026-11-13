@@ -187,6 +187,15 @@ export const FRASES_ARGENTINAS: [string, string][] = [
   ['Brochette', 'Brocheta'],
   ['picadas', 'aperitivos'],
   ['Baúl', 'Maletero'],
+  // as casas (Etapa 7): na Argentina, "hamaca" é o balanço e a rede é "hamaca paraguaya"; lavarropas, heladera e mesada
+  // são a lavadora, o refrigerador e a cubierta (a bancada) do neutro. As frases mais longas vêm antes das curtas.
+  ['Lavadero con lavarropas y pileta', 'Lavandería con lavadora y lavadero'],
+  ['Lavadero con lavarropas', 'Lavandería con lavadora'],
+  ['Hamaca paraguaya', 'Hamaca'],
+  ['hamaca paraguaya', 'hamaca'],
+  ['hamacas', 'columpios'],
+  ['heladera', 'refrigerador'],
+  ['mesada', 'cubierta'],
 ];
 
 const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

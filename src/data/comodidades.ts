@@ -6,7 +6,8 @@ import type { Texto } from './passeios';
  * regras_proprias, lidas em src/lib/casa-detalhes.ts); o texto nos idiomas e o ícone ficam aqui, iguais para todas.
  *
  * Os textos são neutros (sem "tú" nem "vos"): servem às duas versões do espanhol. Uma palavra que mude na Argentina
- * entra com a chave 'es-ar' (src/i18n/conteudo.ts) e conta em tests/es-ar.test.ts.
+ * entra com a chave 'es-ar' (src/i18n/conteudo.ts) e conta em tests/es-ar.test.ts: lá "hamaca" é o balanço (a rede é
+ * "hamaca paraguaya") e a máquina de lavar é o "lavarropas". "Reposeras" serve à Argentina e ao Chile e fica no neutro.
  *
  * Comodidade nova: acrescente aqui, com um ícone da lista IconeCasa (o desenho de cada ícone é da página da casa).
  * Nunca marque numa casa o que o dono não confirmou ou o que não aparece claramente nas fotos (marca "veio da foto").
@@ -137,7 +138,7 @@ export const COMODIDADES = {
   espreguicadeiras: {
     grupo: 'area-externa',
     icone: 'espreguicadeira',
-    nome: { pt: 'Espreguiçadeiras', es: 'Tumbonas', en: 'Sun loungers' },
+    nome: { pt: 'Espreguiçadeiras', es: 'Reposeras', en: 'Sun loungers' },
   },
   'area-estar-externa': {
     grupo: 'area-externa',
@@ -160,7 +161,11 @@ export const COMODIDADES = {
   },
   jardim: { grupo: 'area-externa', icone: 'jardim', nome: { pt: 'Jardim', es: 'Jardín', en: 'Garden' } },
   'jardim-interno': { grupo: 'area-externa', icone: 'jardim', nome: { pt: 'Jardim interno', es: 'Jardín interior', en: 'Indoor garden' } },
-  rede: { grupo: 'area-externa', icone: 'rede', nome: { pt: 'Rede no jardim', es: 'Hamaca en el jardín', en: 'Hammock in the garden' } },
+  rede: {
+    grupo: 'area-externa',
+    icone: 'rede',
+    nome: { pt: 'Rede no jardim', es: 'Hamaca en el jardín', 'es-ar': 'Hamaca paraguaya en el jardín', en: 'Hammock in the garden' },
+  },
   parquinho: {
     grupo: 'area-externa',
     icone: 'parquinho',
@@ -222,7 +227,12 @@ export const COMODIDADES = {
   lavanderia: {
     grupo: 'servicos',
     icone: 'lavanderia',
-    nome: { pt: 'Lavanderia com máquina de lavar', es: 'Lavandería con lavadora', en: 'Laundry room with a washing machine' },
+    nome: {
+      pt: 'Lavanderia com máquina de lavar',
+      es: 'Lavandería con lavadora',
+      'es-ar': 'Lavadero con lavarropas',
+      en: 'Laundry room with a washing machine',
+    },
   },
   estacionamento: {
     grupo: 'servicos',

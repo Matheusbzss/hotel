@@ -9,10 +9,12 @@
  *   03/01 no preço de fim de semana, cancelamento (pendência 3, o dono confirma antes de publicar a política);
  * - as fotos: o que aparece claramente nelas entra com veioDaFoto (o dono autorizou em 07/11 e confere antes de ligar).
  * O que o dono ainda não disse fica de fora (Wi-Fi, vagas e fumar na Ferradura; câmeras nas duas; qual quarto da
- * Ferradura é suíte; distância exata até a areia; nome da praia a 5 minutos).
+ * Ferradura é suíte; distância exata até a areia; nome da praia a 5 minutos; TV na sala da Geribá).
  *
- * Os textos do cliente são neutros (sem "tú" nem "vos"), então servem às duas versões do espanhol: nenhum precisou de
- * versão 'es-ar'. tests/casas-cadastro.test.ts confere as contas, as datas, as fotos e as palavras proibidas.
+ * Os textos do cliente são neutros (sem "tú" nem "vos"), então servem às duas versões do espanhol. Onde uma palavra
+ * muda na Argentina (hamaca paraguaya, lavarropas, heladera...), o texto leva a versão 'es-ar', como nas listas fixas
+ * de src/data/comodidades.ts e nos textos alternativos das fotos. tests/casas-cadastro.test.ts confere as contas, as
+ * datas, as fotos e as palavras proibidas; tests/es-ar.test.ts, o espanhol das duas versões.
  */
 import type { CidadeCasa } from '../../src/data/casas';
 import type { Lista, Texto } from '../../src/data/passeios';
@@ -20,10 +22,24 @@ import { CAMAS, COMODIDADES, REGRAS_EVENTO, REGRAS_FUMAR } from '../../src/data/
 import type { ComodidadeMarcada, Destaque, Quarto, RegrasProprias } from '../../src/lib/casa-detalhes.ts';
 import type { Pacote } from '../../src/lib/estadia.ts';
 
+/** Um retângulo da foto recebida, em pixels dela: x e y do canto de cima à esquerda, largura e altura. */
+export interface Retangulo {
+  x: number;
+  y: number;
+  largura: number;
+  altura: number;
+}
+
 /** Uma foto recebida (nome do arquivo em material-recebido/casas/<pasta>/fotos) e o nome neutro no site. */
 export interface FotoParaCopiar {
   origem: string;
   arquivo: string;
+  /** Pedaços borrados (com a borda esfumada) antes de tudo: uma pessoa que aparece, por exemplo. */
+  desfocar?: Retangulo[];
+  /** O recorte da foto, depois do borrão: tira da foto o que não pode aparecer (vizinhos, por exemplo). */
+  recorte?: Retangulo;
+  /** Por que a foto foi borrada ou recortada (fica no código e em docs/CREDITOS.md, não vai para o site). */
+  motivoDaEdicao?: string;
 }
 
 export interface CasaParaCadastrar {
@@ -114,15 +130,17 @@ const ferradura: CasaParaCadastrar = {
   cidade: 'buzios',
   nome: mesmo('Mansão Ferradura Vista Mar'),
   local: mesmo('Ferradurinha'),
+  // o resumo serve ao cartão e ao Google; a descrição começa pelo que o resumo não diz (a página mostra os dois), e
+  // nenhum dos dois repete a frase do anúncio ("Casa nova, design moderno, vista para o mar")
   resumo: {
-    pt: 'Casa nova, de design moderno, com vista para o mar no bairro da Ferradurinha, em Búzios. Recebe até 12 hóspedes em 4 quartos (3 suítes) e tem piscina, spa, cozinha externa e churrasqueira. A praia fica a cerca de 5 minutos a pé.',
-    es: 'Casa nueva, de diseño moderno, con vista al mar en el barrio de Ferradurinha, en Búzios. Recibe hasta 12 huéspedes en 4 habitaciones (3 en suite) y tiene piscina, spa, cocina exterior y parrilla. La playa queda a unos 5 minutos a pie.',
-    en: 'A new, modern home with a sea view in the Ferradurinha neighborhood of Búzios. It sleeps up to 12 guests in 4 bedrooms (3 en-suite) and has a pool, a spa, an outdoor kitchen and a barbecue grill. The beach is about a 5-minute walk away.',
+    pt: 'No bairro da Ferradurinha, em Búzios, esta casa nova, de design moderno, tem vista para o mar. Recebe até 12 hóspedes em 4 quartos (3 suítes), com piscina, spa, cozinha externa e churrasqueira. A praia fica a cerca de 5 minutos a pé.',
+    es: 'En el barrio de Ferradurinha, en Búzios, esta casa nueva, de diseño moderno, tiene vista al mar. Recibe hasta 12 huéspedes en 4 habitaciones (3 en suite), con piscina, spa, cocina exterior y parrilla. La playa queda a unos 5 minutos a pie.',
+    en: 'In the Ferradurinha neighborhood of Búzios, this new, modern home has a sea view. It sleeps up to 12 guests in 4 bedrooms (3 en-suite), with a pool, a spa, an outdoor kitchen and a barbecue grill. The beach is about a 5-minute walk away.',
   },
   descricao: {
-    pt: 'Casa nova, de design moderno, com vista para o mar, no bairro da Ferradurinha, em Búzios. São 4 quartos (3 suítes), 3 banheiros e um lavabo, para até 12 hóspedes, com ar-condicionado em todos os quartos.\n\nNa área externa ficam a piscina, o spa, a cozinha externa e a churrasqueira. Por dentro, a cozinha é completa, com utensílios, e a casa tem TVs 4K e som Sonos.\n\nA praia e as trilhas ficam a cerca de 5 minutos a pé. A limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
-    es: 'Casa nueva, de diseño moderno, con vista al mar, en el barrio de Ferradurinha, en Búzios. Tiene 4 habitaciones (3 en suite), 3 baños y un baño de visitas, para hasta 12 huéspedes, con aire acondicionado en todas las habitaciones.\n\nEn el área exterior están la piscina, el spa, la cocina exterior y la parrilla. Adentro, la cocina está equipada con utensilios, y la casa tiene televisores 4K y sonido Sonos.\n\nLa playa y los senderos quedan a unos 5 minutos a pie. La limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
-    en: 'A new, modern home with a sea view in the Ferradurinha neighborhood of Búzios. It has 4 bedrooms (3 en-suite), 3 bathrooms and a powder room, sleeping up to 12 guests, with air conditioning in every bedroom.\n\nOutside are the pool, the spa, the outdoor kitchen and the barbecue grill. Inside, the kitchen is fully equipped with utensils, and the house has 4K TVs and a Sonos sound system.\n\nThe beach and the trails are about a 5-minute walk away. Cleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
+    pt: 'Os 4 quartos têm ar-condicionado, e a casa conta com 3 banheiros e um lavabo, TVs 4K, som Sonos e cozinha completa, com utensílios.\n\nAlém da praia, as trilhas também ficam a cerca de 5 minutos a pé.\n\nA limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
+    es: 'Las 4 habitaciones tienen aire acondicionado, y la casa cuenta con 3 baños y un baño de visitas, televisores 4K, sonido Sonos y cocina equipada, con utensilios.\n\nAdemás de la playa, los senderos también quedan a unos 5 minutos a pie.\n\nLa limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
+    en: 'All 4 bedrooms have air conditioning, and the house has 3 bathrooms and a powder room, 4K TVs, a Sonos sound system and a fully equipped kitchen with utensils.\n\nBesides the beach, the trails are also about a 5-minute walk away.\n\nCleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
   },
   // seção 6 do plano (guias de viagem lidos em 13/11): mostrar ao dono antes de publicar
   textoBairro: {
@@ -195,11 +213,7 @@ const ferradura: CasaParaCadastrar = {
   destaques: [
     {
       icone: 'vista-mar',
-      texto: {
-        pt: 'Casa nova, de design moderno, com vista para o mar',
-        es: 'Casa nueva, de diseño moderno, con vista al mar',
-        en: 'New, modern home with a sea view',
-      },
+      texto: { pt: 'Casa nova, com vista para o mar', es: 'Casa nueva, con vista al mar', en: 'New home with a sea view' },
     },
     {
       icone: 'piscina',
@@ -252,8 +266,15 @@ const ferradura: CasaParaCadastrar = {
     { origem: '15-varanda-poltronas-piscina.jpg', arquivo: 'varanda-poltronas.jpg' },
     { origem: '16-borda-piscina-vista-mar.jpg', arquivo: 'borda-da-piscina.jpg' },
     { origem: '17-jardim-interno.jpg', arquivo: 'jardim-interno.jpg' },
+    // o reflexo do fotógrafo no vidro do hall fica: não dá para reconhecer ninguém (docs/CREDITOS.md)
     { origem: '18-porta-de-entrada.jpg', arquivo: 'porta-de-entrada.jpg' },
-    { origem: '19-fachada-entrada-jardim.jpg', arquivo: 'fachada-e-jardim.jpg' },
+    {
+      origem: '19-fachada-entrada-jardim.jpg',
+      arquivo: 'fachada-e-jardim.jpg',
+      recorte: { x: 104, y: 116, largura: 616, altura: 424 },
+      motivoDaEdicao:
+        'recortada pelo mesmo critério da 36: sai o sobrado vizinho com varandas (no alto, à direita) e a casa vizinha de telhado vermelho (à esquerda); ficam a fachada, a porta e o caminho de pedras',
+    },
     { origem: '20-playground.jpg', arquivo: 'parquinho.jpg' },
     { origem: '22-quarto-teto-madeira-janela.jpg', arquivo: 'quarto-teto-de-madeira.jpg' },
     { origem: '23-quarto-janela-verde.jpg', arquivo: 'quarto-3.jpg' },
@@ -266,14 +287,19 @@ const ferradura: CasaParaCadastrar = {
     { origem: '30-sala-sofa-cozinha.jpg', arquivo: 'sofa-e-cozinha.jpg' },
     { origem: '31-cozinha-bar-sala-tv.jpg', arquivo: 'cozinha-e-sala-de-tv.jpg' },
     { origem: '32-jantar-mesa-grande-escada.jpg', arquivo: 'mesa-grande-e-escada.jpg' },
-    { origem: '33-corredor-vidro-sala.jpg', arquivo: 'corredor-de-vidro.jpg' },
+    {
+      origem: '33-corredor-vidro-sala.jpg',
+      arquivo: 'corredor-de-vidro.jpg',
+      desfocar: [{ x: 126, y: 246, largura: 36, altura: 70 }],
+      motivoDaEdicao: 'borrada: uma pessoa de pé na beira da piscina, vista pela porta de vidro (sem autorização de imagem)',
+    },
     { origem: '35-entrada-porta-madeira.jpg', arquivo: 'entrada-e-jardim.jpg' },
     { origem: '37-lavanderia.jpg', arquivo: 'lavanderia.jpg' },
   ],
   fotosDeFora: [
     { origem: '34-vista-aerea-frente-portao.jpg', motivo: 'vista aérea da frente: mostra o portão e a rua (ajuda a achar a casa)' },
     { origem: '36-jardim-frente-portao.jpg', motivo: 'por cautela: o portão, as casas vizinhas e uma torre de antena' },
-    { origem: '38-decoracao-prateleiras.jpg', motivo: 'só decoração (o dono achou fraca para o site)' },
+    { origem: '38-decoracao-prateleiras.jpg', motivo: 'só decoração (fraca para o site, nota do DADOS.md)' },
   ],
 };
 
@@ -291,10 +317,11 @@ const geriba: CasaParaCadastrar = {
     es: 'Casa en un condominio cerrado con vigilancia las 24 horas, a pocos metros de la playa de Geribá, en Búzios. Recibe hasta 14 huéspedes en 5 habitaciones en suite y tiene piscina privada con vista al mar, área de parrilla y espacios al aire libre con vista.',
     en: 'A home in a gated community with 24-hour security, just a few meters from Geribá Beach in Búzios. It sleeps up to 14 guests in 5 en-suite bedrooms and has a private pool with a sea view, a barbecue area and outdoor spaces with a view.',
   },
+  // como na Ferradura: a descrição começa pelo que o resumo não diz
   descricao: {
-    pt: 'Casa em 3 andares (triplex) num condomínio fechado com vigilância 24 horas, a poucos metros da praia de Geribá, em Búzios. São 5 suítes e mais um banheiro social, para até 14 hóspedes, com ar-condicionado em todos os quartos. A sala de estar tem 3 sofás.\n\nA piscina privativa tem vista panorâmica para o mar. Em volta ficam a área de churrasco e espaços ao ar livre para descansar com vista. A cozinha é completa, com utensílios, e a casa tem Wi-Fi.\n\nO acesso à praia é por uma escada do condomínio ou pela rua. Há estacionamento grátis para 4 carros na garagem do condomínio. A limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
-    es: 'Casa de 3 pisos (tríplex) en un condominio cerrado con vigilancia las 24 horas, a pocos metros de la playa de Geribá, en Búzios. Tiene 5 habitaciones en suite y un baño más, para hasta 14 huéspedes, con aire acondicionado en todas las habitaciones. La sala de estar tiene 3 sofás.\n\nLa piscina privada tiene vista panorámica al mar. Alrededor están el área de parrilla y espacios al aire libre para descansar con vista. La cocina está equipada con utensilios, y la casa tiene wifi.\n\nSe llega a la playa por una escalera del condominio o por la calle. Hay estacionamiento gratis para 4 autos en el garaje del condominio. La limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
-    en: 'A three-story home (triplex) in a gated community with 24-hour security, just a few meters from Geribá Beach in Búzios. It has 5 en-suite bedrooms plus a guest bathroom, sleeping up to 14 guests, with air conditioning in every bedroom. The living room has 3 sofas.\n\nThe private pool has a panoramic sea view. Around it are the barbecue area and outdoor spaces to relax with a view. The kitchen is fully equipped with utensils, and the house has Wi-Fi.\n\nThe beach is reached by a stairway in the community or by the street. There is free parking for 4 cars in the community garage. Cleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
+    pt: 'A casa tem 3 andares (triplex), com escadas externas. Além das 5 suítes, há um banheiro social, e todos os quartos têm ar-condicionado. A sala de estar tem 3 sofás, a cozinha é completa, com utensílios, e há Wi-Fi.\n\nA piscina tem vista panorâmica para o mar. O acesso à praia é por uma escada do condomínio ou pela rua, e há estacionamento grátis para 4 carros na garagem do condomínio.\n\nA limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
+    es: 'La casa tiene 3 pisos (tríplex), con escaleras exteriores. Además de las 5 habitaciones en suite, hay un baño más, y todas las habitaciones tienen aire acondicionado. La sala de estar tiene 3 sofás, la cocina está equipada con utensilios y hay wifi.\n\nLa piscina tiene vista panorámica al mar. Se llega a la playa por una escalera del condominio o por la calle, y hay estacionamiento gratis para 4 autos en el garaje del condominio.\n\nLa limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
+    en: 'The house has three stories (triplex), with outdoor stairs. Besides the 5 en-suite bedrooms there is a guest bathroom, and every bedroom has air conditioning. The living room has 3 sofas, the kitchen is fully equipped with utensils, and there is Wi-Fi.\n\nThe pool has a panoramic sea view. The beach is reached by a stairway in the community or by the street, and there is free parking for 4 cars in the community garage.\n\nCleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
   },
   // fatos do DADOS.md (guias de viagem de 07/11, com fonte), sem superlativo: mostrar ao dono antes de publicar
   textoBairro: {
@@ -362,7 +389,8 @@ const geriba: CasaParaCadastrar = {
     { id: 'varandas', veioDaFoto: true },
     { id: 'jardim', veioDaFoto: true },
     { id: 'rede', veioDaFoto: true },
-    { id: 'tv-sala', veioDaFoto: true },
+    // sem 'tv-sala': a única foto da sala (a 37, tirada de fora, pelo vidro) mostra um abajur, não uma TV. Volta só se o
+    // dono confirmar que a sala tem TV
     {
       id: 'espaco-trabalho',
       veioDaFoto: true,
@@ -415,6 +443,10 @@ const geriba: CasaParaCadastrar = {
       },
       veioDaFoto: true,
     },
+    // o dono ainda não disse. Atenção: na foto 34 (jardim-e-suite.jpg), embaixo da varanda de cima, à direita, há um
+    // aparelho que parece câmera de segurança voltada para o jardim; na 04 (deck-mesa-e-vista-mar.jpg), embaixo do
+    // beiral, outro (câmera ou refletor). Se for câmera, preencher { tem: true, onde: {...} } com o lugar: recortar a
+    // foto não dispensa o aviso. A venda fica fechada até a resposta.
     cameras: null,
   },
   diariaCentavos: 150000,
@@ -492,9 +524,16 @@ export const fotosNoSite = (c: CasaParaCadastrar) => c.fotos.map((f) => `/fotos/
 /* As listas de texto das colunas antigas (camas, comodidades, regras  */
 /* e cancelamento), para a página e o painel de hoje enxergarem a casa */
 
-const IDIOMAS = ['pt', 'es', 'en'] as const;
-const porIdioma = (fazer: (idioma: (typeof IDIOMAS)[number]) => string[]): Lista => ({ pt: fazer('pt'), es: fazer('es'), en: fazer('en') });
-const juntar = { pt: ' e ', es: ' y ', en: ' and ' };
+type IdiomaDaLista = 'pt' | 'es' | 'en' | 'es-ar';
+/** O texto no idioma; no 'es-ar', a versão argentina quando ela existe, senão o 'es' (como em src/i18n/conteudo.ts). */
+const em = (t: Texto, i: IdiomaDaLista): string => (i === 'es-ar' ? (t['es-ar'] ?? t.es) : t[i]);
+/** A lista nos idiomas; a versão argentina só entra quando alguma linha muda (sem ela, o /es-ar lê o es). */
+function porIdioma(fazer: (idioma: IdiomaDaLista) => string[]): Lista {
+  const lista: Lista = { pt: fazer('pt'), es: fazer('es'), en: fazer('en') };
+  const argentina = fazer('es-ar');
+  return argentina.some((t, n) => t !== lista.es[n]) ? { ...lista, 'es-ar': argentina } : lista;
+}
+const juntar: Record<IdiomaDaLista, string> = { pt: ' e ', es: ' y ', en: ' and ', 'es-ar': ' y ' };
 
 /** As regras que valem para todas as casas (FASE-4, Etapa 7, decisão do dono de 07/11). */
 export function regrasDeTodasAsCasas(capacidade: number): Texto[] {
@@ -553,18 +592,67 @@ export function listasDaCasa(c: CasaParaCadastrar): { camas: Lista; comodidades:
     camas: porIdioma((i) =>
       c.quartosDetalhe.map((q) => {
         const camas = q.camas.map(
-          (cama) => `${cama.quantidade} ${(cama.quantidade === 1 ? CAMAS[cama.tipo].um : CAMAS[cama.tipo].varios)[i]}`,
+          (cama) => `${cama.quantidade} ${em(cama.quantidade === 1 ? CAMAS[cama.tipo].um : CAMAS[cama.tipo].varios, i)}`,
         );
-        return `${q.nome[i]}: ${camas.join(juntar[i])}`;
+        return `${em(q.nome, i)}: ${camas.join(juntar[i])}`;
       }),
     ),
     comodidades: porIdioma((i) =>
       c.comodidadesMarcadas.map((m) => {
-        const nome = COMODIDADES[m.id].nome[i];
-        return m.detalhe ? `${nome} · ${m.detalhe[i]}` : nome;
+        const nome = em(COMODIDADES[m.id].nome, i);
+        return m.detalhe ? `${nome} · ${em(m.detalhe, i)}` : nome;
       }),
     ),
-    regras: porIdioma((i) => [...regrasDeTodasAsCasas(c.capacidade), ...regrasDaCasa].map((r) => r[i])),
-    cancelamento: porIdioma((i) => CANCELAMENTO_DAS_CASAS.map((r) => r[i])),
+    regras: porIdioma((i) => [...regrasDeTodasAsCasas(c.capacidade), ...regrasDaCasa].map((r) => em(r, i))),
+    cancelamento: porIdioma((i) => CANCELAMENTO_DAS_CASAS.map((r) => em(r, i))),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Completar uma casa que já está no banco                              */
+
+/** O que já está no banco de uma casa: os pacotes e os bloqueios (de qualquer origem). */
+export interface CasaNoBanco {
+  pacotes: { entrada: string; saida: string; grupo: string | null }[];
+  bloqueios: { inicio: string; fim: string; origem: string }[];
+}
+
+/** O que falta gravar de uma casa que já existe, e o que não dá para gravar porque esbarra no que o banco já tem. */
+export interface FaltaNoBanco {
+  pacotes: Pacote[];
+  bloqueios: CasaParaCadastrar['bloqueios'];
+  /** Pacotes e bloqueios iniciais que dividem noites com outro já gravado: ficam de fora e aparecem na tela. */
+  conflitos: string[];
+}
+
+const cruzam = (a: { de: string; ate: string }, b: { de: string; ate: string }) => a.de < b.ate && b.de < a.ate;
+
+/**
+ * Os pacotes e os bloqueios iniciais da casa que ainda não estão no banco. O --gravar do cadastro grava a casa, os
+ * pacotes e os bloqueios em três passos: se um passo falhar no meio, rodar de novo completa o que faltou em vez de
+ * pular a casa. Um pacote igual (mesmas datas e grupo) ou um bloqueio à mão igual já gravados contam como feitos; um
+ * que divida noites com outro já gravado (o dono mudou no painel) não é gravado de novo: vira conflito, para conferir.
+ */
+export function oQueFaltaNoBanco(c: CasaParaCadastrar, noBanco: CasaNoBanco): FaltaNoBanco {
+  const falta: FaltaNoBanco = { pacotes: [], bloqueios: [], conflitos: [] };
+  for (const p of c.pacotes) {
+    const grupo = p.grupo ?? null;
+    if (noBanco.pacotes.some((b) => b.entrada === p.entrada && b.saida === p.saida && b.grupo === grupo)) continue;
+    // as opções do mesmo grupo (o Réveillon de 4 e de 5 diárias) podem dividir noites
+    const outro = noBanco.pacotes.find(
+      (b) => (b.grupo === null || b.grupo !== grupo) && cruzam({ de: p.entrada, ate: p.saida }, { de: b.entrada, ate: b.saida }),
+    );
+    if (outro)
+      falta.conflitos.push(`${p.nome.pt} (${p.entrada} a ${p.saida}) divide noites com o pacote de ${outro.entrada} a ${outro.saida}`);
+    else falta.pacotes.push(p);
+  }
+  const aMao = noBanco.bloqueios.filter((b) => b.origem === 'manual');
+  for (const b of c.bloqueios) {
+    if (aMao.some((x) => x.inicio === b.inicio && x.fim === b.fim)) continue;
+    const outro = aMao.find((x) => cruzam({ de: b.inicio, ate: b.fim }, { de: x.inicio, ate: x.fim }));
+    if (outro)
+      falta.conflitos.push(`bloqueio de ${b.inicio} a ${b.fim} divide noites com o bloqueio à mão de ${outro.inicio} a ${outro.fim}`);
+    else falta.bloqueios.push(b);
+  }
+  return falta;
 }

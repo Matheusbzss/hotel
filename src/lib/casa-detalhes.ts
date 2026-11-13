@@ -203,7 +203,10 @@ export const periodoDeLinha = (l: Tables<'casas_tarifas'>): PeriodoDiaria => ({
   ...(l.minimo_noites !== null ? { minimoNoites: l.minimo_noites } : {}),
 });
 
-/** A tabela da conta da estadia (src/lib/estadia.ts) a partir das linhas do banco. */
+/**
+ * A tabela da conta da estadia (src/lib/estadia.ts) a partir das linhas do banco. A diária de semana vazia vira 0, e a
+ * conta trata 0 como casa sem preço (motivo 'preco'): nenhuma noite sai por R$ 0,00.
+ */
 export function tabelaDaCasa(
   c: Pick<Tables<'casas'>, 'diaria_base_centavos' | 'minimo_noites'> & Partial<Tables<'casas'>>,
   tarifas: Tables<'casas_tarifas'>[],

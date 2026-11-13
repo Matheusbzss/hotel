@@ -44,9 +44,9 @@ async function limpezaDosLimites(): Promise<Record<string, boolean | string | nu
 }
 
 /**
- * O cadastro dos hóspedes das casas sai do banco 30 dias depois da saída (função apagar_hospedes_vencidos, Etapa 7):
- * só no agendamento diário. Antes da migração das casas a função não existe (PGRST202) e ainda não há cadastro
- * nenhum para apagar: fica só o aviso, sem marcar a verificação como falha.
+ * O cadastro dos hóspedes das casas sai do banco 30 dias depois da saída, ou logo que a estadia é cancelada ou
+ * devolvida (função apagar_hospedes_vencidos, Etapa 7): só no agendamento diário. Antes da migração das casas a função
+ * não existe (PGRST202) e ainda não há cadastro nenhum para apagar: fica só o aviso, sem marcar a verificação como falha.
  */
 async function limpezaDosHospedes(): Promise<Record<string, boolean | string | number>> {
   if (!supabaseConfigurado()) return { modo: 'sem-supabase' };

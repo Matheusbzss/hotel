@@ -574,7 +574,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-ferradura-vista-mar/casa-e-piscina-vistas-de-cima.jpg': {
     pt: 'Casa branca moderna vista de cima, com piscina, spa, espreguiçadeiras e painéis solares',
     en: 'Modern white house seen from above, with a pool, a spa, sun loungers and solar panels',
-    es: 'Casa blanca moderna vista desde arriba, con piscina, spa, tumbonas y paneles solares',
+    es: 'Casa blanca moderna vista desde arriba, con piscina, spa, reposeras y paneles solares',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/sala-de-estar-teto-de-madeira.jpg': {
     pt: 'Sala de estar com teto de madeira, sofás claros e portas de vidro para o terraço com vista',
@@ -594,12 +594,13 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-ferradura-vista-mar/cozinha-pia-e-vista.jpg': {
     pt: 'Pia na bancada de pedra da cozinha, com a piscina e o mar vistos pelas portas de vidro',
     en: 'Sink on the stone kitchen counter, with the pool and the sea seen through glass doors',
-    es: 'Fregadero en la encimera de piedra de la cocina, con la piscina y el mar tras las puertas de vidrio',
+    es: 'Fregadero en la cubierta de piedra de la cocina, con la piscina y el mar tras las puertas de vidrio',
+    'es-ar': 'Fregadero en la mesada de piedra de la cocina, con la piscina y el mar tras las puertas de vidrio',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/espreguicadeiras-na-piscina.jpg': {
     pt: 'Duas espreguiçadeiras pretas no terraço, ao lado da piscina, com a mata ao fundo',
     en: 'Two black sun loungers on the terrace beside the pool, with woodland behind',
-    es: 'Dos tumbonas negras en la terraza, al lado de la piscina, con el bosque de fondo',
+    es: 'Dos reposeras negras en la terraza, al lado de la piscina, con el bosque de fondo',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/varanda-envidracada.jpg': {
     pt: 'Varanda com sofá e poltronas de fibra, guarda-corpo de vidro e vista para o mar',
@@ -670,6 +671,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
     pt: 'Parquinho com escorregador, balanços e gangorra sobre grama sintética',
     en: 'Playground with a slide, swings and a seesaw on artificial grass',
     es: 'Juegos infantiles de colores con tobogán y columpios sobre césped sintético',
+    'es-ar': 'Juegos infantiles de colores con tobogán y hamacas sobre césped sintético',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/quarto-teto-de-madeira.jpg': {
     pt: 'Quarto com teto de madeira, TV e parede de vidro para o terraço',
@@ -699,7 +701,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-ferradura-vista-mar/banheiro-chuveiro-de-teto.jpg': {
     pt: 'Banheiro com chuveiro de teto atrás do box de vidro e bancada de pedra junto à janela',
     en: 'Bathroom with a rain shower behind a glass screen and a stone vanity by the window',
-    es: 'Baño con ducha de techo detrás de la mampara de vidrio y encimera de piedra junto a la ventana',
+    es: 'Baño con ducha de techo detrás de la mampara de vidrio y cubierta de piedra junto a la ventana',
+    'es-ar': 'Baño con ducha de techo detrás de la mampara de vidrio y mesada de piedra junto a la ventana',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/banheiro-espelho-redondo.jpg': {
     pt: 'Banheiro com espelho redondo, pia de pedra e box de vidro',
@@ -720,6 +723,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
     pt: 'Cozinha com ilha de pedra e banquetas, geladeira inox e a sala de TV ao fundo',
     en: 'Kitchen with a stone island and stools, a stainless steel fridge and the TV room behind',
     es: 'Cocina con isla de piedra y banquetas, refrigerador de acero y la sala de TV al fondo',
+    'es-ar': 'Cocina con isla de piedra y banquetas, heladera de acero y la sala de TV al fondo',
   },
   '/fotos/casas/mansao-ferradura-vista-mar/mesa-grande-e-escada.jpg': {
     pt: 'Mesa de jantar grande com cadeiras brancas, escada de madeira e cantinho de trabalho',
@@ -739,7 +743,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-ferradura-vista-mar/lavanderia.jpg': {
     pt: 'Lavanderia com máquina de lavar e tanque',
     en: 'Laundry room with a washing machine and a utility sink',
-    es: 'Lavandería con lavadora y un fregadero',
+    es: 'Lavandería con lavadora y lavadero',
+    'es-ar': 'Lavadero con lavarropas y pileta',
   },
   '/fotos/casas/mansao-geriba-vista-mar/piscina-com-prainha.jpg': {
     pt: 'Piscina de formato livre com parte rasa e jatos de água, diante do lounge coberto',
@@ -829,7 +834,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/espreguicadeira-e-braseiro.jpg': {
     pt: 'Espreguiçadeira e braseiro no deck coberto, com a piscina e o mar adiante',
     en: 'Sun lounger and fire pit on the covered deck, with the pool and the sea ahead',
-    es: 'Tumbona y brasero en el deck techado, con la piscina y el mar adelante',
+    es: 'Reposera y brasero en el deck techado, con la piscina y el mar adelante',
   },
   '/fotos/casas/mansao-geriba-vista-mar/varanda-ao-entardecer.jpg': {
     pt: 'Varanda envidraçada ao entardecer, com o céu rosado sobre o mar',
@@ -844,7 +849,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/deck-e-jardim.jpg': {
     pt: 'Deck coberto com puffs verdes e braseiro, espreguiçadeiras e jardim com palmeiras',
     en: 'Covered deck with green bean bags and a fire pit, sun loungers and a garden with palms',
-    es: 'Deck techado con puffs verdes y brasero, tumbonas y un jardín con palmeras',
+    es: 'Deck techado con puffs verdes y brasero, reposeras y un jardín con palmeras',
   },
   '/fotos/casas/mansao-geriba-vista-mar/puffs-laranja-e-praia.jpg': {
     pt: 'Dois puffs laranja ao lado da piscina, com uma praia e um morro verde ao fundo',
@@ -869,7 +874,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/area-gourmet-e-piscina.jpg': {
     pt: 'Área gourmet com bar e churrasqueira, piscina e espreguiçadeiras em frente à casa',
     en: 'Outdoor bar and grill area, pool and sun loungers in front of the house',
-    es: 'Área gourmet con barra y parrilla, piscina y tumbonas frente a la casa',
+    es: 'Área gourmet con barra y parrilla, piscina y reposeras frente a la casa',
   },
   '/fotos/casas/mansao-geriba-vista-mar/fachada-e-jardim.jpg': {
     pt: 'Fachada com árvore florida e jardim, com o mar e o bairro ao fundo',
@@ -879,7 +884,7 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/fachada-varandas-de-vidro.jpg': {
     pt: 'Casa com varandas de vidro, gramado e espreguiçadeiras',
     en: 'House with glass-walled verandas, a lawn and sun loungers',
-    es: 'Casa con terrazas de vidrio, césped y tumbonas',
+    es: 'Casa con terrazas de vidrio, césped y reposeras',
   },
   '/fotos/casas/mansao-geriba-vista-mar/casa-entre-a-vegetacao.jpg': {
     pt: 'Casa de telhado colonial vista de baixo, entre a vegetação, sob o céu azul',
@@ -914,7 +919,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/jardim-escada-e-rede.jpg': {
     pt: 'Jardim com escada externa, rede pendurada e palmeiras',
     en: 'Garden with an outdoor staircase, a hanging hammock and palm trees',
-    es: 'Jardín con escalera exterior, hamaca colgante y palmeras',
+    es: 'Jardín con escalera exterior, hamaca y palmeras',
+    'es-ar': 'Jardín con escalera exterior, hamaca paraguaya y palmeras',
   },
   '/fotos/casas/mansao-geriba-vista-mar/varanda-de-madeira.jpg': {
     pt: 'Varanda de madeira com guarda-corpo, plantas e vista para o mar',
@@ -922,9 +928,9 @@ export const ALT_FOTOS: Record<string, Texto> = {
     es: 'Balcón de madera con baranda, plantas y vista al mar',
   },
   '/fotos/casas/mansao-geriba-vista-mar/sala-vista-pelo-vidro.jpg': {
-    pt: 'Sala de estar vista de fora pelo vidro, com sofás, TV e a baía ao fundo',
-    en: 'Living room seen from outside through the glass, with sofas, a TV and the bay behind',
-    es: 'Sala de estar vista desde afuera a través del vidrio, con sofás, TV y la bahía de fondo',
+    pt: 'Sala de estar vista de fora pelo vidro, com sofás, uma luminária e a baía ao fundo',
+    en: 'Living room seen from outside through the glass, with sofas, a lamp and the bay behind',
+    es: 'Sala de estar vista desde afuera a través del vidrio, con sofás, una lámpara y la bahía de fondo',
   },
   '/fotos/casas/mansao-geriba-vista-mar/escrivaninha-vista-mar.jpg': {
     pt: 'Canto com escrivaninha branca, cadeira e janelas com vista para o mar',
@@ -944,7 +950,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/banheiro-pia-dupla.jpg': {
     pt: 'Banheiro com bancada de madeira de duas pias, bidê e box de vidro com chuveiro de teto',
     en: 'Bathroom with a wooden double vanity, a bidet and a glass shower with a rain head',
-    es: 'Baño con encimera de madera de dos lavamanos, bidet y ducha de techo con mampara de vidrio',
+    es: 'Baño con cubierta de madera de dos lavamanos, bidet y ducha de techo con mampara de vidrio',
+    'es-ar': 'Baño con mesada de madera de dos lavamanos, bidet y ducha de techo con mampara de vidrio',
   },
   '/fotos/casas/mansao-geriba-vista-mar/banheiro-box-de-vidro.jpg': {
     pt: 'Banheiro com azulejos claros de faixa decorada, box de vidro e janela',
@@ -954,7 +961,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/banheiro-chuveiro-de-teto.jpg': {
     pt: 'Banheiro com chuveiro de teto no box de vidro e bancada de madeira',
     en: 'Bathroom with a rain shower in a glass enclosure and a wooden vanity',
-    es: 'Baño con ducha de techo detrás de la mampara de vidrio y encimera de madera',
+    es: 'Baño con ducha de techo detrás de la mampara de vidrio y cubierta de madera',
+    'es-ar': 'Baño con ducha de techo detrás de la mampara de vidrio y mesada de madera',
   },
   '/fotos/casas/mansao-geriba-vista-mar/banheiro-ducha-higienica.jpg': {
     pt: 'Banheiro com vaso, ducha higiênica, box de vidro e toalha branca',
@@ -964,7 +972,8 @@ export const ALT_FOTOS: Record<string, Texto> = {
   '/fotos/casas/mansao-geriba-vista-mar/banheiro-toalhas-laranja.jpg': {
     pt: 'Banheiro com azulejos em tons de areia, bancada de madeira e toalhas laranja',
     en: 'Bathroom with sand-colored tiles, a wooden vanity and orange towels',
-    es: 'Baño con azulejos color arena, encimera de madera y toallas naranjas',
+    es: 'Baño con azulejos color arena, cubierta de madera y toallas naranjas',
+    'es-ar': 'Baño con azulejos color arena, mesada de madera y toallas naranjas',
   },
   '/fotos/casas/mansao-geriba-vista-mar/praia-vista-da-varanda.jpg': {
     pt: 'Vista da varanda para uma praia longa e o mar, com uma palmeira em primeiro plano',

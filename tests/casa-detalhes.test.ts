@@ -177,6 +177,13 @@ test('pacotes e tarifas do banco viram a tabela da conta', () => {
   );
   assert.equal(contaEstadia(t, '2026-12-28', '2027-01-02').totalCentavos, 1000000);
   assert.equal(contaEstadia(t, '2026-12-11', '2026-12-14').totalCentavos, 360000);
+  // a casa sem diária de semana no banco (o painel deixa criar sem preço): a conta não vende, nem de graça
+  const semPreco = tabelaDaCasa({ diaria_base_centavos: null, minimo_noites: 2 }, [], []);
+  assert.equal(semPreco.diariaCentavos, 0);
+  const conta = contaEstadia(semPreco, '2026-12-14', '2026-12-16');
+  assert.equal(conta.motivo, 'preco');
+  assert.equal(conta.totalCentavos, 0);
+  assert.equal(conta.ok, false);
 });
 
 test('prender as datas: as estadias do pedido viram os argumentos da função do banco', () => {

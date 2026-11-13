@@ -3,8 +3,11 @@
 // copiadas (scripts/preparar-fotos-casas.ts).
 //
 // Sem opção, só CONFERE os dados e mostra o que seria gravado: nada muda no banco. Com --gravar, grava as casas que
-// ainda não existem (pelo endereço da página); a que já existe fica como está. Nunca liga casa nenhuma: quem liga é o
-// "Publicar no site" do painel, depois que o dono conferir as comodidades, os pacotes e os textos.
+// ainda não existem (pelo endereço da página), em três passos: a casa, os pacotes e os bloqueios. Se um passo falhar no
+// meio (rede, banco), rode de novo: na casa que já existe e está desligada, o script grava só os pacotes e os
+// bloqueios iniciais que faltam (oQueFaltaNoBanco, em scripts/dados/casas.ts); a casa em si, os textos e o que o dono
+// mudou no painel ficam como estão. Na casa que já está no ar, só mostra o que falta. Nunca liga casa nenhuma: quem
+// liga é o "Publicar no site" do painel, depois que o dono conferir as comodidades, os pacotes e os textos.
 //
 // Uso, na pasta do projeto:
 //   node --experimental-strip-types --env-file=.env.local scripts/cadastrar-casas.ts [--gravar]
@@ -26,7 +29,7 @@ import {
   lugaresNasCamas,
 } from '../src/lib/casa-detalhes.ts';
 import { contaEstadia, pacotesComValores, type TabelaEstadia } from '../src/lib/estadia.ts';
-import { CASAS_PARA_CADASTRAR, fotosNoSite, listasDaCasa, type CasaParaCadastrar } from './dados/casas.ts';
+import { CASAS_PARA_CADASTRAR, fotosNoSite, listasDaCasa, oQueFaltaNoBanco, type CasaParaCadastrar } from './dados/casas.ts';
 
 const GRAVAR = process.argv.includes('--gravar');
 const reais = (centavos: number) => `R$ ${(centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -52,6 +55,8 @@ function conferir(c: CasaParaCadastrar): string[] {
     ['pacotes', EsquemaPacotes, c.pacotes],
   ];
   for (const [nome, esquema, valor] of forma) if (!esquema.safeParse(valor).success) erros.push(`${nome} fora da forma`);
+  // as duas diárias maiores que zero: sem elas a conta deixa a casa sem preço (src/lib/estadia.ts)
+  if (!(c.diariaCentavos > 0) || !(c.diariaFimDeSemanaCentavos > 0)) erros.push('sem a diária de semana ou a de fim de semana');
   if (c.quartosDetalhe.length !== c.quartos) erros.push(`${c.quartos} quartos, mas ${c.quartosDetalhe.length} na lista`);
   if (lugaresNasCamas(c.quartosDetalhe) !== c.capacidade) erros.push(`capacidade ${c.capacidade} diferente dos lugares nas camas`);
   for (const foto of fotosNoSite(c)) if (!existsSync(path.join('public', foto))) erros.push(`falta a foto ${foto}`);
@@ -136,12 +141,51 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
   process.exit(1);
 }
 const db = createClient<Database>(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
+const DE_NOVO = 'Rode de novo com --gravar: o script completa o que faltou.';
+
+/** Grava os pacotes e os bloqueios iniciais de uma casa. Se falhar, a casa fica gravada e a mensagem diz o que fazer. */
+async function gravarPacotesEBloqueios(
+  c: CasaParaCadastrar,
+  casaId: string,
+  pacotes: CasaParaCadastrar['pacotes'],
+  bloqueios: CasaParaCadastrar['bloqueios'],
+) {
+  if (pacotes.length) {
+    const r = await db.from('casas_pacotes').insert(pacotes.map((p) => linhaDePacote(casaId, p)));
+    if (r.error) throw new Error(`${c.slug}: a casa está gravada (desligada), mas os pacotes não: ${r.error.message}. ${DE_NOVO}`);
+  }
+  if (bloqueios.length) {
+    const r = await db
+      .from('casas_bloqueios')
+      .insert(bloqueios.map((b) => ({ casa_id: casaId, inicio: b.inicio, fim: b.fim, origem: 'manual', referencia: b.referencia })));
+    if (r.error)
+      throw new Error(`${c.slug}: a casa e os pacotes estão gravados (desligada), mas os bloqueios não: ${r.error.message}. ${DE_NOVO}`);
+  }
+}
 
 for (const c of CASAS_PARA_CADASTRAR) {
   const { data: existente, error: erroBusca } = await db.from('casas').select('id, ativo').eq('slug', c.slug).maybeSingle();
   if (erroBusca) throw new Error(`Banco de dados: ${erroBusca.message}`);
   if (existente) {
-    console.log(`${c.slug}: já cadastrada (${existente.ativo ? 'no ar' : 'desligada'}); nada mudou.`);
+    // a casa já existe: confere se os pacotes e os bloqueios iniciais chegaram (um --gravar pode ter caído no meio)
+    const [pacotes, bloqueios] = await Promise.all([
+      db.from('casas_pacotes').select('entrada, saida, grupo').eq('casa_id', existente.id),
+      db.from('casas_bloqueios').select('inicio, fim, origem').eq('casa_id', existente.id),
+    ]);
+    if (pacotes.error || bloqueios.error) throw new Error(`Banco de dados: ${(pacotes.error ?? bloqueios.error)?.message}`);
+    const falta = oQueFaltaNoBanco(c, { pacotes: pacotes.data, bloqueios: bloqueios.data });
+    for (const conflito of falta.conflitos) console.log(`${c.slug}: não gravado, confira no painel: ${conflito}.`);
+    if (!falta.pacotes.length && !falta.bloqueios.length) {
+      console.log(`${c.slug}: já cadastrada (${existente.ativo ? 'no ar' : 'desligada'}), com os pacotes e os bloqueios; nada mudou.`);
+      continue;
+    }
+    const resumo = `${falta.pacotes.length} pacote(s) e ${falta.bloqueios.length} bloqueio(s)`;
+    if (existente.ativo) {
+      console.log(`${c.slug}: já está NO AR e faltam ${resumo}; nada foi gravado (confira no painel).`);
+      continue;
+    }
+    await gravarPacotesEBloqueios(c, existente.id, falta.pacotes, falta.bloqueios);
+    console.log(`${c.slug}: já cadastrada (desligada); completados ${resumo} que faltavam.`);
     continue;
   }
   const { data: casa, error } = await db.from('casas').insert(linhaDaCasa(c)).select('id').single();
@@ -149,11 +193,6 @@ for (const c of CASAS_PARA_CADASTRAR) {
     const dica = /column|coluna/i.test(error.message) ? ' A migração 20261113223000 já foi aplicada?' : '';
     throw new Error(`${c.slug}: ${error.message}.${dica}`);
   }
-  const pacotes = await db.from('casas_pacotes').insert(c.pacotes.map((p) => linhaDePacote(casa.id, p)));
-  if (pacotes.error) throw new Error(`${c.slug}: casa gravada (desligada), mas os pacotes não: ${pacotes.error.message}`);
-  const bloqueios = await db
-    .from('casas_bloqueios')
-    .insert(c.bloqueios.map((b) => ({ casa_id: casa.id, inicio: b.inicio, fim: b.fim, origem: 'manual', referencia: b.referencia })));
-  if (bloqueios.error) throw new Error(`${c.slug}: casa e pacotes gravados (desligada), mas os bloqueios não: ${bloqueios.error.message}`);
+  await gravarPacotesEBloqueios(c, casa.id, c.pacotes, c.bloqueios);
   console.log(`${c.slug}: cadastrada DESLIGADA, com ${c.pacotes.length} pacotes e ${c.bloqueios.length} bloqueio(s).`);
 }

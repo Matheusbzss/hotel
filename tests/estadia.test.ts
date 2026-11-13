@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   NOITES_LIVRES_DO_FIM_DE_SEMANA,
+  casaSemPreco,
   contaEstadia,
   dataValida,
   diaDaSemana,
@@ -12,6 +13,7 @@ import {
   pacotesComValores,
   pacotesSobrepostos,
   partesDaEstadia,
+  primeiraEntradaPossivel,
   type Pacote,
   type TabelaEstadia,
 } from '../src/lib/estadia.ts';
@@ -231,7 +233,7 @@ test('o Pix é 10% sobre o total (não diária por diária), e o sinal é metade
   });
 });
 
-test('sem diária de fim de semana, o sábado e o domingo saem pela de semana; a temporada vale em todas as noites', () => {
+test('sem diária de fim de semana, o sábado e o domingo saem pela de semana; a temporada nunca baixa o fim de semana', () => {
   const semFds = contaEstadia({ ...FERRADURA, diariaFimDeSemanaCentavos: null }, '2026-12-11', '2026-12-14');
   assert.equal(semFds.totalCentavos, 300000);
   assert.ok(semFds.noites.every((n) => n.tipo === 'semana'));
@@ -239,9 +241,34 @@ test('sem diária de fim de semana, o sábado e o domingo saem pela de semana; a
     ...FERRADURA,
     periodos: [{ tipo: 'temporada', nome: nome('Alta'), de: '2026-12-07', ate: '2026-12-20', diariaCentavos: 120000, minimoNoites: 3 }],
   };
+  // a "alta" de R$ 1.200,00 sobe a sexta; o sábado e o domingo continuam em R$ 1.300,00 (a maior das duas)
   const fds = contaEstadia(comTemporada, '2026-12-11', '2026-12-14');
-  assert.equal(fds.totalCentavos, 360000);
-  assert.ok(fds.noites.every((n) => n.tipo === 'temporada'));
+  assert.deepEqual(
+    fds.noites.map((n) => [n.diariaCentavos, n.tipo]),
+    [
+      [120000, 'temporada'],
+      [130000, 'fim-de-semana'],
+      [130000, 'fim-de-semana'],
+    ],
+  );
+  assert.equal(fds.totalCentavos, 380000);
+  // o exemplo do revisor: uma temporada de R$ 1.100,00 em janeiro não derruba o fim de semana de R$ 3.600,00
+  const janeiro: TabelaEstadia = {
+    ...FERRADURA,
+    periodos: [{ tipo: 'temporada', nome: nome('Alta'), de: '2027-01-04', ate: '2027-01-31', diariaCentavos: 110000 }],
+  };
+  assert.equal(contaEstadia(janeiro, '2027-01-08', '2027-01-11').totalCentavos, 110000 + 2 * 130000);
+  // uma temporada mais cara que o fim de semana vale também no sábado e no domingo
+  const cara = contaEstadia({ ...janeiro, periodos: [{ ...janeiro.periodos[0], diariaCentavos: 150000 }] }, '2027-01-08', '2027-01-11');
+  assert.equal(cara.totalCentavos, 3 * 150000);
+  assert.ok(cara.noites.every((n) => n.tipo === 'temporada'));
+  // o feriado vale por cima de tudo, inclusive no sábado e no domingo
+  const feriado = contaEstadia(
+    { ...FERRADURA, periodos: [{ tipo: 'feriado', nome: nome('Feriado'), de: '2026-12-11', ate: '2026-12-13', diariaCentavos: 125000 }] },
+    '2026-12-11',
+    '2026-12-14',
+  );
+  assert.equal(feriado.totalCentavos, 3 * 125000);
   const curta = contaEstadia(comTemporada, '2026-12-14', '2026-12-16');
   assert.equal(curta.motivo, 'minimo');
   assert.equal(curta.minimoNoites, 3);
@@ -278,4 +305,59 @@ test('os pacotes em grupos, a sobreposição proibida, os valores de cada opçã
   );
   assert.equal(menorDiariaCentavos(FERRADURA), 100000);
   assert.equal(menorDiariaCentavos({ ...GERIBA, pacotes: [] }), 150000);
+});
+
+test('casa sem preço não vende: nenhuma noite sai por R$ 0,00 (motivo "preco", sem valores)', () => {
+  // a diária de fim de semana zerada (o banco recusa, mas a conta também): sexta a segunda não sai por R$ 1.000,00
+  const fdsZero = contaEstadia({ ...FERRADURA, diariaFimDeSemanaCentavos: 0 }, '2026-12-11', '2026-12-14');
+  assert.equal(fdsZero.ok, false);
+  assert.equal(fdsZero.motivo, 'preco');
+  assert.deepEqual(valores(fdsZero), [0, 0, 0, 0, 0, 0]);
+  assert.deepEqual(fdsZero.noites, []);
+  // a diária de semana vazia no banco vira 0 (tabelaDaCasa): nem as noites de semana nem o pacote saem de graça
+  const semDiaria = { ...FERRADURA, diariaCentavos: 0 };
+  assert.equal(contaEstadia(semDiaria, '2026-12-14', '2026-12-16').motivo, 'preco');
+  assert.equal(contaEstadia(semDiaria, '2027-02-05', '2027-02-10').motivo, 'preco');
+  assert.equal(casaSemPreco(semDiaria), true);
+  assert.equal(casaSemPreco({ diariaCentavos: 100000, diariaFimDeSemanaCentavos: null }), false);
+  assert.equal(casaSemPreco({ diariaCentavos: Number.NaN }), true);
+  // um período com diária zero também não
+  const periodoZero = contaEstadia(
+    { ...FERRADURA, periodos: [{ tipo: 'temporada', nome: nome('Zero'), de: '2026-12-14', ate: '2026-12-20', diariaCentavos: 0 }] },
+    '2026-12-14',
+    '2026-12-16',
+  );
+  assert.equal(periodoZero.motivo, 'preco');
+  // a página não mostra "a partir de R$ 0,00"
+  assert.equal(menorDiariaCentavos(semDiaria), null);
+  assert.equal(menorDiariaCentavos({ ...FERRADURA, diariaFimDeSemanaCentavos: 0 }), null);
+  assert.equal(
+    menorDiariaCentavos({
+      ...FERRADURA,
+      periodos: [{ tipo: 'temporada', nome: nome('Zero'), de: '2026-12-14', ate: '2026-12-20', diariaCentavos: 0 }],
+    }),
+    100000,
+  );
+});
+
+test('o primeiro dia de entrada: depois das 13h (2 horas antes das 15h), a noite de hoje já não vende e conta como passada', () => {
+  // sexta, 11/12/2026, no fuso de Búzios
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T12:00:00-03:00')), '2026-12-11');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T13:00:00-03:00')), '2026-12-11');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T13:01:00-03:00')), '2026-12-12');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T18:00:00-03:00')), '2026-12-12');
+  // 23h30 em Búzios já é o dia seguinte em UTC: a conta usa o fuso de Búzios
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T23:30:00-03:00')), '2026-12-12');
+  // sexta às 18h: sábado a segunda passa (a sexta ficou para trás); ao meio-dia, ainda pede a sexta
+  const sextaTarde = primeiraEntradaPossivel(new Date('2026-12-11T18:00:00-03:00'));
+  assert.equal(contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: sextaTarde }).ok, true);
+  const sextaCedo = primeiraEntradaPossivel(new Date('2026-12-11T12:00:00-03:00'));
+  const cedo = contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: sextaCedo });
+  assert.equal(cedo.motivo, 'fim-de-semana');
+  assert.deepEqual(cedo.faltam, ['2026-12-11']);
+  // e a sexta à tarde não vende a entrada de hoje
+  assert.equal(contaEstadia(FERRADURA, '2026-12-11', '2026-12-14', { hoje: sextaTarde }).motivo, 'datas');
+  // sábado às 18h: domingo a terça passa
+  const sabadoTarde = primeiraEntradaPossivel(new Date('2026-12-12T18:00:00-03:00'));
+  assert.equal(contaEstadia(FERRADURA, '2026-12-13', '2026-12-15', { hoje: sabadoTarde }).ok, true);
 });

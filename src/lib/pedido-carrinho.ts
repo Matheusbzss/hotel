@@ -3,7 +3,7 @@ import type { Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import type { Conferida } from './carrinho-servidor';
 import type { TrechoEscolhido } from './carrinho';
-import { linhaDeBloqueioDoSite, type BloqueioDoSite } from './casas-banco';
+import { argsDePrenderDatas, type BloqueioDoSite } from './casas-banco';
 import type { FormaPagamento } from './formas-pagamento';
 import type { Origem } from './origem';
 import { obterOpcao, temOpcoes } from './precos';
@@ -116,18 +116,18 @@ export class DatasIndisponiveis extends Error {
 }
 
 /**
- * Reserva as datas das casas do pedido em casas_bloqueios, com a sessão de pagamento como referência. Tudo ou
- * nada: se alguma estadia esbarrar numa já vendida pelo site (trava do banco, código 23P01), lança
- * DatasIndisponiveis e nenhum bloqueio fica.
+ * Reserva as datas das casas do pedido pela função do banco prender_datas_casas (migração 20261113223000), com a
+ * sessão de pagamento como referência: é o ÚNICO caminho que grava uma estadia do site em casas_bloqueios. A função
+ * trava as casas, confere TODOS os bloqueios de cada uma (reserva do site, bloqueio à mão e calendário de fora), e
+ * não só os do site, como a trava antiga, e grava tudo ou nada. Se alguma noite já estiver ocupada, ela devolve false
+ * e aqui sai DatasIndisponiveis, sem nenhum bloqueio gravado. Nunca insira direto na tabela: a inserção direta
+ * passaria por cima de um bloqueio à mão e, ao lado da função, as duas poderiam travar uma à outra.
  */
 export async function bloquearCasasDoPedido(estadias: BloqueioDoSite[], sessaoId: string): Promise<void> {
   if (!estadias.length || !usarBanco()) return;
-  const { error } = await supabase()
-    .from('casas_bloqueios')
-    .insert(estadias.map((e) => linhaDeBloqueioDoSite(e, sessaoId)));
-  if (!error) return;
-  if (error.code === '23P01') throw new DatasIndisponiveis();
-  throw new Error(`Banco de dados: ${error.message}`);
+  const { data, error } = await supabase().rpc('prender_datas_casas', argsDePrenderDatas(estadias, sessaoId));
+  if (error) throw new Error(`Banco de dados: ${error.message}`);
+  if (data !== true) throw new DatasIndisponiveis();
 }
 
 /** Libera as datas presas a uma sessão de pagamento (ela venceu, ou o pedido foi cancelado). Devolve quantas saíram. */

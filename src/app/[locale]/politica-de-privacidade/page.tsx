@@ -2,16 +2,17 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PaginaLegal } from '@/components/PaginaLegal';
 import { RedefinirCookies } from '@/components/RedefinirCookies';
-import { PRIVACIDADE } from '@/content/legal/privacidade';
+import { textosLegais } from '@/content/legal/online';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
+import { pagamentoOnlineNoAr } from '@/lib/formas-pagamento';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/politica-de-privacidade'>): Promise<Metadata> {
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
-  const doc = texto(PRIVACIDADE, locale);
+  const doc = texto(textosLegais(pagamentoOnlineNoAr()).privacidade, locale);
   return {
     title: doc.titulo,
     description: doc.descricao,
@@ -24,9 +25,12 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
+  // com o pagamento online no ar para o público, a versão dele (src/content/legal/online.ts); senão, a de hoje
+  const legais = textosLegais(pagamentoOnlineNoAr());
   return (
     <PaginaLegal
-      doc={texto(PRIVACIDADE, locale)}
+      doc={texto(legais.privacidade, locale)}
+      atualizadoEm={legais.atualizadoEm}
       idioma={locale}
       d={d}
       caminho="/politica-de-privacidade"

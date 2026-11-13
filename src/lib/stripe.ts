@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import type { Idioma } from '../i18n/config';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { texto, type Traduzido } from '../i18n/conteudo.ts';
-import { valorDoItem, type FormaPagamento, type TipoItem } from './formas-pagamento.ts';
+import { PIX_EXPIRA_SEGUNDOS, validadeDoPix, valorDoItem, type FormaPagamento, type ItemAgendado } from './formas-pagamento.ts';
 
 /**
  * A Stripe no servidor: o cliente oficial, a sessão de pagamento embutida (cartão ou Pix), a releitura da
@@ -17,12 +17,18 @@ import { valorDoItem, type FormaPagamento, type TipoItem } from './formas-pagame
 
 /** A versão da API, fixa na do pacote `stripe` instalado: a leitura dos campos da sessão depende dela. */
 export const VERSAO_API_STRIPE = '2026-10-28.endive' as const;
-/** A sessão vale 30 minutos (o mínimo da Stripe, decisão do dono). */
+/**
+ * A sessão vale 30 minutos (decisão do dono). É o mínimo da Stripe: o expires_at da sessão vai de 30 minutos a 24 horas
+ * depois da criação ("It can be anywhere from 30 minutes to 24 hours after Checkout Session creation").
+ */
 export const VALIDADE_SESSAO_MINUTOS = 30;
 /** Um minuto de folga: a Stripe conta os 30 minutos a partir da criação, e o relógio daqui pode estar à frente. */
 const FOLGA_SEGUNDOS = 60;
-/** O QR do Pix vence junto com a sessão. */
-export const PIX_EXPIRA_SEGUNDOS = VALIDADE_SESSAO_MINUTOS * 60;
+/**
+ * O QR do Pix vale 30 minutos, ou menos perto do prazo do Pix (validadeDoPix, src/lib/formas-pagamento.ts, a regra
+ * única do prazo). A constante mora lá, porque formas-pagamento.ts não pode carregar o SDK da Stripe.
+ */
+export { PIX_EXPIRA_SEGUNDOS };
 
 export type ModoStripe = 'desligado' | 'teste' | 'producao';
 
@@ -62,19 +68,32 @@ export function localeStripe(idioma: Idioma): Stripe.Checkout.SessionCreateParam
   return LOCALES[idioma];
 }
 
-/** Um item do pedido como entra na sessão: um line_item por voucher. */
-export interface ItemDaSessao {
+/**
+ * Um item do pedido como entra na sessão: um line_item por voucher. Ele diz também quando começa (a data e a hora, de
+ * ItemAgendado): é com isso que a sessão do Pix sabe até quando o QR pode valer (validadeDoPix).
+ */
+export interface ItemDaSessao extends ItemAgendado {
   /** O código do voucher deste item. */
   voucher: string;
   /** O nome nos três idiomas (texto() escolhe), ou já traduzido para o idioma do cliente. */
   nome: string | Traduzido<string>;
   /** Uma linha a mais embaixo do nome (data e hora, pessoas), já no idioma do cliente. */
   descricao?: string;
-  tipo?: TipoItem;
   /** O total no cartão. */
   totalCentavos: number;
   /** O total no Pix (com o desconto). */
   totalPixCentavos?: number;
+}
+
+/**
+ * O pedido não pode mais abrir um Pix: o prazo dele passou entre a escolha da forma e a sessão. A rota de pagar responde
+ * 403 'forma' (como quando o prazo passa antes); a de criar o pedido trata como qualquer falha da sessão (502).
+ */
+export class PixForaDoPrazo extends Error {
+  constructor(codigo: string) {
+    super(`O prazo do Pix do pedido ${codigo} passou: a sessão do Pix não foi criada.`);
+    this.name = 'PixForaDoPrazo';
+  }
 }
 
 export interface DadosDaSessao {
@@ -94,11 +113,17 @@ export interface DadosDaSessao {
 export const nomeDoItem = (item: ItemDaSessao, idioma: Idioma): string =>
   typeof item.nome === 'string' ? item.nome : texto(item.nome, idioma);
 
-/** Os parâmetros da sessão, separados da chamada à Stripe para dar para testar sem rede. */
+/**
+ * Os parâmetros da sessão, separados da chamada à Stripe para dar para testar sem rede. No Pix, o QR vale o que
+ * validadeDoPix diz para estes itens agora (30 minutos, ou só até o prazo do Pix); fora do prazo, PixForaDoPrazo: as
+ * rotas só pedem o Pix quando ele aparece entre as formas, com o mesmo `agora`, então isso só acontece se a regra mudar.
+ */
 export function parametrosDaSessao(d: DadosDaSessao): Stripe.Checkout.SessionCreateParams {
   const { codigo } = d.pedido;
   const agora = d.agora ?? new Date();
   const pix = d.forma === 'pix';
+  const validadePix = pix ? validadeDoPix(d.itens, agora) : null;
+  if (pix && validadePix === null) throw new PixForaDoPrazo(codigo);
   return {
     ui_mode: 'embedded_page',
     mode: 'payment',
@@ -136,7 +161,8 @@ export function parametrosDaSessao(d: DadosDaSessao): Stripe.Checkout.SessionCre
       // na fatura do cartão: "ORLANATIVA* ON-ABC123" (o prefixo é o descritor da conta); o Pix ignora descritores
       ...(pix ? {} : { statement_descriptor_suffix: codigo }),
     },
-    ...(pix ? { payment_method_options: { pix: { expires_after_seconds: PIX_EXPIRA_SEGUNDOS } } } : {}),
+    // o QR do Pix: 30 minutos, ou só até o prazo do Pix (2 horas antes do primeiro serviço), contados de quando o QR aparece
+    ...(validadePix !== null ? { payment_method_options: { pix: { expires_after_seconds: validadePix } } } : {}),
     expires_at: Math.floor(agora.getTime() / 1000) + VALIDADE_SESSAO_MINUTOS * 60 + FOLGA_SEGUNDOS,
     return_url: d.returnUrl,
     redirect_on_completion: 'if_required',

@@ -2,26 +2,38 @@
 
 import { useRouter } from 'next/navigation';
 import { fmt, type Idioma } from '@/i18n/config';
+import type { EstadoDesistencia } from '@/lib/desistencia';
 import { textoDolar } from '@/lib/dolar';
-import type { FormaPagamento } from '@/lib/formas-pagamento';
+import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { formatarCentavos } from '@/lib/orcamento';
 import { partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
 import { IconeWhatsApp } from './IconeWhatsApp';
 import { PagarPedido, useStatusDoPedido, type TextosPagarPedido } from './pagamento/CheckoutEmbutido';
+import { DesistirDaCompra, type TextosDesistencia } from './pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from './pagamento/EscolhaPagamento';
 
 type T = Record<string, string>;
 
 /** O pagamento online em aberto (pendente ou expirado pela Stripe): o que a tela de pagar precisa. */
 export interface PagamentoDaReserva {
-  /** As formas que o servidor liberou agora (formasDisponiveis). */
+  /** As formas que o servidor liberou agora (formasDoPagamento). */
   formas: FormaPagamento[];
+  /** Sem o Pix, por quê: o prazo ou o limite de valor de um Pix. */
+  semPix?: MotivoSemPix;
   totais: TotaisDasFormas;
   /** A forma que o pedido tinha. */
   formaAtual?: FormaPagamento;
   textos: TextosPagarPedido;
+}
+
+/** O link "Desistir da compra" do pedido pago de um item só (o servidor decide se aparece: estadoDaDesistencia). */
+export interface DesistenciaDaReserva {
+  estado: EstadoDesistencia;
+  codigoPedido: string;
+  hrefPolitica: string;
+  textos: TextosDesistencia;
 }
 
 /**
@@ -45,6 +57,7 @@ export function StatusReserva({
   linkNovaReserva,
   urlPagina,
   pagamento,
+  desistencia,
 }: {
   inicial: ReservaPublica;
   token: string;
@@ -66,6 +79,8 @@ export function StatusReserva({
   urlPagina: string;
   /** Só com o pagamento online em aberto (pendente ou expirado pela Stripe). */
   pagamento?: PagamentoDaReserva;
+  /** Só no pedido pago pela Stripe, de um item, antes do serviço: o link de desistir da compra. */
+  desistencia?: DesistenciaDaReserva;
 }) {
   const router = useRouter();
   const online = pagamento !== undefined && (r.status === 'pendente' || r.status === 'expirado');
@@ -295,6 +310,17 @@ export function StatusReserva({
               <li>{textos.proximo3}</li>
             </ul>
           </div>
+          {/* discreto, embaixo de tudo: a desistência pela mesma ferramenta da compra (Decreto 7.962/2013) */}
+          {desistencia && (
+            <DesistirDaCompra
+              className="mt-4"
+              codigoPedido={desistencia.codigoPedido}
+              token={token}
+              estado={desistencia.estado}
+              hrefPolitica={desistencia.hrefPolitica}
+              textos={desistencia.textos}
+            />
+          )}
         </div>
       </div>
     );
@@ -315,6 +341,7 @@ export function StatusReserva({
             status={r.status}
             recusa={r.recusa}
             formas={pagamento.formas}
+            semPix={pagamento.semPix}
             totais={pagamento.totais}
             formaAtual={pagamento.formaAtual}
             urlVolta={urlPagina}

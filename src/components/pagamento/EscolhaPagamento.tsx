@@ -4,7 +4,7 @@ import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
-import type { FormaPagamento } from '@/lib/formas-pagamento';
+import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 
 /** Os textos da escolha (chaves de checkout.* e preco.*; o servidor monta a partir do dicionário). */
 export interface TextosEscolhaPagamento {
@@ -18,13 +18,21 @@ export interface TextosEscolhaPagamento {
   pixExplicacao: string;
   /** Os apps de fora do Brasil que já pagam Pix (só os confirmados). */
   pixApps: string;
+  /** Antes de pagar: o nome que o app do banco mostra no Pix pode ser o da empresa que processa o pagamento. */
+  pixRecebedor: string;
   /** "{p}% de desconto no Pix" (preco.descontoPix). */
   descontoPix: string;
   /** Quando o Pix não dá mais tempo (o serviço começa em menos de 2 horas): a frase do prazo. */
   semPixPrazo: string;
+  /** Quando o valor do pedido passa do limite de um Pix: a frase do limite. */
+  semPixLimite: string;
   /** "≈ US$ {v}" */
   dolar: string;
 }
+
+/** A frase de por que o Pix não aparece: a do limite de valor, ou a do prazo (o motivo de sempre, quando não se sabe). */
+export const fraseSemPix = (T: Pick<TextosEscolhaPagamento, 'semPixPrazo' | 'semPixLimite'>, motivo?: MotivoSemPix): string =>
+  motivo === 'limite' ? T.semPixLimite : T.semPixPrazo;
 
 /** Quanto cada forma cobra, em centavos: o total no cartão e o total no Pix (com o desconto; nas casas, o sinal). */
 export interface TotaisDasFormas {
@@ -48,11 +56,13 @@ export function formaPadrao(formas: FormaPagamento[], idioma: Idioma, atual?: Fo
 
 /**
  * Cartão ou Pix, cada um com o valor em R$ (e o ≈ US$ nos idiomas que já o mostram). O Pix some quando o servidor
- * não o liberou (pixDisponivel falso: o serviço começa em menos de 2 horas), e a frase do prazo explica. Só
- * apresenta: quem decide as formas é o servidor (formasDisponiveis).
+ * não o liberou (o serviço começa em menos de 2 horas e 10 minutos, ou o valor passa do limite de um Pix), e a frase
+ * do motivo explica. Embaixo do Pix, o aviso do nome que aparece no app do banco. Só apresenta: quem decide as formas
+ * é o servidor (formasDoPagamento).
  */
 export function EscolhaPagamento({
   formas,
+  semPix,
   escolhida,
   aoEscolher,
   totais,
@@ -63,6 +73,8 @@ export function EscolhaPagamento({
 }: {
   /** As formas que o servidor liberou agora. */
   formas: FormaPagamento[];
+  /** Por que o Pix ficou de fora, quando ficou (o servidor decide). */
+  semPix?: MotivoSemPix;
   escolhida: FormaPagamento | null;
   aoEscolher: (forma: FormaPagamento) => void;
   totais: TotaisDasFormas;
@@ -131,16 +143,21 @@ export function EscolhaPagamento({
                 )}
               </span>
               {forma === 'pix' && (
-                <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
-                  {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
-                  {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
-                </span>
+                <>
+                  <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
+                    {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
+                    {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
+                  </span>
+                  {/* com o Pix marcado, antes de pagar: o app do banco pode mostrar outro nome no recebedor, e isso não é
+                      golpe. Só com ele marcado, para a tela do celular não crescer à toa (o aviso volta em cima do QR) */}
+                  {ativa && <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">{T.pixRecebedor}</span>}
+                </>
               )}
             </label>
           );
         })}
       </div>
-      {!formas.includes('pix') && <p className="ajuda mt-3">{T.semPixPrazo}</p>}
+      {!formas.includes('pix') && <p className="ajuda mt-3">{fraseSemPix(T, semPix)}</p>}
     </fieldset>
   );
 }

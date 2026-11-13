@@ -19,6 +19,7 @@ import { texto } from '@/i18n/conteudo';
 import { avaliacoesDoSite, opinioesDoSite } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
+import { comPagamentoOnline } from '@/lib/textos-do-site';
 
 /** Foto real de cada cidade no cartão do mapa (das fotos dos passeios da agência). */
 const FOTO_CIDADE: Partial<Record<Cidade, string>> = {
@@ -42,7 +43,8 @@ export async function generateMetadata({ params }: PageProps<'/[locale]'>): Prom
 export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
-  const d = dicionario(locale);
+  // a FAQ das formas de pagamento e de segurança e o aviso do WhatsApp seguem o interruptor do pagamento online
+  const d = comPagamentoOnline(dicionario(locale));
   const H = d.home;
   const passeios = passeiosAtivos();
   // sem o banco, a página abre sem a seção: as opiniões nunca podem derrubar a inicial

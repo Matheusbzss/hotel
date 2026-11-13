@@ -9,11 +9,18 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
-import type { FormaPagamento } from '@/lib/formas-pagamento';
+import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import type { StatusReserva } from '@/lib/reservas';
-import { EscolhaPagamento, formaPadrao, valorDaForma, type TextosEscolhaPagamento, type TotaisDasFormas } from './EscolhaPagamento';
+import {
+  EscolhaPagamento,
+  formaPadrao,
+  fraseSemPix,
+  valorDaForma,
+  type TextosEscolhaPagamento,
+  type TotaisDasFormas,
+} from './EscolhaPagamento';
 
 /**
  * O checkout embutido da Stripe: o formulário dela (cartão, carteiras ou o QR do Pix) dentro da nossa página.
@@ -48,11 +55,15 @@ function stripeDoNavegador(): Promise<Stripe | null> {
 
 /**
  * O que a rota de pagar devolve: a sessão nova (client_secret) ou o motivo de não ter aberto uma. Os erros do
- * servidor: 'forma' (a forma não vale mais para estes itens: o prazo dela passou, ou o interruptor fechou),
- * 'status' (o pedido não está pendente nem expirado: pago em outra aba, cancelado), 'limite' (muitas tentativas),
- * 'nao-encontrado', 'stripe'; 'rede' é daqui, quando a chamada nem chegou.
+ * servidor: 'forma' (a forma não vale mais para estes itens: o prazo dela passou, o valor passa do limite do Pix, ou o
+ * interruptor fechou; sem o Pix, `semPix` diz o motivo), 'status' (o pedido não está pendente nem expirado: pago em
+ * outra aba, cancelado), 'limite' (muitas tentativas), 'nao-encontrado', 'stripe'; 'rede' é daqui, quando a chamada
+ * nem chegou.
  */
-type RespostaPagar = { clientSecret: string } | { erro: string };
+type RespostaPagar = { clientSecret: string } | { erro: string; semPix?: MotivoSemPix };
+
+/** O motivo de o Pix ter ficado de fora, como o servidor manda no erro 'forma' (qualquer outra coisa vira nada). */
+export const motivoSemPix = (valor: unknown): MotivoSemPix | undefined => (valor === 'prazo' || valor === 'limite' ? valor : undefined);
 
 /** Pede ao servidor uma sessão de pagamento nova para o pedido (POST /api/pedido/[codigo]/pagar, com o token do link privado). */
 export async function pedirNovaSessao(codigoPedido: string, token: string, forma: FormaPagamento): Promise<RespostaPagar> {
@@ -62,9 +73,10 @@ export async function pedirNovaSessao(codigoPedido: string, token: string, forma
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ t: token, forma }),
     });
-    const corpo = (await res.json().catch(() => ({}))) as { ok?: boolean; clientSecret?: string; erro?: string };
+    const corpo = (await res.json().catch(() => ({}))) as { ok?: boolean; clientSecret?: string; erro?: string; semPix?: unknown };
     if (res.ok && corpo.ok && corpo.clientSecret) return { clientSecret: corpo.clientSecret };
-    return { erro: corpo.erro ?? 'generico' };
+    const semPix = motivoSemPix(corpo.semPix);
+    return { erro: corpo.erro ?? 'generico', ...(semPix ? { semPix } : {}) };
   } catch {
     return { erro: 'rede' };
   }
@@ -121,6 +133,10 @@ export interface TextosCheckoutEmbutido {
   dicaInternacional: string;
   tentarOutroCartao: string;
   semPixPrazo: string;
+  /** Quando o valor do pedido passa do limite de um Pix. */
+  semPixLimite: string;
+  /** Em cima do QR do Pix: o nome que o app do banco mostra pode ser o da empresa que processa o pagamento. */
+  pixRecebedor: string;
   /** O motivo da recusa em linguagem simples, por chave (src/lib/recusas.ts). */
   recusa: Record<ChaveRecusa, string>;
   processando: string;
@@ -135,6 +151,7 @@ export function CheckoutEmbutido({
   token,
   idioma,
   pixDisponivel,
+  semPix: semPixDoServidor,
   urlVolta,
   textos: T,
   aoTrocarForma,
@@ -149,8 +166,10 @@ export function CheckoutEmbutido({
   codigoConsulta: string;
   token: string;
   idioma: Idioma;
-  /** O Pix ainda dá tempo (o servidor decidiu): a oferta depois do cartão recusado só aparece com ele. */
+  /** O Pix ainda vale para este pedido (o servidor decidiu): a oferta depois do cartão recusado só aparece com ele. */
   pixDisponivel: boolean;
+  /** Sem o Pix, por quê (o prazo ou o limite de valor), para a frase no lugar da oferta. */
+  semPix?: MotivoSemPix;
   /** A página do pedido com o token: para onde a página vai ao concluir ou quando o servidor fecha o pedido. */
   urlVolta: string;
   textos: TextosCheckoutEmbutido;
@@ -164,8 +183,10 @@ export function CheckoutEmbutido({
   const [recusa, setRecusa] = useState<ChaveRecusa | undefined>();
   const [trocando, setTrocando] = useState(false);
   const [erro, setErro] = useState('');
-  // o servidor avisou que o Pix não vale mais (o prazo de 2 h passou com o checkout aberto): a oferta sai da tela
+  // o servidor avisou que o Pix não vale mais (o prazo de 2 h passou com o checkout aberto): a oferta sai da tela, e o
+  // motivo que ele mandou entra no lugar
   const [semPix, setSemPix] = useState(false);
+  const [motivoDoServidor, setMotivoDoServidor] = useState<MotivoSemPix | undefined>();
   const avisoRef = useRef<HTMLDivElement>(null);
 
   // a página inteira recarrega: o estado de verdade (pago, confirmando, expirado) vem do servidor. Tem de ser assim
@@ -221,6 +242,7 @@ export function CheckoutEmbutido({
       // o prazo do Pix passou com o checkout aberto: no lugar da oferta entra o convite para outro cartão (a
       // sessão do cartão que está aberta aqui continua valendo, o servidor não a fechou)
       setSemPix(true);
+      setMotivoDoServidor(resposta.semPix);
     } else setErro(T.erroGenerico);
     setTrocando(false);
   }
@@ -240,12 +262,14 @@ export function CheckoutEmbutido({
             </button>
           ) : (
             <p className="mt-2 text-small">
-              {T.semPixPrazo} {T.tentarOutroCartao}
+              {fraseSemPix(T, motivoDoServidor ?? semPixDoServidor)} {T.tentarOutroCartao}
             </p>
           )}
           {erro && <p className="mt-2 text-small font-semibold">{erro}</p>}
         </div>
       )}
+      {/* em cima do QR, antes de o cliente abrir o app do banco: o recebedor pode aparecer com outro nome, e não é golpe */}
+      {formaAtual === 'pix' && !semStripe && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
       {semStripe ? (
         <p role="alert" className="bg-erro-claro px-4 py-3 font-semibold text-mar">
           {T.erroGenerico}
@@ -307,6 +331,7 @@ export function PagarPedido({
   status,
   recusa: recusaInicial,
   formas,
+  semPix,
   totais,
   formaAtual,
   urlVolta,
@@ -325,6 +350,8 @@ export function PagarPedido({
   recusa?: ChaveRecusa;
   /** As formas que o servidor liberou agora para este pedido. */
   formas: FormaPagamento[];
+  /** Sem o Pix, por quê (o prazo ou o limite de valor de um Pix): o servidor decide junto com as formas. */
+  semPix?: MotivoSemPix;
   totais: TotaisDasFormas;
   /** A forma que o pedido tinha (metodo_pagamento). */
   formaAtual?: FormaPagamento;
@@ -385,7 +412,7 @@ export function PagarPedido({
       router.refresh();
     } else if (resposta.erro === 'forma') {
       // a forma deixou de valer enquanto o cliente escolhia (passou o prazo do Pix, ou o do cartão): a página relê as formas
-      setErro(escolhida === 'pix' ? T.semPixPrazo : T.semPrazo);
+      setErro(escolhida === 'pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo);
       router.refresh();
     } else setErro(T.erroGenerico);
     setCriando(false);
@@ -414,6 +441,7 @@ export function PagarPedido({
             token={token}
             idioma={idioma}
             pixDisponivel={formas.includes('pix')}
+            semPix={semPix}
             urlVolta={urlVolta}
             textos={T}
             aoTrocarForma={setForma}
@@ -465,6 +493,7 @@ export function PagarPedido({
             )}
             <EscolhaPagamento
               formas={formas}
+              semPix={semPix}
               escolhida={formaValida}
               aoEscolher={setForma}
               totais={totais}

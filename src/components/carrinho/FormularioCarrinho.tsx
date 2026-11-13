@@ -7,7 +7,7 @@ import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
-import type { FormaPagamento } from '@/lib/formas-pagamento';
+import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
 import {
@@ -23,10 +23,11 @@ import { Campo, descricao } from '../Campo';
 import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
-import { CheckoutEmbutido, type TextosCheckoutEmbutido } from '../pagamento/CheckoutEmbutido';
+import { CheckoutEmbutido, motivoSemPix, type TextosCheckoutEmbutido } from '../pagamento/CheckoutEmbutido';
 import {
   EscolhaPagamento,
   formaPadrao,
+  fraseSemPix,
   valorDaForma,
   type TextosEscolhaPagamento,
   type TotaisDasFormas,
@@ -59,16 +60,22 @@ export interface TextosPagamentoOnline {
   dicaInternacional: string;
   tentarOutroCartao: string;
   semPixPrazo: string;
+  /** Quando o valor do pedido passa do limite de um Pix (pedido.semPixLimite). */
+  semPixLimite: string;
+  /** O aviso do nome que o app do banco mostra no Pix (checkout.pixRecebedor). */
+  pixRecebedor: string;
   recusa: Record<ChaveRecusa, string>;
 }
 
 /**
- * O pagamento online, quando o servidor liberou cartão e/ou Pix (formasDisponiveis, com o interruptor
- * PAGAMENTO_ONLINE e o prazo dos itens; a página monta com pagamentoDoCheckout). Sem ele, ou com a lista
- * vazia, o checkout continua como hoje: registra o pedido e finaliza com a equipe pelo WhatsApp.
+ * O pagamento online, quando o servidor liberou cartão e/ou Pix (formasDoPagamento, com o interruptor
+ * PAGAMENTO_ONLINE, o prazo dos itens e o limite de valor do Pix; a página monta com pagamentoDoCheckout). Sem ele, ou
+ * com a lista vazia, o checkout continua como hoje: registra o pedido e finaliza com a equipe pelo WhatsApp.
  */
 export interface PagamentoOnlineCarrinho {
   formas: FormaPagamento[];
+  /** Sem o Pix, por quê: o prazo ou o limite de valor de um Pix. */
+  semPix?: MotivoSemPix;
   textos: TextosPagamentoOnline;
 }
 
@@ -142,8 +149,10 @@ export function FormularioCarrinho({
   const T = textos.transfer;
   const K = textos.carrinho;
   const P = textos.preco;
-  // as formas que o servidor liberou; a lista encolhe se ele recusar uma na hora de enviar (o prazo de 2 h passou)
+  // as formas que o servidor liberou; a lista encolhe se ele recusar uma na hora de enviar (o prazo de 2 h passou), e o
+  // motivo de o Pix ficar de fora (o prazo ou o limite de valor) acompanha
   const [formas, setFormas] = useState<FormaPagamento[]>(pagamentoOnline?.formas ?? []);
+  const [semPix, setSemPix] = useState<MotivoSemPix | undefined>(pagamentoOnline?.semPix);
   const online = formas.length > 0 && pagamentoOnline !== undefined;
   const { itens: atuais, carregado, remover, recarregar } = useCarrinho();
   const itens = carregado ? atuais : inicial;
@@ -271,8 +280,9 @@ export function FormularioCarrinho({
         itens?: number;
         clientSecret?: string;
         erro?: string;
-        /** Com o erro 'forma': as formas que ainda valem para estes itens. */
+        /** Com o erro 'forma': as formas que ainda valem para estes itens e, sem o Pix, o motivo. */
         formas?: unknown[];
+        semPix?: unknown;
       };
       if (corpo.ok && corpo.codigo && corpo.token) {
         if (online && forma && corpo.clientSecret) {
@@ -307,10 +317,12 @@ export function FormularioCarrinho({
       } else if (corpo.erro === 'forma') {
         // a forma deixou de valer enquanto o cliente preenchia (o prazo de 2 h passou): a lista encolhe para o que o servidor ainda aceita
         const restantes = (corpo.formas ?? []).filter((f): f is FormaPagamento => f === 'pix' || f === 'cartao');
+        const motivo = restantes.includes('pix') ? undefined : motivoSemPix(corpo.semPix);
         setFormas(restantes);
+        setSemPix(motivo);
         setForma(formaPadrao(restantes, idioma, forma ?? undefined));
         setErroGeral(
-          forma === 'pix' && !restantes.includes('pix') ? (pagamentoOnline?.textos.semPixPrazo ?? C.erros.generico) : C.erros.generico,
+          forma === 'pix' && !restantes.includes('pix') && pagamentoOnline ? fraseSemPix(pagamentoOnline.textos, motivo) : C.erros.generico,
         );
       } else setErroGeral(C.erros.generico);
     } catch {
@@ -368,6 +380,8 @@ export function FormularioCarrinho({
       dicaInternacional: O.dicaInternacional,
       tentarOutroCartao: O.tentarOutroCartao,
       semPixPrazo: O.semPixPrazo,
+      semPixLimite: O.semPixLimite,
+      pixRecebedor: O.pixRecebedor,
       recusa: O.recusa,
       processando: C.processando,
       erroGenerico: C.erros.generico,
@@ -444,6 +458,7 @@ export function FormularioCarrinho({
               token={sessao.token}
               idioma={idioma}
               pixDisponivel={formas.includes('pix')}
+              semPix={semPix}
               urlVolta={urlVolta}
               textos={textosCheckout}
               aoTrocarForma={(nova) => setSessao((s) => (s ? { ...s, forma: nova } : s))}
@@ -464,8 +479,10 @@ export function FormularioCarrinho({
         cartaoAvista: C.cartaoAvista,
         pixExplicacao: C.pixExplicacao,
         pixApps: C.pixApps,
+        pixRecebedor: pagamentoOnline.textos.pixRecebedor,
         descontoPix: P.descontoPix,
         semPixPrazo: pagamentoOnline.textos.semPixPrazo,
+        semPixLimite: pagamentoOnline.textos.semPixLimite,
         dolar: P.dolar,
       }
     : null;
@@ -701,6 +718,7 @@ export function FormularioCarrinho({
         {online && textosEscolha ? (
           <EscolhaPagamento
             formas={formas}
+            semPix={semPix}
             escolhida={forma}
             aoEscolher={setForma}
             totais={totais}

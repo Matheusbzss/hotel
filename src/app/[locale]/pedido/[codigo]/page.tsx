@@ -5,15 +5,17 @@ import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
 import { ComDolar, Pedaco, Pedacos } from '@/components/ComDolar';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
+import { DesistirDaCompra } from '@/components/pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from '@/components/pagamento/EscolhaPagamento';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { formatarCifra } from '@/lib/cifra';
+import { estadoDaDesistencia } from '@/lib/desistencia';
 import { textoDolar } from '@/lib/dolar';
 import { linkEmail } from '@/lib/email';
-import { formasDisponiveis, mostrarWhatsApp, type FormaPagamento } from '@/lib/formas-pagamento';
+import { formasDoPagamento, mostrarWhatsApp, type FormaPagamento, type MotivoSemPix } from '@/lib/formas-pagamento';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
 import {
@@ -22,6 +24,7 @@ import {
   pagamentoEmAberto,
   paraPublico,
   textoReembolsado,
+  textosDaDesistencia,
   textosDoPagamento,
   tokenConfere,
   totaisDasFormas,
@@ -134,17 +137,20 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // sem pagamento aprovado não há WhatsApp: a dúvida vai por e-mail
   const contato = { href: linkEmail(d.contato.assunto, `${d.contato.msg} (${codigo})`), rotulo: d.contato.botao };
 
-  // pagamento online em aberto: as formas que ainda dão tempo, decididas aqui no servidor
-  let pagamento: { formas: FormaPagamento[]; totais: TotaisDasFormas; formaAtual?: FormaPagamento } | null = null;
+  // pagamento online em aberto: as formas que ainda valem (e por que o Pix ficou de fora), decididas aqui no servidor
+  let pagamento: { formas: FormaPagamento[]; semPix?: MotivoSemPix; totais: TotaisDasFormas; formaAtual?: FormaPagamento } | null = null;
   if (statusOnline) {
     const pagaveis = itensPagaveis(reservas);
     const admin = sessaoValida((await cookies()).get(COOKIE_ADMIN)?.value);
     pagamento = {
-      formas: await formasDisponiveis(pagaveis, new Date(), { admin }),
+      ...(await formasDoPagamento(pagaveis, new Date(), { admin })),
       totais: totaisDasFormas(pagaveis),
       ...(primeira.pagamento.metodo !== 'whatsapp' ? { formaAtual: primeira.pagamento.metodo } : {}),
     };
   }
+  // pago pela Stripe, antes do primeiro serviço: o link discreto de desistir da compra (ou o aviso de que o pedido de
+  // desistência já chegou). Só pela Stripe: o pedido do WhatsApp nunca passou pela "ferramenta da compra" do site
+  const desistencia = estadoDaDesistencia(reservas, new Date());
 
   // os valores na tela: em aberto, só os das formas que ainda valem (no pagamento online, o Pix some 2 horas antes
   // do serviço); fechado, o que foi pago
@@ -195,6 +201,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
               status={statusOnline}
               recusa={itens[0]?.recusa}
               formas={pagamento.formas}
+              semPix={pagamento.semPix}
               totais={pagamento.totais}
               formaAtual={pagamento.formaAtual}
               urlVolta={urlPagina}
@@ -236,6 +243,16 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                 <a href={contato.href} className="botao botao-vazado mt-8 w-full sm:w-auto" data-evento="Contact">
                   {contato.rotulo}
                 </a>
+              )}
+              {desistencia && (
+                <DesistirDaCompra
+                  className="mt-8"
+                  codigoPedido={codigo}
+                  token={token}
+                  estado={desistencia}
+                  hrefPolitica={rota(locale, '/politica-de-cancelamento')}
+                  textos={textosDaDesistencia(d)}
+                />
               )}
             </>
           )}

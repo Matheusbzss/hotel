@@ -9,14 +9,16 @@ import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
+import { estadoDaDesistencia } from '@/lib/desistencia';
 import { linkEmail } from '@/lib/email';
-import { formasDisponiveis, mostrarWhatsApp } from '@/lib/formas-pagamento';
+import { formasDoPagamento, mostrarWhatsApp } from '@/lib/formas-pagamento';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import {
   itensPagaveis,
   linkDoPedido,
   paraPublico,
   textoReembolsado,
+  textosDaDesistencia,
   textosDoPagamento,
   tokenConfere,
   totaisDasFormas,
@@ -68,18 +70,29 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
   // sem pagamento aprovado não há WhatsApp: a dúvida vai por e-mail
   const contato = { href: linkEmail(d.contato.assunto, `${d.contato.msg} (${publica.codigo})`), rotulo: d.contato.botao };
 
-  // pagamento online em aberto: as formas que ainda dão tempo, decididas aqui no servidor
+  // pagamento online em aberto: as formas que ainda valem (e por que o Pix ficou de fora), decididas aqui no servidor
   let pagamento: PagamentoDaReserva | undefined;
   if (provedorDaReserva(reserva) === 'stripe' && (publica.status === 'pendente' || publica.status === 'expirado')) {
     const itens = itensPagaveis([reserva]);
     const admin = sessaoValida((await cookies()).get(COOKIE_ADMIN)?.value);
     pagamento = {
-      formas: await formasDisponiveis(itens, new Date(), { admin }),
+      ...(await formasDoPagamento(itens, new Date(), { admin })),
       totais: totaisDasFormas(itens),
       ...(reserva.pagamento.metodo !== 'whatsapp' ? { formaAtual: reserva.pagamento.metodo } : {}),
       textos: textosDoPagamento(d),
     };
   }
+  // o pedido de um item só, pago pela Stripe e antes do serviço: o link de desistir da compra fica aqui. No voucher de
+  // um pedido com vários itens, ele fica na página do pedido (a desistência é do pedido inteiro)
+  const estadoDesistencia = reserva.pedido ? null : estadoDaDesistencia([reserva], new Date());
+  const desistencia = estadoDesistencia
+    ? {
+        estado: estadoDesistencia,
+        codigoPedido: reserva.codigo,
+        hrefPolitica: rota(locale, '/politica-de-cancelamento'),
+        textos: textosDaDesistencia(d),
+      }
+    : undefined;
 
   return (
     <main id="conteudo" className="tom-fundo moldura pb-24 pt-8 md:pb-32 md:pt-12">
@@ -103,6 +116,7 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         linkNovaReserva={rota(locale, publica.tipo === 'transfer' ? '/transfer' : `/passeios/${publica.passeioSlug}`)}
         urlPagina={urlPagina}
         pagamento={pagamento}
+        desistencia={desistencia}
         statusTextos={d.status}
         textos={{
           ...d.reserva,

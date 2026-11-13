@@ -10,6 +10,7 @@ import { LUGARES, TRAJETOS, VEICULOS } from '../src/data/transfer.ts';
 import { CANCELAMENTO } from '../src/content/legal/cancelamento.ts';
 import { PRIVACIDADE } from '../src/content/legal/privacidade.ts';
 import { TERMOS } from '../src/content/legal/termos.ts';
+import { CANCELAMENTO_ONLINE, PRIVACIDADE_ONLINE, TERMOS_ONLINE } from '../src/content/legal/online.ts';
 import { frasesDoDocumento } from '../src/content/legal/argentino.ts';
 import { HREFLANG, LOCALE_INTL, OG_LOCALE, rota } from '../src/i18n/config.ts';
 import { texto } from '../src/i18n/conteudo.ts';
@@ -124,11 +125,14 @@ const DADOS = [
 ];
 for (const { trilha, campo } of DADOS) juntar(trilha, lista(texto(campo, 'es')), lista(texto(campo, 'es-ar')));
 
-// 4. os textos legais
+// 4. os textos legais, os de hoje e os da versão do pagamento online (src/content/legal/online.ts)
 for (const [nome, doc] of [
   ['termos', TERMOS],
   ['cancelamento', CANCELAMENTO],
   ['privacidade', PRIVACIDADE],
+  ['termos-online', TERMOS_ONLINE],
+  ['cancelamento-online', CANCELAMENTO_ONLINE],
+  ['privacidade-online', PRIVACIDADE_ONLINE],
 ] as const) {
   juntar(`legal ${nome}`, frasesDoDocumento(texto(doc, 'es')), frasesDoDocumento(texto(doc, 'es-ar')));
 }
@@ -234,6 +238,10 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   'legal termos': 12,
   'legal cancelamento': 12,
   'legal privacidade': 13,
+  // as versões do pagamento online: as mesmas frases com vos, menos as trocadas, mais as novas com vos
+  'legal termos-online': 12,
+  'legal cancelamento-online': 12,
+  'legal privacidade-online': 12,
   voucher: 1,
   foto: 9,
   TEXTOS_GUIA: 1,

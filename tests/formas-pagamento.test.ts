@@ -4,19 +4,31 @@ import { HORA_ENTRADA_CASA, orcamentoCasa, orcamentoCasaCentavos, sinalCentavos,
 import {
   ANTECEDENCIA_CARTAO_MINUTOS,
   FORMAS_PAGAMENTO,
+  PIX_EXPIRA_SEGUNDOS,
+  PIX_LIMITE_DOLARES,
+  PIX_TETO_SEM_COTACAO_CENTAVOS,
+  PIX_VALIDADE_MINIMA_SEGUNDOS,
   cartaoDisponivel,
   dentroDoPrazo,
+  escolherFormas,
   formasDisponiveis,
+  formasDoPagamento,
   inicioDoItem,
   isFormaPagamento,
+  limiteDoPixCentavos,
   modoPagamentoOnline,
   mostrarWhatsApp,
+  pagamentoOnlineNoAr,
+  pixCabeNoLimite,
   pixDisponivel,
+  segundosAteOInicio,
   totalDoItem,
+  validadeDoPix,
   valorACobrar,
   valorDoItem,
   type ItemAgendado,
   type ItemCobravel,
+  type ItemPagavel,
 } from '../src/lib/formas-pagamento.ts';
 import { ANTECEDENCIA_MINIMA_MINUTOS } from '../src/lib/horarios.ts';
 import { partesDoTotal } from '../src/lib/partes-do-total.ts';
@@ -143,13 +155,16 @@ test('o prazo do Pix atravessa a meia-noite: o serviço da madrugada de amanhã 
   // o prazo do cartão também atravessa a virada: às 23h30 faltam 30 minutos (vale); às 23h31, 29 (não vale)
   assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T23:30')), true);
   assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T23:31')), false);
-  // 22h, transfer à meia-noite: faltam exatamente 120 minutos. O Pix ainda vale.
-  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T22:00')), true);
+  // 21h50, transfer à meia-noite: faltam 130 minutos, e o QR ainda vale os 10 minutos mínimos. O Pix vale; às 21h51, não
+  // (o QR teria só 9 minutos) e, às 22h (faltam exatamente 120), também não
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T21:50')), true);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T21:51')), false);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '00:00')], as('2026-11-02T22:00')), false);
   // 23h30, transfer às 2h de amanhã: faltam 150 minutos. O Pix vale.
   assert.equal(pixDisponivel([transfer('2026-11-03', '02:00')], as('2026-11-02T23:30')), true);
-  // 23h30, transfer à 1h29 de amanhã: faltam 119 minutos. Só o cartão; um minuto depois (1h30), o Pix volta a valer.
-  assert.equal(pixDisponivel([transfer('2026-11-03', '01:29')], as('2026-11-02T23:30')), false);
-  assert.equal(pixDisponivel([transfer('2026-11-03', '01:30')], as('2026-11-02T23:30')), true);
+  // 23h30, transfer à 1h39 de amanhã: faltam 129 minutos. Só o cartão; um minuto depois (1h40), o Pix volta a valer.
+  assert.equal(pixDisponivel([transfer('2026-11-03', '01:39')], as('2026-11-02T23:30')), false);
+  assert.equal(pixDisponivel([transfer('2026-11-03', '01:40')], as('2026-11-02T23:30')), true);
   // a virada do mês e a do ano seguem a mesma conta
   assert.equal(pixDisponivel([transfer('2026-12-01', '00:30')], as('2026-11-30T23:30')), false);
   assert.equal(pixDisponivel([transfer('2027-01-01', '00:30')], as('2026-12-31T23:30')), false);
@@ -188,38 +203,147 @@ test('o WhatsApp da equipe só aparece depois do pagamento aprovado', () => {
   assert.deepEqual(TODOS.filter(mostrarWhatsApp), ['pago']);
 });
 
+/** Um passeio com preço (fictício, só para as contas): o que as formas de pagamento recebem. */
+const pago = (data: string, hora: string, totalCentavos = 15400, totalPixCentavos = 13860): ItemPagavel => ({
+  ...passeio(data, hora),
+  totalCentavos,
+  totalPixCentavos,
+});
+
 test('o interruptor PAGAMENTO_ONLINE e as chaves da Stripe decidem se o checkout oferece cartão e Pix', async () => {
-  const itens = [passeio('2026-11-03', '09:00')];
+  const itens = [pago('2026-11-03', '09:00')];
   const chaves = { STRIPE_SECRET_KEY: 'rk_test_chave_de_exemplo', NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_exemplo' };
+  // a cotação vai fixa (os testes não buscam o câmbio na rede)
+  const sem = { admin: false, cotacao: null };
   await comAmbiente({ PAGAMENTO_ONLINE: undefined, ...chaves }, async () => {
     assert.equal(modoPagamentoOnline(), 'desligado');
-    assert.deepEqual(await formasDisponiveis(itens, AGORA, { admin: true }), []);
+    assert.equal(pagamentoOnlineNoAr(), false);
+    assert.deepEqual(await formasDisponiveis(itens, AGORA, { admin: true, cotacao: null }), []);
+    assert.deepEqual(await formasDoPagamento(itens, AGORA, { admin: true, cotacao: null }), { formas: [] });
   });
   await comAmbiente({ PAGAMENTO_ONLINE: 'qualquer coisa', ...chaves }, () => assert.equal(modoPagamentoOnline(), 'desligado'));
   await comAmbiente({ PAGAMENTO_ONLINE: 'admin', ...chaves }, async () => {
     assert.equal(modoPagamentoOnline(), 'admin');
-    assert.deepEqual(await formasDisponiveis(itens, AGORA, { admin: false }), []);
-    assert.deepEqual(await formasDisponiveis(itens, AGORA, { admin: true }), ['cartao', 'pix']);
+    // no modo 'admin' o público continua no caminho do WhatsApp: os textos ainda são os de hoje
+    assert.equal(pagamentoOnlineNoAr(), false);
+    assert.deepEqual(await formasDisponiveis(itens, AGORA, sem), []);
+    assert.deepEqual(await formasDisponiveis(itens, AGORA, { admin: true, cotacao: null }), ['cartao', 'pix']);
   });
   await comAmbiente({ PAGAMENTO_ONLINE: 'publico', ...chaves }, async () => {
-    assert.deepEqual(await formasDisponiveis(itens, AGORA), ['cartao', 'pix']);
-    // item a menos de 2 horas: o Pix sai e fica só o cartão
-    assert.deepEqual(await formasDisponiveis([passeio('2026-11-02', '15:00')], AGORA), ['cartao']);
+    assert.equal(pagamentoOnlineNoAr(), true);
+    assert.deepEqual(await formasDisponiveis(itens, AGORA, sem), ['cartao', 'pix']);
+    assert.deepEqual(await formasDoPagamento(itens, AGORA, sem), { formas: ['cartao', 'pix'] });
+    // item a menos de 2 horas: o Pix sai e fica só o cartão, com o motivo
+    assert.deepEqual(await formasDisponiveis([pago('2026-11-02', '15:00')], AGORA, sem), ['cartao']);
+    assert.deepEqual(await formasDoPagamento([pago('2026-11-02', '15:00')], AGORA, sem), { formas: ['cartao'], semPix: 'prazo' });
     // item a menos de 30 minutos (aqui, 25): o cartão também sai e não sobra forma online
-    assert.deepEqual(await formasDisponiveis([passeio('2026-11-02', '14:45')], AGORA), []);
+    assert.deepEqual(await formasDisponiveis([pago('2026-11-02', '14:45')], AGORA, sem), []);
     // serviço que já começou: nenhuma forma online
-    assert.deepEqual(await formasDisponiveis([passeio('2026-11-02', '14:00')], AGORA), []);
+    assert.deepEqual(await formasDisponiveis([pago('2026-11-02', '14:00')], AGORA, sem), []);
+    // valor no Pix acima do limite: só o cartão, com o motivo do limite
+    const caro = [pago('2026-11-20', '09:00', 2_000_000, 1_800_000)];
+    assert.deepEqual(await formasDoPagamento(caro, AGORA, { admin: false, cotacao: 5.4 }), { formas: ['cartao'], semPix: 'limite' });
+    // pedido pequeno: nem precisa da cotação (sem `cotacao`, nada é buscado, porque cabe com qualquer dólar)
+    assert.deepEqual(await formasDoPagamento(itens, AGORA), { formas: ['cartao', 'pix'] });
   });
   // ligado, mas sem as chaves da Stripe: nada
   await comAmbiente(
     { PAGAMENTO_ONLINE: 'publico', STRIPE_SECRET_KEY: undefined, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: undefined },
     async () => {
-      assert.deepEqual(await formasDisponiveis(itens, AGORA), []);
+      assert.deepEqual(await formasDisponiveis(itens, AGORA, sem), []);
     },
   );
   assert.deepEqual(FORMAS_PAGAMENTO, ['cartao', 'pix']);
   assert.equal(isFormaPagamento('pix'), true);
   assert.equal(isFormaPagamento('boleto'), false);
+});
+
+test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, e nada com menos de 10 minutos', () => {
+  // os instantes vêm com o fuso de Búzios escrito (-03:00), para a conta não depender do relógio da máquina
+  const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
+  assert.equal(PIX_EXPIRA_SEGUNDOS, 30 * 60);
+  assert.equal(PIX_VALIDADE_MINIMA_SEGUNDOS, 10 * 60);
+  const servico = [passeio('2026-11-02', '17:00')];
+  // o prazo do Pix é 15h (2 horas antes das 17h). Longe dele, o QR inteiro
+  assert.equal(validadeDoPix(servico, as('2026-11-02T09:00:00')), 30 * 60);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:30:00')), 30 * 60);
+  // com menos de 30 minutos até o prazo, o QR dura só até ele, com os segundos
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:31:00')), 29 * 60);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:40:30')), 19 * 60 + 30);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:50:00')), 10 * 60);
+  // abaixo de 10 minutos, o Pix nem aparece (só o cartão)
+  assert.equal(validadeDoPix(servico, as('2026-11-02T14:50:01')), null);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T15:00:00')), null);
+  assert.equal(validadeDoPix(servico, as('2026-11-02T18:00:00')), null);
+  // num pedido com vários itens, vale o que começa primeiro
+  const pedido = [passeio('2026-11-03', '09:00'), transfer('2026-11-02', '17:00'), casa('2026-11-04')];
+  assert.equal(validadeDoPix(pedido, as('2026-11-02T14:45:00')), 15 * 60);
+  // a casa conta pela entrada às 15h
+  assert.equal(validadeDoPix([casa('2026-11-02')], as('2026-11-02T12:40:00')), 20 * 60);
+  // atravessa a meia-noite: às 22h15, o transfer da 0h30 de amanhã tem o prazo do Pix às 22h30
+  assert.equal(validadeDoPix([transfer('2026-11-03', '00:30')], as('2026-11-02T22:15:00')), 15 * 60);
+  // sem itens, ou com uma data que não dá para ler, nunca
+  assert.equal(validadeDoPix([], as('2026-11-02T09:00:00')), null);
+  assert.equal(validadeDoPix([passeio('amanhã', '10:00')], as('2026-11-02T09:00:00')), null);
+  // e pixDisponivel é exatamente "validadeDoPix tem valor", segundo a segundo perto da virada dos 10 minutos
+  for (let s = 0; s < 120; s += 7) {
+    const agora = new Date(as('2026-11-02T14:49:00').getTime() + s * 1000);
+    assert.equal(pixDisponivel(servico, agora), validadeDoPix(servico, agora) !== null, agora.toISOString());
+  }
+  // os segundos até o começo do serviço, no fuso de Búzios
+  assert.equal(segundosAteOInicio(passeio('2026-11-02', '17:00'), as('2026-11-02T16:59:30')), 30);
+  assert.ok(Number.isNaN(segundosAteOInicio(passeio('amanhã', '17:00'), as('2026-11-02T16:59:30'))));
+});
+
+test('o QR, mesmo encurtado, fica dentro do que a Stripe aceita (de 60 a 1.209.600 segundos)', () => {
+  const servico = [passeio('2026-11-02', '17:00')];
+  const inicio = new Date('2026-11-02T08:00:00-03:00').getTime();
+  for (let s = 0; s < 8 * 3600; s += 37) {
+    const v = validadeDoPix(servico, new Date(inicio + s * 1000));
+    if (v !== null) assert.ok(v >= 60 && v <= 1_209_600 && v >= PIX_VALIDADE_MINIMA_SEGUNDOS && v <= PIX_EXPIRA_SEGUNDOS, String(v));
+  }
+});
+
+test('o limite de um Pix: US$ 3.000 pela cotação, com 10% de folga; sem cotação, R$ 10.000,00', () => {
+  assert.equal(PIX_LIMITE_DOLARES, 3000);
+  // com o dólar a R$ 5,40: até US$ 2.700 em reais, R$ 14.580,00
+  assert.equal(limiteDoPixCentavos(5.4), 1_458_000);
+  assert.equal(limiteDoPixCentavos(5), 1_350_000);
+  // sem cotação que valha (null, fora da faixa de 1 a 20 reais por dólar): o teto fixo
+  assert.equal(PIX_TETO_SEM_COTACAO_CENTAVOS, 1_000_000);
+  for (const ruim of [null, undefined, 0, 1, 25, Number.NaN]) assert.equal(limiteDoPixCentavos(ruim), 1_000_000, String(ruim));
+  // o teto fixo cabe no limite da Stripe enquanto o dólar valer mais de R$ 3,34
+  assert.ok(PIX_TETO_SEM_COTACAO_CENTAVOS <= PIX_LIMITE_DOLARES * 3.34 * 100);
+  // o valor no Pix do pedido inteiro (nas casas, o sinal) é o que conta
+  assert.equal(pixCabeNoLimite([{ totalCentavos: 1_200_000, totalPixCentavos: 1_080_000 }], 5.4), true);
+  assert.equal(pixCabeNoLimite([{ totalCentavos: 1_200_000, totalPixCentavos: 1_080_000 }], null), false);
+  assert.equal(pixCabeNoLimite([{ tipo: 'casa', totalCentavos: 2_400_000, totalPixCentavos: 2_160_000 }], null), false);
+  assert.equal(pixCabeNoLimite([{ tipo: 'casa', totalCentavos: 1_800_000, totalPixCentavos: 1_620_000 }], null), true);
+  // um valor que não dá para ler não cabe
+  assert.equal(pixCabeNoLimite([{ totalCentavos: Number.NaN }], 5.4), false);
+});
+
+test('o maior pedido de hoje cabe no Pix: o sinal da Geribá no Réveillon (5 diárias), R$ 4.950,00', () => {
+  // FASE-4.md, Etapa 7: Réveillon de 5 diárias na Geribá, R$ 11.000,00; no Pix, R$ 9.900,00; o sinal é metade
+  const geriba: ItemPagavel = { tipo: 'casa', data: '2026-12-28', totalCentavos: 1_100_000, totalPixCentavos: 990_000 };
+  assert.equal(valorACobrar([geriba], 'pix'), 495_000);
+  // cabe sem cotação nenhuma e com o dólar bem mais barato que hoje
+  assert.equal(pixCabeNoLimite([geriba], null), true);
+  assert.equal(pixCabeNoLimite([geriba], 2), true);
+  assert.deepEqual(escolherFormas([geriba], AGORA, null), { formas: ['cartao', 'pix'] });
+  // o mesmo pedido com mais passeios no carrinho ainda cabe pelo teto fixo
+  assert.deepEqual(escolherFormas([geriba, pago('2026-12-29', '09:00', 176000, 158400)], AGORA, null), { formas: ['cartao', 'pix'] });
+});
+
+test('sem o Pix, o motivo: o prazo vem antes do limite', () => {
+  const caroEPerto = [pago('2026-11-02', '15:00', 2_000_000, 1_800_000)];
+  assert.deepEqual(escolherFormas(caroEPerto, AGORA, 5.4), { formas: ['cartao'], semPix: 'prazo' });
+  const caroELonge = [pago('2026-11-20', '09:00', 2_000_000, 1_800_000)];
+  assert.deepEqual(escolherFormas(caroELonge, AGORA, 5.4), { formas: ['cartao'], semPix: 'limite' });
+  // com a cotação mais alta, o mesmo valor cabe
+  assert.deepEqual(escolherFormas(caroELonge, AGORA, 7.5), { formas: ['cartao', 'pix'] });
+  // sem nenhum item, nada
+  assert.deepEqual(escolherFormas([], AGORA, 5.4), { formas: [], semPix: 'prazo' });
 });
 
 // casa fictícia, só para as contas (o site não tem casas inventadas)

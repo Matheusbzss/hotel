@@ -25,7 +25,14 @@ const MODELO = '{data} às {hora}';
 
 test('um passeio entra na sessão com o nome e a opção, a data, a hora e as pessoas no idioma do cliente', () => {
   const item = itemDaSessao(
-    { codigo: 'ON-ABC123', tipo: 'passeio', totalCentavos: 176000, totalPixCentavos: 158400 },
+    {
+      codigo: 'ON-ABC123',
+      tipo: 'passeio',
+      totalCentavos: 176000,
+      totalPixCentavos: 158400,
+      data: '2026-11-14',
+      horario: { hora: '09:00', busca: true },
+    },
     {
       passeioNome: 'Lancha Privativa em Búzios',
       opcaoNome: '2 horas',
@@ -43,12 +50,15 @@ test('um passeio entra na sessão com o nome e a opção, a data, a hora e as pe
     tipo: 'passeio',
     totalCentavos: 176000,
     totalPixCentavos: 158400,
+    // quando começa, do voucher gravado (não do texto da tela): é com isso que o QR do Pix não passa do prazo do Pix
+    data: '2026-11-14',
+    horario: { hora: '09:00' },
   });
 });
 
 test('um transfer entra com a saída e o destino; sem o preço do Pix, o campo nem aparece', () => {
   const item = itemDaSessao(
-    { codigo: 'ON-DEF456', tipo: 'transfer', totalCentavos: 80000 },
+    { codigo: 'ON-DEF456', tipo: 'transfer', totalCentavos: 80000, data: '2026-12-01', transfer: { ida: { hora: '14:00' } } },
     {
       passeioNome: 'Traslado privado',
       data: '2026-12-01',
@@ -68,11 +78,15 @@ test('um transfer entra com a saída e o destino; sem o preço do Pix, o campo n
   assert.equal(item.tipo, 'transfer');
   assert.equal(item.totalCentavos, 80000);
   assert.equal('totalPixCentavos' in item, false);
+  // a ida do transfer é o começo: a hora de verdade ("14:00"), não o texto da tela ("14 h")
+  assert.equal(item.data, '2026-12-01');
+  assert.deepEqual(item.transfer, { ida: { hora: '14:00' } });
+  assert.equal('horario' in item, false);
 });
 
 test('uma reserva antiga sem hora e sem tipo: a descrição fica só com a data, e o tipo vira passeio', () => {
   const item = itemDaSessao(
-    { codigo: 'ON-GHI789', totalCentavos: 15400 },
+    { codigo: 'ON-GHI789', totalCentavos: 15400, data: '2026-11-20' },
     { passeioNome: 'Schooner Tour in Búzios', data: '2026-11-20', pessoasTexto: '2 adults' },
     'en',
     '{data} at {hora}',
@@ -80,6 +94,10 @@ test('uma reserva antiga sem hora e sem tipo: a descrição fica só com a data,
   assert.equal(item.nome, 'Schooner Tour in Búzios');
   assert.equal(item.descricao, `${formatarDataIso('2026-11-20', 'en-US')} · 2 adults`);
   assert.equal(item.tipo, 'passeio');
+  // sem hora gravada, o item conta do começo do dia (inicioDoItem): o prazo do Pix fica do lado seguro
+  assert.equal(item.data, '2026-11-20');
+  assert.equal('horario' in item, false);
+  assert.equal('transfer' in item, false);
 });
 
 test('a volta da Stripe: a página do pedido (vários itens) ou a da reserva (um item), no idioma, com o token codificado', () => {

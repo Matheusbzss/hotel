@@ -91,6 +91,7 @@ const en: Dicionario = {
       idadeMinima: 'Minimum age to take part: {n}.',
     },
     avisoWhatsapp: 'You get the team’s WhatsApp when you complete your booking.',
+    avisoWhatsappOnline: 'The team’s WhatsApp appears after payment: by card, once it is approved; by Pix, once the bank confirms it.',
   },
   grupo: {
     data: 'Date',
@@ -216,12 +217,23 @@ const en: Dicionario = {
     dicaInternacional: 'If your card is from outside Brazil, check in your bank’s app that international purchases are enabled.',
     tentarOutroCartao: 'Try another card.',
     semPixPrazo: 'Pix is only available up to 2 hours before the first service in your order. You can now pay by card only.',
+    semPixLimite: 'Pix has a maximum amount per payment, and this order is above it. You can pay for this order by card only.',
     // a contestação é entre o cliente e o banco dele: texto neutro, sem acusar ninguém
     contestadoTitulo: 'Payment disputed',
     contestadoTexto:
       'This payment has been disputed with the bank. While the bank reviews it, the voucher is on hold. If you have any questions, talk to us.',
     reembolsadoParcial: 'Partial refund of {valor}, returned to the original payment method.',
     reembolsadoTexto: 'The amount has been returned to the original payment method. If you have any questions, talk to us.',
+    desistirLink: 'Cancel this purchase',
+    desistirTexto:
+      'You can withdraw within 7 days of the purchase, before the service, for a full refund. After that, the cancellation policy applies. Our team replies by email within 1 business day.',
+    desistirMotivo: 'Reason (optional)',
+    desistirConfirmar: 'Confirm cancellation',
+    desistirPolitica: 'See the cancellation policy',
+    desistirRecebido:
+      'We have received your cancellation request. Our team will reply by email within 1 business day, and the refund follows the cancellation policy.',
+    desistirRepetido:
+      'Your cancellation request has already been received. Our team will reply by email within 1 business day, and the refund follows the cancellation policy.',
   },
   boletim: {
     titulo: 'Tours and your group’s total',
@@ -369,6 +381,8 @@ const en: Dicionario = {
     {
       p: 'How can I pay?',
       r: 'Pix and credit card, always the full amount of the booking. While online payment is being activated, you register the booking on the website and finish paying with us on WhatsApp.',
+      rOnline:
+        'Credit or debit card, or Pix with 10% off, always the full amount of the booking, paid right here on the website through Stripe. Pix is available up to 2 hours before the first service in your order; after that, by card only. Confirmation is automatic and your voucher is issued straight away.',
     },
     {
       p: 'Do children pay?',
@@ -401,6 +415,8 @@ const en: Dicionario = {
     {
       p: 'Is it safe to pay on the website?',
       r: 'Yes. The website uses an encrypted connection and does not store your card details.',
+      rOnline:
+        'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the recipient may show the name of the company that processes the payment.',
     },
   ],
   passeios: {
@@ -578,6 +594,8 @@ const en: Dicionario = {
     // vazio por decisão do dono (11/11): a frase dos apps de fora só volta depois do Pix de R$ 1,00 pago por app de
     // fora (Etapa 5, FASE-4.md), e só com os apps que o teste confirmar. A frase guardada está em docs/pagamentos-stripe.md.
     pixApps: '',
+    pixRecebedor:
+      'In your bank app, the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
     pagar: 'Pay {valor}',
     irParaPagamento: 'Continue to payment',
     processando: 'Processing…',

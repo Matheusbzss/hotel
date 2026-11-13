@@ -95,6 +95,8 @@ const es: Dicionario = {
       idadeMinima: 'Edad mínima para participar: {n} años.',
     },
     avisoWhatsapp: 'Te pasamos el WhatsApp del equipo al finalizar la reserva.',
+    avisoWhatsappOnline:
+      'El WhatsApp del equipo aparece después del pago: con tarjeta, cuando se aprueba; con Pix, cuando el banco lo confirma.',
   },
   grupo: {
     data: 'Fecha',
@@ -221,12 +223,24 @@ const es: Dicionario = {
       'Si tu tarjeta es de fuera de Brasil, revisa en la app de tu banco que las compras internacionales estén habilitadas.',
     tentarOutroCartao: 'Prueba con otra tarjeta.',
     semPixPrazo: 'Pix solo está disponible hasta 2 horas antes del primer servicio del pedido. Ahora solo se puede pagar con tarjeta.',
+    semPixLimite: 'Pix tiene un monto máximo por pago, y este pedido lo supera. Este pedido solo se puede pagar con tarjeta.',
     // a contestação é entre o cliente e o banco dele: texto neutro, sem acusar ninguém
     contestadoTitulo: 'Pago en disputa',
     contestadoTexto:
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tienes dudas, escríbenos.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devuelto por el mismo medio de pago.',
     reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tienes dudas, escríbenos.',
+    // sem verbo em "tú" nem em "vos": serve igual às duas versões do espanhol (o es-ar não precisa de frase própria)
+    desistirLink: 'Desistir de la compra',
+    desistirTexto:
+      'Se puede desistir dentro de los 7 días posteriores a la compra, antes del servicio, con reembolso total. Después, rige la política de cancelación. El equipo responde por e-mail en un plazo máximo de 1 día hábil.',
+    desistirMotivo: 'Motivo (opcional)',
+    desistirConfirmar: 'Confirmar el desistimiento',
+    desistirPolitica: 'Ver la política de cancelación',
+    desistirRecebido:
+      'Recibimos tu pedido de desistimiento. El equipo responde por e-mail en un plazo máximo de 1 día hábil, y el reembolso sigue la política de cancelación.',
+    desistirRepetido:
+      'Tu pedido de desistimiento ya fue recibido. El equipo responde por e-mail en un plazo máximo de 1 día hábil, y el reembolso sigue la política de cancelación.',
   },
   boletim: {
     titulo: 'Paseos y el total de tu grupo',
@@ -375,6 +389,8 @@ const es: Dicionario = {
     {
       p: '¿Cuáles son las formas de pago?',
       r: 'Pix y tarjeta de crédito, siempre el valor total de la reserva. Mientras se activa el pago online, registras la reserva en el sitio y terminas el pago con nosotros por WhatsApp.',
+      rOnline:
+        'Tarjeta de crédito o débito, o Pix con 10% de descuento, siempre por el valor total de la reserva. El pago se hace en el propio sitio, con Stripe. El Pix vale hasta 2 horas antes del primer servicio del pedido; después, solo con tarjeta. La confirmación es automática y el voucher sale al instante.',
     },
     {
       p: '¿Los niños pagan?',
@@ -407,6 +423,8 @@ const es: Dicionario = {
     {
       p: '¿Es seguro pagar en el sitio?',
       r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
+      rOnline:
+        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario puede aparecer con el nombre de la empresa que procesa el pago.',
     },
   ],
   passeios: {
@@ -584,6 +602,8 @@ const es: Dicionario = {
     // vazio por decisão do dono (11/11): a frase dos apps de fora só volta depois do Pix de R$ 1,00 pago por app de
     // fora (Etapa 5, FASE-4.md), e só com os apps que o teste confirmar. A frase guardada está em docs/pagamentos-stripe.md.
     pixApps: '',
+    pixRecebedor:
+      'En la app de tu banco, el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
     pagar: 'Pagar {valor}',
     irParaPagamento: 'Ir al pago',
     processando: 'Procesando…',

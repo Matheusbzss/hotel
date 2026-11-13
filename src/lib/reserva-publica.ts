@@ -1,13 +1,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { PagamentoOnlineCarrinho, TextosPagamentoOnline } from '@/components/carrinho/FormularioCarrinho';
 import type { TextosPagarPedido } from '@/components/pagamento/CheckoutEmbutido';
+import type { TextosDesistencia } from '@/components/pagamento/DesistirDaCompra';
 import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario, type Dicionario } from '@/i18n';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import type { ItemVisivel } from './carrinho';
-import { formasDisponiveis, valorACobrar, type FormaPagamento, type ItemAgendado, type ItemCobravel } from './formas-pagamento';
+import { formasDoPagamento, valorACobrar, type FormaPagamento, type ItemCobravel, type ItemPagavel } from './formas-pagamento';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { provedorDaReserva, valorRecebido } from './pedidos-painel';
@@ -99,8 +100,7 @@ export function statusDoVoucher(r: Pick<Reserva, 'status' | 'statusItem'>): Stat
 export const pagamentoEmAberto = (status: StatusReserva): boolean =>
   status === 'aguardando_whatsapp' || status === 'pendente' || status === 'expirado';
 
-/** Um item do pedido como a escolha da forma de pagamento precisa: os totais nas duas formas e quando começa. */
-export type ItemPagavel = ItemCobravel & ItemAgendado;
+export type { ItemPagavel };
 
 /** Os vouchers de um pedido como itens pagáveis (para "pagar de novo" na página do pedido). */
 export function itensPagaveis(reservas: Reserva[]): ItemPagavel[] {
@@ -152,8 +152,10 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     cartaoAvista: C.cartaoAvista,
     pixExplicacao: C.pixExplicacao,
     pixApps: C.pixApps,
+    pixRecebedor: C.pixRecebedor,
     descontoPix: d.preco.descontoPix,
     semPixPrazo: P.semPixPrazo,
+    semPixLimite: P.semPixLimite,
     dolar: d.preco.dolar,
     pagar: C.pagar,
     pagamento: C.pagamento,
@@ -189,16 +191,35 @@ export function textosDoPagamentoOnline(d: Dicionario): TextosPagamentoOnline {
     dicaInternacional: P.dicaInternacional,
     tentarOutroCartao: P.tentarOutroCartao,
     semPixPrazo: P.semPixPrazo,
+    semPixLimite: P.semPixLimite,
+    pixRecebedor: d.checkout.pixRecebedor,
     recusa: d.recusa,
+  };
+}
+
+/** Os textos do link "Desistir da compra" e da confirmação dele (chaves pedido.desistir*), na página do pedido pago. */
+export function textosDaDesistencia(d: Dicionario): TextosDesistencia {
+  const P = d.pedido;
+  return {
+    link: P.desistirLink,
+    texto: P.desistirTexto,
+    motivo: P.desistirMotivo,
+    confirmar: P.desistirConfirmar,
+    politica: P.desistirPolitica,
+    recebido: P.desistirRecebido,
+    repetido: P.desistirRepetido,
+    voltar: d.comum.voltar,
+    processando: d.checkout.processando,
+    erro: d.checkout.erros.generico,
   };
 }
 
 /**
  * O que a página do checkout entrega ao FormularioCarrinho, decidido aqui no servidor: as formas de pagamento
  * online que valem agora para estes itens (o interruptor PAGAMENTO_ONLINE, a Stripe e o prazo de cada forma: o
- * Pix até 2 h antes do primeiro serviço, o cartão até 30 minutos antes; vazio = o caminho do WhatsApp de hoje) e, se
- * o carrinho já virou um pedido que ainda espera o pagamento (pendente ou expirado), o link privado dele para
- * "continuar o pagamento".
+ * Pix até 2 h antes do primeiro serviço e dentro do limite de valor de um Pix, o cartão até 30 minutos antes; vazio = o
+ * caminho do WhatsApp de hoje), o motivo de o Pix ficar de fora e, se o carrinho já virou um pedido que ainda espera
+ * o pagamento (pendente ou expirado), o link privado dele para "continuar o pagamento".
  */
 export async function pagamentoDoCheckout(
   idioma: Idioma,
@@ -208,15 +229,17 @@ export async function pagamentoDoCheckout(
   agora: Date = new Date(),
 ): Promise<{ pagamentoOnline?: PagamentoOnlineCarrinho; pedidoAberto?: { href: string } }> {
   // qualquer falha aqui deixa o checkout no caminho do WhatsApp, que sempre funciona
-  const formas = itens.length
-    ? await formasDisponiveis(itensPagaveisDoCarrinho(itens), agora, { admin }).catch((e) => {
+  const { formas, semPix } = itens.length
+    ? await formasDoPagamento(itensPagaveisDoCarrinho(itens), agora, { admin }).catch((e) => {
         console.error('[checkout] não deu para decidir as formas de pagamento', e);
-        return [];
+        return { formas: [], semPix: undefined };
       })
-    : [];
+    : { formas: [], semPix: undefined };
   const aberto = pedido !== undefined && (pedido.status === 'pendente' || pedido.status === 'expirado');
   return {
-    ...(formas.length ? { pagamentoOnline: { formas, textos: textosDoPagamentoOnline(dicionario(idioma)) } } : {}),
+    ...(formas.length
+      ? { pagamentoOnline: { formas, ...(semPix ? { semPix } : {}), textos: textosDoPagamentoOnline(dicionario(idioma)) } }
+      : {}),
     ...(aberto ? { pedidoAberto: { href: linkDoPedido(idioma, pedido.codigo, pedido.token) } } : {}),
   };
 }

@@ -156,6 +156,9 @@ export const ajustesAR: AjustesAR = {
     {
       p: '¿Cuáles son las formas de pago?',
       r: 'Pix y tarjeta de crédito, siempre el valor total de la reserva. Mientras se activa el pago online, registrás la reserva en el sitio y terminás el pago con nosotros por WhatsApp.',
+      // a lista entra inteira: as respostas do pagamento online (rOnline) são iguais às do es, sem verbo em vos
+      rOnline:
+        'Tarjeta de crédito o débito, o Pix con 10% de descuento, siempre por el valor total de la reserva. El pago se hace en el propio sitio, con Stripe. El Pix vale hasta 2 horas antes del primer servicio del pedido; después, solo con tarjeta. La confirmación es automática y el voucher sale al instante.',
     },
     {
       p: '¿Los niños pagan?',
@@ -188,6 +191,8 @@ export const ajustesAR: AjustesAR = {
     {
       p: '¿Es seguro pagar en el sitio?',
       r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
+      rOnline:
+        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario puede aparecer con el nombre de la empresa que procesa el pago.',
     },
   ],
   passeio: {

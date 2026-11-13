@@ -28,12 +28,16 @@ import { formatarDataIso } from '../../../lib/validacao.ts';
 /* ------------------------------------------------------------------ */
 /* Regras puras                                                        */
 
+/** O que o voucher gravado diz de quando começa: o horário do passeio ou a saída da ida do transfer. */
+type QuandoComeca = { horario?: { hora: string }; transfer?: { ida: { hora: string } } };
+
 /**
  * Um voucher como entra na sessão da Stripe: o nome do item e uma linha com a data, a hora e as pessoas, no
- * idioma do cliente (os textos vêm de paraPublico, que já traduz). O valor é o do servidor, nas duas formas.
+ * idioma do cliente (os textos vêm de paraPublico, que já traduz). O valor é o do servidor, nas duas formas. A data e
+ * a hora em que começa vão junto (do voucher gravado, não do texto da tela): o QR do Pix não passa do prazo do Pix.
  */
 export function itemDaSessao(
-  r: Pick<Reserva, 'codigo' | 'tipo' | 'totalCentavos' | 'totalPixCentavos'>,
+  r: Pick<Reserva, 'codigo' | 'tipo' | 'totalCentavos' | 'totalPixCentavos' | 'data'> & QuandoComeca,
   p: Pick<ReservaPublica, 'passeioNome' | 'opcaoNome' | 'data' | 'horario' | 'transfer' | 'pessoasTexto'>,
   idioma: Idioma,
   modeloDataHora: string,
@@ -53,6 +57,8 @@ export function itemDaSessao(
     tipo: r.tipo ?? 'passeio',
     totalCentavos: r.totalCentavos,
     ...(r.totalPixCentavos !== undefined ? { totalPixCentavos: r.totalPixCentavos } : {}),
+    data: r.data,
+    ...(r.transfer ? { transfer: { ida: { hora: r.transfer.ida.hora } } } : r.horario ? { horario: { hora: r.horario.hora } } : {}),
   };
 }
 

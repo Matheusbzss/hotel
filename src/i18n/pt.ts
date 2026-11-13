@@ -89,6 +89,9 @@ const pt = {
       idadeMinima: 'Idade mínima para participar: {n} anos.',
     },
     avisoWhatsapp: 'O WhatsApp da equipe é passado ao finalizar a reserva.',
+    // no lugar da frase de cima quando o pagamento online estiver no ar para o público (src/lib/textos-do-site.ts)
+    avisoWhatsappOnline:
+      'O WhatsApp da equipe aparece depois do pagamento: no cartão, quando ele é aprovado; no Pix, quando o banco confirma.',
   },
   grupo: {
     data: 'Data',
@@ -214,6 +217,8 @@ const pt = {
     dicaInternacional: 'Se o seu cartão é de fora do Brasil, confira no app do banco se as compras internacionais estão liberadas.',
     tentarOutroCartao: 'Tente com outro cartão.',
     semPixPrazo: 'O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão.',
+    // o pedido passa do limite de valor de um Pix (src/lib/formas-pagamento.ts): sem número, porque o limite segue o dólar
+    semPixLimite: 'O Pix tem um valor máximo por pagamento, e este pedido passa dele. Para este pedido, só dá para pagar com cartão.',
     // a contestação é entre o cliente e o banco dele: texto neutro, sem acusar ninguém; vale para cartão e para Pix,
     // por isso não fala em cartão
     contestadoTitulo: 'Pagamento contestado',
@@ -221,6 +226,17 @@ const pt = {
       'Este pagamento foi contestado no banco. Enquanto o banco analisa, o voucher fica suspenso. Se tiver dúvidas, fale com a gente.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devolvido pela mesma forma de pagamento.',
     reembolsadoTexto: 'O valor foi devolvido pela mesma forma de pagamento. Se tiver dúvidas, fale com a gente.',
+    // a desistência pelo próprio site (Decreto 7.962/2013, art. 5º, § 1º), num pedido pago antes do primeiro serviço
+    desistirLink: 'Desistir da compra',
+    desistirTexto:
+      'Você pode desistir em até 7 dias depois da compra, antes do serviço, com reembolso integral. Depois disso, vale a política de cancelamento. A equipe responde por e-mail em até 1 dia útil.',
+    desistirMotivo: 'Motivo (opcional)',
+    desistirConfirmar: 'Confirmar a desistência',
+    desistirPolitica: 'Ver a política de cancelamento',
+    desistirRecebido:
+      'Recebemos o seu pedido de desistência. A equipe responde por e-mail em até 1 dia útil, e o reembolso segue a política de cancelamento.',
+    desistirRepetido:
+      'O seu pedido de desistência já foi recebido. A equipe responde por e-mail em até 1 dia útil, e o reembolso segue a política de cancelamento.',
   },
   boletim: {
     titulo: 'Passeios e o total do seu grupo',
@@ -369,6 +385,9 @@ const pt = {
     {
       p: 'Quais são as formas de pagamento?',
       r: 'Pix e cartão de crédito, sempre o valor total da reserva. Enquanto o pagamento online é ativado, você registra a reserva no site e finaliza o pagamento com a gente pelo WhatsApp.',
+      // rOnline: a resposta quando o pagamento online estiver no ar para o público (src/lib/textos-do-site.ts)
+      rOnline:
+        'Cartão de crédito ou débito, ou Pix com 10% de desconto, sempre o valor total da reserva, pago aqui mesmo no site, pela Stripe. O Pix vale até 2 horas antes do primeiro serviço do pedido; depois disso, só cartão. A confirmação é automática e o voucher sai na hora.',
     },
     {
       p: 'Criança paga?',
@@ -401,6 +420,8 @@ const pt = {
     {
       p: 'É seguro pagar pelo site?',
       r: 'Sim. O site usa conexão criptografada e não guarda os dados do seu cartão.',
+      rOnline:
+        'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor pode aparecer com o nome da empresa que processa o pagamento.',
     },
   ],
   passeios: {
@@ -577,6 +598,10 @@ const pt = {
       'Você paga no app do seu banco, com o QR Code ou o código copia e cola que aparecem na próxima etapa. A confirmação é automática e o voucher sai na hora.',
     // vazio de propósito: em português não se explica o Pix pelos apps de fora (FASE-4, Etapa 5, item 7)
     pixApps: '',
+    // antes de pagar (FASE-4, Etapa 5, item 4): a documentação da Stripe não confirma o nome para conta brasileira, então
+    // a frase não promete um nome só; conferir no Pix de teste e ajustar se for preciso
+    pixRecebedor:
+      'No app do seu banco, o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
     pagar: 'Pagar {valor}',
     irParaPagamento: 'Ir para o pagamento',
     processando: 'Processando…',

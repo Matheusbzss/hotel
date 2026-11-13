@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type Stripe from 'stripe';
 import {
   PIX_EXPIRA_SEGUNDOS,
+  PixForaDoPrazo,
   VALIDADE_SESSAO_MINUTOS,
   linkPainelStripe,
   localeStripe,
@@ -12,6 +13,7 @@ import {
   stripeConfigurado,
   type DadosDaSessao,
 } from '../src/lib/stripe.ts';
+import { validadeDoPix } from '../src/lib/formas-pagamento.ts';
 import {
   EVENTO_EM_ANDAMENTO_MS,
   concluirEventoStripe,
@@ -99,8 +101,18 @@ const DADOS: DadosDaSessao = {
       descricao: 'sáb. 14 nov · 9 h · 2 adultos',
       totalCentavos: 15400,
       totalPixCentavos: 13860,
+      data: '2026-11-14',
+      horario: { hora: '09:00' },
     },
-    { voucher: 'ON-DEF456', nome: 'Transfer privado', tipo: 'transfer', totalCentavos: 80000, totalPixCentavos: 72000 },
+    {
+      voucher: 'ON-DEF456',
+      nome: 'Transfer privado',
+      tipo: 'transfer',
+      totalCentavos: 80000,
+      totalPixCentavos: 72000,
+      data: '2026-12-01',
+      transfer: { ida: { hora: '14:00' } },
+    },
   ],
   forma: 'cartao',
   idioma: 'es-ar',
@@ -159,6 +171,31 @@ test('a sessão do Pix: os preços com o desconto, só Pix, QR de 30 minutos e s
   assert.deepEqual(p.payment_intent_data, { metadata: { codigo: 'ON-ABC123' } });
   assert.deepEqual(p.payment_method_options, { pix: { expires_after_seconds: PIX_EXPIRA_SEGUNDOS } });
   assert.equal(PIX_EXPIRA_SEGUNDOS, 30 * 60);
+  // o QR e a sessão duram o mesmo tanto, longe do prazo do Pix
+  assert.equal(PIX_EXPIRA_SEGUNDOS, VALIDADE_SESSAO_MINUTOS * 60);
+});
+
+test('perto do prazo do Pix, o QR dura só até ele: a sessão usa a mesma conta da tela (validadeDoPix)', () => {
+  // AGORA é meio-dia em Búzios; o passeio das 14h25 tem o prazo do Pix às 12h25: o QR vale 25 minutos
+  const perto = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:25' } };
+  const p = parametrosDaSessao({ ...DADOS, itens: [perto, DADOS.itens[1]], forma: 'pix' });
+  assert.deepEqual(p.payment_method_options, { pix: { expires_after_seconds: 25 * 60 } });
+  assert.equal(validadeDoPix([perto, DADOS.itens[1]], AGORA), 25 * 60);
+  // a sessão continua com os 30 minutos (o mínimo da Stripe): o que encurta é o QR
+  const segundos = (p.expires_at ?? 0) - Math.floor(AGORA.getTime() / 1000);
+  assert.ok(segundos >= VALIDADE_SESSAO_MINUTOS * 60, `expira em ${segundos} s`);
+  // o cartão não leva nada disso
+  assert.equal(parametrosDaSessao({ ...DADOS, itens: [perto] }).payment_method_options, undefined);
+});
+
+test('fora do prazo do Pix (menos de 10 minutos de QR), a sessão do Pix não é criada; a do cartão é', () => {
+  // o passeio das 14h05: o prazo do Pix é 12h05, e o QR teria só 5 minutos
+  const tarde = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:05' } };
+  assert.throws(() => parametrosDaSessao({ ...DADOS, itens: [tarde], forma: 'pix' }), PixForaDoPrazo);
+  assert.equal(parametrosDaSessao({ ...DADOS, itens: [tarde], forma: 'cartao' }).currency, 'brl');
+  // um item sem data que dê para ler também não abre Pix
+  const semData = { ...DADOS.itens[0], data: '' };
+  assert.throws(() => parametrosDaSessao({ ...DADOS, itens: [semData], forma: 'pix' }), PixForaDoPrazo);
 });
 
 test('o Link fica escondido só na sessão do cartão; a do Pix não leva o campo, e Apple Pay e Google Pay seguem no "card"', () => {
@@ -172,7 +209,14 @@ test('o Link fica escondido só na sessão do cartão; a do Pix não leva o camp
 });
 
 test('a casa entra na sessão pelo sinal de 50%, sobre o total com o desconto no Pix', () => {
-  const casa = { voucher: 'ON-CASA01', nome: 'Casa de teste', tipo: 'casa' as const, totalCentavos: 340000, totalPixCentavos: 306000 };
+  const casa = {
+    voucher: 'ON-CASA01',
+    nome: 'Casa de teste',
+    tipo: 'casa' as const,
+    totalCentavos: 340000,
+    totalPixCentavos: 306000,
+    data: '2026-12-20',
+  };
   assert.equal(parametrosDaSessao({ ...DADOS, itens: [casa] }).line_items?.[0].price_data?.unit_amount, 170000);
   assert.equal(parametrosDaSessao({ ...DADOS, itens: [casa], forma: 'pix' }).line_items?.[0].price_data?.unit_amount, 153000);
 });

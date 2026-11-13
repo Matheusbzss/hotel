@@ -4,6 +4,14 @@ import { comAjustesAR, frasesDoDocumento, type ParAR } from '../src/content/lega
 import { AJUSTES_AR_CANCELAMENTO, CANCELAMENTO } from '../src/content/legal/cancelamento.ts';
 import { AJUSTES_AR_PRIVACIDADE, PRIVACIDADE } from '../src/content/legal/privacidade.ts';
 import { AJUSTES_AR_TERMOS, TERMOS } from '../src/content/legal/termos.ts';
+import {
+  AJUSTES_AR_CANCELAMENTO_ONLINE,
+  AJUSTES_AR_PRIVACIDADE_ONLINE,
+  AJUSTES_AR_TERMOS_ONLINE,
+  CANCELAMENTO_ONLINE,
+  PRIVACIDADE_ONLINE,
+  TERMOS_ONLINE,
+} from '../src/content/legal/online.ts';
 import { ATUALIZADO_EM, type DocumentoLegal } from '../src/content/legal/tipos.ts';
 import { texto, type Traduzido } from '../src/i18n/conteudo.ts';
 
@@ -12,10 +20,14 @@ import { texto, type Traduzido } from '../src/i18n/conteudo.ts';
 // completa contra o git (es-ar igual ao es do commit 7eccc38, pt e en intocados) rodou por script na hora da
 // mudança; aqui ficam as regras que valem para sempre.
 
+// as versões do pagamento online (src/content/legal/online.ts) seguem as mesmas regras do texto de hoje
 const DOCS: Record<string, { doc: Traduzido<DocumentoLegal>; pares: readonly ParAR[] }> = {
   termos: { doc: TERMOS, pares: AJUSTES_AR_TERMOS },
   cancelamento: { doc: CANCELAMENTO, pares: AJUSTES_AR_CANCELAMENTO },
   privacidade: { doc: PRIVACIDADE, pares: AJUSTES_AR_PRIVACIDADE },
+  'termos-online': { doc: TERMOS_ONLINE, pares: AJUSTES_AR_TERMOS_ONLINE },
+  'cancelamento-online': { doc: CANCELAMENTO_ONLINE, pares: AJUSTES_AR_CANCELAMENTO_ONLINE },
+  'privacidade-online': { doc: PRIVACIDADE_ONLINE, pares: AJUSTES_AR_PRIVACIDADE_ONLINE },
 };
 
 /** A forma de um valor: as chaves (em ordem) e o tipo de cada folha; uma lista guarda o tamanho. */
@@ -97,8 +109,19 @@ test('o es-ar tem a mesma forma do es (mesmas seções, listas do mesmo tamanho)
   }
 });
 
-/** Quantos pares argentinos cada documento tem hoje: a trava contra um par sumir em silêncio. */
-const PARES_ESPERADOS: Record<string, number> = { termos: 12, cancelamento: 12, privacidade: 13 };
+/**
+ * Quantos pares argentinos cada documento tem hoje: a trava contra um par sumir em silêncio. Nas versões online: os
+ * termos trocam o par do foro pelo da frase nova (escribinos); o cancelamento troca o do resumen da tarjeta pelo da
+ * frase nova; a privacidade perde o do lembrete do carrinho (a frase nova não tem verbo em vos).
+ */
+const PARES_ESPERADOS: Record<string, number> = {
+  termos: 12,
+  cancelamento: 12,
+  privacidade: 13,
+  'termos-online': 12,
+  'cancelamento-online': 12,
+  'privacidade-online': 12,
+};
 
 test('só as frases dos pares mudam entre es e es-ar, e cada par é usado uma vez', () => {
   for (const [nome, { doc, pares }] of Object.entries(DOCS)) {

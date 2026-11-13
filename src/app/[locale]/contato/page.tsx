@@ -11,6 +11,7 @@ import { isIdioma, rota } from '@/i18n/config';
 import { textosCotacao } from '@/lib/cotacao';
 import { linkEmail } from '@/lib/email';
 import { alternates, openGraphDaPagina } from '@/lib/site';
+import { comPagamentoOnline } from '@/lib/textos-do-site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/contato'>): Promise<Metadata> {
   const { locale } = await params;
@@ -35,7 +36,8 @@ const LUGARES = [
 export default async function Contato({ params }: PageProps<'/[locale]/contato'>) {
   const { locale } = await params;
   if (!isIdioma(locale)) notFound();
-  const d = dicionario(locale);
+  // o aviso do WhatsApp segue o interruptor do pagamento online
+  const d = comPagamentoOnline(dicionario(locale));
   const c = d.contato;
   const email = linkEmail(c.assunto, c.msg);
 

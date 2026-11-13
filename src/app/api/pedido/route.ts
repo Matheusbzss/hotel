@@ -5,7 +5,7 @@ import { IDIOMAS } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
-import { FORMAS_PAGAMENTO, formasDisponiveis, type FormaPagamento } from '@/lib/formas-pagamento';
+import { FORMAS_PAGAMENTO, formasDoPagamento, type FormaPagamento } from '@/lib/formas-pagamento';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { origemDaVisita } from '@/lib/origem-servidor';
 import { podeAbrirSessao } from '@/lib/pagamento-stripe';
@@ -67,9 +67,9 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * valorACobrar na forma) e volta com `{ codigo, token, clientSecret, forma }` para o checkout embutido; o pedido só
  * vira pago pelo webhook, e o cookie do carrinho fica até lá. Sem pagamento online para este cliente (interruptor
  * PAGAMENTO_ONLINE), o caminho do WhatsApp de hoje.
- * Erros: 400 com o campo; 409 'mudou'; 403 'forma' (com as formas que ainda valem); 400 'pagamento' (o pagamento
- * online está no ar e a forma não veio); 429 'limite'; 502 'stripe' (o pedido fica cancelado e o carrinho continua);
- * 503 'banco'.
+ * Erros: 400 com o campo; 409 'mudou'; 403 'forma' (com as formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou
+ * 'limite'); 400 'pagamento' (o pagamento online está no ar e a forma não veio); 429 'limite'; 502 'stripe' (o pedido
+ * fica cancelado e o carrinho continua); 503 'banco'.
  */
 export async function POST(req: Request) {
   const r = Esquema.safeParse(await req.json().catch(() => null));
@@ -95,16 +95,17 @@ export async function POST(req: Request) {
     const igual = conferidas.length === e.ids.length && conferidas.every(({ id }) => e.ids.includes(id));
     if (!codigoCarrinho || !igual) return erro('mudou', 409);
 
-    // a forma de pagamento: só as que o checkout oferece agora a este cliente (o interruptor, a Stripe e o prazo de cada forma)
+    // a forma de pagamento: só as que o checkout oferece agora a este cliente (o interruptor, a Stripe, o prazo de cada
+    // forma e o limite de valor do Pix, sobre os preços do servidor)
     const admin = sessaoValida(loja.get(COOKIE_ADMIN)?.value);
-    const formas = await formasDisponiveis(
-      conferidas.map(({ c }) => itemAgendado(c.escolha)),
+    const { formas, semPix } = await formasDoPagamento(
+      conferidas.map(({ c }) => ({ ...itemAgendado(c.escolha), totalCentavos: c.totalCentavos, totalPixCentavos: c.totalPixCentavos })),
       agora,
       { admin },
     );
     let forma: FormaPagamento | undefined;
     if (e.pagamento) {
-      if (!formas.includes(e.pagamento)) return erro('forma', 403, { formas });
+      if (!formas.includes(e.pagamento)) return erro('forma', 403, { formas, ...(semPix ? { semPix } : {}) });
       forma = e.pagamento;
     } else if (formas.length) {
       // com pagamento online no ar, o formulário sempre manda a forma

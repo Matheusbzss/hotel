@@ -27,6 +27,7 @@ function ancora(titulo: string) {
  */
 export function PaginaLegal({
   doc,
+  atualizadoEm = ATUALIZADO_EM,
   idioma,
   d,
   caminho,
@@ -36,6 +37,8 @@ export function PaginaLegal({
   extra,
 }: {
   doc: DocumentoLegal;
+  /** A data da revisão da versão que a página mostra (AAAA-MM-DD): a de hoje ou a do pagamento online. */
+  atualizadoEm?: string;
   idioma: Idioma;
   d: Dicionario;
   /** o endereço da página, em português */
@@ -48,7 +51,7 @@ export function PaginaLegal({
   extra?: ReactNode;
 }) {
   const data = new Intl.DateTimeFormat(LOCALE_INTL[idioma], { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(`${ATUALIZADO_EM}T12:00:00Z`),
+    new Date(`${atualizadoEm}T12:00:00Z`),
   );
   const indice = (
     <ul className="mt-3 space-y-2">

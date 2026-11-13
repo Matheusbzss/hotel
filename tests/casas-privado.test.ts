@@ -63,7 +63,8 @@ test('a tabela do ponto é fechada no banco, não se apaga, e o centro público 
     assert.ok(MIGRACAO.includes(`revoke execute on function public.${funcao} from public, anon, authenticated;`), funcao);
     assert.ok(MIGRACAO.includes(`grant execute on function public.${funcao} to service_role;`), funcao);
   }
-  assert.equal((MIGRACAO.match(/\nsecurity definer\n/g) ?? []).length, 2);
+  // \r? porque no Windows o git entrega o arquivo com CRLF
+  assert.equal((MIGRACAO.match(/\r?\nsecurity definer\r?\n/g) ?? []).length, 2);
 });
 
 test('prender as datas de uma casa tem um caminho só: a função do banco que confere todos os bloqueios', () => {

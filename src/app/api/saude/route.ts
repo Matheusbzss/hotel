@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { COOKIE_ADMIN, adminConfigurado, chamadaDoAgendamento, sessaoValida } from '@/lib/admin-auth';
 import { supabase as bancoDeDados, supabaseConfigurado, testarSupabase } from '@/lib/banco';
 import { idadeDaCotacaoDias } from '@/lib/dolar';
+import { emailLigado } from '@/lib/email/enviar';
 import { modoPagamentoOnline } from '@/lib/formas-pagamento';
 import { limparLimites } from '@/lib/limite-ip';
 import { testarBanco } from '@/lib/reservas';
@@ -70,6 +71,8 @@ export async function GET(req: Request) {
       ...(limites ? { limites } : {}),
       stripe: modoStripe(),
       pagamentoOnline: modoPagamentoOnline(),
+      // os e-mails automáticos (Etapa 6): ligados só com a chave do Resend; o valor da chave nunca sai daqui
+      email: emailLigado() ? 'ligado' : 'desligado',
       adminConfigurado: adminConfigurado(),
       pixelConfigurado: Boolean(process.env.NEXT_PUBLIC_META_PIXEL_ID),
       regiao: process.env.VERCEL_REGION ?? null,

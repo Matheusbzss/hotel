@@ -4,17 +4,17 @@ Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, ca
 
 ## Onde mudar cada coisa
 
-| O que                                                                                                               | Arquivo                                       |
-| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| Nome, e-mail, WhatsApp (só no fim da reserva), domínio                                                              | `src/config/empresa.ts`                       |
-| Passeios (nome, cidade, categoria, preço de venda, opções, unidade, crianças, duração, inclusos, roteiro, fotos)    | `src/data/passeios.ts`                        |
-| Ajuste de todos os preços e desconto do Pix                                                                         | `src/config/precos.ts`                        |
-| Regra padrão de crianças (até 5 anos grátis)                                                                        | `CRIANCAS_PADRAO` em `src/data/passeios.ts`   |
-| Pacotes Passeio + Hospedagem (sob consulta)                                                                         | `src/data/pacotes.ts`                         |
-| Casas de temporada (desligada até as parcerias)                                                                     | `src/data/casas.ts`                           |
-| Textos do site nos 3 idiomas (home, FAQ, checkout…)                                                                 | `src/i18n/pt.ts`, `en.ts`, `es.ts`            |
-| Política de Cancelamento, Termos de Uso, Política de Privacidade                                                    | `src/content/legal/`                          |
-| Logos (horizontal, fundo escuro, emblema)                                                                           | `public/logo/`                                |
+| O que                                                                                                            | Arquivo                                     |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Nome, e-mail, WhatsApp (só no fim da reserva), domínio                                                           | `src/config/empresa.ts`                     |
+| Passeios (nome, cidade, categoria, preço de venda, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                      |
+| Ajuste de todos os preços e desconto do Pix                                                                      | `src/config/precos.ts`                      |
+| Regra padrão de crianças (até 5 anos grátis)                                                                     | `CRIANCAS_PADRAO` em `src/data/passeios.ts` |
+| Pacotes Passeio + Hospedagem (sob consulta)                                                                      | `src/data/pacotes.ts`                       |
+| Casas de temporada (desligada até as parcerias)                                                                  | `src/data/casas.ts`                         |
+| Textos do site nos 3 idiomas (home, FAQ, checkout…)                                                              | `src/i18n/pt.ts`, `en.ts`, `es.ts`          |
+| Política de Cancelamento, Termos de Uso, Política de Privacidade                                                 | `src/content/legal/`                        |
+| Logos (horizontal, fundo escuro, emblema)                                                                        | `public/logo/`                              |
 
 ### Preço
 
@@ -55,18 +55,21 @@ A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next
 
 Veja `.env.example`. Resumo:
 
-| Variável                                | Para quê                                                     |
-| --------------------------------------- | ------------------------------------------------------------ |
-| `STRIPE_SECRET_KEY`                     | Chave restrita da Stripe (só servidor)                       |
-| `STRIPE_WEBHOOK_SECRET`                 | Assinatura do webhook da Stripe (`whsec_…`)                  |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`    | Chave publicável (monta o checkout embutido)                 |
-| `PAGAMENTO_ONLINE`                      | `desligado` (padrão), `admin` ou `publico`                   |
-| `ADMIN_PASSWORD`                        | Senha do `/admin`                                            |
-| `SUPABASE_URL` e `SUPABASE_SECRET_KEY`  | Banco de dados (só servidor)                                 |
-| `CRON_SECRET`                           | Senha dos agendamentos da Vercel                             |
-| `NEXT_PUBLIC_META_PIXEL_ID`             | ID do Pixel da Meta                                          |
-| `BLOB_READ_WRITE_TOKEN`                 | Blob Store com as reservas antigas (criada pela Vercel)      |
-| `NEXT_PUBLIC_SITE_URL`                  | Endereço oficial (sitemap, prévias, link do voucher)         |
+| Variável                               | Para quê                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                    | Chave restrita da Stripe (só servidor)                                    |
+| `STRIPE_WEBHOOK_SECRET`                | Assinatura do webhook da Stripe (`whsec_…`)                               |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Chave publicável (monta o checkout embutido)                              |
+| `PAGAMENTO_ONLINE`                     | `desligado` (padrão), `admin` ou `publico`                                |
+| `ADMIN_PASSWORD`                       | Senha do `/admin`                                                         |
+| `SUPABASE_URL` e `SUPABASE_SECRET_KEY` | Banco de dados (só servidor)                                              |
+| `CRON_SECRET`                          | Senha dos agendamentos da Vercel (e base dos links dos lembretes)         |
+| `RESEND_API_KEY`                       | Chave do Resend para os e-mails automáticos (só servidor)                 |
+| `EMAIL_REMETENTE`                      | Quem envia os e-mails (padrão `Orla Nativa <reservas@orlanativa.online>`) |
+| `EMAIL_RESPOSTA`                       | Para onde vai a resposta do cliente (padrão, o e-mail da empresa)         |
+| `NEXT_PUBLIC_META_PIXEL_ID`            | ID do Pixel da Meta                                                       |
+| `BLOB_READ_WRITE_TOKEN`                | Blob Store com as reservas antigas (criada pela Vercel)                   |
+| `NEXT_PUBLIC_SITE_URL`                 | Endereço oficial (sitemap, prévias, link do voucher)                      |
 
 **Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável. Em 11/11/2026 o site passou para `orlanativa.online` e o domínio antigo (`agenciavictorhugo.online`) foi desligado, sem redirecionamento, por decisão do dono.
 
@@ -82,6 +85,16 @@ Cartão e Pix pela Stripe, no checkout embutido do próprio site. O desenho comp
 4. Pago → voucher com número único (ex.: `ON-7K3P9Q`), PDF e botão para enviar pelo WhatsApp. Reservas antigas com `VH-` continuam valendo.
 
 Com `PAGAMENTO_ONLINE` desligado (o padrão), o pedido é registrado como `aguardando_whatsapp`: a equipe cobra pelo WhatsApp e marca como pago no painel.
+
+## E-mails automáticos
+
+Pelo Resend, nos quatro idiomas, só com `RESEND_API_KEY`: sem ela nada sai e o site segue normal. O desenho está em `docs/emails.md`.
+
+- **Pedido recebido**, com o link privado do pedido (no caminho do WhatsApp e no pagamento online em aberto).
+- **Pagamento aprovado** (cartão ou Pix pelo webhook, ou marcado como pago no painel), com um voucher por item e o PDF de cada um anexado.
+- **Pix vencido** sem pagamento, com o link para pagar de novo.
+- **Consultar meu pedido** (`/consultar-pedido`, link no rodapé): o e-mail da compra e o código do pedido; se baterem, o link vai por e-mail. A tela responde sempre a mesma coisa.
+- **Carrinho abandonado**: quem digitou o e-mail no checkout e não terminou recebe até 2 lembretes (1 hora e 24 horas depois), pelo agendamento `/api/carrinho/lembretes` (a cada 15 minutos), com o link que devolve o carrinho e o de sair da lista. A página de estatísticas mostra quantos voltaram e compraram.
 
 ## Banco de reservas
 

@@ -37,7 +37,10 @@ export interface PeriodoEscolhido {
 const diasEntre = ({ de, ate }: Periodo) => Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000) + 1;
 
 const dataValida = (d: string | undefined): d is string =>
-  !!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(`${d}T12:00:00Z`)) && new Date(`${d}T12:00:00Z`).toISOString().startsWith(d);
+  !!d &&
+  /^\d{4}-\d{2}-\d{2}$/.test(d) &&
+  !Number.isNaN(Date.parse(`${d}T12:00:00Z`)) &&
+  new Date(`${d}T12:00:00Z`).toISOString().startsWith(d);
 
 /** Os dias de antes, com o mesmo tamanho. */
 function periodoAnterior(p: Periodo): Periodo {
@@ -104,12 +107,31 @@ export interface Funil {
   pagos: number;
 }
 
-/** Um carrinho, só com o que o funil usa. */
+/** Um carrinho, só com o que o funil e os lembretes do carrinho abandonado usam. */
 export interface CarrinhoNoFunil {
   criadoEm: string;
   checkoutEm?: string;
   fezPedido: boolean;
+  /** Quando o pedido do carrinho nasceu (para saber se ele veio depois da volta pelo lembrete). */
+  pedidoEm?: string;
   pagou: boolean;
+  /** Quando saíram os lembretes do carrinho abandonado e quando o cliente voltou pelo link do e-mail. */
+  lembrete1Em?: string;
+  lembrete2Em?: string;
+  voltouEm?: string;
+}
+
+/**
+ * O que os lembretes do carrinho abandonado trouxeram de volta, contando os carrinhos que receberam o primeiro
+ * lembrete no período: quantos e-mails saíram (o primeiro e o segundo, no período), quantos carrinhos voltaram pelo
+ * link e, desses, quantos viraram pedido e quantos foram pagos.
+ */
+export interface Lembretes {
+  carrinhos: number;
+  enviados: number;
+  voltaram: number;
+  pedidos: number;
+  pagos: number;
 }
 
 export interface Estatisticas {
@@ -129,6 +151,8 @@ export interface Estatisticas {
   sugestoes: { centavos: number; itens: number; pedidos: number; porPasseio: Fatia[] };
   funil: Funil;
   funilAnterior?: Funil;
+  lembretes: Lembretes;
+  lembretesAnterior?: Lembretes;
 }
 
 const NOME_PAIS: Record<string, string> = {
@@ -241,6 +265,27 @@ function funilDe(carrinhos: CarrinhoNoFunil[], p: Periodo): Funil {
   };
 }
 
+/**
+ * Os lembretes do carrinho abandonado no período. O carrinho entra pelo dia do primeiro lembrete; o e-mail, pelo dia
+ * em que saiu. "Voltou" é quem abriu o link do e-mail; o pedido só conta se nasceu depois dessa volta.
+ */
+export function lembretesDe(carrinhos: CarrinhoNoFunil[], p: Periodo): Lembretes {
+  const lembrados = carrinhos.filter((c) => c.lembrete1Em && dentro(diaDe(c.lembrete1Em), p));
+  const enviados = carrinhos.reduce(
+    (soma, c) => soma + [c.lembrete1Em, c.lembrete2Em].filter((em) => em && dentro(diaDe(em), p)).length,
+    0,
+  );
+  const voltaram = lembrados.filter((c) => c.voltouEm);
+  const depoisDaVolta = voltaram.filter((c) => c.fezPedido && (!c.pedidoEm || !c.voltouEm || c.pedidoEm >= c.voltouEm));
+  return {
+    carrinhos: lembrados.length,
+    enviados,
+    voltaram: voltaram.length,
+    pedidos: depoisDaVolta.length,
+    pagos: depoisDaVolta.filter((c) => c.pagou).length,
+  };
+}
+
 export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoFunil[], escolhido: PeriodoEscolhido): Estatisticas {
   const { periodo, anterior } = escolhido;
   const pagos = agruparPedidos(reservas).filter((p) => p.status === 'pago');
@@ -262,7 +307,13 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
 
   return {
     resumo: resumir(vendidos),
-    ...(anterior ? { resumoAnterior: resumir(doPeriodo(anterior)), funilAnterior: funilDe(carrinhos, anterior) } : {}),
+    ...(anterior
+      ? {
+          resumoAnterior: resumir(doPeriodo(anterior)),
+          funilAnterior: funilDe(carrinhos, anterior),
+          lembretesAnterior: lembretesDe(carrinhos, anterior),
+        }
+      : {}),
     porDia,
     porSemana: somarPorSemana(porDia),
     porPasseio: juntar(itens.map(produtoDoItem)),
@@ -295,6 +346,7 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
       porPasseio: juntar(sugeridos.map(produtoDoItem)),
     },
     funil: funilDe(carrinhos, periodo),
+    lembretes: lembretesDe(carrinhos, periodo),
   };
 }
 

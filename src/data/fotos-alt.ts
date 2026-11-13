@@ -561,6 +561,437 @@ export const ALT_FOTOS: Record<string, Texto> = {
     es: 'Praia do Forte con sombrillas coloridas y el Fuerte São Mateus de fondo',
   },
 
+  /*
+   * Casas de temporada (Etapa 7): fotos sem metadados e com nomes neutros (scripts/preparar-fotos-casas.ts). O texto
+   * descreve só o que se vê, sem dizer onde a casa fica nem em que andar fica cada quarto; a praia de Geribá só é
+   * citada nas fotos que o dono identificou.
+   */
+  '/fotos/casas/mansao-ferradura-vista-mar/piscina-vista-mar.jpg': {
+    pt: 'Piscina de água azul com vista para o mar e as ilhas, cercada de vegetação',
+    en: 'Blue pool overlooking the sea and the islands, surrounded by greenery',
+    es: 'Piscina de agua azul con vista al mar y a las islas, rodeada de vegetación',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/casa-e-piscina-vistas-de-cima.jpg': {
+    pt: 'Casa branca moderna vista de cima, com piscina, spa, espreguiçadeiras e painéis solares',
+    en: 'Modern white house seen from above, with a pool, a spa, sun loungers and solar panels',
+    es: 'Casa blanca moderna vista desde arriba, con piscina, spa, tumbonas y paneles solares',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/sala-de-estar-teto-de-madeira.jpg': {
+    pt: 'Sala de estar com teto de madeira, sofás claros e portas de vidro para o terraço com vista',
+    en: 'Living room with a wooden ceiling, light sofas and glass doors to the terrace with a view',
+    es: 'Sala de estar con techo de madera, sofás claros y puertas de vidrio a la terraza con vista',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-1-vista-mar.jpg': {
+    pt: 'Quarto com cama king e porta de vidro para a varanda com vista para o mar',
+    en: 'Bedroom with a king bed and a glass door to the balcony with a sea view',
+    es: 'Habitación con cama king y puerta de vidrio al balcón con vista al mar',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/mesa-de-jantar-vista-mar.jpg': {
+    pt: 'Mesa de jantar com cadeiras de palhinha diante de portas de vidro com vista para o mar',
+    en: 'Dining table with cane chairs in front of glass doors looking out to the sea',
+    es: 'Mesa de comedor con sillas de esterilla frente a puertas de vidrio con vista al mar',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-pia-e-vista.jpg': {
+    pt: 'Pia na bancada de pedra da cozinha, com a piscina e o mar vistos pelas portas de vidro',
+    en: 'Sink on the stone kitchen counter, with the pool and the sea seen through glass doors',
+    es: 'Fregadero en la encimera de piedra de la cocina, con la piscina y el mar tras las puertas de vidrio',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/espreguicadeiras-na-piscina.jpg': {
+    pt: 'Duas espreguiçadeiras pretas no terraço, ao lado da piscina, com a mata ao fundo',
+    en: 'Two black sun loungers on the terrace beside the pool, with woodland behind',
+    es: 'Dos tumbonas negras en la terraza, al lado de la piscina, con el bosque de fondo',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/varanda-envidracada.jpg': {
+    pt: 'Varanda com sofá e poltronas de fibra, guarda-corpo de vidro e vista para o mar',
+    en: 'Balcony with a wicker sofa and armchairs, a glass railing and a sea view',
+    es: 'Balcón con sofá y sillones de fibra, baranda de vidrio y vista al mar',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/cama-de-frente-para-a-janela.jpg': {
+    pt: 'Cama de frente para uma janela ampla com vista para o mar e os morros',
+    en: 'Bed facing a wide window with a view of the sea and the hills',
+    es: 'Cama frente a un ventanal con vista al mar y a los cerros',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-ilha-com-bancos.jpg': {
+    pt: 'Cozinha com ilha de pedra, cinco banquetas, adega climatizada e teto de madeira',
+    en: 'Kitchen with a stone island, five bar stools, a wine fridge and a wooden ceiling',
+    es: 'Cocina con isla de piedra, cinco banquetas, cava de vinos y techo de madera',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-completa.jpg': {
+    pt: 'Cozinha completa com fogão, forno, ilha com pia e prateleiras de madeira',
+    en: 'Fully equipped kitchen with a stove, an oven, an island sink and wooden shelves',
+    es: 'Cocina equipada con horno, isla con fregadero y estantes de madera',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/sala-e-cozinha-integradas.jpg': {
+    pt: 'Sala com sofá bege integrada à cozinha e à mesa de jantar, sob o teto de madeira',
+    en: 'Living area with a beige sofa open to the kitchen and dining table, under a wooden ceiling',
+    es: 'Sala con sofá beige integrada a la cocina y al comedor, bajo el techo de madera',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/sala-de-tv.jpg': {
+    pt: 'Sala de TV com sofá em L, duas poltronas brancas e TV grande na parede',
+    en: 'TV room with an L-shaped sofa, two white armchairs and a large wall-mounted TV',
+    es: 'Sala de TV con sofá en L, dos sillones blancos y un televisor grande en la pared',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/spa.jpg': {
+    pt: 'Spa com jatos de água ligados, em frente às portas de vidro da sala e da cozinha',
+    en: 'Spa with the water jets on, in front of the glass doors of the living room and kitchen',
+    es: 'Spa con los chorros de agua encendidos, frente a las puertas de vidrio de la sala y la cocina',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/portas-de-vidro-e-piscina.jpg': {
+    pt: 'Fachada branca com portas de vidro abertas para a cozinha e a sala, junto à piscina',
+    en: 'White facade with glass doors open to the kitchen and living room, next to the pool',
+    es: 'Fachada blanca con puertas de vidrio abiertas a la cocina y la sala, junto a la piscina',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/varanda-poltronas.jpg': {
+    pt: 'Varanda coberta com poltronas de fibra e mesinha de madeira, ao lado da piscina',
+    en: 'Covered balcony with wicker armchairs and a small wooden table, beside the pool',
+    es: 'Balcón techado con sillones de fibra y una mesita de madera, al lado de la piscina',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/borda-da-piscina.jpg': {
+    pt: 'Borda da piscina com o mar azul, as ilhas e os morros ao fundo',
+    en: 'Edge of the pool with the blue sea, the islands and the hills behind',
+    es: 'Borde de la piscina con el mar azul, las islas y los cerros de fondo',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/jardim-interno.jpg': {
+    pt: 'Corredor com jardim interno de vasos e plantas atrás de paredes de vidro',
+    en: 'Hallway with an indoor garden of potted plants behind glass walls',
+    es: 'Pasillo con un jardín interior de macetas y plantas detrás de paredes de vidrio',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/porta-de-entrada.jpg': {
+    pt: 'Porta de entrada de madeira, larga e pivotante, aberta para o hall',
+    en: 'Wide wooden pivot front door, open to the entrance hall',
+    es: 'Puerta de entrada de madera, ancha y pivotante, abierta al recibidor',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/fachada-e-jardim.jpg': {
+    pt: 'Fachada branca da entrada com porta de madeira, gramado e caminho de pedras',
+    en: 'White entrance facade with a wooden door, a lawn and a stepping-stone path',
+    es: 'Fachada blanca de la entrada con puerta de madera, césped y un camino de piedras',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/parquinho.jpg': {
+    pt: 'Parquinho com escorregador, balanços e gangorra sobre grama sintética',
+    en: 'Playground with a slide, swings and a seesaw on artificial grass',
+    es: 'Juegos infantiles de colores con tobogán y columpios sobre césped sintético',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-teto-de-madeira.jpg': {
+    pt: 'Quarto com teto de madeira, TV e parede de vidro para o terraço',
+    en: 'Bedroom with a wooden ceiling, a TV and a glass wall to the terrace',
+    es: 'Habitación con techo de madera, TV y pared de vidrio hacia la terraza',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-3.jpg': {
+    pt: 'Quarto com cama king, TV na parede e janela para o verde',
+    en: 'Bedroom with a king bed, a wall-mounted TV and a window onto greenery',
+    es: 'Habitación con cama king, TV en la pared y ventana hacia el verde',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-2.jpg': {
+    pt: 'Quarto com cama king, teto branco com vigas, TV e janela para as árvores',
+    en: 'Bedroom with a king bed, a white beamed ceiling, a TV and a window onto the trees',
+    es: 'Habitación con cama king, techo blanco con vigas, TV y ventana hacia los árboles',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-4-cama-e-beliches.jpg': {
+    pt: 'Quarto com cama queen e dois beliches de madeira, com puff preto',
+    en: 'Bedroom with a queen bed and two wooden bunk beds, plus a black bean bag',
+    es: 'Habitación con cama queen y dos literas de madera, con un puf negro',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/quarto-4-tv.jpg': {
+    pt: 'O quarto dos beliches visto da porta, com a TV na parede',
+    en: 'The bunk-bed room seen from the door, with a TV on the wall',
+    es: 'La habitación de las literas vista desde la puerta, con TV en la pared',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/banheiro-chuveiro-de-teto.jpg': {
+    pt: 'Banheiro com chuveiro de teto atrás do box de vidro e bancada de pedra junto à janela',
+    en: 'Bathroom with a rain shower behind a glass screen and a stone vanity by the window',
+    es: 'Baño con ducha de techo detrás de la mampara de vidrio y encimera de piedra junto a la ventana',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/banheiro-espelho-redondo.jpg': {
+    pt: 'Banheiro com espelho redondo, pia de pedra e box de vidro',
+    en: 'Bathroom with a round mirror, a stone sink and a glass shower',
+    es: 'Baño con espejo redondo, lavamanos de piedra y ducha con mampara de vidrio',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/lavabo.jpg': {
+    pt: 'Lavabo com parede de madeira texturizada, pia de pedra e espelho redondo',
+    en: 'Powder room with a textured wood wall, a stone sink and a round mirror',
+    es: 'Baño de visitas con pared de madera texturizada, lavamanos de piedra y espejo redondo',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/sofa-e-cozinha.jpg': {
+    pt: 'Sofá bege com almofadas diante da cozinha com forno, fogão e prateleiras',
+    en: 'Beige sofa with cushions facing the kitchen with an oven, a stove and shelves',
+    es: 'Sofá beige con cojines frente a la cocina con horno y estantes',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/cozinha-e-sala-de-tv.jpg': {
+    pt: 'Cozinha com ilha de pedra e banquetas, geladeira inox e a sala de TV ao fundo',
+    en: 'Kitchen with a stone island and stools, a stainless steel fridge and the TV room behind',
+    es: 'Cocina con isla de piedra y banquetas, refrigerador de acero y la sala de TV al fondo',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/mesa-grande-e-escada.jpg': {
+    pt: 'Mesa de jantar grande com cadeiras brancas, escada de madeira e cantinho de trabalho',
+    en: 'Large dining table with white chairs, a wooden staircase and a small work corner',
+    es: 'Mesa de comedor grande con sillas blancas, escalera de madera y un rincón de trabajo',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/corredor-de-vidro.jpg': {
+    pt: 'Corredor com paredes de vidro que leva à sala e à mesa de jantar',
+    en: 'Hallway with glass walls leading to the living and dining area',
+    es: 'Pasillo con paredes de vidrio que lleva a la sala y al comedor',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/entrada-e-jardim.jpg': {
+    pt: 'Entrada com porta de madeira, degraus, palmeira e gramado em frente à casa',
+    en: 'Entrance with a wooden door, steps, a palm and a lawn in front of the house',
+    es: 'Entrada con puerta de madera, escalones, una palmera y césped frente a la casa',
+  },
+  '/fotos/casas/mansao-ferradura-vista-mar/lavanderia.jpg': {
+    pt: 'Lavanderia com máquina de lavar e tanque',
+    en: 'Laundry room with a washing machine and a utility sink',
+    es: 'Lavandería con lavadora y un fregadero',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-com-prainha.jpg': {
+    pt: 'Piscina de formato livre com parte rasa e jatos de água, diante do lounge coberto',
+    en: 'Free-form pool with a shallow area and water jets, in front of the covered lounge',
+    es: 'Piscina de forma libre con zona poco profunda y chorros de agua, frente al lounge techado',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/lounge-envidracado-e-deck.jpg': {
+    pt: 'Deck de madeira com puffs verdes e lounge envidraçado, com vista para a praia e a baía',
+    en: 'Wooden deck with green bean bags and a glass-walled lounge, overlooking the beach and the bay',
+    es: 'Deck de madera con puffs verdes y lounge con paredes de vidrio, con vista a la playa y la bahía',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/praia-vista-do-alto.jpg': {
+    pt: 'Praia de Geribá vista do alto, com o mar azul e o bairro ao longo da areia',
+    en: 'Geribá Beach seen from above, with the blue sea and the neighborhood along the sand',
+    es: 'La playa de Geribá vista desde lo alto, con el mar azul y el barrio a lo largo de la arena',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/deck-mesa-e-vista-mar.jpg': {
+    pt: 'Deck com mesa e cadeiras de madeira, almofadão laranja e vista para o mar',
+    en: 'Deck with a wooden table and chairs, an orange floor cushion and a sea view',
+    es: 'Deck con mesa y sillas de madera, un cojín grande naranja y vista al mar',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-vista-oceano.jpg': {
+    pt: 'Piscina com vista para o oceano, uma praia longa e as ilhas ao fundo',
+    en: 'Pool overlooking the ocean, with a long beach and islands in the distance',
+    es: 'Piscina con vista al océano, una playa larga y las islas a lo lejos',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-ao-entardecer.jpg': {
+    pt: 'Piscina e casa ao entardecer, com o sol se pondo atrás das árvores',
+    en: 'Pool and house at dusk, with the sun setting behind the trees',
+    es: 'Piscina y casa al atardecer, con el sol que se pone detrás de los árboles',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/borda-da-piscina-e-oceano.jpg': {
+    pt: 'Borda da piscina com puffs laranja e o oceano azul ao fundo',
+    en: 'Edge of the pool with orange bean bags and the blue ocean behind',
+    es: 'Borde de la piscina con puffs naranjas y el océano azul de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-e-lounge.jpg': {
+    pt: 'Piscina, lounge envidraçado e uma árvore florida sob o céu azul',
+    en: 'Pool, glass-walled lounge and a flowering tree under a blue sky',
+    es: 'Piscina, lounge con paredes de vidrio y un árbol en flor bajo el cielo azul',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-por-do-sol.jpg': {
+    pt: 'Piscina no pôr do sol, com o mar e as ilhas no horizonte',
+    en: 'Pool at sunset, with the sea and the islands on the horizon',
+    es: 'Piscina en la puesta de sol, con el mar y las islas en el horizonte',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/almofadao-na-beira-da-piscina.jpg': {
+    pt: 'Almofadão laranja no deck, na beira da piscina, com uma praia e os morros ao fundo',
+    en: 'Orange floor cushion on the deck by the pool, with a beach and hills behind',
+    es: 'Cojín grande naranja en el deck, junto a la piscina, con una playa y los cerros de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-e-varanda.jpg': {
+    pt: 'Piscina e varanda com bar, banquetas e almofadões laranja',
+    en: 'Pool and veranda with a bar, stools and orange floor cushions',
+    es: 'Piscina y terraza con barra, banquetas y cojines naranjas',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/piscina-e-ilhas.jpg': {
+    pt: 'Piscina com vista para a baía, as ilhas e uma praia ao longe',
+    en: 'Pool overlooking the bay, the islands and a distant beach',
+    es: 'Piscina con vista a la bahía, las islas y una playa a lo lejos',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/lounge-coberto-e-bar.jpg': {
+    pt: 'Lounge coberto com puffs verdes, com o bar e a churrasqueira sob o pergolado ao fundo',
+    en: 'Covered lounge with green bean bags, and the bar and grill under the pergola behind',
+    es: 'Lounge techado con puffs verdes y, al fondo, la barra y la parrilla bajo la pérgola',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/puffs-e-vista-da-praia.jpg': {
+    pt: 'Puffs verdes no deck com vista para a praia de Geribá e o bairro',
+    en: 'Green bean bags on the deck overlooking Geribá Beach and the neighborhood',
+    es: 'Puffs verdes en el deck con vista a la playa de Geribá y al barrio',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/lounge-coberto.jpg': {
+    pt: 'Lounge coberto com sala envidraçada, puffs e vista para a baía',
+    en: 'Covered lounge with a glass-walled room, bean bags and a view of the bay',
+    es: 'Lounge techado con un ambiente de vidrio, puffs y vista a la bahía',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/deck-coberto-com-puffs.jpg': {
+    pt: 'Deck coberto com puffs verdes e laranja ao lado da piscina, com o mar ao fundo',
+    en: 'Covered deck with green and orange bean bags beside the pool, with the sea behind',
+    es: 'Deck techado con puffs verdes y naranjas al lado de la piscina, con el mar de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/lounge-envidracado.jpg': {
+    pt: 'Lounge envidraçado visto de frente, com puffs e mesinha no deck e a baía atrás',
+    en: 'Glass-walled lounge seen from the front, with bean bags, a small table and the bay behind',
+    es: 'Lounge con paredes de vidrio visto de frente, con puffs, una mesita y la bahía detrás',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/espreguicadeira-e-braseiro.jpg': {
+    pt: 'Espreguiçadeira e braseiro no deck coberto, com a piscina e o mar adiante',
+    en: 'Sun lounger and fire pit on the covered deck, with the pool and the sea ahead',
+    es: 'Tumbona y brasero en el deck techado, con la piscina y el mar adelante',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/varanda-ao-entardecer.jpg': {
+    pt: 'Varanda envidraçada ao entardecer, com o céu rosado sobre o mar',
+    en: 'Glass-walled veranda at dusk, with a pink sky over the sea',
+    es: 'Terraza con paredes de vidrio al anochecer, con el cielo rosado sobre el mar',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/braseiro-a-noite.jpg': {
+    pt: 'Braseiro aceso à noite no deck, entre puffs verdes',
+    en: 'Fire pit lit at night on the deck, among green bean bags',
+    es: 'Brasero encendido de noche en el deck, entre puffs verdes',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/deck-e-jardim.jpg': {
+    pt: 'Deck coberto com puffs verdes e braseiro, espreguiçadeiras e jardim com palmeiras',
+    en: 'Covered deck with green bean bags and a fire pit, sun loungers and a garden with palms',
+    es: 'Deck techado con puffs verdes y brasero, tumbonas y un jardín con palmeras',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/puffs-laranja-e-praia.jpg': {
+    pt: 'Dois puffs laranja ao lado da piscina, com uma praia e um morro verde ao fundo',
+    en: 'Two orange bean bags beside the pool, with a beach and a green hill behind',
+    es: 'Dos puffs naranjas al lado de la piscina, con una playa y un cerro verde de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/puffs-laranja-e-mar.jpg': {
+    pt: 'Dois puffs laranja diante do mar azul, com uma ilha no horizonte',
+    en: 'Two orange bean bags facing the blue sea, with an island on the horizon',
+    es: 'Dos puffs naranjas frente al mar azul, con una isla en el horizonte',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/bar-e-churrasqueira.jpg': {
+    pt: 'Bar de bambu com três banquetas e churrasqueira sob o pergolado, ao lado da piscina',
+    en: 'Bamboo bar with three stools and a grill under the pergola, beside the pool',
+    es: 'Barra de bambú con tres banquetas y parrilla bajo la pérgola, al lado de la piscina',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/bar-com-vista-mar.jpg': {
+    pt: 'Balcão do bar sob o pergolado, com a piscina e o mar ao fundo',
+    en: 'Bar counter under the pergola, with the pool and the sea behind',
+    es: 'Barra bajo la pérgola, con la piscina y el mar de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/area-gourmet-e-piscina.jpg': {
+    pt: 'Área gourmet com bar e churrasqueira, piscina e espreguiçadeiras em frente à casa',
+    en: 'Outdoor bar and grill area, pool and sun loungers in front of the house',
+    es: 'Área gourmet con barra y parrilla, piscina y tumbonas frente a la casa',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/fachada-e-jardim.jpg': {
+    pt: 'Fachada com árvore florida e jardim, com o mar e o bairro ao fundo',
+    en: 'House front with a flowering tree and garden, with the sea and the neighborhood behind',
+    es: 'Fachada con un árbol en flor y jardín, con el mar y el barrio de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/fachada-varandas-de-vidro.jpg': {
+    pt: 'Casa com varandas de vidro, gramado e espreguiçadeiras',
+    en: 'House with glass-walled verandas, a lawn and sun loungers',
+    es: 'Casa con terrazas de vidrio, césped y tumbonas',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/casa-entre-a-vegetacao.jpg': {
+    pt: 'Casa de telhado colonial vista de baixo, entre a vegetação, sob o céu azul',
+    en: 'House with a clay-tile roof seen from below, among the vegetation, under a blue sky',
+    es: 'Casa con techo de tejas vista desde abajo, entre la vegetación, bajo el cielo azul',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/casa-e-gramado.jpg': {
+    pt: 'Casa com gramado, muro de pedra e árvore florida',
+    en: 'House with a lawn, a stone wall and a flowering tree',
+    es: 'Casa con césped, muro de piedra y un árbol en flor',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/varanda-de-entrada.jpg': {
+    pt: 'Varanda da entrada com bancos verdes listrados e portas de vidro para a sala de jantar',
+    en: 'Entrance veranda with green striped benches and glass doors to the dining room',
+    es: 'Terraza de la entrada con bancos verdes a rayas y puertas de vidrio al comedor',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/mesa-na-varanda.jpg': {
+    pt: 'Mesa redonda de vidro com cadeiras na varanda, ao lado do lounge envidraçado',
+    en: 'Round glass table with chairs on the veranda, beside the glass-walled lounge',
+    es: 'Mesa redonda de vidrio con sillas en la terraza, junto al lounge con paredes de vidrio',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/varanda-mesa-e-banco.jpg': {
+    pt: 'Varanda com banco listrado, mesa com cadeiras e o mar ao fundo',
+    en: 'Veranda with a striped bench, a table with chairs and the sea behind',
+    es: 'Terraza con banco a rayas, mesa con sillas y el mar de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/jardim-e-suite.jpg': {
+    pt: 'Jardim florido com caminho de pedras até uma suíte com porta para o jardim',
+    en: 'Flowering garden with a stone path to a suite that opens onto the garden',
+    es: 'Jardín florido con un camino de piedras hasta una suite que da al jardín',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/jardim-escada-e-rede.jpg': {
+    pt: 'Jardim com escada externa, rede pendurada e palmeiras',
+    en: 'Garden with an outdoor staircase, a hanging hammock and palm trees',
+    es: 'Jardín con escalera exterior, hamaca colgante y palmeras',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/varanda-de-madeira.jpg': {
+    pt: 'Varanda de madeira com guarda-corpo, plantas e vista para o mar',
+    en: 'Wooden balcony with a railing, plants and a sea view',
+    es: 'Balcón de madera con baranda, plantas y vista al mar',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/sala-vista-pelo-vidro.jpg': {
+    pt: 'Sala de estar vista de fora pelo vidro, com sofás, TV e a baía ao fundo',
+    en: 'Living room seen from outside through the glass, with sofas, a TV and the bay behind',
+    es: 'Sala de estar vista desde afuera a través del vidrio, con sofás, TV y la bahía de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/escrivaninha-vista-mar.jpg': {
+    pt: 'Canto com escrivaninha branca, cadeira e janelas com vista para o mar',
+    en: 'Corner with a white desk, a chair and windows looking out to the sea',
+    es: 'Rincón con escritorio blanco, silla y ventanas con vista al mar',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/quarto-5.jpg': {
+    pt: 'Quarto com duas camas de casal brancas, ar-condicionado e luminárias de palha',
+    en: 'Bedroom with two white double beds, air conditioning and woven pendant lamps',
+    es: 'Habitación con dos camas dobles blancas, aire acondicionado y lámparas de mimbre',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/quarto-5-outro-angulo.jpg': {
+    pt: 'O mesmo quarto de duas camas de casal visto de outro ângulo',
+    en: 'The same room with two double beds seen from another angle',
+    es: 'La misma habitación de dos camas dobles vista desde otro ángulo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-pia-dupla.jpg': {
+    pt: 'Banheiro com bancada de madeira de duas pias, bidê e box de vidro com chuveiro de teto',
+    en: 'Bathroom with a wooden double vanity, a bidet and a glass shower with a rain head',
+    es: 'Baño con encimera de madera de dos lavamanos, bidet y ducha de techo con mampara de vidrio',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-box-de-vidro.jpg': {
+    pt: 'Banheiro com azulejos claros de faixa decorada, box de vidro e janela',
+    en: 'Bathroom with light tiles and a patterned border, a glass shower and a window',
+    es: 'Baño con azulejos claros y una guarda decorada, ducha con mampara de vidrio y ventana',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-chuveiro-de-teto.jpg': {
+    pt: 'Banheiro com chuveiro de teto no box de vidro e bancada de madeira',
+    en: 'Bathroom with a rain shower in a glass enclosure and a wooden vanity',
+    es: 'Baño con ducha de techo detrás de la mampara de vidrio y encimera de madera',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-ducha-higienica.jpg': {
+    pt: 'Banheiro com vaso, ducha higiênica, box de vidro e toalha branca',
+    en: 'Bathroom with a toilet, a bidet shower, a glass shower and a white towel',
+    es: 'Baño con inodoro, ducha higiénica, mampara de vidrio y toalla blanca',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/banheiro-toalhas-laranja.jpg': {
+    pt: 'Banheiro com azulejos em tons de areia, bancada de madeira e toalhas laranja',
+    en: 'Bathroom with sand-colored tiles, a wooden vanity and orange towels',
+    es: 'Baño con azulejos color arena, encimera de madera y toallas naranjas',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/praia-vista-da-varanda.jpg': {
+    pt: 'Vista da varanda para uma praia longa e o mar, com uma palmeira em primeiro plano',
+    en: 'View from the balcony of a long beach and the sea, with a palm tree in front',
+    es: 'Vista desde el balcón a una playa larga y el mar, con una palmera adelante',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/praia-e-mar.jpg': {
+    pt: 'Praia vista do alto, com ondas, guarda-sóis e banhistas na areia',
+    en: 'Beach seen from above, with waves, umbrellas and beachgoers on the sand',
+    es: 'Playa vista desde lo alto, con olas, sombrillas y bañistas en la arena',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/por-do-sol-sobre-os-telhados.jpg': {
+    pt: 'Pôr do sol sobre os telhados da casa, com o deck, a piscina e o mar',
+    en: 'Sunset over the roofs of the house, with the deck, the pool and the sea',
+    es: 'Atardecer sobre los techos de la casa, con el deck, la piscina y el mar',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/vista-do-bairro-e-da-baia.jpg': {
+    pt: 'Vista do bairro de casas com telhados vermelhos, o mar e as montanhas ao fundo',
+    en: "View of the neighborhood's red-roofed houses, the sea and the mountains beyond",
+    es: 'Vista del barrio de casas con techos rojos, el mar y las montañas de fondo',
+  },
+  '/fotos/casas/mansao-geriba-vista-mar/praia-e-serra.jpg': {
+    pt: 'Uma praia longa ao pé da serra, vista do alto entre a vegetação',
+    en: 'A long beach at the foot of the hills, seen from above through the vegetation',
+    es: 'Una playa larga al pie de los cerros, vista desde lo alto entre la vegetación',
+  },
+
   /* Lanchas (várias cidades) */
   '/fotos/lancha/lancha-agua-cristalina.jpg': {
     pt: 'Lancha branca ancorada em água transparente junto a uma ilha de mata verde',

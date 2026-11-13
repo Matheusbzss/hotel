@@ -25,6 +25,8 @@ import { formatarHora } from '../src/lib/horarios.ts';
 import { DDIS, PAIS_PADRAO } from '../src/lib/validacao.ts';
 import { AVISOS_VOUCHER, IMPORTANTE_VOUCHER } from '../src/lib/voucher-textos.ts';
 import { VERBOS_VOS, neutroDoArgentino, palavras, suspeitasDeVos } from './ajuda/regra-neutra.ts';
+import { CAMAS, COMODIDADES, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR } from '../src/data/comodidades.ts';
+import { CANCELAMENTO_DAS_CASAS, CASAS_PARA_CADASTRAR, regrasDeTodasAsCasas } from '../scripts/dados/casas.ts';
 
 // Etapa 3, lote 2, a integração: o /es é o espanhol neutro (com "tú") e o /es-ar é o texto argentino que o site
 // tinha antes (com "vos"), palavra por palavra, só nas frases que diferem. Os testes de cada frente
@@ -178,6 +180,15 @@ for (const [fonte, es, ar] of [
     `${fonte}: o es-ar tem de ter as chaves do es`,
   );
   for (const [caminho, t] of folhas(es)) CORPUS.push({ fonte: `${fonte} ${caminho}`, es: t, ar: doAr.get(caminho) as string });
+}
+
+// 9. a Etapa 7: as listas fixas das casas (src/data/comodidades.ts) e os textos das duas casas prontas para cadastrar
+// (scripts/dados/casas.ts), que vão para o banco. São neutros (sem tú nem vos): nenhum tem versão argentina
+for (const { trilha, campo } of [
+  ...campos({ COMODIDADES, CAMAS, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR }, 'casas listas'),
+  ...campos({ casas: CASAS_PARA_CADASTRAR, regras: regrasDeTodasAsCasas(12), cancelamento: CANCELAMENTO_DAS_CASAS }, 'casas cadastro'),
+]) {
+  juntar(trilha, lista(texto(campo, 'es')), lista(texto(campo, 'es-ar')));
 }
 
 /* ------------------------------------------------------------------------------------------------------------ */

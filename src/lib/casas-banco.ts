@@ -75,6 +75,17 @@ export const linhaDeBloqueioDoSite = (b: BloqueioDoSite, sessaoId: string): Tabl
   item_pedido_id: b.itemPedidoId,
 });
 
+/**
+ * As estadias de um pedido → os argumentos da função do banco prender_datas_casas (migração 20261113223000). Ela trava
+ * as casas, confere TODOS os bloqueios de cada uma (reserva do site, bloqueio à mão e calendário de fora) e só então
+ * grava as estadias, com a sessão de pagamento como referência; tudo ou nada. Devolve false, sem gravar nada, se alguma
+ * noite já estiver ocupada. É o caminho que a reserva das casas (parte G da Etapa 7) usa no lugar da inserção direta.
+ */
+export const argsDePrenderDatas = (estadias: BloqueioDoSite[], sessaoId: string) => ({
+  p_estadias: estadias.map((e) => ({ casa_id: e.casaId, inicio: e.inicio, fim: e.fim, item_pedido_id: e.itemPedidoId })) as Json,
+  p_referencia: sessaoId,
+});
+
 export function deLinhas(c: LinhaCasa, tarifas: LinhaTarifa[], bloqueios: LinhaBloqueio[]): CasaPainel {
   const lista = tarifas.map(tarifaDeLinha).sort((a, b) => a.de.localeCompare(b.de));
   const periodos = (tipo: TipoTarifa) => lista.filter((t) => t.tipo === tipo);

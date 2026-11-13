@@ -206,11 +206,12 @@ export function neutroDoArgentino(texto: string): string {
 /**
  * Palavras do espanhol neutro que terminam em -á/-é/-í(s) sem serem verbo em "vos" (em minúscula, como a varredura
  * compara): a varredura por terminação, que pega qualquer forma de vos, inclusive as que não estão na lista acima,
- * ignora só estas. Nomes próprios (Geribá, José, Maracaná) e o pretérito "llegué" entram aqui.
+ * ignora só estas. Nomes próprios (Geribá, José, Maracaná) e o pretérito "llegué" entram aqui; "sofá" e "sofás" vieram
+ * com as casas (Etapa 7).
  */
 export const INOCENTES_COM_ACENTO_FINAL = new Set(
   `más qué está estás sí así ahí aquí allí después demás además detrás atrás través país interés café josé geribá maracaná
-  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés`
+  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés sofá sofás`
     .split(/\s+/)
     .filter(Boolean),
 );

@@ -31,3 +31,10 @@ O crédito do satélite e do OpenStreetMap aparece na legenda do mapa.
 | Arquivo | Origem | Licença |
 | --- | --- | --- |
 | `transfer/*.jpg` | Fotos dos veículos da agência, recebidas em 01/11/2026. As placas foram borradas por `scripts/preparar-fotos-transfer.mjs` | Da agência. O casal de `carro-virtus-com-clientes.jpg` autorizou o uso; a foto dos motoristas (`carros-creta-com-motoristas.jpg`) foi liberada pelo dono em 02/11/2026 |
+
+## Casas de temporada
+
+| Arquivo | Origem | Licença |
+| --- | --- | --- |
+| `casas/mansao-ferradura-vista-mar/*.jpg` | 35 das 38 fotos da casa que o dono mandou em 06/11/2026 (`material-recebido/casas/casa-ferradurinha`). Regravadas sem metadados e com nomes neutros por `scripts/preparar-fotos-casas.ts`; a 34 e a 36 (mostram o portão, a rua e os vizinhos) e a 38 (só decoração) ficaram de fora | Do anúncio da casa, mandadas pelo dono para anunciar no site. Falta o dono confirmar que o dono do imóvel autoriza o uso |
+| `casas/mansao-geriba-vista-mar/*.jpg` | As 50 fotos escolhidas do anúncio da casa que o dono mandou em 07/11/2026 (`material-recebido/casas/casa-geriba`). Regravadas com nomes neutros por `scripts/preparar-fotos-casas.ts` | Do anúncio da casa, mandadas pelo dono para anunciar no site. Falta o dono confirmar que o dono do imóvel autoriza o uso |

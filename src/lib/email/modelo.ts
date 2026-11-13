@@ -107,12 +107,14 @@ function itemHtml(item: ItemEmail, primeiro: boolean): string {
     ? [
         `<p style="margin:8px 0 0;font-family:${FONTE};font-size:15px;line-height:21px;color:${CORES.tinta};">${escaparHtml(item.voucher.rotulo)} <strong style="letter-spacing:0.5px;">${escaparHtml(item.voucher.codigo)}</strong></p>`,
         `<p style="margin:6px 0 0;font-family:${FONTE};font-size:15px;line-height:21px;">`,
+        // cada link fica inteiro na linha ("Descargar el PDF" não deixa o "PDF" sozinho embaixo): quando os dois não
+        // cabem, o segundo desce inteiro, e o espaço comum depois do "·" é o único lugar onde a linha quebra
         item.voucher.links
           .map(
             (l) =>
-              `<a href="${escaparHtml(l.href)}" target="_blank" style="color:${CORES.link};font-weight:bold;text-decoration:underline;">${escaparHtml(l.texto)}</a>`,
+              `<a href="${escaparHtml(l.href)}" target="_blank" style="color:${CORES.link};font-weight:bold;text-decoration:underline;white-space:nowrap;">${escaparHtml(l.texto)}</a>`,
           )
-          .join('&nbsp;&nbsp;·&nbsp;&nbsp;'),
+          .join('&nbsp;&nbsp;·&nbsp; '),
         `</p>`,
       ].join('')
     : '';

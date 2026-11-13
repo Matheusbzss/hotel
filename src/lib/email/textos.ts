@@ -17,6 +17,8 @@ export interface TextosEmail {
   comum: {
     /** "Olá, {nome}." */
     ola: string;
+    /** A saudação quando o nome digitado não serve para ela (vazio, com número, link ou sinal). */
+    olaSemNome: string;
     codigoPedido: string;
     voucher: string;
     verVoucher: string;
@@ -71,6 +73,19 @@ export interface TextosEmail {
     texto: string;
     nota: string;
   };
+  /** A confirmação do pedido de desistência pelo site (Decreto 7.962/2013, art. 5º, § 4º). */
+  desistencia: {
+    assunto: string;
+    preCabecalho: string;
+    titulo: string;
+    /** {quando} é a data e a hora do pedido de desistência, no horário de Brasília. */
+    recebido: string;
+    /** O que acontece agora: a resposta em até 1 dia útil, os 7 dias com reembolso integral, a política. */
+    agora: string;
+    /** "Se não foi você, responda a este e-mail": a resposta vai para a equipe. */
+    naoFoiVoce: string;
+    itens: string;
+  };
   lembrete: {
     assunto1: string;
     preCabecalho1: string;
@@ -82,6 +97,8 @@ export interface TextosEmail {
     texto2: string;
     botao: string;
     nota: string;
+    /** Para quem comprou por outro carrinho (outro navegador): o lembrete não pede nada. */
+    jaReservou: string;
     noPix: string;
     noCartao: string;
     /** Por que a pessoa recebeu o lembrete. {site} é o domínio. */
@@ -94,6 +111,7 @@ export interface TextosEmail {
 const PT: TextosEmail = {
   comum: {
     ola: 'Olá, {nome}.',
+    olaSemNome: 'Olá.',
     codigoPedido: 'Código do pedido',
     voucher: 'Voucher',
     verVoucher: 'Ver o voucher',
@@ -143,6 +161,17 @@ const PT: TextosEmail = {
     texto: 'Você pediu o link do seu pedido no site. Com ele você vê o pedido, os vouchers e o pagamento.',
     nota: 'Se não foi você, não precisa fazer nada: sem este link, ninguém abre o pedido.',
   },
+  desistencia: {
+    assunto: 'Recebemos o seu pedido de desistência: pedido {codigo}',
+    preCabecalho: 'Este e-mail confirma que o seu pedido de desistência chegou.',
+    titulo: 'Recebemos o seu pedido de desistência',
+    recebido:
+      'O seu pedido de desistência da compra chegou em {quando} (horário de Brasília). Guarde este e-mail: ele é a confirmação do recebimento.',
+    agora:
+      'O que acontece agora: a equipe responde por e-mail em até 1 dia útil. Se a compra foi feita há até 7 dias e o serviço ainda não começou, o reembolso é integral, pela mesma forma de pagamento. Fora disso, vale a política de cancelamento.',
+    naoFoiVoce: 'Se não foi você que pediu a desistência, responda a este e-mail.',
+    itens: 'O pedido',
+  },
   lembrete: {
     assunto1: 'Seu carrinho está guardado',
     preCabecalho1: 'Está tudo guardado, do jeito que você deixou.',
@@ -155,6 +184,7 @@ const PT: TextosEmail = {
       'Se ficou alguma dúvida sobre a reserva, os horários ou o pagamento, é só responder a este e-mail. O carrinho continua guardado.',
     botao: 'Voltar ao carrinho',
     nota: 'Os preços e os horários são conferidos de novo quando você volta ao carrinho.',
+    jaReservou: 'Se você já fez a reserva, pode ignorar este e-mail.',
     noPix: 'no Pix',
     noCartao: 'no cartão',
     motivo: 'Você recebeu este lembrete porque digitou este e-mail no checkout de {site}.',
@@ -165,6 +195,7 @@ const PT: TextosEmail = {
 const EN: TextosEmail = {
   comum: {
     ola: 'Hi {nome},',
+    olaSemNome: 'Hello,',
     codigoPedido: 'Order code',
     voucher: 'Voucher',
     verVoucher: 'View voucher',
@@ -215,6 +246,17 @@ const EN: TextosEmail = {
     texto: 'You asked for the link to your order on our website. With it you can see your order, your vouchers and the payment.',
     nota: "If it wasn't you, you don't need to do anything: without this link, nobody can open the order.",
   },
+  desistencia: {
+    assunto: 'We received your cancellation request: order {codigo}',
+    preCabecalho: 'This email confirms that your cancellation request has arrived.',
+    titulo: 'We received your cancellation request',
+    recebido:
+      'Your request to cancel this purchase arrived on {quando} (Brasília time). Please keep this email: it confirms that we received it.',
+    agora:
+      'What happens next: our team will reply by email within 1 business day. If you bought within the last 7 days and the service has not started, you get a full refund to the same payment method. Otherwise, the cancellation policy applies.',
+    naoFoiVoce: 'If you did not ask to cancel this purchase, reply to this email.',
+    itens: 'Your order',
+  },
   lembrete: {
     assunto1: 'Your cart is saved',
     preCabecalho1: 'Everything is saved, just as you left it.',
@@ -226,6 +268,7 @@ const EN: TextosEmail = {
     texto2: 'If you have any questions about the booking, the times or the payment, just reply to this email. Your cart is still saved.',
     botao: 'Back to my cart',
     nota: 'Prices and times are checked again when you come back to your cart.',
+    jaReservou: 'If you have already booked, you can ignore this email.',
     noPix: 'with Pix',
     noCartao: 'by card',
     motivo: 'You received this reminder because you entered this email at checkout on {site}.',
@@ -237,6 +280,7 @@ const EN: TextosEmail = {
 const ES: TextosEmail = {
   comum: {
     ola: 'Hola, {nome}.',
+    olaSemNome: 'Hola.',
     codigoPedido: 'Código del pedido',
     voucher: 'Voucher',
     verVoucher: 'Ver el voucher',
@@ -287,6 +331,17 @@ const ES: TextosEmail = {
     texto: 'Pediste el enlace de tu pedido en el sitio. Con él ves el pedido, los vouchers y el pago.',
     nota: 'Si no fuiste tú, no hace falta hacer nada: sin este enlace, nadie abre el pedido.',
   },
+  desistencia: {
+    assunto: 'Recibimos tu pedido de desistimiento: pedido {codigo}',
+    preCabecalho: 'Este e-mail confirma que tu pedido de desistimiento llegó.',
+    titulo: 'Recibimos tu pedido de desistimiento',
+    recebido:
+      'Tu pedido de desistimiento de la compra llegó el {quando} (hora de Brasilia). Guarda este e-mail: es la confirmación de que lo recibimos.',
+    agora:
+      'Qué pasa ahora: el equipo responde por e-mail en un plazo máximo de 1 día hábil. Si la compra se hizo hace 7 días o menos y el servicio todavía no empezó, el reembolso es total, por el mismo medio de pago. Si no, rige la política de cancelación.',
+    naoFoiVoce: 'Si no fuiste tú quien pidió el desistimiento, escríbenos respondiendo este e-mail.',
+    itens: 'Tu pedido',
+  },
   lembrete: {
     assunto1: 'Tu carrito sigue guardado',
     preCabecalho1: 'Está todo guardado, tal como lo dejaste.',
@@ -299,6 +354,7 @@ const ES: TextosEmail = {
       'Si te quedó alguna duda sobre la reserva, los horarios o el pago, escríbenos respondiendo este e-mail. El carrito sigue guardado.',
     botao: 'Volver al carrito',
     nota: 'Los precios y los horarios se confirman de nuevo al volver al carrito.',
+    jaReservou: 'Si ya hiciste la reserva, puedes ignorar este e-mail.',
     noPix: 'con Pix',
     noCartao: 'con tarjeta',
     motivo: 'Recibes este recordatorio porque escribiste este e-mail en el checkout de {site}.',
@@ -337,8 +393,15 @@ const ES_AR: TextosEmail = {
     ...ES.linkDoPedido,
     nota: 'Si no fuiste vos, no hace falta hacer nada: sin este enlace, nadie abre el pedido.',
   },
+  desistencia: {
+    ...ES.desistencia,
+    recebido:
+      'Tu pedido de desistimiento de la compra llegó el {quando} (hora de Brasilia). Guardá este e-mail: es la confirmación de que lo recibimos.',
+    naoFoiVoce: 'Si no fuiste vos quien pidió el desistimiento, escribinos respondiendo este e-mail.',
+  },
   lembrete: {
     ...ES.lembrete,
+    jaReservou: 'Si ya hiciste la reserva, podés ignorar este e-mail.',
     texto1: 'Lo que elegiste sigue en el carrito. Para reservar, solo tenés que volver y completar la compra.',
     texto2:
       'Si te quedó alguna duda sobre la reserva, los horarios o el pago, escribinos respondiendo este e-mail. El carrito sigue guardado.',

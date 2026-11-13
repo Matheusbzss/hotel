@@ -32,7 +32,9 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+// 60 s: depois da resposta ainda sai o e-mail do pagamento aprovado, com os PDFs dos vouchers (src/lib/email/pedidos.ts);
+// se mesmo assim a função for cortada no meio, o aviso gravado antes do envio fica no histórico para a equipe
+export const maxDuration = 60;
 
 /**
  * O webhook da Stripe. Cadastrar na Stripe (Workbench → Webhooks, payload "snapshot") o endereço

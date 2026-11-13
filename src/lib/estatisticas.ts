@@ -121,6 +121,42 @@ export interface CarrinhoNoFunil {
   voltouEm?: string;
 }
 
+/** Um carrinho do funil com o id e, na cópia aberta pelo link "voltar ao carrinho" de um lembrete, o carrinho de origem. */
+export interface CarrinhoComCopia extends CarrinhoNoFunil {
+  id: string;
+  veioDe?: string;
+}
+
+/**
+ * O link "voltar ao carrinho" do lembrete abre um carrinho NOVO, a cópia dos itens (src/lib/lembretes.ts,
+ * voltarAoCarrinho): o cliente continua nela, e o pedido nasce nela. Para o funil e para os lembretes, a cópia conta
+ * como o carrinho de origem: o checkout, o pedido e o pagamento feitos nela são do carrinho que recebeu o e-mail, e
+ * ela não entra como um carrinho a mais. A cópia cujo carrinho de origem não está na lista continua um carrinho comum.
+ */
+export function juntarCopias(carrinhos: CarrinhoComCopia[]): CarrinhoNoFunil[] {
+  const ids = new Set(carrinhos.map((c) => c.id));
+  const ehCopia = (c: CarrinhoComCopia) => Boolean(c.veioDe && c.veioDe !== c.id && ids.has(c.veioDe));
+  const copiasDe = new Map<string, CarrinhoComCopia[]>();
+  for (const c of carrinhos) if (ehCopia(c)) copiasDe.set(c.veioDe as string, [...(copiasDe.get(c.veioDe as string) ?? []), c]);
+  const primeiro = (datas: (string | undefined)[]) => datas.filter((d): d is string => Boolean(d)).sort()[0];
+  return carrinhos
+    .filter((c) => !ehCopia(c))
+    .map(({ id, veioDe: _veioDe, ...c }) => {
+      const copias = copiasDe.get(id) ?? [];
+      if (!copias.length) return c;
+      const comPedido = copias.filter((x) => x.fezPedido);
+      const checkoutEm = c.checkoutEm ?? primeiro(copias.map((x) => x.checkoutEm));
+      const pedidoEm = c.fezPedido ? c.pedidoEm : primeiro(comPedido.map((x) => x.pedidoEm));
+      return {
+        ...c,
+        ...(checkoutEm ? { checkoutEm } : {}),
+        fezPedido: c.fezPedido || comPedido.length > 0,
+        ...(pedidoEm ? { pedidoEm } : {}),
+        pagou: c.pagou || copias.some((x) => x.pagou),
+      };
+    });
+}
+
 /**
  * O que os lembretes do carrinho abandonado trouxeram de volta, contando os carrinhos que receberam o primeiro
  * lembrete no período: quantos e-mails saíram (o primeiro e o segundo, no período), quantos carrinhos voltaram pelo

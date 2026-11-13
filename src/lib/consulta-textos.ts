@@ -31,6 +31,10 @@ export interface TextosConsulta {
   sairTexto: string;
   sairErroTitulo: string;
   sairErroTexto: string;
+  /** A página aberta pelo link do e-mail: pede a confirmação (o link sozinho não tira ninguém da lista). */
+  sairConfirmarTitulo: string;
+  sairConfirmarTexto: string;
+  sairConfirmarBotao: string;
   /** A página aberta sem vir do link do e-mail. */
   sairSemLinkTitulo: string;
   sairSemLinkTexto: string;
@@ -43,7 +47,7 @@ const PT: TextosConsulta = {
   texto: 'Digite o e-mail usado na compra e o código do pedido. Se os dados conferirem, mandamos o link do pedido para o seu e-mail.',
   email: 'E-mail usado na compra',
   codigo: 'Código do pedido',
-  codigoAjuda: 'Começa com ON-, como ON-7K3P9Q. Está na página do pedido e no voucher.',
+  codigoAjuda: 'Começa com ON- (ou VH-, nos pedidos antigos), como ON-7K3P9Q. Está no e-mail do pedido e no voucher.',
   botao: 'Receber o link no e-mail',
   enviando: 'Enviando…',
   prontoTitulo: 'Confira o seu e-mail',
@@ -61,6 +65,10 @@ const PT: TextosConsulta = {
   sairTexto: 'Você não vai receber mais lembretes do carrinho. Os e-mails dos seus pedidos continuam chegando normalmente.',
   sairErroTitulo: 'Não deu para confirmar',
   sairErroTexto: 'O link não vale mais. Para sair da lista, escreva para {email}.',
+  sairConfirmarTitulo: 'Sair da lista dos lembretes?',
+  sairConfirmarTexto:
+    'Você não vai mais receber lembretes do carrinho neste e-mail. Os e-mails dos seus pedidos continuam chegando normalmente.',
+  sairConfirmarBotao: 'Sim, sair da lista',
   sairSemLinkTitulo: 'Lembretes do carrinho',
   sairSemLinkTexto: 'Para sair da lista de lembretes do carrinho, use o link que vem no fim do e-mail.',
   voltarSite: 'Ir para o site',
@@ -72,7 +80,7 @@ const EN: TextosConsulta = {
   texto: 'Enter the email you used to book and your order code. If they match, we will email you the link to your order.',
   email: 'Email used to book',
   codigo: 'Order code',
-  codigoAjuda: 'It starts with ON-, like ON-7K3P9Q. You can find it on the order page and on your voucher.',
+  codigoAjuda: "It starts with ON- (or VH- on older orders), like ON-7K3P9Q. It's in your order email and on your voucher.",
   botao: 'Email me the link',
   enviando: 'Sending…',
   prontoTitulo: 'Check your email',
@@ -90,6 +98,9 @@ const EN: TextosConsulta = {
   sairTexto: "You won't get any more cart reminders. Emails about your orders will keep arriving as usual.",
   sairErroTitulo: "We couldn't confirm",
   sairErroTexto: 'This link is no longer valid. To leave the list, write to {email}.',
+  sairConfirmarTitulo: 'Stop cart reminders?',
+  sairConfirmarTexto: "You won't get any more cart reminders at this email address. Emails about your orders will keep arriving as usual.",
+  sairConfirmarBotao: 'Yes, stop reminders',
   sairSemLinkTitulo: 'Cart reminders',
   sairSemLinkTexto: 'To stop cart reminders, use the link at the end of the email.',
   voltarSite: 'Go to the website',
@@ -102,7 +113,7 @@ const ES: TextosConsulta = {
   texto: 'Escribe el e-mail de la compra y el código del pedido. Si los datos coinciden, te mandamos el enlace del pedido por e-mail.',
   email: 'E-mail de la compra',
   codigo: 'Código del pedido',
-  codigoAjuda: 'Empieza con ON-, como ON-7K3P9Q. Está en la página del pedido y en el voucher.',
+  codigoAjuda: 'Empieza con ON- (o VH-, en los pedidos antiguos), como ON-7K3P9Q. Está en el e-mail del pedido y en el voucher.',
   botao: 'Recibir el enlace por e-mail',
   enviando: 'Enviando…',
   prontoTitulo: 'Revisa tu e-mail',
@@ -120,6 +131,10 @@ const ES: TextosConsulta = {
   sairTexto: 'No vas a recibir más recordatorios del carrito. Los e-mails de tus pedidos siguen llegando normalmente.',
   sairErroTitulo: 'No se pudo confirmar',
   sairErroTexto: 'El enlace ya no es válido. Para salir de la lista, escríbenos a {email}.',
+  sairConfirmarTitulo: '¿Salir de la lista de recordatorios?',
+  sairConfirmarTexto:
+    'No vas a recibir más recordatorios del carrito en este e-mail. Los e-mails de tus pedidos siguen llegando normalmente.',
+  sairConfirmarBotao: 'Sí, salir de la lista',
   sairSemLinkTitulo: 'Recordatorios del carrito',
   sairSemLinkTexto: 'Para salir de la lista de recordatorios del carrito, usa el enlace que viene al final del e-mail.',
   voltarSite: 'Ir al sitio',

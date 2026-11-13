@@ -10,7 +10,7 @@ import { LUGARES, TRAJETOS, VEICULOS } from '../src/data/transfer.ts';
 import { CANCELAMENTO } from '../src/content/legal/cancelamento.ts';
 import { PRIVACIDADE } from '../src/content/legal/privacidade.ts';
 import { TERMOS } from '../src/content/legal/termos.ts';
-import { CANCELAMENTO_ONLINE, PRIVACIDADE_ONLINE, TERMOS_ONLINE } from '../src/content/legal/online.ts';
+import { CANCELAMENTO_ONLINE, PRIVACIDADE_EMAILS, PRIVACIDADE_ONLINE, TERMOS_ONLINE } from '../src/content/legal/online.ts';
 import { frasesDoDocumento } from '../src/content/legal/argentino.ts';
 import { HREFLANG, LOCALE_INTL, OG_LOCALE, rota } from '../src/i18n/config.ts';
 import { texto } from '../src/i18n/conteudo.ts';
@@ -129,7 +129,8 @@ const DADOS = [
 ];
 for (const { trilha, campo } of DADOS) juntar(trilha, lista(texto(campo, 'es')), lista(texto(campo, 'es-ar')));
 
-// 4. os textos legais, os de hoje e os da versão do pagamento online (src/content/legal/online.ts)
+// 4. os textos legais, os de hoje, os da versão do pagamento online e a privacidade de hoje com os e-mails ligados
+// (src/content/legal/online.ts)
 for (const [nome, doc] of [
   ['termos', TERMOS],
   ['cancelamento', CANCELAMENTO],
@@ -137,6 +138,7 @@ for (const [nome, doc] of [
   ['termos-online', TERMOS_ONLINE],
   ['cancelamento-online', CANCELAMENTO_ONLINE],
   ['privacidade-online', PRIVACIDADE_ONLINE],
+  ['privacidade-emails', PRIVACIDADE_EMAILS],
 ] as const) {
   juntar(`legal ${nome}`, frasesDoDocumento(texto(doc, 'es')), frasesDoDocumento(texto(doc, 'es-ar')));
 }
@@ -273,12 +275,15 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   'legal termos-online': 12,
   'legal cancelamento-online': 12,
   'legal privacidade-online': 12,
+  // a privacidade de hoje com os e-mails ligados: a de hoje, menos a frase do lembrete (trocada, agora sem verbo em vos)
+  'legal privacidade-emails': 12,
   voucher: 1,
   // 9 de antes + 9 das casas (Etapa 7): mesada, hamacas, heladera, lavarropas e hamaca paraguaya
   foto: 18,
   TEXTOS_GUIA: 1,
   // Etapa 6: os e-mails automáticos e as páginas "Consultar mi pedido" e de sair da lista (as frases com verbo)
-  email: 15,
+  // + 3 da revisão de 13/11: a confirmação da desistência (guardá, escribinos) e o "podés ignorar" do lembrete
+  email: 18,
   consulta: 10,
   // Etapa 7: as comodidades da rede ("hamaca paraguaya") e da lavanderia ("lavarropas")
   casas: 2,

@@ -82,6 +82,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* As páginas curtas ("Consultar meu pedido", "Sair da lista"): o conteúdo cresce até o rodapé, que fica no pé da tela,
+   sem a faixa do fundo embaixo dele no computador. Só nelas: o body vira coluna quando a página traz a classe. */
+body:has(.pagina-curta) {
+  display: flex;
+  flex-direction: column;
+}
+.pagina-curta {
+  flex: 1 0 auto;
+}
+
 ::selection {
   background: var(--color-sol);
   color: var(--color-tinta);

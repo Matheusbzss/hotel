@@ -419,7 +419,7 @@ const en: Dicionario = {
       p: 'Is it safe to pay on the website?',
       r: 'Yes. The website uses an encrypted connection and does not store your card details.',
       rOnline:
-        'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the recipient may show the name of the company that processes the payment.',
+        'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
     },
   ],
   passeios: {

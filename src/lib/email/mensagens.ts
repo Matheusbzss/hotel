@@ -10,7 +10,15 @@ import { textosEmail, type TextosEmail } from './textos.ts';
  * quatro idiomas.
  */
 
-export type TipoEmail = 'pedido-recebido' | 'pagamento-aprovado' | 'pix-vencido' | 'link-do-pedido' | 'lembrete-1' | 'lembrete-2';
+export type TipoEmail =
+  | 'pedido-recebido'
+  | 'pagamento-aprovado'
+  | 'pix-vencido'
+  | 'link-do-pedido'
+  | 'desistencia-recebida'
+  | 'desistencia-equipe'
+  | 'lembrete-1'
+  | 'lembrete-2';
 
 export interface MensagemEmail {
   assunto: string;
@@ -60,9 +68,23 @@ export interface TotaisDasFormas {
 /** "Maria Clara Souza" → "Maria". */
 export const primeiroNome = (nome: string): string => nome.trim().split(/\s+/)[0] ?? '';
 
-const saudacao = (T: TextosEmail, nome: string) => {
-  const primeiro = primeiroNome(nome);
-  return primeiro ? fmt(T.comum.ola, { nome: primeiro }) : undefined;
+/** O tamanho máximo do primeiro nome na saudação. */
+export const NOME_DA_SAUDACAO_MAXIMO = 30;
+
+/**
+ * O primeiro nome que pode ir na saudação, ou '' quando não serve: só letras (com acento), hífen e apóstrofo, até 30.
+ * O nome é o que a pessoa digitou no checkout, e o e-mail sai pelo remetente oficial para o endereço que ela digitou:
+ * sem esta regra, "https://site-do-golpe… Silva" virava "Olá, https://site-do-golpe…" (e o Gmail transforma o endereço
+ * em link). Número, ponto, barra, arroba ou qualquer outro sinal: só a saudação, sem nome.
+ */
+export function nomeDaSaudacao(nome: string): string {
+  const primeiro = primeiroNome(nome.normalize('NFC'));
+  return primeiro.length <= NOME_DA_SAUDACAO_MAXIMO && /^\p{L}[\p{L}\p{M}'’-]*$/u.test(primeiro) ? primeiro : '';
+}
+
+const saudacao = (T: TextosEmail, nome: string): string => {
+  const primeiro = nomeDaSaudacao(nome);
+  return primeiro ? fmt(T.comum.ola, { nome: primeiro }) : T.comum.olaSemNome;
 };
 
 const linhaTotal = (rotulo: string, v: ValorEmail): LinhaTotal => ({ rotulo, valor: v.valor, ...(v.dolar ? { nota: v.dolar } : {}) });
@@ -191,18 +213,80 @@ export function emailLinkDoPedido(d: DadosDoPedido): MensagemEmail {
   });
 }
 
-/** Um item do carrinho no lembrete: o nome, as linhas de baixo e o preço nas duas formas. */
-export interface ItemDoCarrinho {
-  nome: string;
-  linhas: string[];
-  pix: string;
-  cartao: string;
+/**
+ * A confirmação do pedido de desistência pelo site (Decreto 7.962/2013, art. 5º, § 4º: "confirmação imediata do
+ * recebimento"): a data e a hora em que ele chegou, no horário de Brasília, o código, os itens e o que acontece agora.
+ * A resposta a este e-mail vai para a equipe (reply_to): é o caminho de quem não pediu a desistência.
+ */
+export function emailDesistenciaRecebida(d: DadosDoPedido & { quando: string }): MensagemEmail {
+  const T = textosEmail(d.idioma);
+  const D = T.desistencia;
+  return mensagem({
+    ...basePedido(T, d),
+    assunto: fmt(D.assunto, { codigo: d.codigo }),
+    preCabecalho: D.preCabecalho,
+    titulo: D.titulo,
+    paragrafos: [fmt(D.recebido, { quando: d.quando }), D.agora],
+    tituloItens: D.itens,
+    itens: itensDoPedido(T, d.itens),
+    botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
+    depois: [D.naoFoiVoce],
+  });
 }
 
 /**
+ * O aviso do pedido de desistência para a equipe (EMAIL_RESPOSTA, em português): quando chegou, se está dentro dos 7
+ * dias do arrependimento, o primeiro serviço, o motivo que o cliente escreveu (entre « », do jeito que ficou no
+ * histórico) e o que fazer. O botão abre o pedido no painel.
+ */
+export function emailAvisoDaDesistencia(d: {
+  codigo: string;
+  /** A data e a hora do pedido de desistência, no horário de Brasília. */
+  quando: string;
+  /** "dentro dos 7 dias do arrependimento (compra em …)" ou "fora dos 7 dias…" (prazoDoArrependimento). */
+  prazo: string;
+  /** A data e a hora do primeiro serviço do pedido. */
+  primeiroServico: string;
+  /** O motivo já limpo (limparMotivo); vazio quando o cliente não escreveu. */
+  motivo: string;
+  linkPainel: string;
+  site: SiteDoEmail;
+}): MensagemEmail {
+  return mensagem({
+    idioma: 'pt',
+    assunto: `Desistência pelo site: pedido ${d.codigo}`,
+    preCabecalho: `O cliente pediu a desistência em ${d.quando}. Responder em até 1 dia útil.`,
+    titulo: 'Pedido de desistência pelo site',
+    paragrafos: [
+      `O cliente pediu a desistência da compra pelo site em ${d.quando} (horário de Brasília).`,
+      `Prazo: ${d.prazo}. Primeiro serviço: ${d.primeiroServico}.`,
+      d.motivo ? `Motivo escrito pelo cliente: «${d.motivo}»` : 'O cliente não escreveu motivo.',
+      'Antes de estornar, confirme com o titular pelo e-mail ou pelo WhatsApp do pedido. O estorno é só pela forma original do pagamento ("Reembolsar na Stripe", no painel), nunca para uma conta ou chave escrita no motivo. Responda ao cliente em até 1 dia útil.',
+    ],
+    codigo: { rotulo: 'Pedido', valor: d.codigo },
+    botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
+    rodape: { linhas: ['Aviso automático do site para a equipe.'] },
+    site: d.site,
+  });
+}
+
+/** Um item do carrinho no lembrete: o nome, as linhas de baixo e o preço nas formas que valem (com o ≈ US$ em es e en). */
+export interface ItemDoCarrinho {
+  nome: string;
+  linhas: string[];
+  /** Só quando o Pix ainda vale para o carrinho (o prazo e o limite do Pix, src/lib/formas-pagamento.ts). */
+  pix?: ValorEmail;
+  cartao?: ValorEmail;
+}
+
+/** "R$ 138,60 con Pix (≈ US$ 25,20)": o valor, a forma e, em espanhol e inglês, o aproximado em dólar. */
+const precoDoItem = (v: ValorEmail, forma: string) => `${v.valor} ${forma}${v.dolar ? ` (${v.dolar})` : ''}`;
+
+/**
  * O lembrete do carrinho abandonado: o primeiro (1 hora depois) e o segundo (24 horas depois). Os itens como
- * estavam, o preço nas duas formas, o link que devolve o carrinho e o link de sair da lista (também nos cabeçalhos
- * List-Unsubscribe, montados por quem envia). Sem urgência: só o que foi escolhido e como voltar.
+ * estavam, o preço nas formas que valem (o Pix só quando ainda dá para pagar com ele), o link que devolve o carrinho e
+ * o link de sair da lista (também nos cabeçalhos List-Unsubscribe, montados por quem envia). Sem urgência: só o que foi
+ * escolhido e como voltar, e a frase para quem já reservou por outro caminho.
  */
 export function emailLembrete(d: {
   idioma: Idioma;
@@ -223,11 +307,11 @@ export function emailLembrete(d: {
     assunto: primeiro ? L.assunto1 : L.assunto2,
     preCabecalho: primeiro ? L.preCabecalho1 : L.preCabecalho2,
     titulo: primeiro ? L.titulo1 : L.titulo2,
-    paragrafos: [primeiro ? L.texto1 : L.texto2],
-    itens: d.itens.map((i) => ({
-      nome: i.nome,
-      linhas: [...i.linhas, ...(varios ? [`${i.pix} ${L.noPix} · ${i.cartao} ${L.noCartao}`] : [])],
-    })),
+    paragrafos: [primeiro ? L.texto1 : L.texto2, L.jaReservou],
+    itens: d.itens.map((i) => {
+      const precos = [...(i.pix ? [precoDoItem(i.pix, L.noPix)] : []), ...(i.cartao ? [precoDoItem(i.cartao, L.noCartao)] : [])];
+      return { nome: i.nome, linhas: [...i.linhas, ...(varios && precos.length ? [precos.join(' · ')] : [])] };
+    }),
     totais: totaisDasFormas(T, d.totais),
     botao: { texto: L.botao, href: d.linkVoltar },
     depois: [L.nota],

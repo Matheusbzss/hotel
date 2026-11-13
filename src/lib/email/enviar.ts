@@ -1,5 +1,6 @@
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { EMPRESA } from '../../config/empresa.ts';
+import { cabeNaCotaDoDia } from './cota.ts';
 import type { TipoEmail } from './mensagens';
 
 /**
@@ -10,7 +11,8 @@ import type { TipoEmail } from './mensagens';
  * - EMAIL_REMETENTE: quem envia; padrão "Orla Nativa <reservas@orlanativa.online>" (o domínio verificado no Resend).
  * - EMAIL_RESPOSTA: para onde vai a resposta do cliente; padrão, o e-mail da empresa (src/config/empresa.ts).
  * A chave de idempotência (cabeçalho Idempotency-Key, válida por 24 horas no Resend) impede o mesmo e-mail duas vezes
- * quando dois avisos chegam juntos. Os registros do servidor nunca levam o endereço, o nome nem o assunto.
+ * quando dois avisos chegam juntos. Cada e-mail conta na cota do dia (src/lib/email/cota.ts): passando de 60 no dia,
+ * só os essenciais saem. Os registros do servidor nunca levam o endereço, o nome nem o assunto.
  */
 
 export const URL_RESEND = 'https://api.resend.com/emails';
@@ -47,7 +49,8 @@ export interface EmailParaEnviar {
  * - enviado: o Resend aceitou (id do e-mail).
  * - desligado: sem RESEND_API_KEY.
  * - repetido: a mesma chave já foi usada nas últimas 24 horas (o e-mail já saiu): quem chama trata como enviado.
- * - cota: acabou a cota do dia ou do mês do plano (o Resend não guarda para depois).
+ * - cota: acabou a cota do dia ou do mês do plano (o Resend não guarda para depois), ou o site guardou o resto da cota
+ *   do dia para os e-mails essenciais (detalhe 'guardada', src/lib/email/cota.ts).
  * - recusado: o Resend recusou o pedido (chave inválida, domínio não verificado, endereço inválido).
  * - falha: rede, tempo esgotado ou o Resend fora do ar, mesmo depois de tentar de novo.
  */
@@ -65,6 +68,8 @@ export interface OpcoesDoEnvio {
   /** Para os testes: o fetch e a espera entre tentativas. */
   fetch?: typeof fetch;
   esperar?: (ms: number) => Promise<void>;
+  /** Para os testes: a regra da cota do dia (padrão: cabeNaCotaDoDia, que conta este e-mail no dia). */
+  cota?: (tipo: TipoEmail) => Promise<boolean>;
 }
 
 const esperarDeVerdade = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -92,6 +97,12 @@ export async function enviarEmail(e: EmailParaEnviar, opcoes: OpcoesDoEnvio = {}
   if (!chaveApi) {
     console.log(`[email] desligado (sem RESEND_API_KEY): ${e.tipo} ${e.referencia}`);
     return { enviado: false, motivo: 'desligado' };
+  }
+  // a cota do dia: passando de 60, só os essenciais (se a contagem falhar, o e-mail sai)
+  const cabe = await (opcoes.cota ?? cabeNaCotaDoDia)(e.tipo).catch(() => true);
+  if (!cabe) {
+    console.error(`[email] ${e.tipo} ${e.referencia}: não enviado (cota do dia guardada para os e-mails essenciais)`);
+    return { enviado: false, motivo: 'cota', detalhe: 'guardada' };
   }
   const chamar = opcoes.fetch ?? fetch;
   const esperar = opcoes.esperar ?? esperarDeVerdade;

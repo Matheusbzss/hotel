@@ -135,7 +135,7 @@ export type EntregaDoEvento = 'novo' | 'repetido' | 'em-andamento';
 
 /**
  * Quanto tempo uma entrega tem para terminar antes que outra assuma o evento. A função do webhook vive no máximo
- * 30 s (maxDuration da rota): 2 minutos sem a marca de processado querem dizer que ela foi cortada no meio.
+ * 60 s (maxDuration da rota): 2 minutos sem a marca de processado querem dizer que ela foi cortada no meio.
  */
 export const EVENTO_EM_ANDAMENTO_MS = 2 * 60_000;
 

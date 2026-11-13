@@ -11,7 +11,7 @@ import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
-import type { CarrinhoNoFunil } from './estatisticas';
+import { juntarCopias, type CarrinhoComCopia, type CarrinhoNoFunil } from './estatisticas';
 import {
   MAXIMO_ITENS,
   type EscolhaPasseio,
@@ -303,6 +303,8 @@ export interface LembretesDoCarrinho {
   lembrete2Em?: string;
   voltouEm?: string;
   voltouLembrete?: 1 | 2;
+  /** Este carrinho é a cópia aberta pelo link "voltar ao carrinho" de outro (o id dele): não recebe lembrete. */
+  veioDe?: string;
 }
 
 export interface CarrinhoGuardado {
@@ -463,8 +465,10 @@ interface LinhaLembretes {
   lembrete_1_em: string | null;
   lembrete_2_em: string | null;
   voltou_em: string | null;
+  veio_de?: string | null;
 }
 interface LinhaDoFunil {
+  id: string;
   criado_em: string;
   checkout_em: string | null;
   pedido_id: string | null;
@@ -474,18 +478,21 @@ interface LinhaDoFunil {
 
 const umSo = <T>(v: T | T[] | null | undefined): T | undefined => (Array.isArray(v) ? v[0] : (v ?? undefined));
 
-/** Os lembretes de uma linha do funil, só com o que existe. */
-function lembretesDaLinha(l: LinhaLembretes | undefined): Pick<CarrinhoNoFunil, 'lembrete1Em' | 'lembrete2Em' | 'voltouEm'> {
+/** Os lembretes de uma linha do funil, só com o que existe (e, na cópia aberta pela volta, o carrinho de origem). */
+function lembretesDaLinha(
+  l: LinhaLembretes | undefined,
+): Pick<CarrinhoNoFunil, 'lembrete1Em' | 'lembrete2Em' | 'voltouEm'> & Pick<CarrinhoComCopia, 'veioDe'> {
   return {
     ...(l?.lembrete_1_em ? { lembrete1Em: l.lembrete_1_em } : {}),
     ...(l?.lembrete_2_em ? { lembrete2Em: l.lembrete_2_em } : {}),
     ...(l?.voltou_em ? { voltouEm: l.voltou_em } : {}),
+    ...(l?.veio_de ? { veioDe: l.veio_de } : {}),
   };
 }
 
-/** As linhas dos carrinhos, de 1000 em 1000; `comLembretes`: junto com carrinhos_lembretes (a migração da Etapa 6). */
+/** As linhas dos carrinhos, de 1000 em 1000; `comLembretes`: junto com carrinhos_lembretes (as migrações da Etapa 6). */
 async function linhasDoFunil(desde: string | undefined, comLembretes: boolean): Promise<LinhaDoFunil[]> {
-  const campos = `criado_em, checkout_em, pedido_id, pedidos(status, criado_em)${comLembretes ? ', carrinhos_lembretes(lembrete_1_em, lembrete_2_em, voltou_em)' : ''}`;
+  const campos = `id, criado_em, checkout_em, pedido_id, pedidos(status, criado_em)${comLembretes ? ', carrinhos_lembretes(lembrete_1_em, lembrete_2_em, voltou_em, veio_de)' : ''}`;
   const linhas: LinhaDoFunil[] = [];
   for (let de = 0; ; de += 1000) {
     let consulta = supabase().from('carrinhos').select(campos);
@@ -514,14 +521,18 @@ export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[
       console.error(`[estatisticas] carrinhos sem os lembretes: ${e instanceof Error ? e.message : String(e)}`);
       linhas = await linhasDoFunil(inicio, false);
     }
-    return linhas.map((c) => ({
-      criadoEm: c.criado_em,
-      ...(c.checkout_em ? { checkoutEm: c.checkout_em } : {}),
-      fezPedido: c.pedido_id !== null,
-      ...(c.pedidos?.criado_em ? { pedidoEm: c.pedidos.criado_em } : {}),
-      pagou: c.pedidos?.status === 'pago',
-      ...lembretesDaLinha(umSo(c.carrinhos_lembretes)),
-    }));
+    // a cópia aberta pelo link do lembrete conta como o carrinho de origem (juntarCopias, src/lib/estatisticas.ts)
+    return juntarCopias(
+      linhas.map((c) => ({
+        id: c.id,
+        criadoEm: c.criado_em,
+        ...(c.checkout_em ? { checkoutEm: c.checkout_em } : {}),
+        fezPedido: c.pedido_id !== null,
+        ...(c.pedidos?.criado_em ? { pedidoEm: c.pedidos.criado_em } : {}),
+        pagou: c.pedidos?.status === 'pago',
+        ...lembretesDaLinha(umSo(c.carrinhos_lembretes)),
+      })),
+    );
   }
   const nomes = (await fs.readdir(PASTA).catch(() => [] as string[])).filter((n) => n.endsWith('.json'));
   const pedidos = new Map((await listarReservas()).map((r) => [r.pedido?.codigo ?? r.codigo, r]));
@@ -532,6 +543,8 @@ export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[
       const pedido = c.pedidoId ? pedidos.get(c.pedidoId) : undefined;
       const l = c.lembretes;
       return {
+        // o arquivo de antes do id não tem cópia nenhuma ligada a ele: o nome do arquivo serve de id
+        id: c.id ?? nome,
         criadoEm: c.criadoEm ?? (await fs.stat(arquivo)).mtime.toISOString(),
         ...(c.checkoutEm ? { checkoutEm: c.checkoutEm } : {}),
         fezPedido: Boolean(c.pedidoId),
@@ -541,11 +554,13 @@ export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[
           lembrete_1_em: l?.lembrete1Em ?? null,
           lembrete_2_em: l?.lembrete2Em ?? null,
           voltou_em: l?.voltouEm ?? null,
+          veio_de: l?.veioDe ?? null,
         }),
       };
     }),
   );
-  return inicio ? lista.filter((c) => Date.parse(c.criadoEm) >= Date.parse(inicio)) : lista;
+  const juntos = juntarCopias(lista);
+  return inicio ? juntos.filter((c) => Date.parse(c.criadoEm) >= Date.parse(inicio)) : juntos;
 }
 
 /** Os itens que ainda valem, já com o texto e o preço no idioma. */

@@ -450,7 +450,7 @@ const pt = {
       p: 'É seguro pagar pelo site?',
       r: 'Sim. O site usa conexão criptografada e não guarda os dados do seu cartão.',
       rOnline:
-        'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor pode aparecer com o nome da empresa que processa o pagamento.',
+        'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
     },
   ],
   passeios: {

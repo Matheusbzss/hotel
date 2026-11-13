@@ -154,6 +154,7 @@ export type Database = {
           criado_em: string
           lembrete_1_em: string | null
           lembrete_2_em: string | null
+          veio_de: string | null
           voltou_em: string | null
           voltou_lembrete: number | null
         }
@@ -162,6 +163,7 @@ export type Database = {
           criado_em?: string
           lembrete_1_em?: string | null
           lembrete_2_em?: string | null
+          veio_de?: string | null
           voltou_em?: string | null
           voltou_lembrete?: number | null
         }
@@ -170,6 +172,7 @@ export type Database = {
           criado_em?: string
           lembrete_1_em?: string | null
           lembrete_2_em?: string | null
+          veio_de?: string | null
           voltou_em?: string | null
           voltou_lembrete?: number | null
         }

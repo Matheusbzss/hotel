@@ -1,4 +1,5 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL } from './email/marcas.ts';
 import { chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import type { MetodoPagamento, Provedor, Reserva, StatusReserva } from './reservas';
 
@@ -30,6 +31,18 @@ export const valorRecebido = (r: Reserva) => (r.pagamento.metodo === 'pix' ? (r.
  * linhas e já abre o histórico do pedido que tem alguma.
  */
 export const ehAviso = (evento: string) => evento.startsWith('Aviso:');
+
+/**
+ * O aviso da linha `indice` do histórico ainda pede uma ação: toda linha "Aviso:", menos a do e-mail do pagamento
+ * aprovado que estava saindo (AVISO_EMAIL_PAGO_SAINDO, src/lib/email/marcas.ts) e saiu: a linha do envio veio depois
+ * dela. Se o envio falhou ou a função foi cortada no meio, ela continua destacada.
+ */
+export function avisoAberto(historico: readonly { evento: string }[], indice: number): boolean {
+  const linha = historico[indice]?.evento ?? '';
+  if (!ehAviso(linha)) return false;
+  if (!linha.startsWith(AVISO_EMAIL_PAGO_SAINDO)) return true;
+  return !historico.slice(indice + 1).some((h) => h.evento.startsWith(MARCA_DO_EMAIL['pagamento-aprovado']));
+}
 
 /**
  * As ações recusadas do painel voltam com ?erro=<código> e a página troca o código por uma frase fixa desta lista.

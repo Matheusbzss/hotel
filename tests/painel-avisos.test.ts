@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eventoDoReembolsoFalho } from '../src/app/api/webhooks/stripe/eventos.ts';
 import { AVISO_PAGO_DEPOIS_DO_HORARIO, avisoDeValorDiferente } from '../src/lib/pagamento-stripe.ts';
+import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL } from '../src/lib/email/marcas.ts';
 import {
   ERROS_DO_PAINEL,
+  avisoAberto,
   avisosDeContestacao,
   contestacoesAbertas,
   ehAviso,
@@ -52,6 +54,24 @@ test('as outras linhas do histórico ficam sem destaque', () => {
     '',
   ])
     assert.equal(ehAviso(linha), false, linha);
+});
+
+test('o aviso do e-mail do pagamento aprovado: destacado enquanto não vem a linha do envio; depois, não', () => {
+  const linhas = (...eventos: string[]) => eventos.map((evento, n) => ({ em: `2026-11-13T12:00:0${n}Z`, evento }));
+  // o envio começou e a função foi cortada no meio (ou o envio falhou): o aviso continua destacado
+  const cortado = linhas('Pago (webhook)', AVISO_EMAIL_PAGO_SAINDO);
+  assert.equal(ehAviso(AVISO_EMAIL_PAGO_SAINDO), true);
+  assert.equal(avisoAberto(cortado, 1), true);
+  // o e-mail saiu: a linha do envio veio depois, e o aviso deixa de pedir ação
+  const saiu = linhas('Pago (webhook)', AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL['pagamento-aprovado']);
+  assert.equal(avisoAberto(saiu, 1), false);
+  assert.equal(avisoAberto(saiu, 2), false, 'a linha do envio não é aviso');
+  // os outros avisos continuam destacados, com ou sem o e-mail
+  const outro = linhas('Aviso: a Stripe não devolveu o pagamento pi_1', MARCA_DO_EMAIL['pagamento-aprovado']);
+  assert.equal(avisoAberto(outro, 0), true);
+  // e as linhas dos e-mails nunca são avisos
+  for (const marca of [...Object.values(MARCA_DO_EMAIL), MARCA_DO_AVISO_A_EQUIPE]) assert.equal(ehAviso(marca), false, marca);
+  assert.equal(avisoAberto([], 0), false);
 });
 
 // O erro de uma ação do painel viaja no endereço como um código curto; a frase mora no código do site.

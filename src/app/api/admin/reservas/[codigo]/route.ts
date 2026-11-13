@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
 import { formatarCifra } from '@/lib/cifra';
+import { DESISTENCIA_RESPONDIDA, desistenciaParaResponder, desistenciaRespondida } from '@/lib/desistencia';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { podeMudar } from '@/lib/pagamento-stripe';
@@ -35,7 +36,9 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
  *   Stripe e só registram o pedido no histórico: o status muda quando o webhook charge.refunded confirmar;
  * - num pedido da Stripe, marcar pago é recusado, cancelar só vale enquanto ninguém pagou (a sessão é
  *   expirada) e "marcar reembolsado" só depois de pago (a devolução feita por outro meio); as ações manuais
- *   continuam valendo para os pedidos do WhatsApp e os antigos.
+ *   continuam valendo para os pedidos do WhatsApp e os antigos;
+ * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido sem reembolso (src/lib/desistencia.ts):
+ *   só a linha no histórico, que tira o pedido da faixa do topo.
  * Os botões do painel mandam o código do voucher no endereço; no 'reembolsar_item', é ele o voucher devolvido.
  * Quem clica é uma pessoa, num formulário: toda ação recusada volta para o painel com ?erro= e um código curto,
  * que a página troca por uma frase fixa na faixa vermelha (ERROS_DO_PAINEL; nunca o texto que veio no endereço,
@@ -104,6 +107,14 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       console.error(`[admin] o reembolso do pedido ${codigoDoPedido} falhou: ${mensagem(e)}`);
       return voltar('stripe-falhou');
     }
+  }
+
+  // o pedido de desistência pelo site respondido sem reembolso (a política não devolve): só a linha no histórico, que
+  // tira o pedido da faixa do topo do painel; o status e o pagamento não mudam
+  if (acao === 'desistencia_respondida') {
+    if (!desistenciaParaResponder(alvo)) return voltar('acao-nao-vale');
+    await atualizarReserva(alvo.codigo, (r) => (desistenciaRespondida(r) ? null : registrar(r, DESISTENCIA_RESPONDIDA)));
+    return voltar();
   }
 
   const manual = ACOES_MANUAIS[acao];

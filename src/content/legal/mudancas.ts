@@ -20,6 +20,21 @@ export interface MudancasDoDocumento {
   secoes?: readonly (readonly [depoisDa: string, secao: SecaoLegal])[];
 }
 
+/**
+ * Duas listas de mudanças sobre o mesmo texto, juntas (a privacidade do pagamento online = as do pagamento + as dos
+ * e-mails). As frases novas depois de uma mesma frase entram juntas, na ordem das listas; comMudancas continua falhando
+ * alto se as duas trocarem a mesma frase.
+ */
+export function juntarMudancas(...listas: MudancasDoDocumento[]): MudancasDoDocumento {
+  const depois = new Map<string, string[]>();
+  for (const [frase, novas] of listas.flatMap((m) => m.depois ?? [])) depois.set(frase, [...(depois.get(frase) ?? []), ...novas]);
+  return {
+    trocas: listas.flatMap((m) => m.trocas ?? []),
+    depois: [...depois],
+    secoes: listas.flatMap((m) => m.secoes ?? []),
+  };
+}
+
 /** O título com o número da posição: "5. Cancelamento" na 6ª posição vira "6. Cancelamento". */
 const comNumero = (titulo: string, numero: number) => titulo.replace(/^\d+\./, `${numero}.`);
 

@@ -5,6 +5,7 @@ import type { Idioma } from '@/i18n/config';
 import type { TextosConsulta } from '@/lib/consulta-textos';
 import { emailValido } from '@/lib/validacao';
 import { Campo, descricao } from './Campo';
+import { TextoComEmail } from './TextoComEmail';
 
 type Erros = Partial<Record<'email' | 'codigo', string>>;
 
@@ -16,9 +17,22 @@ const codigoParece = (v: string) => /^((ON|VH)[2-9A-HJ-NP-Z]{6}|[2-9A-HJ-NP-Z]{6
 
 /**
  * O formulário de "Consultar meu pedido": o e-mail da compra e o código. A resposta é sempre a mesma ("se os dados
- * conferirem, o link chega no seu e-mail"): a tela nunca diz se o pedido existe, nem de quem é.
+ * conferirem, o link chega no seu e-mail"): a tela nunca diz se o pedido existe, nem de quem é. O foco do teclado
+ * acompanha o que muda: o aviso depois de enviar, o primeiro campo com erro, a mensagem de erro do envio e o campo do
+ * código quando o formulário volta para outra consulta.
  */
-export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma: Idioma; textos: TextosConsulta; emailEmpresa: string }) {
+export function FormularioConsulta({
+  idioma,
+  textos: T,
+  emailEmpresa,
+  hrefEmail,
+}: {
+  idioma: Idioma;
+  textos: TextosConsulta;
+  emailEmpresa: string;
+  /** O link de e-mail para a equipe (mailto, com o assunto pronto). */
+  hrefEmail: string;
+}) {
   const id = useId();
   const [email, setEmail] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -28,11 +42,25 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const avisoRef = useRef<HTMLDivElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const codigoRef = useRef<HTMLInputElement>(null);
+  const erroRef = useRef<HTMLParagraphElement>(null);
+  const voltou = useRef(false);
 
-  // o formulário some ao enviar: o aviso precisa ficar na tela, sem ir para baixo do cabeçalho
+  // o formulário some ao enviar: o aviso recebe o foco (e fica na tela, sem ir para baixo do cabeçalho); na volta
+  // para outra consulta, o foco vai para o campo do código
   useEffect(() => {
     if (enviado) avisoRef.current?.focus();
+    else if (voltou.current) {
+      voltou.current = false;
+      codigoRef.current?.focus();
+    }
   }, [enviado]);
+
+  // a mensagem de erro do envio recebe o foco: o botão ficou desligado durante o envio e o foco se perdeu
+  useEffect(() => {
+    if (erroGeral) erroRef.current?.focus();
+  }, [erroGeral]);
 
   function validar(): Erros {
     const e: Erros = {};
@@ -45,7 +73,12 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
   async function enviar() {
     setErroGeral('');
     setTentou(true);
-    if (Object.keys(validar()).length) return;
+    const achados = validar();
+    if (Object.keys(achados).length) {
+      // como no checkout: o foco vai para o primeiro campo com erro
+      (achados.email ? emailRef : codigoRef).current?.focus();
+      return;
+    }
     setEnviando(true);
     try {
       const res = await fetch('/api/consultar-pedido', {
@@ -72,11 +105,14 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
       <div ref={avisoRef} tabIndex={-1} role="status" className="mt-6 outline-none">
         <p className="text-lead font-semibold">{T.prontoTitulo}</p>
         <p className="mt-2">{T.prontoTexto}</p>
-        <p className="mt-4 text-small text-(--tinta-suave)">{T.ajuda.replace('{email}', emailEmpresa)}</p>
+        <p className="mt-4 text-small text-(--tinta-suave)">
+          <TextoComEmail texto={T.ajuda} email={emailEmpresa} href={hrefEmail} />
+        </p>
         <button
           type="button"
           className="botao botao-vazado mt-6 w-full sm:w-auto"
           onClick={() => {
+            voltou.current = true;
             setEnviado(false);
             setTentou(false);
             setCodigo('');
@@ -99,6 +135,7 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
     >
       <Campo id={`${id}-email`} rotulo={T.email} erro={erros.email}>
         <input
+          ref={emailRef}
           id={`${id}-email`}
           type="email"
           inputMode="email"
@@ -114,6 +151,7 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
       </Campo>
       <Campo id={`${id}-codigo`} rotulo={T.codigo} erro={erros.codigo} ajuda={T.codigoAjuda}>
         <input
+          ref={codigoRef}
           id={`${id}-codigo`}
           className="campo numeros uppercase"
           autoComplete="off"
@@ -136,7 +174,7 @@ export function FormularioConsulta({ idioma, textos: T, emailEmpresa }: { idioma
       </div>
 
       {erroGeral && (
-        <p className="bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
+        <p ref={erroRef} tabIndex={-1} className="bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
           {erroGeral}
         </p>
       )}

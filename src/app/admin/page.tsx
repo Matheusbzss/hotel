@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { contarCotacoesNovas } from '@/lib/cotacoes';
+import { avisoDasDesistencias, desistenciaParaResponder } from '@/lib/desistencia';
 import { modoPagamentoOnline } from '@/lib/formas-pagamento';
 import { textoDaOrigem } from '@/lib/origem';
 import { linkPainelStripe, modoStripe } from '@/lib/stripe';
@@ -11,9 +12,9 @@ import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import {
   agruparPedidos,
+  avisoAberto,
   avisosDeContestacao,
   contestacoesAbertas,
-  ehAviso,
   fraseDoErro,
   motivoNoPainel,
   oQueFazerNaContestacao,
@@ -71,11 +72,13 @@ const PROVEDOR: Record<PedidoPainel['provedor'], string> = {
 const DICIONARIO_PT = dicionario('pt');
 const ROTULOS_PESSOAS = DICIONARIO_PT.comum.rotulos;
 
-const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[] }[] = [
+const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (p: PedidoPainel) => boolean }[] = [
   { valor: '', rotulo: 'Todos' },
   { valor: 'pagas', rotulo: 'Pagos', status: ['pago'] },
   { valor: 'abertas', rotulo: 'Em aberto', status: ['pendente', 'aguardando_whatsapp'] },
   { valor: 'contestados', rotulo: 'Contestados', status: ['contestado'] },
+  // os pedidos de desistência pelo site que ainda esperam a equipe (a faixa do topo leva para cá)
+  { valor: 'desistencias', rotulo: 'Desistências', so: (p) => desistenciaParaResponder(p.itens[0]) },
   { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
 ];
 
@@ -265,8 +268,8 @@ function ReembolsoStripe({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       </summary>
       <div className="mt-2 space-y-2 border border-borda bg-white p-3">
         <p className="text-tinta-suave">
-          Devolve o dinheiro pela Stripe (cartão: 5 a 10 dias úteis; Pix: alguns minutos). Não dá para desfazer. O status muda quando a
-          Stripe confirmar.
+          Devolve o dinheiro pela Stripe (cartão: 5 a 10 dias úteis; Pix: o prazo depende do banco do cliente). Não dá para desfazer. O
+          status muda quando a Stripe confirmar.
         </p>
         <BotaoAcao
           voucher={r.codigo}
@@ -317,6 +320,9 @@ function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   const pagoNaStripe = stripe && (p.status === 'pago' || p.status === 'contestado');
   if (p.status !== 'cancelado' && p.status !== 'reembolsado' && !pagoNaStripe) acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
   if (!stripe && (p.status === 'pago' || p.status === 'cancelado')) acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
+  // o pedido de desistência respondido sem reembolso (a política não devolve): sai da faixa do topo. Com reembolso, a
+  // própria devolução já tira o pedido de lá
+  if (desistenciaParaResponder(r)) acoes.push({ acao: 'desistencia_respondida', rotulo: 'Desistência respondida, sem reembolso' });
   return (
     <div className="flex flex-wrap items-start gap-2">
       {acoes.map((a) => (
@@ -415,6 +421,12 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
         <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
         {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
+        {desistenciaParaResponder(r) && (
+          <p className="mt-2 text-small font-semibold text-[#7a1f12]">
+            Pedido de desistência pelo site: responder em até 1 dia útil. Antes de estornar, confirme com o titular pelo e-mail ou WhatsApp
+            do pedido; o estorno é só pela forma original (Reembolsar na Stripe), nunca para dados escritos no motivo.
+          </p>
+        )}
         {varios && <p className="mt-2 text-small font-semibold">{p.itens.length} itens</p>}
         <p className="mt-2 text-small text-tinta-suave">Criado {dataHora(p.criadoEm)}</p>
         {p.pagoEm && <p className="text-small text-tinta-suave">Pago {dataHora(p.pagoEm)}</p>}
@@ -465,13 +477,14 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       </div>
       <div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">
         <Acoes p={p} filtro={filtro} />
-        {/* com algum aviso (a Stripe não devolveu, valor diferente, pago depois do horário), o histórico já vem aberto */}
-        <details className="text-small" open={r.historico.some((h) => ehAviso(h.evento))}>
+        {/* com algum aviso aberto (a Stripe não devolveu, valor diferente, pago depois do horário, o e-mail com os
+            vouchers que não saiu, o pedido de desistência), o histórico já vem aberto */}
+        <details className="text-small" open={r.historico.some((_, n) => avisoAberto(r.historico, n))}>
           <summary className="cursor-pointer font-semibold">Histórico</summary>
           <ul className="mt-2 space-y-1">
             {r.historico.map((h, n) => (
               // o aviso leva as cores do rótulo "Contestado": a equipe precisa agir
-              <li key={n} className={ehAviso(h.evento) ? 'bg-erro-claro px-2 py-1 font-semibold text-[#7a1f12]' : undefined}>
+              <li key={n} className={avisoAberto(r.historico, n) ? 'bg-erro-claro px-2 py-1 font-semibold text-[#7a1f12]' : undefined}>
                 {dataHora(h.em)} — {h.evento}
               </li>
             ))}
@@ -508,6 +521,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   const lista = pedidos.filter(
     (p) =>
       (!filtro.status || filtro.status.includes(p.status)) &&
+      (!filtro.so || filtro.so(p)) &&
       (!busca ||
         p.itens.some((r) =>
           [p.codigo, r.codigo, r.cliente.nome, r.cliente.email, r.cliente.telefone, ...textosDaBusca(r)].some((c) =>
@@ -520,6 +534,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   // o que entrou, menos o que já voltou para o cliente
   const receita = pagos.reduce((s, p) => s + p.recebidoCentavos - p.reembolsoCentavos, 0);
   const contestacoes = avisosDeContestacao(contestacoesAbertas(pedidos));
+  // pagos, com o pedido de desistência pelo site, sem reembolso e sem a marca de respondido: a faixa vale mesmo sem os e-mails
+  const desistencias = pedidos.filter((p) => desistenciaParaResponder(p.itens[0])).length;
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -565,6 +581,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           {aviso} →
         </a>
       ))}
+      {desistencias > 0 && (
+        <a href="/admin?status=desistencias" className="mt-3 block bg-erro-claro px-5 py-3 font-semibold text-mar">
+          {avisoDasDesistencias(desistencias)}: responder em até 1 dia útil →
+        </a>
+      )}
       {erroAcao && (
         <p role="alert" className="mt-3 bg-erro-claro px-5 py-3 font-semibold text-mar">
           {erroAcao}

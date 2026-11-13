@@ -34,7 +34,8 @@ type Etapa = 'fechado' | 'aberto' | 'enviando' | 'recebido' | 'repetido';
  * O link discreto "Desistir da compra", na página do pedido pago (Decreto 7.962/2013, art. 5º, § 1º: desistir pela
  * mesma ferramenta da compra). Ele abre uma confirmação ali mesmo, com o motivo opcional, e envia o pedido ao
  * servidor (POST /api/pedido/[codigo]/desistir, com o token do link privado). A resposta é a confirmação imediata do
- * recebimento; o servidor não reembolsa nada sozinho. Quem decide se o link aparece é o servidor (estadoDaDesistencia).
+ * recebimento, na tela (e, com os e-mails ligados, também no e-mail do pedido); o servidor não reembolsa nada sozinho.
+ * Quem decide se o link aparece é o servidor (estadoDaDesistencia).
  */
 export function DesistirDaCompra({
   codigoPedido,
@@ -58,16 +59,24 @@ export function DesistirDaCompra({
   const [erro, setErro] = useState('');
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const linkRef = useRef<HTMLButtonElement>(null);
+  const erroRef = useRef<HTMLParagraphElement>(null);
+  const mensagemRef = useRef<HTMLParagraphElement>(null);
   const aberta = etapa === 'aberto' || etapa === 'enviando';
   const fechou = useRef(false);
+  const enviou = useRef(false);
 
-  // quem abre a confirmação vai direto para ela (leitor de tela e teclado); quem volta, de volta para o link
+  // o foco do teclado (e do leitor de tela) acompanha o que aparece: quem abre a confirmação vai direto para ela; o
+  // erro do envio e a mensagem de que o pedido chegou recebem o foco (o botão ficou desligado no envio e o foco se
+  // perdia, voltando ao começo da página); quem volta, de volta para o link
   useEffect(() => {
-    if (aberta) tituloRef.current?.focus();
+    if (etapa === 'aberto' && erro) erroRef.current?.focus();
+    else if (aberta) tituloRef.current?.focus();
+    else if ((etapa === 'recebido' || etapa === 'repetido') && enviou.current) mensagemRef.current?.focus();
     else if (etapa === 'fechado' && fechou.current) linkRef.current?.focus();
-  }, [aberta, etapa]);
+  }, [aberta, etapa, erro]);
 
   async function enviar() {
+    enviou.current = true;
     setEtapa('enviando');
     setErro('');
     try {
@@ -88,7 +97,12 @@ export function DesistirDaCompra({
 
   if (etapa === 'recebido' || etapa === 'repetido') {
     return (
-      <p role="status" className={`max-w-[52ch] bg-superficie px-5 py-4 text-small ${className}`}>
+      <p
+        ref={mensagemRef}
+        tabIndex={-1}
+        role="status"
+        className={`max-w-[52ch] bg-superficie px-5 py-4 text-small outline-none ${className}`}
+      >
         {etapa === 'recebido' ? T.recebido : T.repetido}
       </p>
     );
@@ -130,7 +144,7 @@ export function DesistirDaCompra({
         disabled={etapa === 'enviando'}
       />
       {erro && (
-        <p role="alert" className="mt-3 bg-erro-claro px-4 py-3 text-small font-semibold text-mar">
+        <p ref={erroRef} tabIndex={-1} role="alert" className="mt-3 bg-erro-claro px-4 py-3 text-small font-semibold text-mar outline-none">
           {erro}
         </p>
       )}

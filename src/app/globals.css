@@ -995,6 +995,9 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     max-width: calc(100% - 1.5rem);
     transform: translateX(-50%);
     animation: surgir var(--dur-entrada) var(--ease-padrao) both;
+    /* com a letra grande, a dica quebra a linha em vez de sair da etiqueta; com a letra normal ela cabe numa linha só */
+    white-space: normal;
+    text-align: center;
   }
   .mapa-cartao {
     /* sobre a foto escura do mapa, o vidro claro precisa de mais corpo para o texto ler bem */

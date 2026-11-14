@@ -103,7 +103,7 @@ export function PaginaLegal({
             {indice}
           </div>
         </nav>
-        <article className="max-w-[68ch] lg:col-span-6 lg:col-start-7 lg:max-w-none">
+        <article className="max-w-[68ch] break-words lg:col-span-6 lg:col-start-7 lg:max-w-none">
           {/* scroll-mt-24 (96 px): o cabeçalho flutuante vai até uns 64 px no celular e 72 px no computador; o título da
               seção aberta pelo índice fica logo abaixo dele, com folga, e não escondido atrás (a mesma folga do #reservar) */}
           {doc.secoes.map((s) => (

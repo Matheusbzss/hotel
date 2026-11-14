@@ -4,6 +4,7 @@ import { EMPRESA } from '@/config/empresa';
 import { DadosEstruturados } from '@/components/DadosEstruturados';
 import { altDaFoto } from '@/data/fotos-alt';
 import { CardPasseio } from '@/components/CardPasseio';
+import { BlocoCasas } from '@/components/home/BlocoCasas';
 import { ComoFunciona, Garantias, Perguntas } from '@/components/home/BlocosHome';
 import { MapaRegiao } from '@/components/home/MapaRegiao';
 import { Opinioes } from '@/components/home/Opinioes';
@@ -106,6 +107,9 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
           }}
         />
       </div>
+
+      {/* as casas de temporada (Etapa 7): só com casa no ar, como o item do menu */}
+      <BlocoCasas idioma={locale} d={d} />
 
       <MapaRegiao
         cidades={pinos}

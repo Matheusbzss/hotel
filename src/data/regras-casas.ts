@@ -21,10 +21,11 @@ export const REGRAS_DAS_CASAS = {
     es: 'Silencio de 22 h a 8 h, sujeto a multa',
     en: 'Quiet hours from 10 p.m. to 8 a.m., subject to a fine',
   },
+  // o FASE-4 pede a placa e diz para que serve; a portaria só "quando houver" (não se sabe se a Ferradura tem uma)
   cadastro: {
-    pt: 'Cadastro de todos os hóspedes (nome completo e documento) depois do pagamento',
-    es: 'Registro de todos los huéspedes (nombre completo y documento) después del pago',
-    en: 'All guests are registered (full name and ID) after payment',
+    pt: 'Cadastro de todos os hóspedes depois do pagamento (nome completo e documento, e a placa do carro, se vierem de carro), para a nossa segurança e a portaria, quando houver',
+    es: 'Registro de todos los huéspedes después del pago (nombre completo y documento, y la patente del auto, si vienen en auto), para nuestra seguridad y la portería, cuando la haya',
+    en: 'All guests are registered after payment (full name, ID and, if arriving by car, the license plate), for our security and the gatehouse, where there is one',
   },
   recepcao: {
     pt: 'Nossa equipe recebe os hóspedes e entrega a chave; o horário de chegada é combinado pelo WhatsApp depois do pagamento',

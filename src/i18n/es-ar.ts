@@ -299,7 +299,9 @@ export const ajustesAR: AjustesAR = {
     avisoOcupada: 'Alguna noche de esas fechas ya está ocupada. Elegí otras fechas.',
     avisoDatas: 'Elegí otras fechas.',
     sinalHoje: 'Seña hoy ({p}%)',
-    avisemeTexto: 'Dejanos tu e-mail y te avisamos cuando abra la reserva de esta casa.',
+    colunaPix: 'Seña con Pix',
+    colunaCartao: 'Seña con tarjeta',
+    avisemeTexto: 'Dejanos tu nombre y tu e-mail y te avisamos cuando abra la reserva de esta casa.',
   },
   contato: {
     titulo: 'Contactanos',

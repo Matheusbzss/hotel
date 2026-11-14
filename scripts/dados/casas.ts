@@ -141,23 +141,25 @@ const ferradura: CasaParaCadastrar = {
   cidade: 'buzios',
   nome: mesmo('Mansão Ferradura Vista Mar'),
   local: mesmo('Ferradurinha'),
-  // o resumo serve ao cartão e ao Google; a descrição começa pelo que o resumo não diz (a página mostra os dois), e
-  // nenhum dos dois repete a frase do anúncio ("Casa nova, design moderno, vista para o mar")
+  // o resumo serve ao Google e à prévia do link; a página mostra só a descrição, que não repete o que os destaques, a
+  // ficha e as comodidades já dizem (o jeito da casa, das fotos que o dono autorizou), e nenhum dos dois repete a frase
+  // do anúncio ("Casa nova, design moderno, vista para o mar")
   resumo: {
     pt: 'No bairro da Ferradurinha, em Búzios, esta casa nova, de design moderno, tem vista para o mar. Recebe até 12 hóspedes em 4 quartos (3 suítes), com piscina, spa, cozinha externa e churrasqueira. A praia fica a cerca de 5 minutos a pé.',
     es: 'En el barrio de Ferradurinha, en Búzios, esta casa nueva, de diseño moderno, tiene vista al mar. Recibe hasta 12 huéspedes en 4 habitaciones (3 en suite), con piscina, spa, cocina exterior y parrilla. La playa queda a unos 5 minutos a pie.',
     en: 'In the Ferradurinha neighborhood of Búzios, this new, modern home has a sea view. It sleeps up to 12 guests in 4 bedrooms (3 en-suite), with a pool, a spa, an outdoor kitchen and a barbecue grill. The beach is about a 5-minute walk away.',
   },
+  // das fotos 03, 11, 12, 14, 17 e 20 (o dono autorizou completar com o que aparece nelas) e do DADOS.md (3 suítes)
   descricao: {
-    pt: 'Os 4 quartos têm ar-condicionado, e a casa conta com 3 banheiros e um lavabo, TVs 4K, som Sonos e cozinha completa, com utensílios.\n\nAlém da praia, as trilhas também ficam a cerca de 5 minutos a pé.\n\nA limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
-    es: 'Las 4 habitaciones tienen aire acondicionado, y la casa cuenta con 3 baños y un baño de visitas, televisores 4K, sonido Sonos y cocina equipada, con utensilios.\n\nAdemás de la playa, los senderos también quedan a unos 5 minutos a pie.\n\nLa limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
-    en: 'All 4 bedrooms have air conditioning, and the house has 3 bathrooms and a powder room, 4K TVs, a Sonos sound system and a fully equipped kitchen with utensils.\n\nBesides the beach, the trails are also about a 5-minute walk away.\n\nCleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
+    pt: 'De design moderno, a casa tem sala e cozinha integradas, com teto de madeira e portas de vidro que se abrem para a piscina. Há também uma sala de TV, um jardim interno e um parquinho para as crianças.\n\nDos 4 quartos, 3 são suítes. A piscina não tem aquecimento.',
+    es: 'De diseño moderno, la casa tiene sala y cocina integradas, con techo de madera y puertas de vidrio que se abren a la piscina. También hay una sala de TV, un jardín interior y un área de juegos infantiles.\n\nDe las 4 habitaciones, 3 son en suite. La piscina no es climatizada.',
+    en: 'With a modern design, the house has an open-plan living room and kitchen, with wooden ceilings and glass doors that open onto the pool. There is also a TV room, an indoor garden and a playground for the kids.\n\nThree of the 4 bedrooms are en-suite. The pool is not heated.',
   },
-  // seção 6 do plano (guias de viagem lidos em 13/11): mostrar ao dono antes de publicar
+  // seção 6 do plano (guias de viagem lidos em 13/11), em 3 frases curtas: mostrar ao dono antes de publicar
   textoBairro: {
-    pt: 'A Ferradurinha fica ao lado da praia de Geribá. A praia que dá nome ao bairro é pequena, protegida por um paredão de pedras e tem mar muito calmo, bom para caiaque e stand up paddle; em dias de muito calor pode lotar. Chega-se a ela por um caminho asfaltado de uns 400 metros que sai do canto esquerdo de Geribá, uma das praias mais movimentadas de Búzios, com quase 2 km de areia e quiosques. O centro, onde fica a Rua das Pedras, está a cerca de 4,5 km.',
-    es: 'Ferradurinha está al lado de la playa de Geribá. La playa que le da nombre al barrio es pequeña, está protegida por un paredón de piedras y tiene el mar muy calmo, bueno para kayak y stand up paddle; en los días de mucho calor puede llenarse. Se llega por un camino asfaltado de unos 400 metros que sale del extremo izquierdo de Geribá, una de las playas más concurridas de Búzios, con casi 2 km de arena y quioscos. El centro, donde está la Rua das Pedras, queda a unos 4,5 km.',
-    en: 'Ferradurinha sits next to Geribá Beach. The small beach that gives the neighborhood its name is sheltered by a rock wall and has very calm water, good for kayaking and stand-up paddleboarding; on very hot days it can get crowded. It is reached by a paved path of about 400 meters from the left end of Geribá, one of the busiest beaches in Búzios, with almost 2 km of sand and beach kiosks. The town center, home to Rua das Pedras, is about 4.5 km away.',
+    pt: 'A Ferradurinha fica ao lado de Geribá, uma das praias mais movimentadas de Búzios. A praia do bairro é pequena, protegida por um paredão de pedras, e tem mar muito calmo, bom para caiaque e stand up paddle. O centro e a Rua das Pedras ficam a cerca de 4,5 km.',
+    es: 'Ferradurinha está al lado de Geribá, una de las playas más concurridas de Búzios. La playa del barrio es pequeña, está protegida por un paredón de piedras y tiene el mar muy calmo, bueno para kayak y stand up paddle. El centro y la Rua das Pedras quedan a unos 4,5 km.',
+    en: 'Ferradurinha sits next to Geribá, one of the busiest beaches in Búzios. The neighborhood’s small beach is sheltered by a rock wall and has very calm water, good for kayaking and stand-up paddleboarding. The town center and Rua das Pedras are about 4.5 km away.',
   },
   quartos: 4,
   suites: 3,
@@ -195,21 +197,24 @@ const ferradura: CasaParaCadastrar = {
       foto: '/fotos/casas/mansao-ferradura-vista-mar/quarto-4-cama-e-beliches.jpg',
     },
   ],
+  // as 10 primeiras aparecem antes do "ver tudo": primeiro o que os destaques e a descrição ainda não disseram (o ar, a
+  // roupa de cama, a cozinha, as TVs e o som), a vista por último
   comodidadesMarcadas: [
-    { id: 'vista-mar', veioDaFoto: false },
-    { id: 'piscina', veioDaFoto: false },
-    { id: 'piscina-borda-infinita', veioDaFoto: true },
-    { id: 'spa', veioDaFoto: false },
-    { id: 'cozinha-externa', veioDaFoto: false },
-    { id: 'churrasqueira', veioDaFoto: false },
     { id: 'ar-condicionado', veioDaFoto: false },
+    { id: 'roupa-de-cama', veioDaFoto: false },
     { id: 'cozinha-completa', veioDaFoto: false },
     { id: 'tv-4k', veioDaFoto: false },
     { id: 'som-sonos', veioDaFoto: false },
-    { id: 'roupa-de-cama', veioDaFoto: false },
-    { id: 'tv-quartos', veioDaFoto: true },
-    { id: 'espreguicadeiras', veioDaFoto: true },
+    { id: 'lavanderia', veioDaFoto: true },
     { id: 'varandas', veioDaFoto: true },
+    { id: 'espreguicadeiras', veioDaFoto: true },
+    { id: 'piscina-borda-infinita', veioDaFoto: true },
+    { id: 'vista-mar', veioDaFoto: false },
+    { id: 'piscina', veioDaFoto: false },
+    { id: 'spa', veioDaFoto: false },
+    { id: 'cozinha-externa', veioDaFoto: false },
+    { id: 'churrasqueira', veioDaFoto: false },
+    { id: 'tv-quartos', veioDaFoto: true },
     { id: 'ilha-cozinha', veioDaFoto: true },
     { id: 'adega', veioDaFoto: true },
     { id: 'mesa-jantar', veioDaFoto: true },
@@ -219,7 +224,6 @@ const ferradura: CasaParaCadastrar = {
     { id: 'jardim', veioDaFoto: true },
     { id: 'jardim-interno', veioDaFoto: true },
     { id: 'parquinho', veioDaFoto: true },
-    { id: 'lavanderia', veioDaFoto: true },
   ],
   destaques: [
     {
@@ -260,7 +264,6 @@ const ferradura: CasaParaCadastrar = {
   bloqueios: [{ inicio: '2026-11-06', fim: '2026-12-07', referencia: 'Bloqueio inicial do dono do imóvel (noites até 06/12/2026)' }],
   fotos: [
     { origem: '01-piscina-infinita-vista-mar.jpg', arquivo: 'piscina-vista-mar.jpg' },
-    { origem: '02-vista-aerea.jpg', arquivo: 'casa-e-piscina-vistas-de-cima.jpg' },
     { origem: '03-sala-vista-mar.jpg', arquivo: 'sala-de-estar-teto-de-madeira.jpg' },
     { origem: '21-quarto-vista-mar-2.jpg', arquivo: 'quarto-1-vista-mar.jpg' },
     { origem: '04-jantar-vista-mar.jpg', arquivo: 'mesa-de-jantar-vista-mar.jpg' },
@@ -308,6 +311,11 @@ const ferradura: CasaParaCadastrar = {
     { origem: '37-lavanderia.jpg', arquivo: 'lavanderia.jpg' },
   ],
   fotosDeFora: [
+    {
+      origem: '02-vista-aerea.jpg',
+      motivo:
+        'por cautela, até o dono dizer: a casa vista de cima (telhado com painéis solares, piscina e jardim); junto com o círculo do mapa, ajuda a achar a casa na foto de satélite',
+    },
     { origem: '34-vista-aerea-frente-portao.jpg', motivo: 'vista aérea da frente: mostra o portão e a rua (ajuda a achar a casa)' },
     { origem: '36-jardim-frente-portao.jpg', motivo: 'por cautela: o portão, as casas vizinhas e uma torre de antena' },
     { origem: '38-decoracao-prateleiras.jpg', motivo: 'só decoração (fraca para o site, nota do DADOS.md)' },
@@ -328,11 +336,12 @@ const geriba: CasaParaCadastrar = {
     es: 'Casa en un condominio cerrado con vigilancia las 24 horas, a pocos metros de la playa de Geribá, en Búzios. Recibe hasta 14 huéspedes en 5 habitaciones en suite y tiene piscina privada con vista al mar, área de parrilla y espacios al aire libre con vista.',
     en: 'A home in a gated community with 24-hour security, just a few meters from Geribá Beach in Búzios. It sleeps up to 14 guests in 5 en-suite bedrooms and has a private pool with a sea view, a barbecue area and outdoor spaces with a view.',
   },
-  // como na Ferradura: a descrição começa pelo que o resumo não diz
+  // como na Ferradura: a descrição não repete os destaques, a ficha nem as comodidades. "Boa para grupos e famílias" é
+  // do anúncio (DADOS.md); o lounge e o deck ao lado da piscina, das fotos 01, 02, 08 e 16
   descricao: {
-    pt: 'A casa tem 3 andares (triplex), com escadas externas. Além das 5 suítes, há um banheiro social, e todos os quartos têm ar-condicionado. A sala de estar tem 3 sofás, a cozinha é completa, com utensílios, e há Wi-Fi.\n\nA piscina tem vista panorâmica para o mar. O acesso à praia é por uma escada do condomínio ou pela rua, e há estacionamento grátis para 4 carros na garagem do condomínio.\n\nA limpeza, a roupa de cama e as toalhas estão incluídas na diária. A piscina não tem aquecimento.',
-    es: 'La casa tiene 3 pisos (tríplex), con escaleras exteriores. Además de las 5 habitaciones en suite, hay un baño más, y todas las habitaciones tienen aire acondicionado. La sala de estar tiene 3 sofás, la cocina está equipada con utensilios y hay wifi.\n\nLa piscina tiene vista panorámica al mar. Se llega a la playa por una escalera del condominio o por la calle, y hay estacionamiento gratis para 4 autos en el garaje del condominio.\n\nLa limpieza, la ropa de cama y las toallas están incluidas en la tarifa por noche. La piscina no es climatizada.',
-    en: 'The house has three stories (triplex), with outdoor stairs. Besides the 5 en-suite bedrooms there is a guest bathroom, and every bedroom has air conditioning. The living room has 3 sofas, the kitchen is fully equipped with utensils, and there is Wi-Fi.\n\nThe pool has a panoramic sea view. The beach is reached by a stairway in the community or by the street, and there is free parking for 4 cars in the community garage.\n\nCleaning, bed linen and towels are included in the nightly rate. The pool is not heated.',
+    pt: 'Casa em 3 andares (triplex), boa para grupos e famílias. A sala de estar tem 3 sofás, e o lounge envidraçado e o deck de madeira com puffs ficam ao lado da piscina.\n\nOs 5 quartos são suítes, e há mais um banheiro social. A piscina não tem aquecimento.',
+    es: 'Casa de 3 pisos (tríplex), buena para grupos y familias. La sala de estar tiene 3 sofás, y el lounge con paredes de vidrio y el deck de madera con puffs están junto a la piscina.\n\nLas 5 habitaciones son en suite, y hay un baño más. La piscina no es climatizada.',
+    en: 'A three-story home (triplex), good for groups and families. The living room has 3 sofas, and the glass-walled lounge and the wooden deck with bean bags sit beside the pool.\n\nAll 5 bedrooms are en-suite, and there is a guest bathroom. The pool is not heated.',
   },
   // fatos do DADOS.md (guias de viagem de 07/11, com fonte), sem superlativo: mostrar ao dono antes de publicar
   textoBairro: {
@@ -365,18 +374,9 @@ const geriba: CasaParaCadastrar = {
       foto: '/fotos/casas/mansao-geriba-vista-mar/quarto-5.jpg',
     },
   ],
+  // as 10 primeiras: primeiro o que os destaques e a descrição ainda não disseram (o ar, o Wi-Fi, o estacionamento, a
+  // roupa de cama), a vista por último
   comodidadesMarcadas: [
-    { id: 'vista-mar', veioDaFoto: false },
-    { id: 'piscina', veioDaFoto: false },
-    {
-      id: 'acesso-praia-escada',
-      veioDaFoto: false,
-      detalhe: { pt: 'Também se chega pela rua', es: 'También se llega por la calle', en: 'Also reachable by the street' },
-    },
-    { id: 'condominio-vigilancia', veioDaFoto: false },
-    { id: 'churrasqueira', veioDaFoto: false },
-    { id: 'area-estar-externa', veioDaFoto: false },
-    { id: 'cozinha-completa', veioDaFoto: false },
     { id: 'ar-condicionado', veioDaFoto: false },
     { id: 'wifi', veioDaFoto: false },
     {
@@ -388,14 +388,25 @@ const geriba: CasaParaCadastrar = {
         en: '4 spaces in the community garage',
       },
     },
-    { id: 'sala-de-estar', veioDaFoto: false, detalhe: { pt: 'Com 3 sofás', es: 'Con 3 sofás', en: 'With 3 sofas' } },
     { id: 'roupa-de-cama', veioDaFoto: false },
+    { id: 'cozinha-completa', veioDaFoto: false },
+    { id: 'churrasqueira', veioDaFoto: false },
+    { id: 'bar-externo', veioDaFoto: true },
+    { id: 'braseiro', veioDaFoto: true },
     { id: 'piscina-prainha', veioDaFoto: true },
+    { id: 'vista-mar', veioDaFoto: false },
+    { id: 'piscina', veioDaFoto: false },
+    {
+      id: 'acesso-praia-escada',
+      veioDaFoto: false,
+      detalhe: { pt: 'Também se chega pela rua', es: 'También se llega por la calle', en: 'Also reachable by the street' },
+    },
+    { id: 'condominio-vigilancia', veioDaFoto: false },
+    { id: 'area-estar-externa', veioDaFoto: false },
+    { id: 'sala-de-estar', veioDaFoto: false, detalhe: { pt: 'Com 3 sofás', es: 'Con 3 sofás', en: 'With 3 sofas' } },
     { id: 'lounge-envidracado', veioDaFoto: true },
     { id: 'deck', veioDaFoto: true },
-    { id: 'braseiro', veioDaFoto: true },
     { id: 'espreguicadeiras', veioDaFoto: true },
-    { id: 'bar-externo', veioDaFoto: true },
     { id: 'mesas-externas', veioDaFoto: true },
     { id: 'varandas', veioDaFoto: true },
     { id: 'jardim', veioDaFoto: true },

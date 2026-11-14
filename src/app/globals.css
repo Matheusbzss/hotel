@@ -1235,17 +1235,30 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     margin-top: 0.85rem;
     font-weight: 600;
   }
+  /* a diária a partir de, ao lado do nome: só no computador (no celular, a barra fixa mostra o preço) */
+  .topo-casa-preco {
+    display: none;
+  }
   @media (min-width: 1024px) {
     .topo-casa-fotos {
       order: 0;
       margin-top: 1.75rem;
     }
     .topo-casa-texto {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 2rem;
       padding-top: 2.25rem;
     }
     /* no computador, o nome cabe numa linha */
     .topo-casa-titulo {
       max-width: none;
+    }
+    .topo-casa-preco {
+      display: block;
+      flex: none;
+      text-align: right;
     }
   }
 
@@ -1263,6 +1276,12 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
   .linha-pontuada .pedaco {
     white-space: nowrap;
   }
+  /* nas frases compridas, o pedaço que sozinho não cabe na linha quebra por dentro (nunca passa da borda) */
+  .regras-calendario .pedaco,
+  .incluido-casa .pedaco,
+  .resumo-estadia .pedaco {
+    white-space: normal;
+  }
   .linha-pontuada .pedaco::before {
     content: '·';
     display: inline-block;
@@ -1271,10 +1290,12 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     text-align: center;
   }
 
-  /* as fotos no celular: de borda a borda por baixo da cápsula do menu, quase 4:3 abaixo dela */
+  /* as fotos no celular: de borda a borda por baixo da cápsula do menu, em 3:2, a proporção das fotos das casas. Numa
+     moldura mais alta, a foto de 720 px da Ferradura era cortada dos lados e ampliada 2,3 vezes no iPhone (borrava);
+     em 3:2 ela entra inteira, ampliada 1,6 vez */
   .galeria-casa-celular {
     position: relative;
-    height: calc(75vw + 4.5rem);
+    aspect-ratio: 3 / 2;
     max-height: 38rem;
     margin-top: -4.5rem;
     background: var(--color-mar);
@@ -1554,13 +1575,20 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     .reserva-casa {
       display: contents;
     }
-    /* abaixo da cápsula do menu, que também fica presa no topo */
+    /* abaixo da cápsula do menu, que também fica presa no topo. O botão vem logo depois dos hóspedes (order, no
+       ReservaCasa), e o quadro nunca passa da altura da janela: com a conta inteira (em espanhol e inglês, com o ≈ US$)
+       numa tela baixa (1366 x 768, 1280 x 720), a conta rola por dentro do quadro, e o botão continua à vista */
     .reserva-casa-caixa {
       position: sticky;
       top: 6rem;
+      display: flex;
+      flex-direction: column;
       grid-column: 8 / span 5;
       grid-row: 1 / span 3;
       align-self: start;
+      max-height: calc(100dvh - 7rem);
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
   }
   .titulo-casa {
@@ -1588,6 +1616,38 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     padding: 0.9rem 0;
     border-top: 1px solid var(--color-borda);
     font-weight: 500;
+  }
+
+  /* os quartos sem foto (faltando a de algum): uma lista compacta, sem o bloco cinza do tamanho de uma foto */
+  .quartos-lista {
+    display: grid;
+    gap: 0.5rem;
+  }
+  @media (min-width: 640px) {
+    .quartos-lista {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .quarto-linha {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 4.25rem;
+    padding: 0.6rem 0.9rem 0.6rem 0.6rem;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+  }
+  .quarto-linha-marca {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    overflow: hidden;
+    border-radius: var(--radius-celula);
   }
 
   /* os quartos: deslizam no celular, três por linha no computador */
@@ -1628,14 +1688,6 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     border-radius: var(--radius-cartao);
     background: var(--color-superficie);
   }
-  .quarto-casa-icone {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-tinta-suave);
-  }
 
   /* o que a casa tem */
   .comodidades-casa {
@@ -1656,39 +1708,35 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     margin-top: 0.75rem;
   }
 
-  /* o calendário: as regras, os pacotes, os meses e os avisos */
+  /* o calendário: as regras, os pacotes, os meses e os avisos. A cor dos pacotes é uma só na página da casa: a faixa
+     das noites no calendário, a legenda e as etiquetas (um âmbar claro, bem mais leve que o botão dourado) */
+  .reserva-casa-datas {
+    --pacote-faixa: color-mix(in oklab, var(--color-d4) 55%, var(--color-papel));
+  }
   .regras-calendario {
     font-size: var(--text-small);
     font-weight: 600;
   }
+  /* as 3 próximas (4 no computador), quebrando a linha, e o "Ver os N pacotes": nada fica escondido fora da tela */
   .pacotes-casa {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 0.4rem;
-    margin: 0.75rem calc(-1 * var(--margem)) 0;
-    padding: 0.15rem var(--margem) 0.35rem;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-  @media (min-width: 1024px) {
-    .pacotes-casa {
-      flex-wrap: wrap;
-      margin-inline: 0;
-      padding-inline: 0;
-      overflow: visible;
-    }
+    margin-top: 0.75rem;
   }
   .etiqueta-pacote {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.45rem;
     min-height: 2.75rem;
-    padding: 0.45rem 0.95rem;
+    padding: 0.4rem 0.8rem;
     border-radius: 999px;
-    background: var(--color-d4);
+    background: var(--pacote-faixa);
     color: var(--color-tinta);
     font-family: var(--font-semi);
     font-weight: 600;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     white-space: nowrap;
     transition:
       background-color var(--dur-estado) var(--ease-padrao),
@@ -1701,11 +1749,18 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     .etiqueta-pacote {
       min-height: 2.25rem;
       padding-block: 0.3rem;
-      font-size: 0.875rem;
     }
   }
   .etiqueta-pacote:hover {
     box-shadow: inset 0 0 0 1px var(--color-tinta);
+  }
+  .pacotes-casa-todos {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: 0.4rem;
+    font-size: var(--text-small);
+    font-weight: 600;
   }
   .etiqueta-pacote:active {
     transform: scale(0.97);
@@ -1733,14 +1788,30 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
       box-shadow var(--dur-estado) var(--ease-padrao),
       transform var(--dur-toque) var(--ease-padrao);
   }
-  .pacote-opcao:hover {
+  .pacote-opcao:hover,
+  .ajuste-datas:hover {
     box-shadow: inset 0 0 0 1px var(--color-tinta);
   }
-  .pacote-opcao:active {
+  .pacote-opcao:active,
+  .ajuste-datas:active {
     transform: scale(0.98);
   }
   .pacote-opcao[aria-pressed='true'] {
     box-shadow: inset 0 0 0 2px var(--color-tinta);
+  }
+  /* os ajustes de um toque: o que muda em cima, as datas finais embaixo */
+  .ajuste-datas {
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+    box-shadow: inset 0 0 0 1px var(--color-borda-campo);
+    text-align: left;
+    transition:
+      box-shadow var(--dur-estado) var(--ease-padrao),
+      transform var(--dur-toque) var(--ease-padrao);
   }
   /* a opção com noite ocupada: à vista, mas sem escolher */
   .pacote-opcao:disabled {
@@ -1764,7 +1835,6 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     }
   }
   .cal {
-    --pacote-faixa: color-mix(in oklab, var(--color-d4) 55%, var(--color-papel));
     --estadia-faixa: color-mix(in oklab, var(--color-tinta) 12%, var(--color-papel));
     position: relative;
   }
@@ -1933,7 +2003,7 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     width: 1.5rem;
     height: 0.9rem;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--color-d4) 55%, var(--color-papel));
+    background: var(--pacote-faixa);
   }
   .cal-legenda-ocupada {
     color: var(--color-borda-campo);
@@ -1942,9 +2012,17 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
   }
   .aviso-calendario {
     margin-top: 1rem;
+    scroll-margin-block: 6rem 1rem;
   }
   .aviso-calendario:empty {
     display: none;
+  }
+  /* o resumo da conta, logo embaixo do calendário (no celular) */
+  .resumo-estadia {
+    padding: 0.85rem 1rem 0.35rem;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
   }
 
   /* o quadro da reserva */
@@ -1959,23 +2037,27 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
       padding: 1.5rem;
     }
   }
+  /* as datas no quadro do computador: com cara de campo (branco, borda de controle), não de botão desativado */
   .data-casa {
     display: block;
     width: 100%;
     min-height: 3.25rem;
     padding: 0.45rem 0.75rem;
     border-radius: var(--radius-celula);
-    background: var(--color-superficie);
+    background: var(--color-papel);
+    box-shadow: inset 0 0 0 1px var(--color-borda-campo);
     text-align: left;
     transition: box-shadow var(--dur-toque) var(--ease-padrao);
   }
   .data-casa:hover {
     box-shadow: inset 0 0 0 1px var(--color-tinta);
   }
+  /* o "Ver valores" (no resumo e na barra) chega aqui: o título da conta fica abaixo da cápsula do menu */
   .conta-casa {
     margin-top: 1.25rem;
     padding-top: 1rem;
     border-top: 1px solid var(--color-borda);
+    scroll-margin-top: 5.5rem;
   }
   .conta-casa-tabela {
     width: 100%;
@@ -2014,6 +2096,54 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     font-weight: 600;
     text-align: center;
   }
+  /* regra de todas as casas, à vista no quadro: limpeza, roupa de cama e toalhas incluídas, sem caução */
+  .incluido-casa {
+    margin-top: 1rem;
+    color: var(--color-tinta-suave);
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  /* telas bem estreitas (320 a 359 px): o quadro e a conta ganham espaço para os valores, com o ≈ US$, caberem */
+  @media (max-width: 22.49rem) {
+    .reserva-casa-caixa {
+      padding: 1rem 0.85rem;
+    }
+    .conta-casa-tabela {
+      font-size: var(--text-small);
+    }
+    .conta-casa-tabela th + th,
+    .conta-casa-tabela td + td,
+    .conta-casa-tabela th + td {
+      padding-left: 0.5rem;
+    }
+    .conta-casa-tabela .cifra.text-lead {
+      font-size: 1.0625rem;
+    }
+  }
+
+  /* a barra fixa do celular na página da casa: três linhas curtas e o botão */
+  .barra-casa {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.45rem 0.5rem 0.45rem 0.9rem;
+    line-height: 1.25;
+  }
+  .barra-casa-botao {
+    flex: none;
+    padding-inline: 1.1rem;
+  }
+  @media (max-width: 22.49rem) {
+    .barra-casa {
+      gap: 0.5rem;
+      padding-left: 0.75rem;
+    }
+    .barra-casa-botao {
+      padding-inline: 0.85rem;
+      font-size: 1rem;
+    }
+  }
 
   /* onde fica: o círculo de 500 m de raio no meio do recorte de satélite */
   .circulo-casa {
@@ -2028,6 +2158,24 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
       0 0 0 1px rgb(6 54 67 / 0.35),
       inset 0 0 0 1px rgb(6 54 67 / 0.2);
     transform: translate(-50%, -50%);
+  }
+  /* o nome de uma praia por cima da foto de satélite, em vidro escuro (o vidro só vai sobre foto) */
+  .rotulo-mapa-casa {
+    position: absolute;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+  }
+  @media (min-width: 640px) {
+    .rotulo-mapa-casa {
+      font-size: var(--text-caption);
+    }
   }
 
   /* regras, chegada e segurança e cancelamento: abrem ao tocar */

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { migalhas } from '@/lib/dados-estruturados';
 import { DadosEstruturados } from '@/components/DadosEstruturados';
-import { BarraReservaMovel } from '@/components/BarraReservaMovel';
 import { ListaMarcada } from '@/components/ListaMarcada';
 import { CardCasa } from '@/components/casas/CardCasa';
 import { LerMais } from '@/components/casas/Expandir';
@@ -23,9 +22,10 @@ import { comodidadesDaPagina, linhaDaFicha, regrasDaPagina, tabelaDaPagina } fro
 import { casasAtivas, casasDaPagina, obterCasa, ocupacaoDaCasa } from '@/lib/casas';
 import { formatarCifra } from '@/lib/cifra';
 import { textosCotacao } from '@/lib/cotacao';
+import { textoDolar } from '@/lib/dolar';
 import { menorDiariaCentavos, primeiraEntradaPossivel } from '@/lib/estadia';
 import { precoPixCentavos } from '@/lib/orcamento';
-import { centroCabeNoRecorte } from '@/lib/satelite-casa';
+import { centroCabeNoRecorte, rotulosDoRecorte } from '@/lib/satelite-casa';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
 // a página é refeita uma vez por dia, para os dias e os pacotes que já passaram saírem dela; a casa nova abre na
@@ -43,9 +43,12 @@ export async function generateMetadata({ params }: PageProps<'/[locale]/casas-de
   if (!isIdioma(locale) || !c) return {};
   const d = dicionario(locale);
   const menor = menorDiariaCentavos(tabelaDaPagina(c));
+  const intl = LOCALE_INTL[locale];
   const descricao = [
     texto(c.resumo, locale),
-    menor !== null ? `${d.casas.diariaAPartir} ${formatarCifra(menor, LOCALE_INTL[locale])}.` : '',
+    menor !== null
+      ? fmt(d.casas.metaDiaria, { pix: formatarCifra(precoPixCentavos(menor), intl), cartao: formatarCifra(menor, intl) })
+      : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -92,44 +95,55 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
   const ficha = linhaDaFicha(c, t.linha);
   const comodidades = comodidadesDaPagina(c.detalhes.comodidadesMarcadas);
   const comMapa = Boolean(c.centro && centroCabeNoRecorte(c.centro));
-  const paragrafos = texto(c.descricao, locale)
+  // só os nomes das praias e a posição deles na imagem (relativa ao centro público): nenhuma coordenada vai ao HTML
+  const rotulosDoMapa = comMapa && c.centro ? rotulosDoRecorte(c.centro) : [];
+  // a página mostra a descrição (o primeiro parágrafo e o "ler mais"); o resumo fica para o Google e a prévia do link,
+  // porque repete os destaques e a ficha, que estão logo acima. Sem descrição, o resumo.
+  const [primeiro = texto(c.resumo, locale), ...paragrafos] = texto(c.descricao, locale)
     .split('\n\n')
     .map((p) => p.trim())
     .filter(Boolean);
   const alt = (foto: string, i: number) => altDaFoto(foto, locale, `${nome}, ${fmt(d.passeio.fotoDe, { i: i + 1, n: c.fotos.length })}`);
+  const usdPix = menor !== null ? textoDolar(precoPixCentavos(menor), cambio.taxa, d.preco.dolar, intl) : '';
 
   return (
     <main id="conteudo" className="tom-fundo">
-      {menor !== null && (
-        <BarraReservaMovel
-          preco={formatarCifra(precoPixCentavos(menor), intl)}
-          unidade={`${d.preco.noPix} · ${d.comum.aPartirDe}`}
-          detalhe={
-            <p className="truncate text-caption text-white/80">
-              {formatarCifra(menor, intl)} {d.preco.noCartao} · {t.porNoite}
-            </p>
-          }
-          textos={{ reservar: t.verDatas }}
-        />
-      )}
-
-      {/* 1 e 2: no celular, as fotos de borda a borda e o nome embaixo; no computador, o nome em cima e o mosaico */}
+      {/* 1 e 2: no celular, as fotos de borda a borda e o nome embaixo; no computador, o nome em cima e o mosaico, com a
+          diária a partir de ao lado (a primeira tela do computador já mostra o preço) */}
       <section className="topo-casa" aria-labelledby="casa-titulo">
         <div className="topo-casa-texto moldura">
-          <h1 id="casa-titulo" className="topo-casa-titulo">
-            {nome}
-          </h1>
-          <p className="topo-casa-local">{local}</p>
-          {ficha.length > 0 && (
-            <p className="linha-pontuada topo-casa-ficha">
-              <span>
-                {ficha.map((f) => (
-                  <span key={f} className="pedaco">
-                    {f}
-                  </span>
-                ))}
-              </span>
-            </p>
+          <div className="min-w-0">
+            <h1 id="casa-titulo" className="topo-casa-titulo">
+              {nome}
+            </h1>
+            <p className="topo-casa-local">{local}</p>
+            {ficha.length > 0 && (
+              <p className="linha-pontuada topo-casa-ficha">
+                <span>
+                  {ficha.map((f) => (
+                    <span key={f} className="pedaco">
+                      {f}
+                    </span>
+                  ))}
+                </span>
+              </p>
+            )}
+          </div>
+          {menor !== null && (
+            <div className="topo-casa-preco">
+              <p className="text-small text-(--color-tinta-suave) first-letter:uppercase">{t.diariaAPartir}</p>
+              <p className="mt-1">
+                <strong className="cifra text-figure">{formatarCifra(precoPixCentavos(menor), intl)}</strong>{' '}
+                <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+                {usdPix && <span className="text-small text-(--color-tinta-suave)"> · {usdPix}</span>}
+              </p>
+              <p className="text-small text-(--color-tinta-suave)">
+                <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(menor, intl)}</span> {d.preco.noCartao}
+              </p>
+              <a href="#datas-casa" className="link mt-1 inline-flex min-h-11 items-center font-semibold">
+                {t.verDatas}
+              </a>
+            </div>
           )}
         </div>
         <div className="topo-casa-fotos">
@@ -159,7 +173,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             <h2 id="sobre-casa" className="titulo-casa">
               {t.sobre}
             </h2>
-            <LerMais resumo={texto(c.resumo, locale)} paragrafos={paragrafos} textos={{ lerMais: t.lerMais, lerMenos: t.lerMenos }} />
+            <LerMais resumo={primeiro} paragrafos={paragrafos} textos={{ lerMais: t.lerMais, lerMenos: t.lerMenos }} />
           </section>
 
           {/* 5: os quartos (sem o detalhe de cada um, a lista antiga de camas) */}
@@ -169,7 +183,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
               idioma={locale}
               locale={intl}
               altDaFoto={(foto) => altDaFoto(foto, locale, nome)}
-              textos={{ titulo: t.quartosTitulo, comBanheiro: t.quartoComBanheiro, semFoto: t.quartoSemFoto }}
+              textos={{ titulo: t.quartosTitulo, comBanheiro: t.quartoComBanheiro }}
             />
           ) : (
             texto(c.camas, locale).length > 0 && (
@@ -220,16 +234,21 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             pacotesTexto: t.pacotesTexto,
             pacoteOpcoes: t.pacoteOpcoes,
             pacoteOpcao: t.pacoteOpcao,
+            verPacotes: t.verPacotes,
+            menosPacotes: t.menosPacotes,
             legendaPacote: t.legendaPacote,
             legendaOcupada: t.legendaOcupada,
             escolhaDatas: t.escolhaDatas,
             escolhaSaida: t.escolhaSaida,
             minimo: t.minimo,
-            ajustarMinimo: t.ajustarMinimo,
             avisoFimDeSemana: t.avisoFimDeSemana,
             incluirFimDeSemana: t.incluirFimDeSemana,
             avisoPacote: t.avisoPacote,
             incluirPacote: t.incluirPacote,
+            incluirPacoteDe: t.incluirPacoteDe,
+            mudarChegada: t.mudarChegada,
+            mudarSaida: t.mudarSaida,
+            ajusteResultado: t.ajusteResultado,
             avisoOcupada: t.avisoOcupada,
             avisoDatas: t.avisoDatas,
             avisoPreco: t.avisoPreco,
@@ -239,7 +258,6 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             noCartao: d.preco.noCartao,
             chegada: t.chegada,
             saida: t.saida,
-            mudarDatas: t.mudarDatas,
             hospedes: t.hospedes,
             diminuir: d.comum.diminuir,
             aumentar: d.comum.aumentar,
@@ -255,19 +273,25 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             linhaTemporadaUma: t.linhaTemporadaUma,
             linhaPacote: t.linhaPacote,
             contaTitulo: t.contaTitulo,
-            pix: d.preco.pix,
-            cartao: d.preco.cartao,
+            colunaPix: t.colunaPix,
+            colunaCartao: t.colunaCartao,
             total: t.total,
             sinalHoje: t.sinalHoje,
             naChegada: t.naChegada,
             chegadaComo: t.chegadaComo,
             pixNoTotal: t.pixNoTotal,
+            incluido: t.incluido,
+            semCaucao: t.semCaucao,
+            verValores: t.verValores,
+            verDatas: t.verDatas,
+            barraDatas: t.barraDatas,
             reservar: t.reservar,
             reservaEmBreve: t.reservaEmBreve,
             pedir: t.pedir,
             avisemeTitulo: t.avisemeTitulo,
             avisemeTexto: t.avisemeTexto,
-            rotuloMensagem: d.cotacao.casaMensagem,
+            // a casa e a cidade já vão na mensagem: o rótulo pede só as datas e as pessoas
+            rotuloMensagem: t.avisemeMensagem,
             hospedesN: t.linha.hospedes,
             fechar: d.comum.fechar,
             dolar: d.preco.dolar,
@@ -279,6 +303,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           <MapaCasa
             slug={c.slug}
             comMapa={comMapa}
+            rotulos={rotulosDoMapa}
             local={local}
             bairro={c.detalhes.textoBairro ? texto(c.detalhes.textoBairro, locale) : ''}
             textos={{ mapaTitulo: t.mapaTitulo, mapaTexto: t.mapaTexto, mapaFonte: t.mapaFonte, mapaCirculo: t.mapaCirculo }}

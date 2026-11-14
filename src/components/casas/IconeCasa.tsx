@@ -6,18 +6,23 @@ import type { IconeCasa as NomeIcone } from '@/data/comodidades';
  * (src/data/comodidades.ts), mais os da interface (fotos, fechar, setas). Nenhum vem de outro site ou biblioteca.
  */
 export const DESENHOS_CASA: Record<NomeIcone, string> = {
-  // uma janela com o horizonte e a água
-  'vista-mar': 'M3.5 4.5h17v15h-17ZM3.5 11.5h17M6.5 15.5q1.5-1.5 3 0t3 0 3 0 3 0',
+  // a janela com o peitoril, dividida ao meio, e a água na metade de baixo (não parece o ícone de "imagem")
+  'vista-mar': 'M4 3.5h16v13H4ZM12 3.5v13M2.5 16.5h19M4 11.5q2-1.5 4 0t4 0 4 0 4 0',
   // o guarda-sol fincado na areia
   praia: 'M12 2.5V4M4 11.5a8 8 0 0 1 16 0ZM12 11.5V20M5 20.5h14',
   // a escada da piscina e a água
   piscina: 'M8 16V6.5a2.5 2.5 0 0 1 2.5-2.5M14 16V6.5a2.5 2.5 0 0 1 2.5-2.5M8 8.5h6M8 12.5h6M3 19.5q1.5-1.5 3 0t3 0 3 0 3 0 3 0 3 0',
-  // a banheira com o vapor
-  spa: 'M3 12.5h18V15a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5ZM8 4c-.8.8-.8 1.7 0 2.5s.8 1.7 0 2.5M12 4c-.8.8-.8 1.7 0 2.5s.8 1.7 0 2.5M16 4c-.8.8-.8 1.7 0 2.5s.8 1.7 0 2.5',
+  // o infinito sobre a água: a piscina de borda infinita (diferente da piscina comum)
+  'borda-infinita':
+    'M12 7.5c-1.2-1.6-2.4-2.5-3.7-2.5a2.5 2.5 0 0 0 0 5c1.3 0 2.5-.9 3.7-2.5Zm0 0c1.2 1.6 2.4 2.5 3.7 2.5a2.5 2.5 0 0 0 0-5c-1.3 0-2.5.9-3.7 2.5ZM3 15q1.5-1.5 3 0t3 0 3 0 3 0 3 0 3 0M3 19q1.5-1.5 3 0t3 0 3 0 3 0 3 0 3 0',
+  // a banheira com as bolhas dos jatos (sem vapor: o aquecimento do spa não foi confirmado)
+  spa: 'M3 12.5h18V15a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5ZM6.75 8.5a1.25 1.25 0 1 0 2.5 0 1.25 1.25 0 1 0-2.5 0M11 5.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0-3 0M15 9a1 1 0 1 0 2 0 1 1 0 1 0-2 0',
   // a churrasqueira redonda nos três pés
   churrasqueira: 'M4 9.5h16a8 8 0 0 1-16 0ZM8 16 6.5 21M16 16l1.5 5M10 3.5v3M14 3.5v3',
   // a panela com a tampa
   cozinha: 'M5 10.5h14V17a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3ZM3 10.5h18M10 7.5h4M12 7.5V5.5',
+  // a panela debaixo do pergolado: a cozinha do lado de fora
+  'cozinha-externa': 'M3 4.5h18M6 4.5V7M10 4.5V7M14 4.5V7M18 4.5V7M7 12.5h10V16a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3ZM5.5 12.5h13M12 10v2.5',
   // a taça
   bar: 'M5 4h14l-7 8.5ZM12 12.5V20M8.5 20h7M7.5 7h9',
   // a poltrona
@@ -28,10 +33,10 @@ export const DESENHOS_CASA: Record<NomeIcone, string> = {
   fogo: 'M12 3c2.6 2.6 5 5 5 8.5a5 5 0 0 1-10 0c0-2 1-3.6 2.5-4.6 0 1.6.8 2.6 2 2.6-.4-2.4 0-4.5.5-6.5ZM5 21l14-3M5 18l14 3',
   // a espreguiçadeira de perfil
   espreguicadeira: 'M3.5 7 8 15h13M9.5 15l-1 4.5M19 15l1 4.5',
-  // a mesa
-  mesa: 'M3 9h18M6 9v11M18 9v11M6 14h12',
-  // a porta da varanda e o guarda-corpo
-  varanda: 'M8 13V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v8M3 13h18M3 20h18M5 13v7M9 13v7M12 13v7M15 13v7M19 13v7',
+  // a mesa: o tampo grosso e os pés recolhidos (sem a travessa de baixo, que lembrava um portal)
+  mesa: 'M3 8.5h18V11H3ZM5.5 11v9M18.5 11v9',
+  // o guarda-corpo, com o mar atrás
+  varanda: 'M3 7.5q1.5-1.5 3 0t3 0 3 0 3 0 3 0 3 0M3 12h18M3 20h18M5 12v8M9.67 12v8M14.33 12v8M19 12v8',
   // a muda com duas folhas
   jardim: 'M12 20.5v-8.5M12 12c0-3.9 3.1-7 7-7 0 3.9-3.1 7-7 7ZM12 15c0-3-2.5-5.5-6-5.5 0 3 2.5 5.5 6 5.5ZM7.5 20.5h9',
   // a rede entre dois mourões

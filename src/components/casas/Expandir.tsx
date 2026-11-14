@@ -39,15 +39,18 @@ export function Expandir({
 }
 
 /**
- * A descrição da casa: o resumo em até 4 linhas e o "ler mais", que abre o resto do texto logo abaixo. O texto inteiro
- * já está na página (o leitor de tela e o Google leem tudo); só a tela esconde.
+ * A descrição da casa: o primeiro parágrafo em até 4 linhas e o "ler mais", que abre o resto do texto logo abaixo. O
+ * texto inteiro já está na página (o leitor de tela e o Google leem tudo); só a tela esconde. Sem mais parágrafos, o
+ * primeiro aparece inteiro (sem botão, nada pode ficar cortado).
  */
 export function LerMais({
   resumo,
   paragrafos,
   textos,
 }: {
+  /** O primeiro parágrafo. */
   resumo: string;
+  /** Os outros, que o "ler mais" abre. */
   paragrafos: string[];
   textos: { lerMais: string; lerMenos: string };
 }) {
@@ -55,7 +58,7 @@ export function LerMais({
   const [aberto, setAberto] = useState(false);
   return (
     <div className="texto-corrido max-w-[62ch]">
-      <p className={aberto ? undefined : 'line-clamp-4'}>{resumo}</p>
+      <p className={aberto || !paragrafos.length ? undefined : 'line-clamp-4'}>{resumo}</p>
       {paragrafos.length > 0 && (
         <>
           <div id={id} hidden={!aberto} className="mt-4">

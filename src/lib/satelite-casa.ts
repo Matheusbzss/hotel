@@ -1,6 +1,7 @@
 import path from 'node:path';
 import sharp from 'sharp';
 import litoral from '@/data/litoral.json';
+import praias from '@/data/praias.json';
 import relevo from '@/data/relevo.json';
 import { RAIO_CIRCULO_M, type Ponto } from './circulo-casa';
 
@@ -34,6 +35,46 @@ export function centroCabeNoRecorte(centro: Ponto): boolean {
     y - ALTURA_RECORTE_M / 2 >= c.y0 &&
     y + ALTURA_RECORTE_M / 2 <= c.y1
   );
+}
+
+/** Um nome escrito por cima do recorte: a posição em % da largura e da altura da imagem. */
+export interface RotuloDoMapa {
+  nome: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * Os nomes das praias que caem no recorte (do OpenStreetMap, os mesmos do mapa da página inicial), para o turista se
+ * achar na foto de satélite: no máximo 3, das mais perto do centro, longe da borda e sem um encostar no outro (o que
+ * encostaria sobe ou desce um pouco; se nem assim couber, fica de fora). A posição é relativa ao centro PÚBLICO (o
+ * mesmo que a própria imagem já mostra): não diz nada do ponto da casa.
+ */
+export function rotulosDoRecorte(centro: Ponto, maximo = 3): RotuloDoMapa[] {
+  const { x, y } = emMetros(centro);
+  const x0 = x - LARGURA_RECORTE_M / 2;
+  const y1 = y + ALTURA_RECORTE_M / 2;
+  const candidatos = praias.praias
+    .map((p) => ({
+      nome: p.nome,
+      x: ((p.x - x0) / LARGURA_RECORTE_M) * 100,
+      y: ((y1 - p.y) / ALTURA_RECORTE_M) * 100,
+      distancia: Math.hypot(p.x - x, p.y - y),
+    }))
+    .filter((p) => p.x >= 18 && p.x <= 82 && p.y >= 10 && p.y <= 90)
+    .sort((a, b) => a.distancia - b.distancia);
+  // um nome tem até uns 38% da largura no celular e uns 8% da altura: mais perto que isso, encostam
+  const encosta = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) < 38 && Math.abs(a.y - b.y) < 10;
+  const escolhidos: RotuloDoMapa[] = [];
+  for (const p of candidatos) {
+    if (escolhidos.length >= maximo) break;
+    const lugar = [p.y, p.y - 11, p.y + 11]
+      .filter((yy) => yy >= 8 && yy <= 92)
+      .map((yy) => ({ x: p.x, y: yy }))
+      .find((l) => !escolhidos.some((e) => encosta(e, l)));
+    if (lugar) escolhidos.push({ nome: p.nome, x: Math.round(lugar.x * 10) / 10, y: Math.round(lugar.y * 10) / 10 });
+  }
+  return escolhidos;
 }
 
 export async function recorteSatelite(centro: Ponto): Promise<Buffer> {

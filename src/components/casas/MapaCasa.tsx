@@ -1,22 +1,26 @@
 import { fmt } from '@/i18n/config';
 import { RAIO_CIRCULO_M } from '@/lib/circulo-casa';
-import { DIAMETRO_CIRCULO_M, LARGURA_RECORTE_M } from '@/lib/satelite-casa';
+import { DIAMETRO_CIRCULO_M, LARGURA_RECORTE_M, type RotuloDoMapa } from '@/lib/satelite-casa';
 
 /**
  * Onde fica a casa (Etapa 7, partes 8 e F): a foto de satélite da região (recortada em /mapa/casas/<slug>.webp em volta
- * do centro PÚBLICO do círculo, deslocado do ponto da casa) com o círculo de 500 m de raio no meio, e o texto do
- * bairro. Sem o ponto marcado no painel (`comMapa` false), só o texto: a localização exata vai pela equipe, depois da
- * reserva. A imagem só carrega quando chega perto da tela.
+ * do centro PÚBLICO do círculo, deslocado do ponto da casa) com o círculo de 500 m de raio no meio, os nomes de até 3
+ * praias por cima (a foto tem uns 11 m por ponto: sem nome, o turista não reconhece a região) e o texto do bairro. Sem
+ * o ponto marcado no painel (`comMapa` false), só o texto: a localização exata vai pela equipe, depois da reserva. A
+ * imagem só carrega quando chega perto da tela.
  */
 export function MapaCasa({
   slug,
   comMapa,
+  rotulos = [],
   local,
   bairro,
   textos: T,
 }: {
   slug: string;
   comMapa: boolean;
+  /** Os nomes das praias no recorte, em % da imagem (src/lib/satelite-casa.ts). */
+  rotulos?: RotuloDoMapa[];
   /** "Ferradurinha, Búzios". */
   local: string;
   /** O texto curto sobre o bairro (3 ou 4 frases), ou vazio. */
@@ -43,6 +47,11 @@ export function MapaCasa({
               className="size-full object-cover"
             />
             <span className="circulo-casa" style={{ width: diametro }} aria-hidden="true" />
+            {rotulos.map((r) => (
+              <span key={r.nome} className="rotulo-mapa-casa vidro vidro-escuro" style={{ left: `${r.x}%`, top: `${r.y}%` }}>
+                {r.nome}
+              </span>
+            ))}
           </div>
           <figcaption className="mt-2 text-caption text-(--color-tinta-suave)">{T.mapaFonte}</figcaption>
         </figure>

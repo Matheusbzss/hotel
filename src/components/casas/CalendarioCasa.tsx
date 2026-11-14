@@ -42,6 +42,7 @@ export function CalendarioCasa({
   saida,
   aoTocar,
   locale,
+  inicioDaSemana,
   textos: T,
 }: {
   /** O primeiro mês na tela (AAAA-MM). */
@@ -56,6 +57,8 @@ export function CalendarioCasa({
   saida: string;
   aoTocar: (dia: string) => void;
   locale: string;
+  /** 0: a semana começa no domingo (Brasil e EUA); 1: na segunda (Argentina e Chile, como o Intl do es-AR e do es-CL). */
+  inicioDaSemana: 0 | 1;
   textos: TextosCalendario;
 }) {
   const escolhendoSaida = Boolean(entrada && !saida);
@@ -69,10 +72,10 @@ export function CalendarioCasa({
   const semana = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) =>
-        // a semana começa no domingo (Brasil, Argentina e EUA); 01/01/2023 foi um domingo
-        new Intl.DateTimeFormat(locale, { weekday: 'narrow', timeZone: 'UTC' }).format(diaUtc(somarDias('2023-01-01', i))),
+        // 01/01/2023 foi um domingo: com a semana na segunda, a fileira começa em 02/01/2023
+        new Intl.DateTimeFormat(locale, { weekday: 'narrow', timeZone: 'UTC' }).format(diaUtc(somarDias('2023-01-01', i + inicioDaSemana))),
       ),
-    [locale],
+    [locale, inicioDaSemana],
   );
   const formatoMes = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const formatoDia = new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' });
@@ -83,7 +86,7 @@ export function CalendarioCasa({
 
   const mesInteiro = (m: string, segundo: boolean) => {
     const primeiro = diaUtc(`${m}-01`);
-    const vazios = primeiro.getUTCDay();
+    const vazios = (primeiro.getUTCDay() - inicioDaSemana + 7) % 7;
     const diasNoMes = new Date(Date.UTC(primeiro.getUTCFullYear(), primeiro.getUTCMonth() + 1, 0)).getUTCDate();
     const dias = Array.from({ length: diasNoMes }, (_, i) => `${m}-${String(i + 1).padStart(2, '0')}`);
     const nome = formatoMes.format(primeiro);

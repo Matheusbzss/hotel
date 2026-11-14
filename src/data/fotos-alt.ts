@@ -571,11 +571,6 @@ export const ALT_FOTOS: Record<string, Texto> = {
     en: 'Blue pool overlooking the sea and the islands, surrounded by greenery',
     es: 'Piscina de agua azul con vista al mar y a las islas, rodeada de vegetación',
   },
-  '/fotos/casas/mansao-ferradura-vista-mar/casa-e-piscina-vistas-de-cima.jpg': {
-    pt: 'Casa branca moderna vista de cima, com piscina, spa, espreguiçadeiras e painéis solares',
-    en: 'Modern white house seen from above, with a pool, a spa, sun loungers and solar panels',
-    es: 'Casa blanca moderna vista desde arriba, con piscina, spa, reposeras y paneles solares',
-  },
   '/fotos/casas/mansao-ferradura-vista-mar/sala-de-estar-teto-de-madeira.jpg': {
     pt: 'Sala de estar com teto de madeira, sofás claros e portas de vidro para o terraço com vista',
     en: 'Living room with a wooden ceiling, light sofas and glass doors to the terrace with a view',

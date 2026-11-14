@@ -31,8 +31,10 @@ export function DestaquesCasa({ destaques, idioma, rotulo }: { destaques: Destaq
 }
 
 /**
- * Os quartos: um cartão por quarto, que desliza para o lado no celular. Com a foto do próprio quarto; sem ela, o ícone
- * de cama (nunca a foto de outro quarto).
+ * Os quartos. Com a foto de todos: um cartão com a foto do próprio quarto, que desliza para o lado no celular. Faltando
+ * a foto de algum (a Geribá, até as fotos chegarem): uma lista compacta, uma linha por quarto, com o ícone de cama no
+ * lugar da foto e a miniatura só no quarto que tem a própria foto (nunca a foto de outro quarto, nem um bloco cinza do
+ * tamanho de uma foto).
  */
 export function QuartosCasa({
   quartos,
@@ -45,44 +47,57 @@ export function QuartosCasa({
   idioma: Idioma;
   locale: string;
   altDaFoto: (foto: string) => string;
-  textos: { titulo: string; comBanheiro: string; semFoto: string };
+  textos: { titulo: string; comBanheiro: string };
 }) {
   if (!quartos.length) return null;
+  const detalhe = (q: Quarto) => [q.banheiro ? T.comBanheiro : '', q.detalhe ? texto(q.detalhe, idioma) : ''].filter(Boolean).join(' · ');
+  const todosComFoto = quartos.every((q) => q.foto);
   return (
     <section aria-labelledby="quartos-casa">
       <h2 id="quartos-casa" className="titulo-casa">
         {T.titulo}
       </h2>
-      <ul className="quartos-casa sem-barra">
-        {quartos.map((q) => (
-          <li key={q.nome.pt} className="quarto-casa">
-            <div className="quarto-casa-foto">
-              {q.foto ? (
-                <Image
-                  src={q.foto}
-                  alt={altDaFoto(q.foto)}
-                  fill
-                  sizes="(min-width: 1024px) 220px, (min-width: 640px) 40vw, 70vw"
-                  quality={75}
-                  className="object-cover"
-                />
-              ) : (
-                <span className="quarto-casa-icone">
-                  <IconeCasa nome="cama" className="size-9" />
-                  <span className="sr-only">{T.semFoto}</span>
-                </span>
-              )}
-            </div>
-            <p className="mt-3 font-semibold">{texto(q.nome, idioma)}</p>
-            <p className="text-small">{camasDoQuarto(q, idioma, locale)}</p>
-            {(q.banheiro || q.detalhe) && (
-              <p className="text-small text-(--color-tinta-suave)">
-                {[q.banheiro ? T.comBanheiro : '', q.detalhe ? texto(q.detalhe, idioma) : ''].filter(Boolean).join(' · ')}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
+      {todosComFoto ? (
+        <ul className="quartos-casa sem-barra">
+          {quartos.map((q) => (
+            <li key={q.nome.pt} className="quarto-casa">
+              <div className="quarto-casa-foto">
+                {q.foto && (
+                  <Image
+                    src={q.foto}
+                    alt={altDaFoto(q.foto)}
+                    fill
+                    sizes="(min-width: 1024px) 220px, (min-width: 640px) 40vw, 70vw"
+                    quality={75}
+                    className="object-cover"
+                  />
+                )}
+              </div>
+              <p className="mt-3 font-semibold">{texto(q.nome, idioma)}</p>
+              <p className="text-small">{camasDoQuarto(q, idioma, locale)}</p>
+              {detalhe(q) && <p className="text-small text-(--color-tinta-suave)">{detalhe(q)}</p>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className="quartos-lista">
+          {quartos.map((q) => (
+            <li key={q.nome.pt} className="quarto-linha">
+              <span className="quarto-linha-marca">
+                {q.foto ? (
+                  <Image src={q.foto} alt={altDaFoto(q.foto)} fill sizes="56px" quality={70} className="object-cover" />
+                ) : (
+                  <IconeCasa nome="cama" className="size-6 text-(--color-turquesa-texto)" />
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="block font-semibold">{texto(q.nome, idioma)}</span>
+                <span className="block text-small">{[camasDoQuarto(q, idioma, locale), detalhe(q)].filter(Boolean).join(' · ')}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

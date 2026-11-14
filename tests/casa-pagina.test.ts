@@ -18,6 +18,7 @@ import {
   tabelaDaPagina,
 } from '../src/lib/casa-pagina.ts';
 import {
+  ajustesDaEstadia,
   datasComOFimDeSemana,
   datasComOPacote,
   linhasDaConta,
@@ -244,6 +245,90 @@ test('os ajustes do calendário: fechar o fim de semana, levar o pacote inteiro,
   assert.equal(contaEstadia(f, '2026-12-08', '2026-12-09').motivo, 'minimo');
 });
 
+test('os ajustes de um toque vêm resolvidos até as datas finais e nunca prometem o pacote errado', () => {
+  const f = comoNoSite(FERRADURA).tabela;
+  const g = comoNoSite(GERIBA).tabela;
+  const resumo = (t: TabelaEstadia, entrada: string, saida: string) =>
+    ajustesDaEstadia(t, entrada, saida).map((a) => ({
+      de: a.entrada,
+      ate: a.saida,
+      tipo: a.tipo,
+      noites: a.noites,
+      pacote: a.pacote?.entrada,
+    }));
+
+  // de 21/12 a 30/12 (pega 28 e 29/12 do Réveillon): só o de 5 diárias tem as duas noites (o de 4 cairia no de 5, com
+  // as mesmas datas); a outra saída é ficar só até a véspera do Réveillon, com o Natal
+  for (const t of [f, g]) {
+    assert.deepEqual(resumo(t, '2026-12-21', '2026-12-30'), [
+      { de: '2026-12-21', ate: '2027-01-02', tipo: 'pacote', noites: 12, pacote: '2026-12-28' },
+      { de: '2026-12-21', ate: '2026-12-28', tipo: 'saida', noites: 7, pacote: undefined },
+    ]);
+    const final = contaEstadia(t, '2026-12-21', '2027-01-02');
+    assert.ok(final.ok);
+    assert.ok(final.pacotes.some((p) => p.entrada === '2026-12-28' && p.grupo === 'reveillon-2026'));
+    assert.ok(!final.pacotes.some((p) => p.entrada === '2026-12-29'));
+  }
+  assert.equal(contaEstadia(f, '2026-12-21', '2027-01-02').totalCentavos, 1900000);
+  assert.equal(contaEstadia(g, '2026-12-21', '2027-01-02').totalCentavos, 2430000);
+  // sábado 26/12 a terça 29/12 pega o Natal e o Réveillon pela metade: o botão leva os dois (os dois nomes no rótulo)
+  const doisPacotes = ajustesDaEstadia(f, '2026-12-26', '2026-12-29');
+  assert.equal(doisPacotes.length, 1);
+  assert.deepEqual(
+    doisPacotes[0].pacotes?.map((p) => p.nome.pt),
+    ['Pacote Natal', 'Pacote Réveillon'],
+  );
+  assert.deepEqual([doisPacotes[0].entrada, doisPacotes[0].saida], ['2026-12-24', '2027-01-02']);
+
+  // de 30/12 a 03/01: as duas opções cabem, e cada botão já leva o domingo 03/01 (o fim de semana depois do Réveillon)
+  assert.deepEqual(resumo(f, '2026-12-30', '2027-01-03'), [
+    { de: '2026-12-28', ate: '2027-01-04', tipo: 'pacote', noites: 7, pacote: '2026-12-28' },
+    { de: '2026-12-29', ate: '2027-01-04', tipo: 'pacote', noites: 6, pacote: '2026-12-29' },
+  ]);
+
+  // quinta 10/12 a sexta 11/12 (o mínimo): sair na segunda já com o fim de semana, ou chegar na quarta
+  assert.deepEqual(resumo(f, '2026-12-10', '2026-12-11'), [
+    { de: '2026-12-10', ate: '2026-12-14', tipo: 'fim-de-semana', noites: 4, pacote: undefined },
+    { de: '2026-12-09', ate: '2026-12-11', tipo: 'chegada', noites: 2, pacote: undefined },
+  ]);
+  // quarta 23/12 a quinta 24/12: ficar até 25/12 cai no Natal, então o botão já leva o Natal; ou chegar na terça
+  assert.deepEqual(resumo(f, '2026-12-23', '2026-12-24'), [
+    { de: '2026-12-23', ate: '2026-12-28', tipo: 'pacote', noites: 5, pacote: '2026-12-24' },
+    { de: '2026-12-22', ate: '2026-12-24', tipo: 'chegada', noites: 2, pacote: undefined },
+  ]);
+  // quarta 09/12 a domingo 13/12: levar o domingo (sair na segunda) ou sair na sexta, antes do fim de semana
+  assert.deepEqual(resumo(f, '2026-12-09', '2026-12-13'), [
+    { de: '2026-12-09', ate: '2026-12-14', tipo: 'fim-de-semana', noites: 5, pacote: undefined },
+    { de: '2026-12-09', ate: '2026-12-11', tipo: 'saida', noites: 2, pacote: undefined },
+  ]);
+  // metade do Natal: levar o Natal inteiro, ou sair na véspera dele
+  assert.deepEqual(resumo(f, '2026-12-21', '2026-12-26'), [
+    { de: '2026-12-21', ate: '2026-12-28', tipo: 'pacote', noites: 7, pacote: '2026-12-24' },
+    { de: '2026-12-21', ate: '2026-12-24', tipo: 'saida', noites: 3, pacote: undefined },
+  ]);
+  // todo ajuste oferecido passa na conta, e nenhum repete as datas
+  for (const [de, ate] of [
+    ['2026-12-10', '2026-12-11'],
+    ['2026-12-13', '2026-12-15'],
+    ['2026-12-26', '2026-12-29'],
+    ['2027-02-04', '2027-02-07'],
+    ['2027-01-01', '2027-01-03'],
+  ]) {
+    const ajustes = ajustesDaEstadia(f, de, ate);
+    assert.equal(new Set(ajustes.map((a) => `${a.entrada}|${a.saida}`)).size, ajustes.length, `${de} ${ate}`);
+    for (const a of ajustes) assert.ok(contaEstadia(f, a.entrada, a.saida).ok, `${de} ${ate} → ${a.entrada} ${a.saida}`);
+  }
+  // estadia que já passa, ocupada ou com datas trocadas: nenhum ajuste
+  assert.deepEqual(ajustesDaEstadia(f, '2026-12-11', '2026-12-14'), []);
+  assert.deepEqual(ajustesDaEstadia(f, '2026-12-14', '2026-12-11'), []);
+  assert.deepEqual(ajustesDaEstadia(f, '2026-12-08', '2026-12-10', { ocupadas: ['2026-12-08'] }), []);
+  // a chegada antes de hoje não entra (com hoje em 10/12, chegar na quarta 09/12 não dá: só sair na segunda)
+  assert.deepEqual(
+    ajustesDaEstadia(f, '2026-12-10', '2026-12-11', { hoje: '2026-12-10' }).map((a) => a.tipo),
+    ['fim-de-semana'],
+  );
+});
+
 test('o toque no calendário: a noite do pacote leva o pacote; no Réveillon, as duas opções', () => {
   const pacotes = FERRADURA.pacotes;
   const reveillon5 = pacotes.find((p) => p.grupo === 'reveillon-2026' && p.entrada === '2026-12-28');
@@ -308,10 +393,42 @@ test('os textos novos da página da casa existem nos quatro idiomas, com os marc
     assert.match(t.pixNoTotal, /\{p\}%/);
     assert.match(t.diariasDaCasa, /\{semana\}.*\{fimDeSemana\}/);
     assert.match(t.mapaCirculo, /\{m\}/);
+    // os ajustes, a barra, os pacotes e a descrição do Google
+    assert.match(t.ajusteResultado, /\{diarias\}.*\{de\}.*\{ate\}/);
+    assert.match(t.barraDatas, /\{diarias\}.*\{de\}.*\{ate\}/);
+    assert.match(t.incluirPacote, /\{pacote\}/);
+    assert.match(t.incluirPacoteDe, /\{pacote\}/);
+    assert.match(t.incluirPacoteDe, /\{n\}/);
+    assert.match(t.avisoFimDeSemana, /\{n\}/);
+    assert.match(t.verPacotes, /\{n\}/);
+    assert.match(t.metaDiaria, /^\p{Lu}.*\{pix\}.*\{cartao\}/u);
   }
   // o espanhol da Argentina: com vos e seña só onde muda
   assert.equal(dicionario('es-ar').casas.datasTitulo, 'Elegí las fechas');
   assert.equal(dicionario('es').casas.datasTitulo, 'Elige las fechas');
   assert.equal(dicionario('es-ar').casas.sinalHoje, 'Seña hoy ({p}%)');
   assert.equal(dicionario('es').casas.sinalHoje, 'Anticipo hoy ({p}%)');
+  assert.equal(dicionario('es-ar').casas.colunaPix, 'Seña con Pix');
+  assert.equal(dicionario('es').casas.colunaPix, 'Anticipo con Pix');
+  // as diárias em português (nunca "noites" na regra e no aviso do mínimo)
+  assert.match(dicionario('pt').casas.minimo, /\{n\} diárias/);
+  // a regra do fim de semana cabe numa linha estreita em inglês (a de antes passava 17 px da borda em 320 px)
+  assert.ok(dicionario('en').casas.regraFimDeSemana.length <= 45);
+});
+
+test('a descrição não repete os destaques, e as 10 primeiras comodidades deixam a vista por último', () => {
+  for (const c of [FERRADURA, GERIBA]) {
+    for (const idioma of ['pt', 'es', 'en'] as const) {
+      const primeiro = c.descricao[idioma].split('\n\n')[0];
+      for (const d of c.destaques) assert.ok(!primeiro.includes(d.texto[idioma]), `${c.slug} ${idioma}: ${d.texto[idioma]}`);
+      // nem a linha da ficha ("14 hóspedes", "12 guests")
+      assert.doesNotMatch(primeiro, /\b1[24] (hóspedes|huéspedes|guests)\b/, `${c.slug} ${idioma}`);
+    }
+    const dez = c.comodidadesMarcadas.slice(0, 10).map((m) => m.id);
+    assert.equal(dez[9], 'vista-mar', c.slug);
+    assert.ok(dez.includes('roupa-de-cama') && dez.includes('ar-condicionado'), c.slug);
+  }
+  // a borda infinita e a cozinha externa têm ícone próprio (não repetem a piscina e a panela)
+  const icones = comodidadesDaPagina(FERRADURA.comodidadesMarcadas).map((x) => x.icone);
+  assert.equal(new Set(icones.slice(0, 10)).size, 10);
 });

@@ -11,7 +11,7 @@ import { CIDADES, type Cidade } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
-import { casasAtivas, casasNoAr } from '@/lib/casas';
+import { casasDaPagina, casasNoAr } from '@/lib/casas';
 import { textosCotacao } from '@/lib/cotacao';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
@@ -34,7 +34,8 @@ export default async function CasasDeTemporada({ params }: PageProps<'/[locale]/
   if (!isIdioma(locale)) notFound();
   const d = dicionario(locale);
   const t = d.casas;
-  const casas = await casasAtivas();
+  // as casas no ar (e, só no computador com CASAS_PREVIA=1, as da prévia local)
+  const casas = await casasDaPagina();
   // só as cidades que têm casa, na ordem de sempre
   const cidades = (Object.keys(CIDADES) as Cidade[])
     .filter((c) => casas.some((casa) => casa.cidade === c))

@@ -6,7 +6,12 @@ import { revalidateTag, unstable_cache } from 'next/cache';
 import { supabase, usarBanco } from './banco';
 import type { Bloqueio, CasaDoSite, CasaPainel, DadosCasa, Tarifa } from './casa';
 import { mesmosPeriodos } from './casa';
+import { detalhesDeLinha, pacoteDeLinha } from './casa-detalhes';
+import { centroDeLinha } from './casa-pagina';
 import { bloqueioDeLinha, deLinhas, linhaDeTarifa, paraLinha, type LinhaBloqueio, type LinhaCasa, type LinhaTarifa } from './casas-banco';
+import { casasDaPrevia } from './casas-previa';
+import type { Ponto } from './circulo-casa';
+import type { Pacote } from './estadia';
 import { lerIcal } from './ical';
 import { hojeEmBuzios } from './validacao';
 
@@ -70,23 +75,92 @@ export async function obterCasaPainel(id: string): Promise<CasaPainel | null> {
 /* ------------------------------------------------------------------ */
 /* O site                                                              */
 
+type ExtrasDoSite = Pick<CasaDoSite, 'detalhes' | 'pacotes' | 'centro'>;
+
+/** O que é só do painel não entra no cache do site; os detalhes da Etapa 7, os pacotes e o centro do mapa entram. */
+function paraOSite(c: CasaPainel, extras: ExtrasDoSite): CasaDoSite {
+  const {
+    ativo: _ativo,
+    icalUrl: _icalUrl,
+    icalToken: _icalToken,
+    icalSincronizadoEm: _em,
+    icalErro: _erro,
+    tarifas: _t,
+    bloqueios: _b,
+    ...casa
+  } = c;
+  return { ...casa, ...extras };
+}
+
+/** Antes da migração 20261113223000, a tabela dos pacotes não existe (o PostgREST responde PGRST205). */
+const semATabela = (e: { code?: string }) => e.code === 'PGRST205' || e.code === '42P01';
+
+/**
+ * Os pacotes de datas fixas das casas. Sem a tabela (antes da migração), nenhum pacote; qualquer outro erro do banco
+ * para a página, como nas outras leituras: vender um feriado sem o pacote dele seria vender pelo preço errado.
+ */
+async function pacotesDoBanco(ids: string[]): Promise<Map<string, Pacote[]>> {
+  const porCasa = new Map<string, Pacote[]>();
+  if (!ids.length) return porCasa;
+  const { data, error } = await supabase().from('casas_pacotes').select('*').in('casa_id', ids).order('entrada');
+  if (error) {
+    if (semATabela(error)) return porCasa;
+    throw erroDoBanco(error);
+  }
+  for (const l of data) porCasa.set(l.casa_id, [...(porCasa.get(l.casa_id) ?? []), pacoteDeLinha(l)]);
+  return porCasa;
+}
+
+/** No computador (.data/casas), o arquivo da casa pode trazer os detalhes, os pacotes e o centro; sem eles, vazios. */
+function extrasDoArquivo(c: CasaPainel): ExtrasDoSite {
+  const a = c as CasaPainel & Partial<ExtrasDoSite>;
+  return { detalhes: { ...detalhesDeLinha({}), ...a.detalhes }, pacotes: a.pacotes ?? [], centro: a.centro ?? null };
+}
+
 const casasDoSite = unstable_cache(
-  async (): Promise<CasaDoSite[]> =>
-    (await listarCasas())
-      .filter((c) => c.ativo)
-      // o que é só do painel não entra no cache do site
-      .map(({ ativo: _ativo, icalUrl: _icalUrl, icalToken: _icalToken, icalSincronizadoEm: _em, icalErro: _erro, tarifas: _t, bloqueios: _b, ...casa }) => casa),
-  ['casas-do-site'],
+  async (): Promise<CasaDoSite[]> => {
+    if (!usarBanco()) return (await dosArquivos()).filter((c) => c.ativo).map((c) => paraOSite(c, extrasDoArquivo(c)));
+    // com "*", as colunas da migração 20261113223000 vêm quando existem; antes dela, os detalhes ficam vazios
+    const { data, error } = await supabase().from('casas').select(COMPLETA).eq('ativo', true).order('criado_em');
+    if (error) throw erroDoBanco(error);
+    const linhas = data as unknown as LinhaCompleta[];
+    const pacotes = await pacotesDoBanco(linhas.map((l) => l.id));
+    return linhas.map((l) =>
+      paraOSite(deLinhas(l, l.casas_tarifas, l.casas_bloqueios), {
+        detalhes: detalhesDeLinha(l),
+        pacotes: pacotes.get(l.id) ?? [],
+        centro: centroDeLinha(l),
+      }),
+    );
+  },
+  // a forma mudou na Etapa 7 (detalhes, pacotes e centro): com a chave nova, nada guardado antes é lido
+  ['casas-do-site-etapa-7'],
   { tags: [TAG_CASAS] },
 );
 
+/** As casas no ar: o mapa do site e o Google. */
 export const casasAtivas = (): Promise<CasaDoSite[]> => casasDoSite();
 
 /** "Casas" só entra no menu, no mapa do site e no Google quando há casa no ar. */
 export const casasNoAr = async () => (await casasDoSite()).length > 0;
 
+/**
+ * A lista e as páginas das casas: as que estão no ar e, só no computador com CASAS_PREVIA=1, as da prévia
+ * (src/lib/casas-previa.ts). A prévia não entra no menu, no mapa do site nem no Google.
+ */
+export async function casasDaPagina(): Promise<CasaDoSite[]> {
+  const doSite = await casasDoSite();
+  const previa = casasDaPrevia().filter((p) => !doSite.some((c) => c.slug === p.casa.slug));
+  return [...doSite, ...previa.map((p) => p.casa)];
+}
+
 export async function obterCasa(slug: string): Promise<CasaDoSite | undefined> {
-  return (await casasDoSite()).find((c) => c.slug === slug);
+  return (await casasDaPagina()).find((c) => c.slug === slug);
+}
+
+/** As datas ocupadas de uma casa da página (as da prévia vêm do cadastro pronto). */
+export async function ocupacaoDaCasa(id: string): Promise<Pick<Bloqueio, 'inicio' | 'fim'>[]> {
+  return casasDaPrevia().find((p) => p.casa.id === id)?.bloqueios ?? periodosOcupados(id);
 }
 
 /** Só as datas: o calendário da página não precisa saber de onde veio o bloqueio. */
@@ -101,12 +175,12 @@ export const periodosOcupados = unstable_cache(
   { tags: [TAG_CALENDARIO] },
 );
 
-/** O mapa de uma casa no ar, direto do banco: a imagem já fica guardada na borda. */
-export async function pontoDaCasa(slug: string): Promise<{ lat: number; lng: number } | null> {
-  if (!usarBanco()) return (await dosArquivos()).find((c) => c.slug === slug && c.ativo)?.pontoAproximado ?? null;
-  const { data, error } = await supabase().from('casas').select('lat_aprox, lng_aprox').eq('slug', slug).eq('ativo', true).maybeSingle();
-  if (error) throw erroDoBanco(error);
-  return data?.lat_aprox && data.lng_aprox ? { lat: data.lat_aprox, lng: data.lng_aprox } : null;
+/**
+ * O centro PÚBLICO do círculo do mapa de uma casa no ar (casas.centro_lat e casas.centro_lng, deslocado do ponto que o
+ * dono marca no painel): só o servidor lê, para recortar a foto de satélite. Sem o ponto marcado, null e nada de mapa.
+ */
+export async function centroDaCasa(slug: string): Promise<Ponto | null> {
+  return (await casasDoSite()).find((c) => c.slug === slug)?.centro ?? null;
 }
 
 /* ------------------------------------------------------------------ */

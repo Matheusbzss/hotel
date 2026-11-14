@@ -293,6 +293,15 @@ export const ajustesAR: AjustesAR = {
     escolhaSaida: 'Ahora elegí la salida.',
     sinal: 'Seña al reservar ({p}%)',
     reservar: 'Reservar con seña del {p}%',
+    // Etapa 7, a página da casa: só as frases com verbo em vos e a seña
+    datasTitulo: 'Elegí las fechas',
+    pacoteOpcoes: '{pacote}: elegí una opción',
+    avisoOcupada: 'Alguna noche de esas fechas ya está ocupada. Elegí otras fechas.',
+    avisoDatas: 'Elegí otras fechas.',
+    sinalHoje: 'Seña hoy ({p}%)',
+    colunaPix: 'Seña con Pix',
+    colunaCartao: 'Seña con tarjeta',
+    avisemeTexto: 'Dejanos tu nombre y tu e-mail y te avisamos cuando abra la reserva de esta casa.',
   },
   contato: {
     titulo: 'Contactanos',

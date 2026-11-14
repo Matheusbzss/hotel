@@ -18,9 +18,11 @@ export const ICONES_CASA = [
   'vista-mar',
   'praia',
   'piscina',
+  'borda-infinita',
   'spa',
   'churrasqueira',
   'cozinha',
+  'cozinha-externa',
   'bar',
   'lounge',
   'deck',
@@ -100,7 +102,7 @@ export const COMODIDADES = {
   },
   'piscina-borda-infinita': {
     grupo: 'area-externa',
-    icone: 'piscina',
+    icone: 'borda-infinita',
     nome: { pt: 'Piscina com borda infinita', es: 'Piscina de borde infinito', en: 'Infinity-edge pool' },
   },
   'piscina-prainha': {
@@ -116,7 +118,7 @@ export const COMODIDADES = {
   churrasqueira: { grupo: 'area-externa', icone: 'churrasqueira', nome: { pt: 'Churrasqueira', es: 'Parrilla', en: 'Barbecue grill' } },
   'cozinha-externa': {
     grupo: 'area-externa',
-    icone: 'cozinha',
+    icone: 'cozinha-externa',
     nome: { pt: 'Cozinha externa', es: 'Cocina exterior', en: 'Outdoor kitchen' },
   },
   'bar-externo': {

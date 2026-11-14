@@ -270,20 +270,22 @@ test('o cadastro que caiu no meio: rodar de novo completa os pacotes e os bloque
 
 test('as fotos: na ordem de capa, sem metadados, sem esticar, com nome neutro e texto alternativo', async () => {
   assert.equal(FERRADURA.fotos[0].origem, '01-piscina-infinita-vista-mar.jpg');
+  // a ordem de capa do dono, sem a 02 (a casa vista de cima ficou de fora por cautela, até o dono dizer)
   assert.deepEqual(
     FERRADURA.fotos.slice(0, 5).map((f) => f.origem.slice(0, 2)),
-    ['01', '02', '03', '21', '04'],
+    ['01', '03', '21', '04', '05'],
   );
   assert.deepEqual(
     GERIBA.fotos.slice(0, 5).map((f) => f.origem.slice(0, 2)),
     ['01', '02', '03', '04', '05'],
   );
-  assert.equal(FERRADURA.fotos.length, 35);
+  assert.equal(FERRADURA.fotos.length, 34);
   assert.equal(GERIBA.fotos.length, 50);
-  // as que mostram onde a Ferradura fica ficaram de fora; a 19 entra recortada, sem os vizinhos da 36, e a pessoa da 33
-  // foi borrada (docs/CREDITOS.md)
+  // as que mostram onde a Ferradura fica ficaram de fora (a 02, vista de cima, junto com o círculo do mapa ajudaria a
+  // achar a casa); a 19 entra recortada, sem os vizinhos da 36, e a pessoa da 33 foi borrada (docs/CREDITOS.md)
   const usadas = FERRADURA.fotos.map((f) => f.origem);
-  for (const n of ['34-', '36-']) assert.ok(!usadas.some((o) => o.startsWith(n)), n);
+  for (const n of ['02-', '34-', '36-']) assert.ok(!usadas.some((o) => o.startsWith(n)), n);
+  assert.ok(FERRADURA.fotosDeFora.some((f) => f.origem.startsWith('02-')));
   const fachada = FERRADURA.fotos.find((f) => f.origem.startsWith('19-'));
   assert.ok(fachada?.recorte && fachada.motivoDaEdicao);
   // o recorte tira o alto (o sobrado vizinho chega até y≈110) e a faixa da esquerda (a casa de telhado vermelho até x≈100)

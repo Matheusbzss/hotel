@@ -166,25 +166,30 @@ function Sugestao({
           {varias && (
             <fieldset className="min-w-0">
               <legend className="rotulo">{T.opcao}</legend>
-              <div className="grid grid-cols-2 gap-1.5" role="radiogroup">
-                {s.opcoes.map((o) => (
-                  <button
-                    key={o.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={o.id === opcao.id}
-                    onClick={() => setOpcaoId(o.id)}
-                    className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2 text-left"
-                  >
-                    <span>{o.nome}</span>
-                    {/* com grupo grande, em tela estreita, o "no Pix" desce para a linha de baixo, dentro do botão; o conteúdo
-                        fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura. O preço pode usar 8 px do
-                        recuo antes de descer (-mr-2), como no cartão do passeio */}
-                    <span className="numeros -mr-2 text-small font-normal">
-                      {brl(valor(o))} <span className="whitespace-nowrap">{noCartao ?? T.noPix}</span>
-                    </span>
-                  </button>
-                ))}
+              {/* duas colunas; quando cada uma ficaria com menos de 7rem (letra grande em tela estreita), um botão
+                  embaixo do outro, em vez de o preço do grupo grande ("R$ 3.168,00") passar da borda do botão. Com a
+                  letra normal, a partir de 320 px, a caixa mais estreita (a do checkout) tem 15rem: sempre duas colunas */}
+              <div className="@container">
+                <div className="grid grid-cols-2 gap-1.5 @max-[14.375rem]:grid-cols-1" role="radiogroup">
+                  {s.opcoes.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={o.id === opcao.id}
+                      onClick={() => setOpcaoId(o.id)}
+                      className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2 text-left"
+                    >
+                      <span>{o.nome}</span>
+                      {/* com grupo grande, em tela estreita, o "no Pix" desce para a linha de baixo, dentro do botão; o
+                          conteúdo fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura. O preço pode
+                          usar 8 px do recuo antes de descer (-mr-2), como no cartão do passeio */}
+                      <span className="numeros -mr-2 text-small font-normal">
+                        {brl(valor(o))} <span className="whitespace-nowrap">{noCartao ?? T.noPix}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </fieldset>
           )}

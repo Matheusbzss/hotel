@@ -520,39 +520,43 @@ export function WidgetTransfer({
 
       <fieldset className="mt-5 min-w-0">
         <legend className="rotulo">{T.veiculo}</legend>
-        <div className="grid grid-cols-2 gap-1.5">
-          {(['carro', 'van'] as Veiculo[]).map((v) => {
-            const preco = total(v);
-            const pix = totalPix(v);
-            return (
-              <label
-                key={v}
-                className="filtro cursor-pointer flex-col items-start !gap-0 whitespace-normal py-2.5 text-left has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa"
-                data-ativo={veiculo === v}
-              >
-                <input
-                  type="radio"
-                  name="veiculo"
-                  value={v}
-                  checked={veiculo === v}
-                  disabled={!cabe[v]}
-                  onChange={() => setEscolhido(v)}
-                  className="sr-only"
-                />
-                <span>{texto(VEICULOS[v].nome, idioma)}</span>
-                <span className="text-small font-normal">{T.ateNPessoas.replace('{n}', String(VEICULOS[v].capacidade))}</span>
-                <span className="numeros mt-1 text-small">
-                  {!cabe[v]
-                    ? T.naoCabe
-                    : !completo
-                      ? '—'
-                      : preco === null || pix === null
-                        ? T.sobCotacao
-                        : `${formatarCifra(pix, locale)} ${T.noPix}`}
-                </span>
-              </label>
-            );
-          })}
+        {/* os dois veículos lado a lado; quando cada um ficaria com menos de 7rem (letra grande em tela estreita), um
+            embaixo do outro, em vez de o nome ou o preço passar da borda. Com a letra normal, sempre lado a lado */}
+        <div className="@container">
+          <div className="grid grid-cols-2 gap-1.5 @max-[14.375rem]:grid-cols-1">
+            {(['carro', 'van'] as Veiculo[]).map((v) => {
+              const preco = total(v);
+              const pix = totalPix(v);
+              return (
+                <label
+                  key={v}
+                  className="filtro cursor-pointer flex-col items-start !gap-0 whitespace-normal py-2.5 text-left has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa"
+                  data-ativo={veiculo === v}
+                >
+                  <input
+                    type="radio"
+                    name="veiculo"
+                    value={v}
+                    checked={veiculo === v}
+                    disabled={!cabe[v]}
+                    onChange={() => setEscolhido(v)}
+                    className="sr-only"
+                  />
+                  <span>{texto(VEICULOS[v].nome, idioma)}</span>
+                  <span className="text-small font-normal">{T.ateNPessoas.replace('{n}', String(VEICULOS[v].capacidade))}</span>
+                  <span className="numeros mt-1 text-small">
+                    {!cabe[v]
+                      ? T.naoCabe
+                      : !completo
+                        ? '—'
+                        : preco === null || pix === null
+                          ? T.sobCotacao
+                          : `${formatarCifra(pix, locale)} ${T.noPix}`}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
         </div>
       </fieldset>
 

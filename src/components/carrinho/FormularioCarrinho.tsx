@@ -422,10 +422,11 @@ export function FormularioCarrinho({
         <ul className="mt-3 divide-y divide-(--color-borda)">
           {/* quando o texto não cabe ao lado do preço (tela muito estreita ou letra grande), o preço desce para a linha de
               baixo, à direita, em vez de ficar por cima do texto: a coluna do texto não encolhe abaixo da sua maior parte
-              que não quebra ("8 passageiros") */}
+              que não quebra ("8 passageiros"). Sozinha na linha, ela pode encolher até a largura toda (max-w-full), e só
+              então, com a letra grande, essa parte quebra por dentro (TextoDoItem; @container: a largura do item) */}
           {sessao.lista.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
-              <div className="flex-1">
+            <li key={i.id} className="@container flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
+              <div className="max-w-full flex-1">
                 <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">
                   <TextoDoItem texto={i.titulo} letra="nome" />
                 </p>
@@ -542,7 +543,9 @@ export function FormularioCarrinho({
         {/* DADOS DO TITULAR */}
         <fieldset className="min-w-0">
           <legend className="text-lead font-semibold">{C.seusDados}</legend>
-          <div className="mt-5 grid gap-5">
+          {/* grid-cols-1 nas grades do formulário: a coluna encolhe com a tela, como a do formulário inteiro (o motivo
+              está lá em cima, no <form>); sem isto, com a letra grande, um rótulo ou o contador alargava a coluna */}
+          <div className="mt-5 grid grid-cols-1 gap-5">
             <Campo id="nome" rotulo={C.nome} erro={erros.nome}>
               <input
                 id="nome"
@@ -637,7 +640,7 @@ export function FormularioCarrinho({
           <fieldset className="min-w-0">
             <legend className="text-lead font-semibold">{C.hospedagem}</legend>
             <p className="ajuda">{K.hospedagemAjuda}</p>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Campo id="cidadeHosp" rotulo={C.cidadeHospedagem} erro={erros.cidadeHosp}>
                 <select
                   id="cidadeHosp"
@@ -678,7 +681,7 @@ export function FormularioCarrinho({
           return (
             <fieldset key={i.id} className="min-w-0">
               <legend className="text-lead font-semibold">{i.titulo}</legend>
-              <div className="mt-5 grid gap-5">
+              <div className="mt-5 grid grid-cols-1 gap-5">
                 {i.transfer?.voos.map((v) => (
                   <Campo key={v.trecho} id={`voo-${v.trecho}-${i.id}`} rotulo={v.rotulo} ajuda={T.vooAjuda}>
                     <input
@@ -843,15 +846,17 @@ export function FormularioCarrinho({
               </span>
             </div>
             {outra && (
-              <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
-                <span>
+              // como a linha de cima: o valor desce para a linha de baixo, à direita, só quando nem a maior parte do
+              // rótulo cabe ao lado dele; com a letra normal, fica igual
+              <p className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-small text-(--tinta-suave)">
+                <span className="grow basis-0">
                   <ComDolar dolar={usd(valorDaForma(totais, outra))}>
                     <span className="whitespace-nowrap">
                       {C.total} {rotuloDaForma(outra)}
                     </span>
                   </ComDolar>
                 </span>
-                <span className="numeros font-semibold">{brl(valorDaForma(totais, outra))}</span>
+                <span className="numeros ml-auto font-semibold">{brl(valorDaForma(totais, outra))}</span>
               </p>
             )}
             {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}

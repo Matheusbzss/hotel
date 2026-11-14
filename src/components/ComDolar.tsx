@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PONTO_PRESO } from '@/lib/ponto';
 
 /**
  * A folga é o espaço na frente de cada pedaço, onde mora o "·". `pequeno` e `legenda`: a largura de " · " no texto
@@ -73,11 +74,37 @@ export function Pedaco({
     const Elemento = forte ? 'strong' : 'span';
     return <Elemento className={className ? `pl-(--folga) ${className}` : 'pl-(--folga)'}>{children}</Elemento>;
   }
+  // O " · " de verdade (com espaços que não quebram) fica dentro da caixa do "·", escondido da tela (sr-only): é o que
+  // o leitor de tela lê, com a pausa ("no Pix · ≈ US$ 12,46", e não "no Pix≈ US$ 12,46"), e o que leva quem copia. O
+  // "·" que aparece é só desenho (fora do leitor e da cópia), centrado na caixa como sempre: com " · " de texto na
+  // caixa, o WebKit arredonda os espaços e o "·" andava até 0,4 px. No começo de uma linha, os dois ficam fora do recorte
   return (
     <span className={className ? `whitespace-nowrap ${className}` : 'whitespace-nowrap'}>
-      <span aria-hidden="true" className="inline-block w-(--folga) text-center">
-        ·
+      <span className="inline-block w-(--folga) text-center">
+        <span aria-hidden="true" className="select-none">
+          ·
+        </span>
+        <span className="sr-only">{PONTO_PRESO}</span>
       </span>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Um texto que fica inteiro, como com whitespace-nowrap ("R$ 69,30 no Pix", "8 passageiros"): desce inteiro para a
+ * linha de baixo quando não cabe no fim de uma. Com a letra grande, quando a caixa em volta (a mais próxima com a
+ * classe @container) fica com menos de 14rem, ele vira um inline-block do tamanho dele (w-max), limitado à largura da
+ * linha (max-w-full): continua descendo inteiro, mas, se nem sozinho couber, quebra por dentro, nos espaços, em vez de
+ * passar da borda. A largura mínima que ele pede (min-content) continua a dele inteiro: as linhas que decidem o que
+ * desce por ela (o "Mudar" ao lado do preço) ficam iguais. A caixa entre ele e a linha precisa poder encolher (max-w-full
+ * ou min-w-0), senão ele não chega a quebrar. Por que só abaixo de 14rem: com a letra normal, a lista mais estreita (a
+ * do checkout em 320 px) tem 14,9rem, e o inline-block mudaria o desenho: no WebKit, o texto dentro dele anda até 1 px.
+ * Um pedaço que nunca pode quebrar ("no cartão") vai num whitespace-nowrap dentro.
+ */
+export function Inteiro({ children }: { children: ReactNode }) {
+  return (
+    <span className="whitespace-nowrap @max-[14rem]:inline-block @max-[14rem]:w-max @max-[14rem]:max-w-full @max-[14rem]:whitespace-normal">
       {children}
     </span>
   );
@@ -100,9 +127,11 @@ export function ComDolar({
   className?: string;
 }) {
   if (!dolar) return <>{children}</>;
+  // max-w-full: o primeiro pedaço pode encolher até a largura da linha, para um Inteiro dentro dele quebrar quando nem
+  // sozinho cabe (com a letra normal, a partir de 320 px, ele sempre cabe e nada muda)
   return (
     <Pedacos>
-      <Pedaco>{children}</Pedaco>
+      <Pedaco className="max-w-full">{children}</Pedaco>
       <Pedaco ponto className={className}>
         {dolar}
       </Pedaco>

@@ -81,9 +81,11 @@ export default async function Transfer({ params }: PageProps<'/[locale]/transfer
             <h1 className="topo-passeio-titulo text-white">{T.titulo}</h1>
           </div>
         </div>
-        <div className="moldura relative -mt-10 pb-12 md:mt-0 md:flex md:items-start md:justify-between md:gap-10 md:pb-24 md:pt-28">
+        {/* o vidro ocupa o que sobra ao lado do cartão (até 30rem); só quando nem a maior parte dele que não quebra cabe ao
+            lado (letra grande no tablet), o cartão desce para baixo do vidro, em vez de a página rolar de lado */}
+        <div className="moldura relative -mt-10 pb-12 md:mt-0 md:flex md:flex-wrap md:items-start md:justify-between md:gap-10 md:pb-24 md:pt-28">
           {/* no computador, o nome e o resumo ficam num vidro sobre a foto; no celular, o nome vai na foto e o resumo depois do cartão */}
-          <div className="vidro vidro-escuro hidden max-w-[30rem] rounded-[24px] p-7 text-white md:block">
+          <div className="vidro vidro-escuro hidden max-w-[30rem] rounded-[24px] p-7 text-white md:block md:grow md:basis-0">
             <div className="flex flex-wrap gap-1.5">
               {T.etiquetas.map((e) => (
                 <span key={e} className="etiqueta vidro vidro-foto">

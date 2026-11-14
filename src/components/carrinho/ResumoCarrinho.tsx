@@ -42,26 +42,29 @@ export function ResumoCarrinho({
   const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-4">
+      {/* o rótulo ocupa o que sobra ao lado do valor e quebra entre os pedaços, como sempre; só quando nem a maior parte
+          dele cabe ao lado (letra grande em tela estreita), o valor desce para a linha de baixo, à direita, em vez de
+          passar da borda da gaveta. Com a letra normal, a partir de 320 px, fica igual */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         {/* "Total no Pix" e "≈ US$ 12,46" ficam inteiros: o rótulo só quebra entre os dois pedaços */}
-        <span className="font-semibold">
+        <span className="grow basis-0 font-semibold">
           <ComDolar dolar={usd(totalPixCentavos)} className="text-small font-normal text-(--color-tinta-suave)">
             <span className="whitespace-nowrap">
               {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
             </span>
           </ComDolar>
         </span>
-        <strong className="cifra text-figure">{brl(totalPixCentavos)}</strong>
+        <strong className="cifra ml-auto text-figure">{brl(totalPixCentavos)}</strong>
       </div>
-      <p className="flex items-baseline justify-between gap-4 text-small text-(--color-tinta-suave)">
-        <span>
+      <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)">
+        <span className="grow basis-0">
           <ComDolar dolar={usd(totalCentavos)}>
             <span className="whitespace-nowrap">
               {T.total} {T.noCartao}
             </span>
           </ComDolar>
         </span>
-        <span className="numeros font-semibold text-(--color-tinta)">{brl(totalCentavos)}</span>
+        <span className="numeros ml-auto font-semibold text-(--color-tinta)">{brl(totalCentavos)}</span>
       </p>
       {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
       {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}

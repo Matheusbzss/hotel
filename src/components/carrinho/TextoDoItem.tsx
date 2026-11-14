@@ -1,4 +1,5 @@
 import { PONTO_PRESO, partesDoPonto } from '@/lib/ponto';
+import { Inteiro } from '../ComDolar';
 
 // a largura de " · " (espaço que não quebra, ponto, espaço que não quebra) na letra de cada texto, um fio para baixo:
 // 0,6204em na Barlow Semi Condensed 600 do nome do item e 0,6104em na Barlow 400 das linhas de baixo (medido no Chromium
@@ -14,9 +15,11 @@ const FOLGA = { nome: '[--folga:0.617em]', linha: '[--folga:0.607em]' } as const
  * meio da linha, ele ocupa a folga; no começo de uma linha, fica fora do recorte. O recorte começa 0,12em antes da
  * borda (cresce com a letra), para não cortar a ponta de letras como o "j" de "jue," e o "ï"; a tinta do " · "
  * escondido fica a mais de 0,24em dela. Se nem sozinha a parte da direita cabe numa linha (letra muito grande em tela
- * muito estreita), ela passa da borda, como uma palavra comprida. A busca do Chrome não acha um trecho que passe pelo
- * "·", porque o " · " fica numa caixa à parte: acha as palavras de cada lado (a do Safari acha tudo). Texto sem o "·"
- * preso (PONTO_PRESO) passa como está.
+ * muito estreita), ela quebra por dentro, nos espaços ("17" / "passageiros"), em vez de passar da borda (Inteiro); o
+ * " · " fica no começo da linha, fora do recorte. O texto dela continua um pedaço só, como antes: separar a primeira
+ * palavra mudava a posição das letras seguintes em fração de pixel (e o desenho, com a letra normal). A busca do Chrome
+ * não acha um trecho que passe pelo "·", porque o " · " fica numa caixa à parte: acha as palavras de cada lado (a do
+ * Safari acha tudo). Texto sem o "·" preso (PONTO_PRESO) passa como está.
  */
 export function TextoDoItem({ texto, letra }: { texto: string; letra: keyof typeof FOLGA }) {
   const p = partesDoPonto(texto);
@@ -26,10 +29,10 @@ export function TextoDoItem({ texto, letra }: { texto: string; letra: keyof type
       {p.comeco && `${p.comeco} `}
       <span className="whitespace-nowrap pr-(--folga)">{p.ultima}</span>
       <wbr />
-      <span className="whitespace-nowrap">
+      <Inteiro>
         <span className="-ml-(--folga) inline-block w-(--folga) text-center">{PONTO_PRESO}</span>
         {p.direita}
-      </span>
+      </Inteiro>
     </span>
   );
 }

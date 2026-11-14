@@ -21,6 +21,7 @@ export function FormularioCotacao({
   botao,
   telefoneObrigatorio = false,
   mensagemObrigatoria = false,
+  mensagemInicial = '',
   textos: T,
 }: {
   tipo: TipoCotacao;
@@ -31,6 +32,8 @@ export function FormularioCotacao({
   botao: string;
   telefoneObrigatorio?: boolean;
   mensagemObrigatoria?: boolean;
+  /** A mensagem já começa com isto (o "Avise-me" da página da casa leva a casa, as datas e os hóspedes). */
+  mensagemInicial?: string;
   textos: TextosCotacao;
 }) {
   const id = useId();
@@ -38,7 +41,7 @@ export function FormularioCotacao({
   const [email, setEmail] = useState('');
   const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
-  const [mensagem, setMensagem] = useState('');
+  const [mensagem, setMensagem] = useState(mensagemInicial);
   const [isca, setIsca] = useState('');
   const [tentou, setTentou] = useState(false);
   const [erroGeral, setErroGeral] = useState('');

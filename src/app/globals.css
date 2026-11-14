@@ -1186,3 +1186,885 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Página da casa (Fase 4, Etapa 7): fotos, ficha, quartos, o que a    */
+/* casa tem, calendário, conta e mapa. Celular primeiro.               */
+/* ------------------------------------------------------------------ */
+/* no celular, a cápsula do menu fica em vidro sobre a primeira foto, como no passeio; no computador o topo é o chão */
+@media (max-width: 1023.98px) {
+  html:not([data-rolou]) body:has(.galeria-casa-celular) .cabecalho-barra {
+    background: var(--vidro-foto);
+    box-shadow: inset 0 0 0 1px var(--vidro-foto-borda);
+    color: #ffffff;
+    --foco: var(--color-acao);
+  }
+  html:not([data-rolou]) body:has(.galeria-casa-celular) .cabecalho .logo-escuro {
+    display: block !important;
+  }
+  html:not([data-rolou]) body:has(.galeria-casa-celular) .cabecalho .logo-claro {
+    display: none !important;
+  }
+}
+
+@layer components {
+  /* o topo: no celular, as fotos primeiro e o nome embaixo delas; no computador, o nome em cima e o mosaico */
+  .topo-casa {
+    display: flex;
+    flex-direction: column;
+  }
+  .topo-casa-fotos {
+    order: -1;
+  }
+  .topo-casa-texto {
+    padding-top: 1.25rem;
+  }
+  .topo-casa-titulo {
+    max-width: 20ch;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.25rem, 1.7rem + 2.4vw, 3.75rem);
+    line-height: 0.98;
+    letter-spacing: -0.005em;
+  }
+  .topo-casa-local {
+    margin-top: 0.4rem;
+    color: var(--color-tinta-suave);
+  }
+  .topo-casa-ficha {
+    margin-top: 0.85rem;
+    font-weight: 600;
+  }
+  @media (min-width: 1024px) {
+    .topo-casa-fotos {
+      order: 0;
+      margin-top: 1.75rem;
+    }
+    .topo-casa-texto {
+      padding-top: 2.25rem;
+    }
+    /* no computador, o nome cabe numa linha */
+    .topo-casa-titulo {
+      max-width: none;
+    }
+  }
+
+  /* pedaços com "·" entre eles: o pedaço que não cabe desce inteiro, e o "·" do começo da linha fica fora do recorte */
+  .linha-pontuada {
+    --folga: 0.85rem;
+    clip-path: inset(-1em -100vw -1em 0);
+  }
+  .linha-pontuada > span {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin-left: calc(-1 * var(--folga));
+  }
+  .linha-pontuada .pedaco {
+    white-space: nowrap;
+  }
+  .linha-pontuada .pedaco::before {
+    content: '·';
+    display: inline-block;
+    width: var(--folga);
+    font-weight: 400;
+    text-align: center;
+  }
+
+  /* as fotos no celular: de borda a borda por baixo da cápsula do menu, quase 4:3 abaixo dela */
+  .galeria-casa-celular {
+    position: relative;
+    height: calc(75vw + 4.5rem);
+    max-height: 38rem;
+    margin-top: -4.5rem;
+    background: var(--color-mar);
+  }
+  .galeria-casa-celular::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 6.5rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgb(8 12 18 / 0.42), rgb(8 12 18 / 0)); /* taste-skill-ignore: véu sob o menu sobre a foto */
+  }
+  .galeria-casa-trilho {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+  }
+  .galeria-casa-slide {
+    position: relative;
+    flex: 0 0 100%;
+    height: 100%;
+    scroll-snap-align: start;
+  }
+  .galeria-casa-contador {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.75rem;
+    padding: 0 0.95rem;
+    border-radius: 999px;
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  .galeria-casa-mosaico {
+    display: none;
+  }
+  @media (min-width: 1024px) {
+    .galeria-casa-celular {
+      display: none;
+    }
+    .galeria-casa-mosaico {
+      display: block;
+    }
+  }
+  /* no computador: uma grande e quatro pequenas */
+  .galeria-casa-pecas {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    height: clamp(24rem, 33vw, 31rem);
+    overflow: hidden;
+    border-radius: var(--radius-cartao);
+  }
+  .galeria-casa-peca {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-superficie);
+  }
+  .galeria-casa-peca:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  .galeria-casa-pecas[data-quantas='1'] .galeria-casa-peca {
+    grid-column: 1 / -1;
+  }
+  .galeria-casa-pecas[data-quantas='2'] .galeria-casa-peca:nth-child(2) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  .galeria-casa-pecas[data-quantas='3'] .galeria-casa-peca:not(:first-child),
+  .galeria-casa-pecas[data-quantas='4'] .galeria-casa-peca:nth-child(2) {
+    grid-column: span 2;
+  }
+  .galeria-casa-peca img {
+    transition: filter var(--dur-estado) var(--ease-padrao);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .galeria-casa-peca:hover img {
+      filter: brightness(0.88);
+    }
+  }
+  .galeria-casa-todas {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+  }
+
+  /* todas as fotos: a grade em tela cheia e cada foto sozinha, no mar fundo */
+  .galeria-casa-dialogo {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    background: var(--color-mar);
+    color: #ffffff;
+    --foco: var(--color-acao);
+  }
+  .galeria-casa-dialogo[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  .galeria-casa-dialogo::backdrop {
+    background: var(--color-mar);
+  }
+  .galeria-casa-dialogo-topo {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem var(--margem);
+  }
+  .galeria-casa-voltar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    font-weight: 600;
+  }
+  /* max-content: com altura fixa, o Safari espremia as linhas da grade para caber tudo na tela */
+  .galeria-casa-dialogo-grade {
+    display: grid;
+    flex: 1;
+    grid-auto-rows: max-content;
+    align-content: start;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: 0 var(--margem) 2rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  @media (min-width: 640px) {
+    .galeria-casa-dialogo-grade {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .galeria-casa-dialogo-peca {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-celula);
+    background: rgb(255 255 255 / 0.06);
+  }
+  .galeria-casa-dialogo-moldura {
+    position: relative;
+    display: block;
+    aspect-ratio: 3 / 2;
+  }
+  .galeria-casa-dialogo-foto {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 0;
+    padding: 0 var(--margem) 1rem;
+  }
+  .galeria-casa-dialogo-palco {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* a folha do "Avise-me": sobe do rodapé no celular, caixa no meio no computador */
+  .folha-casa {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    margin: auto auto 0;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-folha) var(--radius-folha) 0 0;
+  }
+  .folha-casa::backdrop {
+    background: rgb(6 54 67 / 0.6);
+  }
+  @media (min-width: 640px) {
+    .folha-casa {
+      width: min(32rem, calc(100vw - 2rem));
+      margin: auto;
+      border-radius: var(--radius-folha);
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .folha-casa[open] {
+      animation: subir var(--dur-entrada) var(--ease-padrao);
+    }
+  }
+  .folha-casa-topo {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--color-borda);
+    background: var(--color-papel);
+  }
+  .folha-casa-fechar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-right: -0.5rem;
+    border-radius: 999px;
+    transition: background-color var(--dur-estado) var(--ease-padrao);
+  }
+  .folha-casa-fechar:hover {
+    background: var(--color-superficie);
+  }
+  .folha-casa-corpo {
+    padding: 1rem 1.25rem 1.5rem;
+  }
+
+  /* o corpo: uma coluna no celular; no computador, o conteúdo à esquerda e o quadro da reserva preso à direita */
+  .corpo-casa {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 3.5rem;
+    margin-top: 2.25rem;
+    padding-bottom: 6rem;
+  }
+  /* a coluna nunca cresce com o conteúdo (os quartos deslizam dentro dela, sem alargar a página) */
+  .corpo-casa-a,
+  .corpo-casa-b {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    row-gap: 3.5rem;
+    min-width: 0;
+  }
+  .reserva-casa {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 1.25rem;
+    min-width: 0;
+    scroll-margin-top: 5rem;
+  }
+  .reserva-casa-datas {
+    min-width: 0;
+    scroll-margin-top: 5.5rem;
+  }
+  @media (min-width: 1024px) {
+    .corpo-casa {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: 4rem;
+      row-gap: 4rem;
+      margin-top: 3rem;
+      padding-bottom: 8rem;
+    }
+    .corpo-casa-a,
+    .corpo-casa-b,
+    .reserva-casa-datas {
+      grid-column: 1 / span 7;
+    }
+    .reserva-casa {
+      display: contents;
+    }
+    /* abaixo da cápsula do menu, que também fica presa no topo */
+    .reserva-casa-caixa {
+      position: sticky;
+      top: 6rem;
+      grid-column: 8 / span 5;
+      grid-row: 1 / span 3;
+      align-self: start;
+    }
+  }
+  .titulo-casa {
+    margin-bottom: 1rem;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  /* os destaques */
+  .destaques-casa {
+    display: grid;
+    column-gap: 2rem;
+  }
+  @media (min-width: 640px) {
+    .destaques-casa {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .destaques-casa li {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.9rem 0;
+    border-top: 1px solid var(--color-borda);
+    font-weight: 500;
+  }
+
+  /* os quartos: deslizam no celular, três por linha no computador */
+  .quartos-casa {
+    display: grid;
+    grid-auto-columns: 72%;
+    grid-auto-flow: column;
+    gap: 0.75rem;
+    margin-inline: calc(-1 * var(--margem));
+    padding: 0.25rem var(--margem) 0.5rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--margem);
+  }
+  @media (min-width: 640px) {
+    .quartos-casa {
+      grid-auto-columns: 40%;
+    }
+  }
+  @media (min-width: 1024px) {
+    .quartos-casa {
+      grid-auto-flow: row;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      row-gap: 1.5rem;
+      margin-inline: 0;
+      padding-inline: 0;
+      overflow: visible;
+    }
+  }
+  .quarto-casa {
+    scroll-snap-align: start;
+  }
+  .quarto-casa-foto {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--radius-cartao);
+    background: var(--color-superficie);
+  }
+  .quarto-casa-icone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-tinta-suave);
+  }
+
+  /* o que a casa tem */
+  .comodidades-casa {
+    display: grid;
+    gap: 0.9rem 2rem;
+  }
+  @media (min-width: 640px) {
+    .comodidades-casa {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .comodidades-casa li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+  }
+  h3 + .comodidades-casa {
+    margin-top: 0.75rem;
+  }
+
+  /* o calendário: as regras, os pacotes, os meses e os avisos */
+  .regras-calendario {
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  .pacotes-casa {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0.75rem calc(-1 * var(--margem)) 0;
+    padding: 0.15rem var(--margem) 0.35rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  @media (min-width: 1024px) {
+    .pacotes-casa {
+      flex-wrap: wrap;
+      margin-inline: 0;
+      padding-inline: 0;
+      overflow: visible;
+    }
+  }
+  .etiqueta-pacote {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.95rem;
+    border-radius: 999px;
+    background: var(--color-d4);
+    color: var(--color-tinta);
+    font-family: var(--font-semi);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    transition:
+      background-color var(--dur-estado) var(--ease-padrao),
+      color var(--dur-estado) var(--ease-padrao),
+      box-shadow var(--dur-estado) var(--ease-padrao),
+      transform var(--dur-toque) var(--ease-padrao);
+  }
+  /* com mouse, a etiqueta pode ser mais baixa (o dedo pede 44 px) */
+  @media (pointer: fine) {
+    .etiqueta-pacote {
+      min-height: 2.25rem;
+      padding-block: 0.3rem;
+      font-size: 0.875rem;
+    }
+  }
+  .etiqueta-pacote:hover {
+    box-shadow: inset 0 0 0 1px var(--color-tinta);
+  }
+  .etiqueta-pacote:active {
+    transform: scale(0.97);
+  }
+  .etiqueta-pacote[aria-pressed='true'] {
+    background: var(--color-tinta);
+    color: #ffffff;
+  }
+  .pacote-opcoes {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: var(--radius-cartao);
+    background: color-mix(in oklab, var(--color-d4) 24%, var(--color-papel));
+  }
+  .pacote-opcao {
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+    box-shadow: inset 0 0 0 1px var(--color-borda-campo);
+    text-align: left;
+    transition:
+      box-shadow var(--dur-estado) var(--ease-padrao),
+      transform var(--dur-toque) var(--ease-padrao);
+  }
+  .pacote-opcao:hover {
+    box-shadow: inset 0 0 0 1px var(--color-tinta);
+  }
+  .pacote-opcao:active {
+    transform: scale(0.98);
+  }
+  .pacote-opcao[aria-pressed='true'] {
+    box-shadow: inset 0 0 0 2px var(--color-tinta);
+  }
+  /* a opção com noite ocupada: à vista, mas sem escolher */
+  .pacote-opcao:disabled {
+    background: var(--color-superficie);
+    color: var(--color-tinta-suave);
+    box-shadow: inset 0 0 0 1px var(--color-borda);
+    text-decoration: line-through;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .cal-caixa {
+    margin-top: 1.25rem;
+    padding: 0.5rem 0.5rem 0.9rem;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-cartao);
+    background: var(--color-papel);
+  }
+  @media (min-width: 640px) {
+    .cal-caixa {
+      padding: 0.75rem 1rem 1rem;
+    }
+  }
+  .cal {
+    --pacote-faixa: color-mix(in oklab, var(--color-d4) 55%, var(--color-papel));
+    --estadia-faixa: color-mix(in oklab, var(--color-tinta) 12%, var(--color-papel));
+    position: relative;
+  }
+  .cal-setas {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .cal-setas button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    pointer-events: auto;
+    transition: background-color var(--dur-estado) var(--ease-padrao);
+  }
+  .cal-setas button:hover:not(:disabled) {
+    background: var(--color-superficie);
+  }
+  .cal-setas button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .cal-meses {
+    display: grid;
+    gap: 2rem;
+  }
+  .cal-mes-segundo {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .cal-meses {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .cal-mes-segundo {
+      display: block;
+    }
+  }
+  .cal-mes-nome {
+    font-family: var(--font-semi);
+    font-weight: 600;
+    line-height: 2.75rem;
+    text-align: center;
+  }
+  .cal-mes-nome::first-letter {
+    text-transform: uppercase;
+  }
+  .cal-semana,
+  .cal-dias {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .cal-semana {
+    padding-bottom: 0.25rem;
+    color: var(--color-tinta-suave);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    text-align: center;
+  }
+  .cal-dias {
+    row-gap: 2px;
+  }
+  .cal-dia {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.75rem;
+    color: var(--color-tinta);
+    font-size: var(--text-small);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-dia::before {
+    content: '';
+    position: absolute;
+    inset: 0.15rem 0;
+    z-index: -1;
+  }
+  .cal-dia[data-pacote]::before {
+    background: var(--pacote-faixa);
+  }
+  .cal-dia[data-pacote='inicio']::before {
+    left: 0.2rem;
+    border-radius: 999px 0 0 999px;
+  }
+  .cal-dia[data-pacote='fim']::before {
+    right: 0.2rem;
+    border-radius: 0 999px 999px 0;
+  }
+  .cal-dia[data-pacote='unico']::before {
+    inset-inline: 0.2rem;
+    border-radius: 999px;
+  }
+  /* as datas escolhidas passam por cima da faixa do pacote */
+  .cal-dia[data-faixa]::before {
+    inset-inline: 0;
+    border-radius: 0;
+    background: var(--estadia-faixa);
+  }
+  .cal-dia[data-faixa='inicio']::before {
+    left: 50%;
+  }
+  .cal-dia[data-faixa='fim']::before {
+    right: 50%;
+  }
+  .cal-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-celula);
+    transition:
+      background-color var(--dur-toque) var(--ease-padrao),
+      box-shadow var(--dur-toque) var(--ease-padrao);
+  }
+  .cal-dia[data-ponta] .cal-num {
+    background: var(--color-tinta);
+    color: #ffffff;
+  }
+  .cal-dia[data-estado] {
+    color: var(--color-borda-campo);
+    font-weight: 500;
+  }
+  .cal-dia[data-estado='ocupada'] {
+    text-decoration: line-through;
+  }
+  .cal-dia:disabled {
+    cursor: not-allowed;
+  }
+  .cal-dia:focus-visible {
+    outline: none;
+  }
+  .cal-dia:focus-visible .cal-num {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 1px;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .cal-dia:not(:disabled):not([data-ponta]):hover .cal-num {
+      box-shadow: inset 0 0 0 1px var(--color-tinta);
+    }
+  }
+  .cal-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.25rem 0;
+    border-top: 1px solid var(--color-borda);
+    color: var(--color-tinta-suave);
+    font-size: var(--text-caption);
+  }
+  .cal-legenda li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .cal-legenda-pacote {
+    width: 1.5rem;
+    height: 0.9rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-d4) 55%, var(--color-papel));
+  }
+  .cal-legenda-ocupada {
+    color: var(--color-borda-campo);
+    font-variant-numeric: tabular-nums;
+    text-decoration: line-through;
+  }
+  .aviso-calendario {
+    margin-top: 1rem;
+  }
+  .aviso-calendario:empty {
+    display: none;
+  }
+
+  /* o quadro da reserva */
+  .reserva-casa-caixa {
+    padding: 1.25rem;
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-cartao);
+    background: var(--color-papel);
+  }
+  @media (min-width: 640px) {
+    .reserva-casa-caixa {
+      padding: 1.5rem;
+    }
+  }
+  .data-casa {
+    display: block;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-superficie);
+    text-align: left;
+    transition: box-shadow var(--dur-toque) var(--ease-padrao);
+  }
+  .data-casa:hover {
+    box-shadow: inset 0 0 0 1px var(--color-tinta);
+  }
+  .conta-casa {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-borda);
+  }
+  .conta-casa-tabela {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .conta-casa-tabela th,
+  .conta-casa-tabela td {
+    padding: 0.55rem 0;
+    text-align: right;
+    vertical-align: baseline;
+  }
+  .conta-casa-tabela th + th,
+  .conta-casa-tabela td + td,
+  .conta-casa-tabela th + td {
+    padding-left: 0.75rem;
+  }
+  .conta-casa-tabela thead th {
+    padding-top: 0;
+    font-family: var(--font-semi);
+    font-weight: 600;
+    vertical-align: bottom;
+  }
+  .conta-casa-tabela tbody th {
+    font-weight: 500;
+    text-align: left;
+  }
+  .conta-casa-tabela tbody tr {
+    border-top: 1px solid var(--color-borda);
+  }
+  .em-breve-casa {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-celula);
+    background: var(--color-superficie);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* onde fica: o círculo de 500 m de raio no meio do recorte de satélite */
+  .circulo-casa {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    aspect-ratio: 1;
+    border: 2px solid rgb(255 255 255 / 0.95);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14);
+    box-shadow:
+      0 0 0 1px rgb(6 54 67 / 0.35),
+      inset 0 0 0 1px rgb(6 54 67 / 0.2);
+    transform: translate(-50%, -50%);
+  }
+
+  /* regras, chegada e segurança e cancelamento: abrem ao tocar */
+  .abre-casa {
+    border: 1px solid var(--color-borda);
+    border-radius: var(--radius-celula);
+    background: var(--color-papel);
+  }
+  .abre-casa summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 3.5rem;
+    padding: 0.75rem 1rem;
+    list-style: none;
+    cursor: pointer;
+  }
+  .abre-casa summary::-webkit-details-marker {
+    display: none;
+  }
+  .abre-casa ul {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0 1rem 1.25rem;
+  }
+  .abre-casa li {
+    display: flex;
+    gap: 0.7rem;
+  }
+  .abre-casa li::before {
+    content: '';
+    flex: none;
+    width: 0.375rem;
+    height: 0.375rem;
+    margin-top: 0.6em;
+    border-radius: 999px;
+    background: var(--color-turquesa-texto);
+  }
+}

@@ -1,11 +1,13 @@
 import Image from 'next/image';
-import type { Casa } from '@/data/casas';
 import { CIDADES } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
+import type { CasaDoSite } from '@/lib/casa';
+import { tabelaDaPagina } from '@/lib/casa-pagina';
 import { formatarCifra } from '@/lib/cifra';
 import { menorDiaria } from '@/lib/diarias';
+import { menorDiariaCentavos } from '@/lib/estadia';
 import { cotacaoDolar, textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { ComDolar, Pedaco, Pedacos } from '../ComDolar';
@@ -22,13 +24,14 @@ export async function CardCasa({
   d,
   sizes = '(min-width: 1024px) 30vw, (min-width: 640px) 46vw, 100vw',
 }: {
-  casa: Casa;
+  casa: CasaDoSite;
   idioma: Idioma;
   d: Dicionario;
   sizes?: string;
 }) {
   const t = d.casas;
-  const diariaCentavos = menorDiaria(c) * 100;
+  // a menor diária na conta das casas (src/lib/estadia.ts): semana, sábado e domingo, temporadas e pacotes
+  const diariaCentavos = menorDiariaCentavos(tabelaDaPagina(c)) ?? menorDiaria(c) * 100;
   const diaria = formatarCifra(diariaCentavos, LOCALE_INTL[idioma]);
   const diariaPix = formatarCifra(precoPixCentavos(diariaCentavos), LOCALE_INTL[idioma]);
   const cotacao = idioma === 'pt' ? null : await cotacaoDolar();

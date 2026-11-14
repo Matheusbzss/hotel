@@ -15,7 +15,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import type { Database, TablesInsert } from '../src/lib/banco-tipos.ts';
+import type { Database } from '../src/lib/banco-tipos.ts';
 import {
   EsquemaComodidades,
   EsquemaDestaques,
@@ -23,13 +23,12 @@ import {
   EsquemaQuartos,
   EsquemaRegrasProprias,
   EsquemaTextoBairro,
-  colunasDosDetalhes,
   contarCamas,
   linhaDePacote,
   lugaresNasCamas,
 } from '../src/lib/casa-detalhes.ts';
 import { contaEstadia, pacotesComValores, type TabelaEstadia } from '../src/lib/estadia.ts';
-import { CASAS_PARA_CADASTRAR, fotosNoSite, listasDaCasa, oQueFaltaNoBanco, type CasaParaCadastrar } from './dados/casas.ts';
+import { CASAS_PARA_CADASTRAR, fotosNoSite, linhaDaCasa, oQueFaltaNoBanco, type CasaParaCadastrar } from './dados/casas.ts';
 
 const GRAVAR = process.argv.includes('--gravar');
 const reais = (centavos: number) => `R$ ${(centavos / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -61,49 +60,6 @@ function conferir(c: CasaParaCadastrar): string[] {
   if (lugaresNasCamas(c.quartosDetalhe) !== c.capacidade) erros.push(`capacidade ${c.capacidade} diferente dos lugares nas camas`);
   for (const foto of fotosNoSite(c)) if (!existsSync(path.join('public', foto))) erros.push(`falta a foto ${foto}`);
   return erros;
-}
-
-/** A linha da tabela casas, desligada. Endereço, ponto no mapa, limpeza, caução e calendário de fora ficam vazios. */
-function linhaDaCasa(c: CasaParaCadastrar): TablesInsert<'casas'> {
-  const listas = listasDaCasa(c);
-  return {
-    slug: c.slug,
-    ativo: false,
-    cidade: c.cidade,
-    nome: c.nome,
-    bairro: c.local,
-    resumo: c.resumo,
-    descricao: c.descricao,
-    endereco: null,
-    lat_aprox: null,
-    lng_aprox: null,
-    quartos: c.quartos,
-    suites: c.suites,
-    banheiros: c.banheiros,
-    capacidade: c.capacidade,
-    camas: listas.camas,
-    comodidades: listas.comodidades,
-    regras: listas.regras,
-    cancelamento: listas.cancelamento,
-    check_in: '15h',
-    check_out: '12h',
-    diaria_base_centavos: c.diariaCentavos,
-    minimo_noites: c.minimoNoites,
-    taxa_limpeza_centavos: null,
-    caucao_centavos: null,
-    fotos: fotosNoSite(c),
-    ical_url: null,
-    ...colunasDosDetalhes({
-      lavabos: c.lavabos,
-      diariaFimDeSemanaCentavos: c.diariaFimDeSemanaCentavos,
-      fimDeSemanaJunto: c.fimDeSemanaJunto,
-      quartosDetalhe: c.quartosDetalhe,
-      comodidadesMarcadas: c.comodidadesMarcadas,
-      destaques: c.destaques,
-      regrasProprias: c.regrasProprias,
-      textoBairro: c.textoBairro,
-    }),
-  };
 }
 
 let problemas = 0;

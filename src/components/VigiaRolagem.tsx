@@ -11,7 +11,8 @@ export function VigiaRolagem() {
   const caminho = usePathname();
   useEffect(() => {
     const raiz = document.documentElement;
-    const foto = document.querySelector('.topo-foto, .topo-passeio');
+    // a página da casa também começa pela foto no celular (as fotos de borda a borda por baixo do menu)
+    const foto = document.querySelector('.topo-foto, .topo-passeio, .galeria-casa-celular');
     if (!foto) {
       raiz.removeAttribute('data-rolou');
       return;

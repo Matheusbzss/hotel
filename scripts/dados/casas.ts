@@ -19,8 +19,19 @@
 import type { CidadeCasa } from '../../src/data/casas';
 import type { Lista, Texto } from '../../src/data/passeios';
 import { CAMAS, COMODIDADES, REGRAS_EVENTO, REGRAS_FUMAR } from '../../src/data/comodidades.ts';
-import type { ComodidadeMarcada, Destaque, Quarto, RegrasProprias } from '../../src/lib/casa-detalhes.ts';
+import type { TablesInsert } from '../../src/lib/banco-tipos.ts';
+import {
+  colunasDosDetalhes,
+  type ComodidadeMarcada,
+  type Destaque,
+  type Quarto,
+  type RegrasProprias,
+} from '../../src/lib/casa-detalhes.ts';
 import type { Pacote } from '../../src/lib/estadia.ts';
+import { CANCELAMENTO_DAS_CASAS, regrasDeTodasAsCasas } from '../../src/data/regras-casas.ts';
+
+// as regras de todas as casas e o cancelamento moram em src/data/regras-casas.ts (a página da casa usa as mesmas frases)
+export { CANCELAMENTO_DAS_CASAS, regrasDeTodasAsCasas };
 
 /** Um retângulo da foto recebida, em pixels dela: x e y do canto de cima à esquerda, largura e altura. */
 export interface Retangulo {
@@ -535,53 +546,6 @@ function porIdioma(fazer: (idioma: IdiomaDaLista) => string[]): Lista {
 }
 const juntar: Record<IdiomaDaLista, string> = { pt: ' e ', es: ' y ', en: ' and ', 'es-ar': ' y ' };
 
-/** As regras que valem para todas as casas (FASE-4, Etapa 7, decisão do dono de 07/11). */
-export function regrasDeTodasAsCasas(capacidade: number): Texto[] {
-  return [
-    {
-      pt: 'Entrada a partir das 15h e saída até as 12h',
-      es: 'Entrada desde las 15 h y salida hasta las 12 h',
-      en: 'Check-in from 3 p.m. and check-out by noon',
-    },
-    { pt: `Até ${capacidade} hóspedes`, es: `Hasta ${capacidade} huéspedes`, en: `Up to ${capacidade} guests` },
-    { pt: 'Não aceita animais de estimação', es: 'No se aceptan mascotas', en: 'No pets allowed' },
-    {
-      pt: 'Silêncio das 22h às 8h, sujeito a multa',
-      es: 'Silencio de 22 h a 8 h, sujeto a multa',
-      en: 'Quiet hours from 10 p.m. to 8 a.m., subject to a fine',
-    },
-    {
-      pt: 'Cadastro de todos os hóspedes (nome completo e documento) depois do pagamento',
-      es: 'Registro de todos los huéspedes (nombre completo y documento) después del pago',
-      en: 'All guests are registered (full name and ID) after payment',
-    },
-    {
-      pt: 'Nossa equipe recebe os hóspedes e entrega a chave; o horário de chegada é combinado pelo WhatsApp depois do pagamento',
-      es: 'Nuestro equipo recibe a los huéspedes y entrega la llave; la hora de llegada se coordina por WhatsApp después del pago',
-      en: 'Our team welcomes guests and hands over the key; the arrival time is arranged on WhatsApp after payment',
-    },
-  ];
-}
-
-/** A política de cancelamento das casas (decisão recomendada da pendência 3: o dono confirma antes de publicar). */
-export const CANCELAMENTO_DAS_CASAS: Texto[] = [
-  {
-    pt: 'Cancelamento grátis até 30 dias antes da entrada',
-    es: 'Cancelación gratis hasta 30 días antes de la entrada',
-    en: 'Free cancellation up to 30 days before check-in',
-  },
-  {
-    pt: 'Arrependimento em até 7 dias depois da compra, desde que antes da entrada, com devolução total',
-    es: 'Derecho de arrepentimiento hasta 7 días después de la compra, siempre que sea antes de la entrada, con devolución total',
-    en: 'Change of mind within 7 days of purchase, as long as it is before check-in, with a full refund',
-  },
-  {
-    pt: 'Cancelando a menos de 30 dias da entrada (fora dos 7 dias), o sinal de 50% pago no site não é devolvido e o restante não é cobrado',
-    es: 'Si se cancela a menos de 30 días de la entrada (fuera de los 7 días), el 50% pagado en el sitio no se devuelve y el resto no se cobra',
-    en: 'If cancelled less than 30 days before check-in (outside the 7 days), the 50% paid on the site is not refunded and the balance is not charged',
-  },
-];
-
 export function listasDaCasa(c: CasaParaCadastrar): { camas: Lista; comodidades: Lista; regras: Lista; cancelamento: Lista } {
   const regrasDaCasa: Texto[] = [
     ...(c.regrasProprias.evento ? [REGRAS_EVENTO[c.regrasProprias.evento]] : []),
@@ -605,6 +569,52 @@ export function listasDaCasa(c: CasaParaCadastrar): { camas: Lista; comodidades:
     ),
     regras: porIdioma((i) => [...regrasDeTodasAsCasas(c.capacidade), ...regrasDaCasa].map((r) => em(r, i))),
     cancelamento: porIdioma((i) => CANCELAMENTO_DAS_CASAS.map((r) => em(r, i))),
+  };
+}
+
+/**
+ * A linha da tabela casas, desligada. Endereço, ponto no mapa, limpeza, caução e calendário de fora ficam vazios. É a
+ * que scripts/cadastrar-casas.ts grava e a que a prévia local (src/lib/casas-previa.ts, só com CASAS_PREVIA=1) lê.
+ */
+export function linhaDaCasa(c: CasaParaCadastrar): TablesInsert<'casas'> {
+  const listas = listasDaCasa(c);
+  return {
+    slug: c.slug,
+    ativo: false,
+    cidade: c.cidade,
+    nome: c.nome,
+    bairro: c.local,
+    resumo: c.resumo,
+    descricao: c.descricao,
+    endereco: null,
+    lat_aprox: null,
+    lng_aprox: null,
+    quartos: c.quartos,
+    suites: c.suites,
+    banheiros: c.banheiros,
+    capacidade: c.capacidade,
+    camas: listas.camas,
+    comodidades: listas.comodidades,
+    regras: listas.regras,
+    cancelamento: listas.cancelamento,
+    check_in: '15h',
+    check_out: '12h',
+    diaria_base_centavos: c.diariaCentavos,
+    minimo_noites: c.minimoNoites,
+    taxa_limpeza_centavos: null,
+    caucao_centavos: null,
+    fotos: fotosNoSite(c),
+    ical_url: null,
+    ...colunasDosDetalhes({
+      lavabos: c.lavabos,
+      diariaFimDeSemanaCentavos: c.diariaFimDeSemanaCentavos,
+      fimDeSemanaJunto: c.fimDeSemanaJunto,
+      quartosDetalhe: c.quartosDetalhe,
+      comodidadesMarcadas: c.comodidadesMarcadas,
+      destaques: c.destaques,
+      regrasProprias: c.regrasProprias,
+      textoBairro: c.textoBairro,
+    }),
   };
 }
 

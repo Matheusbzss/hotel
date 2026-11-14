@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import type { Casa, CidadeCasa } from '@/data/casas';
 import type { Lista, Texto } from '@/data/passeios';
+import type { DetalhesCasa } from './casa-detalhes.ts';
+import type { Ponto } from './circulo-casa.ts';
 import { noitesEntre, type PeriodoPreco } from './diarias.ts';
+import type { Pacote } from './estadia.ts';
 
 /**
  * A casa como o painel vê: os dados da página, as tarifas, os bloqueios e o calendário do Airbnb. Aqui
@@ -46,8 +49,18 @@ export interface CasaPainel extends Casa {
   bloqueios: Bloqueio[];
 }
 
-/** O que a página do site usa: nada do calendário do Airbnb. */
-export type CasaDoSite = Casa & { id: string };
+/**
+ * O que a página do site usa: nada do calendário do Airbnb. Com os detalhes da Etapa 7 (vazios antes da migração
+ * 20261113223000), os pacotes de datas fixas e o centro PÚBLICO do círculo do mapa (deslocado do ponto da casa, que
+ * fica só no banco): o centro só é lido no servidor, para recortar a foto de satélite; nunca vai para a página.
+ */
+export type CasaDoSite = Casa & {
+  id: string;
+  detalhes: DetalhesCasa;
+  pacotes: Pacote[];
+  /** null enquanto o dono não marca a casa no mapa do painel: a página esconde o mapa. */
+  centro: Ponto | null;
+};
 
 const CAMPOS_TEXTO = ['nome', 'local', 'resumo', 'descricao'] as const;
 const CAMPOS_LISTA = ['camas', 'comodidades', 'regras', 'cancelamento'] as const;

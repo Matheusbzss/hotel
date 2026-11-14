@@ -10,9 +10,9 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   pt: {
     titulo: 'Política de Privacidade',
     descricao:
-      'Usamos seus dados apenas para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir nossos anúncios. Não vendemos dados pessoais.',
+      'Usamos seus dados só para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir e personalizar nossos anúncios. Não vendemos dados pessoais.',
     resumo:
-      'Usamos seus dados apenas para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir nossos anúncios. Não vendemos dados pessoais. Esta política segue a Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018).',
+      'Usamos seus dados só para fazer a sua reserva acontecer, cumprir a lei e, se você permitir, medir e personalizar nossos anúncios. Não vendemos dados pessoais. Esta política segue a Lei Geral de Proteção de Dados (LGPD – Lei nº 13.709/2018).',
     secoes: [
       {
         titulo: '1. Quem é o controlador dos dados',
@@ -47,7 +47,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Atender você pelo WhatsApp e por e-mail — execução de contrato e legítimo interesse.',
           'Guardar o seu carrinho e lembrar você de uma reserva que ficou sem terminar — legítimo interesse (art. 7º, IX). Você pode pedir para não receber esse lembrete.',
           'Saber de qual campanha veio cada reserva, para medir o resultado dos anúncios — legítimo interesse (art. 7º, IX).',
-          'Medir e melhorar nossos anúncios no Facebook, no Instagram e no Google (Pixel da Meta, API de Conversões e tag do Google Ads), inclusive avisar essas plataformas quando uma reserva é paga, com o valor, o código do clique no anúncio e, para a Meta, o e-mail e o telefone embaralhados (hash) — consentimento (art. 7º, I), que você pode recusar ou revogar a qualquer momento.',
+          'Medir, melhorar e personalizar nossos anúncios no Facebook, no Instagram e no Google (Pixel da Meta, API de Conversões e tag do Google Ads), inclusive mostrar anúncios a quem visitou o site e avisar essas plataformas quando uma reserva é paga, com o valor, o código do clique no anúncio e, para a Meta, o e-mail e o telefone embaralhados (hash) — consentimento (art. 7º, I), que você pode recusar ou revogar a qualquer momento.',
         ],
       },
       {
@@ -57,8 +57,8 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Operadores dos passeios e do transfer (embarcações, veículos, motoristas, guias): nome, quantidade de pessoas, hospedagem e contato e, no transfer, também o trajeto, os voos, as malas e a idade das crianças que vão de cadeirinha, para realizar o serviço.',
           'Bancos e empresas de pagamento: processamento dos pagamentos por Pix e cartão.',
           'Vercel e Supabase: hospedagem do site e armazenamento seguro das reservas.',
-          'Meta (WhatsApp, Facebook e Instagram): atendimento pelo WhatsApp e, com o seu consentimento, medição de anúncios.',
-          'Google: com o seu consentimento, medição de anúncios.',
+          'Meta (WhatsApp, Facebook e Instagram): atendimento pelo WhatsApp e, com o seu consentimento, medição e personalização de anúncios.',
+          'Google: com o seu consentimento, medição e personalização de anúncios.',
           'Autoridades públicas, quando exigido por lei ou ordem judicial.',
         ],
         depois: [
@@ -68,7 +68,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
       {
         titulo: '5. Cookies, Pixel da Meta e Google',
         paragrafos: [
-          'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+          'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio, armazenamento local para lembrar a sua escolha sobre cookies e, se você aceitar, um cookie que guarda essa escolha por 1 ano. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
           `Com o seu aceite, o Google e a Meta (Facebook e Instagram) também podem usar cookies e identificadores do aparelho para mostrar anúncios da ${E.marca} em outros sites e aplicativos, com base na sua visita a este site. Para desativar os anúncios personalizados, use as Configurações de anúncios do Google (adssettings.google.com), as preferências de anúncios da Meta (facebook.com/adpreferences) ou as páginas aboutads.info/choices e youronlinechoices.eu.`,
           'Você pode mudar sua escolha a qualquer momento pelo botão no fim desta página.',
         ],
@@ -117,9 +117,9 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   en: {
     titulo: 'Privacy Policy',
     descricao:
-      'We use your data only to make your booking happen, to comply with the law and, if you allow it, to measure our ads. We do not sell personal data.',
+      'We use your data only to make your booking happen, comply with the law and, if you allow it, measure and personalise our ads. We do not sell personal data.',
     resumo:
-      'We use your data only to make your booking happen, to comply with the law and, if you allow it, to measure our ads. We do not sell personal data. This policy follows the Brazilian General Data Protection Law (LGPD – Law 13,709/2018).',
+      'We use your data only to make your booking happen, comply with the law and, if you allow it, measure and personalise our ads. We do not sell personal data. This policy follows the Brazilian General Data Protection Law (LGPD – Law 13,709/2018).',
     secoes: [
       {
         titulo: '1. Data controller',
@@ -154,7 +154,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'To assist you on WhatsApp and by email — performance of a contract and legitimate interest.',
           'To keep your cart and remind you of a booking you did not finish — legitimate interest (art. 7, IX). You can ask not to receive this reminder.',
           'To know which campaign each booking came from, so we can measure our ads — legitimate interest (art. 7, IX).',
-          'To measure and improve our ads on Facebook, Instagram and Google (Meta Pixel, Conversions API and Google Ads tag), including telling these platforms when a booking is paid, with the amount, the ad click code and, for Meta, your email and phone number scrambled (hashed) — consent (art. 7, I), which you can refuse or withdraw at any time.',
+          'To measure, improve and personalise our ads on Facebook, Instagram and Google (Meta Pixel, Conversions API and Google Ads tag), including showing ads to people who visited the website and telling these platforms when a booking is paid, with the amount, the ad click code and, for Meta, your email and phone number scrambled (hashed) — consent (art. 7, I), which you can refuse or withdraw at any time.',
         ],
       },
       {
@@ -164,8 +164,8 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Tour and transfer operators (boats, vehicles, drivers, guides): name, number of people, accommodation and contact and, for transfers, also the route, flights, luggage and the age of children travelling in a child seat, to run the service.',
           'Banks and payment companies: processing Pix and card payments.',
           'Vercel and Supabase: website hosting and secure storage of bookings.',
-          'Meta (WhatsApp, Facebook and Instagram): customer service on WhatsApp and, with your consent, ad measurement.',
-          'Google: with your consent, ad measurement.',
+          'Meta (WhatsApp, Facebook and Instagram): customer service on WhatsApp and, with your consent, ad measurement and personalisation.',
+          'Google: with your consent, ad measurement and personalisation.',
           'Public authorities, when required by law or court order.',
         ],
         depois: [
@@ -175,7 +175,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
       {
         titulo: '5. Cookies, the Meta Pixel and Google',
         paragrafos: [
-          'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+          'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, local storage to remember your cookie choice, and, if you accept, a cookie that keeps that choice for 1 year. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
           `With your consent, Google and Meta (Facebook and Instagram) may also use cookies and device identifiers to show ${E.marca} ads on other websites and apps based on your visit to this website. To turn off personalised ads, use Google Ads Settings (adssettings.google.com), Meta’s ad preferences (facebook.com/adpreferences) or the pages aboutads.info/choices and youronlinechoices.eu.`,
           'You can change your choice at any time with the button at the end of this page.',
         ],
@@ -224,9 +224,9 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
   es: {
     titulo: 'Política de Privacidad',
     descricao:
-      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales.',
+      'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permites, medir y personalizar nuestros anuncios. No vendemos datos personales.',
     resumo:
-      'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+      'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permites, medir y personalizar nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
     secoes: [
       {
         titulo: '1. Responsable de los datos',
@@ -261,7 +261,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',
           'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
           'Saber de qué campaña vino cada reserva, para medir el resultado de los anuncios — interés legítimo (art. 7, IX).',
-          'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
+          'Medir, mejorar y personalizar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso mostrar anuncios a quienes visitaron el sitio y avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
         ],
       },
       {
@@ -271,8 +271,8 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla, para realizar el servicio.',
           'Bancos y empresas de pago: procesamiento de pagos con Pix y tarjeta.',
           'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
-          'Meta (WhatsApp, Facebook e Instagram): atención por WhatsApp y, con tu consentimiento, medición de anuncios.',
-          'Google: con tu consentimiento, medición de anuncios.',
+          'Meta (WhatsApp, Facebook e Instagram): atención por WhatsApp y, con tu consentimiento, medición y personalización de anuncios.',
+          'Google: con tu consentimiento, medición y personalización de anuncios.',
           'Autoridades públicas, cuando lo exija la ley o una orden judicial.',
         ],
         depois: [
@@ -282,7 +282,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
       {
         titulo: '5. Cookies, Píxel de Meta y Google',
         paragrafos: [
-          'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+          'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste, almacenamiento local para recordar tu elección sobre cookies y, si aceptas, una cookie que guarda esa elección por 1 año. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
           `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
           'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',
         ],
@@ -337,12 +337,12 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
  */
 export const AJUSTES_AR_PRIVACIDADE: readonly ParAR[] = [
   [
-    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales.',
-    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales.',
+    'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permites, medir y personalizar nuestros anuncios. No vendemos datos personales.',
+    'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permitís, medir y personalizar nuestros anuncios. No vendemos datos personales.',
   ],
   [
-    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permites, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
-    'Usamos tus datos solo para que tu reserva se concrete, para cumplir la ley y, si lo permitís, para medir nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+    'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permites, medir y personalizar nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
+    'Usamos tus datos solo para concretar tu reserva, cumplir la ley y, si lo permitís, medir y personalizar nuestros anuncios. No vendemos datos personales. Esta política sigue la Ley General de Protección de Datos de Brasil (LGPD – Ley 13.709/2018).',
   ],
   [
     'Contacto: e-mail y teléfono/WhatsApp, también cuando pides una cotización o mandas un mensaje por el sitio.',
@@ -365,16 +365,16 @@ export const AJUSTES_AR_PRIVACIDADE: readonly ParAR[] = [
     'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Podés pedir no recibir ese recordatorio.',
   ],
   [
-    'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
-    'Medir y mejorar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
+    'Medir, mejorar y personalizar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso mostrar anuncios a quienes visitaron el sitio y avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
+    'Medir, mejorar y personalizar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso mostrar anuncios a quienes visitaron el sitio y avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que podés rechazar o revocar en cualquier momento.',
   ],
   [
     'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las maletas y la edad de los niños que van en silla, para realizar el servicio.',
     'Operadores de los paseos y traslados (embarcaciones, vehículos, conductores, guías): nombre, cantidad de personas, alojamiento y contacto y, en el traslado, también el trayecto, los vuelos, las valijas y la edad de los niños que van en silla, para realizar el servicio.',
   ],
   [
-    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
-    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
+    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste, almacenamiento local para recordar tu elección sobre cookies y, si aceptas, una cookie que guarda esa elección por 1 año. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+    'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste, almacenamiento local para recordar tu elección sobre cookies y, si aceptás, una cookie que guarda esa elección por 1 año. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
   ],
   [
     `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,

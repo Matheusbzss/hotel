@@ -362,7 +362,7 @@ const es: Dicionario = {
       'Llega al punto de encuentro 30 minutos antes del horario. Si el paseo te busca en el hotel, espera en la recepción a la hora de la recogida, que figura en el voucher.',
       'El paseo sale a la hora marcada: si llegas después, pierdes el paseo y no hay reembolso.',
       'Lleva un documento con foto (DNI, cédula o pasaporte). En los paseos en barco pueden controlar la lista de pasajeros.',
-      'Las tasas municipales, como la de embarque o de turismo, se pagan en el lugar.',
+      'Las tasas municipales, como la de embarque o de turismo, cuando se cobran, se pagan en el lugar.',
       'Embarazo, movilidad reducida o algún problema de salud: avísanos al reservar, porque algunos paseos tienen restricciones.',
       'Menores de 18 años solo con un adulto responsable.',
       'Cuida tus objetos personales durante el paseo.',

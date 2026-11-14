@@ -6,7 +6,7 @@ import { AJUSTES_AR_CANCELAMENTO, CANCELAMENTO } from './cancelamento.ts';
 import { comMudancas, juntarMudancas, paresQueFicam, type MudancasDoDocumento } from './mudancas.ts';
 import { AJUSTES_AR_PRIVACIDADE, PRIVACIDADE } from './privacidade.ts';
 import { AJUSTES_AR_TERMOS, TERMOS } from './termos.ts';
-import { ATUALIZADO_EM, type DocumentoLegal } from './tipos.ts';
+import { ATUALIZADO_EM, type DocumentoLegal, type TextoLegal } from './tipos.ts';
 
 /**
  * A versão dos textos legais para quando o pagamento online estiver no ar para o público (PAGAMENTO_ONLINE=publico):
@@ -29,14 +29,16 @@ const E = EMPRESA;
 const P = DESCONTO_PIX_PORCENTO;
 
 /**
- * A data da versão do pagamento online, que a página mostra em "Atualizado em": troque para o dia de ligar. Nunca antes
- * de ATUALIZADO_EM (src/content/legal/tipos.ts): esta versão traz também o que o texto de hoje mudou (em 2026-11-14, os
- * anúncios do Google e da Meta no item 5 da privacidade).
+ * A data da versão do pagamento online, que as páginas dos três textos mostram em "Atualizado em" (os três mudam juntos
+ * no dia de ligar): troque para o dia de ligar. Nunca antes de nenhuma das datas de ATUALIZADO_EM
+ * (src/content/legal/tipos.ts): esta versão traz também o que os textos de hoje mudaram (em 2026-11-14, os anúncios do
+ * Google e da Meta na privacidade).
  */
 export const ATUALIZADO_EM_ONLINE = '2026-11-14';
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
- * carrinho): troque para o dia em que a RESEND_API_KEY entrar na Vercel. Também nunca antes de ATUALIZADO_EM.
+ * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel. Nunca
+ * antes de ATUALIZADO_EM.privacidade.
  */
 export const ATUALIZADO_EM_EMAILS = '2026-11-14';
 
@@ -551,21 +553,23 @@ export const AJUSTES_AR_CANCELAMENTO_ONLINE = CANCELAMENTO_ON.pares;
 export const AJUSTES_AR_PRIVACIDADE_ONLINE = PRIVACIDADE_ON.pares;
 export const AJUSTES_AR_PRIVACIDADE_EMAILS = PRIVACIDADE_EM.pares;
 
-/** Os três textos legais e a data da versão que vale. */
+/** Os três textos legais da versão que vale e a data de cada um. */
 export interface TextosLegais {
   termos: Traduzido<DocumentoLegal>;
   cancelamento: Traduzido<DocumentoLegal>;
   privacidade: Traduzido<DocumentoLegal>;
-  atualizadoEm: string;
+  /** A data que a página de cada texto mostra em "Atualizado em" (AAAA-MM-DD). */
+  atualizadoEm: Readonly<Record<TextoLegal, string>>;
 }
 
 /**
  * Os textos legais que as páginas mostram (lidos no build: as páginas legais são estáticas):
  * - com o pagamento online no ar para o público (pagamentoOnlineNoAr, src/lib/formas-pagamento.ts), a versão dele, que
- *   já traz os e-mails;
+ *   já traz os e-mails, com a data dela nos três;
  * - sem ele e com os e-mails ligados (emailLigado, src/lib/email/enviar.ts: a RESEND_API_KEY), o texto de hoje com a
- *   privacidade que cita os e-mails, o Resend, o lembrete do carrinho e o prazo do e-mail no carrinho;
- * - senão, o texto de hoje, sem mudar nada.
+ *   privacidade que cita os e-mails, o Resend, o lembrete do carrinho e o prazo do e-mail no carrinho; só a data da
+ *   privacidade muda, e os termos e o cancelamento ficam com as deles;
+ * - senão, o texto de hoje, sem mudar nada, com a data de cada um.
  */
 export function textosLegais(online: boolean, emails: boolean = false): TextosLegais {
   if (online)
@@ -573,8 +577,14 @@ export function textosLegais(online: boolean, emails: boolean = false): TextosLe
       termos: TERMOS_ONLINE,
       cancelamento: CANCELAMENTO_ONLINE,
       privacidade: PRIVACIDADE_ONLINE,
-      atualizadoEm: ATUALIZADO_EM_ONLINE,
+      atualizadoEm: { termos: ATUALIZADO_EM_ONLINE, cancelamento: ATUALIZADO_EM_ONLINE, privacidade: ATUALIZADO_EM_ONLINE },
     };
-  if (emails) return { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE_EMAILS, atualizadoEm: ATUALIZADO_EM_EMAILS };
+  if (emails)
+    return {
+      termos: TERMOS,
+      cancelamento: CANCELAMENTO,
+      privacidade: PRIVACIDADE_EMAILS,
+      atualizadoEm: { ...ATUALIZADO_EM, privacidade: ATUALIZADO_EM_EMAILS },
+    };
   return { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE, atualizadoEm: ATUALIZADO_EM };
 }

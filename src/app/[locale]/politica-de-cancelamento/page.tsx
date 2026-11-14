@@ -33,7 +33,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   return (
     <PaginaLegal
       doc={texto(legais.cancelamento, locale)}
-      atualizadoEm={legais.atualizadoEm}
+      atualizadoEm={legais.atualizadoEm.cancelamento}
       idioma={locale}
       d={d}
       caminho="/politica-de-cancelamento"

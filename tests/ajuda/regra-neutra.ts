@@ -41,6 +41,8 @@ export const VERBOS_VOS: Record<string, string> = {
   declarás: 'declaras',
   comprometés: 'comprometes',
   permitís: 'permites',
+  // 14/11: "si aceptás, una cookie que guarda esa elección" (o item 5 da privacidade)
+  aceptás: 'aceptas',
   pedís: 'pides',
   mandás: 'mandas',
   escribís: 'escribes',

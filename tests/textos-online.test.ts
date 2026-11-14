@@ -33,20 +33,27 @@ const ONLINE: Record<string, [hoje: Traduzido<DocumentoLegal>, online: Traduzido
 
 const tudo = (doc: DocumentoLegal) => frasesDoDocumento(doc).join('\n');
 
-test('com o interruptor desligado, os textos legais são os de hoje, os mesmos objetos, com a data de hoje', () => {
+const NOMES = ['termos', 'cancelamento', 'privacidade'] as const;
+
+test('com o interruptor desligado, os textos legais são os de hoje, os mesmos objetos, cada um com a sua data', () => {
   const hoje = textosLegais(false);
   assert.equal(hoje.termos, TERMOS);
   assert.equal(hoje.cancelamento, CANCELAMENTO);
   assert.equal(hoje.privacidade, PRIVACIDADE);
-  assert.equal(hoje.atualizadoEm, ATUALIZADO_EM);
+  // uma data por texto (src/content/legal/tipos.ts): cada página mostra a do texto dela
+  assert.deepEqual(hoje.atualizadoEm, ATUALIZADO_EM);
   const online = textosLegais(true);
   assert.equal(online.termos, TERMOS_ONLINE);
   assert.equal(online.cancelamento, CANCELAMENTO_ONLINE);
   assert.equal(online.privacidade, PRIVACIDADE_ONLINE);
-  // a data da versão online é a constante a trocar no dia de ligar, nunca antes da revisão de hoje (em 14/11, o item 5
-  // da privacidade de hoje ganhou os anúncios do Google e da Meta, e a versão online, que traz o texto de hoje, também)
+  // a data da versão online é a constante a trocar no dia de ligar, a mesma nos três textos (mudam juntos), e nunca antes
+  // da revisão de hoje de nenhum deles: a versão online traz o texto de hoje (em 14/11, a privacidade de hoje ganhou os
+  // anúncios do Google e da Meta, e a versão online também)
   assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-14');
-  assert.ok(ATUALIZADO_EM_ONLINE >= ATUALIZADO_EM);
+  for (const nome of NOMES) {
+    assert.equal(online.atualizadoEm[nome], ATUALIZADO_EM_ONLINE, nome);
+    assert.ok(ATUALIZADO_EM_ONLINE >= ATUALIZADO_EM[nome], `${nome}: ${ATUALIZADO_EM_ONLINE} antes de ${ATUALIZADO_EM[nome]}`);
+  }
 });
 
 test('a versão online muda só o que precisa: tudo que não foi trocado continua igual, palavra por palavra', () => {
@@ -266,8 +273,10 @@ test('com os e-mails ligados (e o pagamento online desligado), a privacidade de 
   assert.equal(comEmails.termos, TERMOS);
   assert.equal(comEmails.cancelamento, CANCELAMENTO);
   assert.equal(comEmails.privacidade, PRIVACIDADE_EMAILS);
-  assert.equal(comEmails.atualizadoEm, ATUALIZADO_EM_EMAILS);
-  assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM);
+  // só a data da privacidade muda (nunca para antes da de hoje); os termos e o cancelamento ficam com as deles
+  assert.deepEqual(comEmails.atualizadoEm, { ...ATUALIZADO_EM, privacidade: ATUALIZADO_EM_EMAILS });
+  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-14');
+  assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM.privacidade);
   // com o pagamento online no ar, a versão dele (que já traz os e-mails), com ou sem a chave
   assert.equal(textosLegais(true, true).privacidade, PRIVACIDADE_ONLINE);
   assert.equal(textosLegais(true, false).privacidade, PRIVACIDADE_ONLINE);
@@ -310,6 +319,51 @@ test('item 5 da privacidade: os anúncios do Google e da Meta e como desativar, 
       assert.match(item5.paragrafos[1], /Google.*Meta.*adssettings\.google\.com.*facebook\.com\/adpreferences/, `${nome}.${idioma}`);
       // e o "pode mudar sua escolha" continua no fim do item
       assert.match(item5.paragrafos.at(-1) ?? '', /mudar sua escolha|change your choice|cambiar tu elección/, `${nome}.${idioma}`);
+    }
+  }
+});
+
+test('a privacidade não se contradiz: o topo e os itens 3 e 4 dizem medir e personalizar, como o item 5 e o aviso de cookies', () => {
+  const PERSONALIZAR = /personaliz|personalis/;
+  for (const [nome, doc] of [
+    ['hoje', PRIVACIDADE],
+    ['e-mails', PRIVACIDADE_EMAILS],
+    ['online', PRIVACIDADE_ONLINE],
+  ] as const) {
+    for (const idioma of IDIOMAS) {
+      const p = texto(doc, idioma);
+      const onde = `${nome}.${idioma}`;
+      // o topo da página e a descrição para o Google
+      assert.match(p.resumo, PERSONALIZAR, `${onde}: resumo`);
+      assert.match(p.descricao, PERSONALIZAR, `${onde}: descrição`);
+      assert.ok(p.resumo.startsWith(p.descricao), `${onde}: a descrição é o começo do resumo`);
+      // item 3: o último tópico, o dos anúncios (com consentimento), fala também de quem visitou o site
+      const item3 = p.secoes.find((s) => s.titulo.startsWith('3. '))?.lista ?? [];
+      assert.match(item3.at(-1) ?? '', PERSONALIZAR, `${onde}: item 3`);
+      assert.match(item3.at(-1) ?? '', /visitou o site|visited the website|visitaron el sitio/, `${onde}: item 3`);
+      // item 4: as linhas da Meta e do Google
+      const item4 = p.secoes.find((s) => s.titulo.startsWith('4. '))?.lista ?? [];
+      for (const quem of ['Meta (', 'Google:']) assert.match(item4.find((l) => l.startsWith(quem)) ?? '', PERSONALIZAR, `${onde}: ${quem}`);
+      // item 5: os cookies do site incluem o que guarda o aceite por 1 ano (on_medicao, marcarMedicao em src/lib/pixel.ts)
+      const item5 = p.secoes.find((s) => s.titulo.startsWith('5. Cookies'))?.paragrafos[0] ?? '';
+      assert.match(item5, /(se você aceitar|if you accept|si aceptas|si aceptás), (um|a|una) cookie .* (1 ano|1 year|1 año)\./, onde);
+    }
+  }
+});
+
+test('a descrição de cada texto legal, a da página no Google, tem até 160 caracteres em todas as versões e idiomas', () => {
+  for (const [nome, doc] of [
+    ['termos', TERMOS],
+    ['cancelamento', CANCELAMENTO],
+    ['privacidade', PRIVACIDADE],
+    ['termos-online', TERMOS_ONLINE],
+    ['cancelamento-online', CANCELAMENTO_ONLINE],
+    ['privacidade-online', PRIVACIDADE_ONLINE],
+    ['privacidade-emails', PRIVACIDADE_EMAILS],
+  ] as const) {
+    for (const idioma of IDIOMAS) {
+      const { descricao } = texto(doc, idioma);
+      assert.ok(descricao.length <= 160, `${nome}.${idioma}: ${descricao.length} caracteres`);
     }
   }
 });

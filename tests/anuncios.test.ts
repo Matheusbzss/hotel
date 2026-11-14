@@ -31,6 +31,15 @@ test('a linha das taxas pagas no local aparece só nos passeios que têm as taxa
   for (const idioma of IDIOMAS) assert.match(dicionario(idioma).carrinho.taxasNoLocal, /municipa/i, idioma);
 });
 
+test('"No dia do passeio" (a mesma lista para todo passeio, na página e no voucher): as taxas, só quando cobradas', () => {
+  // o helicóptero e o city tour do Rio não cobram taxa no local: a regra não pode dizer que toda taxa é paga lá
+  for (const idioma of IDIOMAS) {
+    const taxas = dicionario(idioma).home.diaRegras.filter((r) => /prefeitura|City fees|tasas municipales/.test(r));
+    assert.equal(taxas.length, 1, idioma);
+    assert.match(taxas[0], /quando cobradas|when charged|cuando se cobran/, idioma);
+  }
+});
+
 test('as descrições dos passeios não dizem que o nosso passeio é "o melhor" ou "o mais" alguma coisa', () => {
   // as 5 frases que a revisão tirou; as que descrevem lugares ("o mar mais azul", "best viewpoints") podem ficar
   const TIRADAS = [
@@ -48,6 +57,8 @@ test('as descrições dos passeios não dizem que o nosso passeio é "o melhor" 
     'melhor forma de ver',
     'best way to see',
     'mejor forma de ver',
+    // a da revisão de 14/11 que tinha ficado no espanhol do helicóptero (o es-ar usa a mesma)
+    'paseo ideal',
   ];
   for (const p of PASSEIOS) {
     for (const idioma of IDIOMAS) {

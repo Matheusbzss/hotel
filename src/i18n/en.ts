@@ -354,7 +354,7 @@ const en: Dicionario = {
       'Be at the meeting point 30 minutes before the departure time. If the tour picks you up at your hotel, wait at reception at the pick-up time shown on your voucher.',
       'Tours leave on time: if you arrive later, you miss the tour and there is no refund.',
       'Bring a photo ID (ID card or passport). On boat tours, the passenger list may be checked.',
-      'City fees, such as boarding or tourist fees, are paid on site.',
+      'City fees, such as boarding or tourist fees, when charged, are paid on site.',
       'Pregnancy, reduced mobility or a health condition: tell us when booking, as some tours have restrictions.',
       'Under-18s only with a responsible adult.',
       'Look after your personal belongings during the tour.',

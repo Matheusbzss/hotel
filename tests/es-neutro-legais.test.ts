@@ -182,6 +182,7 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
   for (const trecho of [
     'Podés pedir no recibir',
     'que podés rechazar',
+    'si aceptás, una cookie',
     'si hacés clic',
     'Podés cambiar tu elección',
     'podés pedir en cualquier',
@@ -241,6 +242,7 @@ test('o espanhol neutro (es) diz o mesmo com tú: ti, contigo, eres, cuatrimoto,
   for (const trecho of [
     'Puedes pedir no recibir',
     'que puedes rechazar',
+    'si aceptas, una cookie',
     'si haces clic',
     'Puedes cambiar tu elección',
     'puedes pedir en cualquier',
@@ -286,9 +288,19 @@ test('comAjustesAR() falha alto com par órfão, repetido ou sem efeito, e sem p
   assert.deepEqual(frasesDoDocumento(trocado).length, frasesDoDocumento(es).length);
 });
 
-test('a data de revisão dos textos legais é uma data válida e não voltou para antes da revisão da Etapa 2', () => {
-  // o espanhol neutro não mudou o conteúdo (só a forma de tratamento), por isso a data ficou em 2026-11-07;
-  // uma revisão legítima futura pode avançá-la, nunca recuá-la
-  assert.match(ATUALIZADO_EM, /^\d{4}-\d{2}-\d{2}$/);
-  assert.ok(ATUALIZADO_EM >= '2026-11-07', ATUALIZADO_EM);
+/**
+ * A última revisão de cada texto legal: o espanhol neutro não mudou o conteúdo (só a forma de tratamento), por isso não
+ * mexeu nas datas. Os termos citam o domínio oficial (11/11); o "Em resumo" da política de cancelamento ganhou a linha
+ * do passeio cancelado por chuva, vento ou mar (13/11); a privacidade ganhou os anúncios do Google e da Meta (14/11).
+ */
+const ULTIMA_REVISAO = { termos: '2026-11-11', cancelamento: '2026-11-13', privacidade: '2026-11-14' } as const;
+
+test('a data de revisão de cada texto legal é uma data válida e não voltou para antes da última revisão dele', () => {
+  // uma revisão legítima futura pode avançar a data de um texto, nunca recuá-la
+  assert.deepEqual(Object.keys(ATUALIZADO_EM).sort(), Object.keys(ULTIMA_REVISAO).sort());
+  for (const [nome, data] of Object.entries(ULTIMA_REVISAO)) {
+    const atual = ATUALIZADO_EM[nome as keyof typeof ULTIMA_REVISAO];
+    assert.match(atual, /^\d{4}-\d{2}-\d{2}$/, nome);
+    assert.ok(atual >= data, `${nome}: ${atual}`);
+  }
 });

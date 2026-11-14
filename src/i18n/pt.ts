@@ -382,7 +382,7 @@ const pt = {
       'Chegue ao ponto de encontro 30 minutos antes do horário. Com busca no hotel, esteja na recepção no horário da busca, que está no voucher.',
       'O passeio sai no horário marcado: quem chega depois perde o passeio, sem reembolso.',
       'Leve um documento com foto (RG, CNH ou passaporte). Nos passeios de barco, a lista de passageiros pode ser conferida.',
-      'Taxas da prefeitura, como a de embarque ou de turismo, são pagas no local.',
+      'Taxas da prefeitura, como a de embarque ou de turismo, quando cobradas, são pagas no local.',
       'Gestação, mobilidade reduzida ou problema de saúde: avise na reserva, porque alguns passeios têm restrições.',
       'Menores de 18 anos só com um responsável.',
       'Cuide dos seus objetos pessoais durante o passeio.',

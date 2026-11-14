@@ -896,7 +896,7 @@ export const PASSEIOS: Passeio[] = [
     descricao: {
       pt: 'Do alto, Búzios mostra o desenho que dá fama à península: enseadas recortadas, praias de cores diferentes e ilhas espalhadas pelo mar. Um passeio marcante para comemorar uma data especial.\n\nO voo é panorâmico e operado por empresa homologada. O embarque depende de condições meteorológicas favoráveis.',
       en: 'From above, Búzios reveals the shape that made it famous: jagged coves, beaches of different colours and islands scattered across the sea. A memorable way to celebrate a special date.\n\nThe flight is panoramic and operated by a certified company. Boarding depends on favourable weather.',
-      es: 'Desde arriba, Búzios muestra el dibujo que la hizo famosa: bahías recortadas, playas de distintos colores e islas repartidas por el mar. El paseo ideal para celebrar una fecha especial.\n\nEl vuelo es panorámico y operado por una empresa habilitada. El embarque depende de condiciones meteorológicas favorables.',
+      es: 'Desde arriba, Búzios muestra el dibujo que la hizo famosa: bahías recortadas, playas de distintos colores e islas repartidas por el mar. Un paseo memorable para celebrar una fecha especial.\n\nEl vuelo es panorámico y operado por una empresa habilitada. El embarque depende de condiciones meteorológicas favorables.',
     },
     inclui: {
       pt: ['Voo panorâmico de helicóptero', 'Piloto habilitado', 'Orientação de segurança antes do voo'],

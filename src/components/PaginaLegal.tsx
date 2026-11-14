@@ -1,5 +1,4 @@
 import type { DocumentoLegal } from '@/content/legal/tipos';
-import { ATUALIZADO_EM } from '@/content/legal/tipos';
 import { EMPRESA } from '@/config/empresa';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import type { Dicionario } from '@/i18n';
@@ -27,7 +26,7 @@ function ancora(titulo: string) {
  */
 export function PaginaLegal({
   doc,
-  atualizadoEm = ATUALIZADO_EM,
+  atualizadoEm,
   idioma,
   d,
   caminho,
@@ -37,8 +36,11 @@ export function PaginaLegal({
   extra,
 }: {
   doc: DocumentoLegal;
-  /** A data da revisão da versão que a página mostra (AAAA-MM-DD): a de hoje ou a do pagamento online. */
-  atualizadoEm?: string;
+  /**
+   * A data da última revisão deste texto (AAAA-MM-DD), na versão que a página mostra: cada texto tem a sua
+   * (textosLegais(...).atualizadoEm, src/content/legal/online.ts).
+   */
+  atualizadoEm: string;
   idioma: Idioma;
   d: Dicionario;
   /** o endereço da página, em português */

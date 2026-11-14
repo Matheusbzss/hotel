@@ -69,7 +69,12 @@ export function PaginaLegal({
   return (
     <main id="conteudo" className="tom-fundo">
       <header className="moldura chegar grid gap-6 pb-16 pt-10 md:pb-24 md:pt-16 lg:grid-cols-12 lg:gap-x-8">
-        <h1 className="display text-[clamp(3rem,9vw,8.5rem)] leading-[0.92] lg:col-span-12">{titulo}</h1>
+        {/* o piso do título (3rem) cresce com a letra do celular; o min() o segura para a palavra mais longa caber na
+            linha: "Cancelamento" mede 5em nesta letra, e o 5.5 deixa folga. Com a letra normal, de 320 px para cima,
+            o min() dá mais de 3rem e nada muda; com a letra a 150% em 320 px, o título não empurra a página para o lado */}
+        <h1 className="display text-[length:clamp(min(3rem,calc((100vw_-_2*var(--margem))/5.5)),9vw,8.5rem)] leading-[0.92] lg:col-span-12">
+          {titulo}
+        </h1>
         <p className="max-w-[56ch] text-lead md:mt-2 lg:col-span-7">{doc.resumo}</p>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8 lg:col-span-4 lg:col-start-9 lg:flex-col lg:items-start lg:gap-4 lg:self-end">
           <a href={linkEmail(acao.assunto, acao.msg || undefined)} className="botao w-full sm:w-auto" data-evento="Contact">
@@ -103,7 +108,7 @@ export function PaginaLegal({
             {indice}
           </div>
         </nav>
-        <article className="max-w-[68ch] break-words lg:col-span-6 lg:col-start-7 lg:max-w-none">
+        <article className="min-w-0 max-w-[68ch] break-words lg:col-span-6 lg:col-start-7 lg:max-w-none">
           {/* scroll-mt-24 (96 px): o cabeçalho flutuante vai até uns 64 px no celular e 72 px no computador; o título da
               seção aberta pelo índice fica logo abaixo dele, com folga, e não escondido atrás (a mesma folga do #reservar) */}
           {doc.secoes.map((s) => (

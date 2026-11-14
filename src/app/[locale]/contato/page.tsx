@@ -96,7 +96,10 @@ export default async function Contato({ params }: PageProps<'/[locale]/contato'>
         <h2 id="contato-lugares" className="titulo entrar max-w-[18ch]">
           {c.lugares}
         </h2>
-        <ul className="entrar mt-10 grid gap-2 sm:grid-cols-3">
+        {/* grid-cols-1: no celular, a coluna nunca passa da tela. As fotos (.adiar) fora da tela guardam a largura da
+            última vez que foram desenhadas; ao estreitar a tela (girar o celular), com a letra grande, essa largura
+            alargava a coluna e a página rolava de lado */}
+        <ul className="entrar mt-10 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {LUGARES.map((l) => (
             <li key={l.src}>
               <figure>

@@ -11,7 +11,7 @@ import { OpinioesPasseio } from '@/components/passeio/OpinioesPasseio';
 import { TopoPasseio } from '@/components/passeio/TopoPasseio';
 import { WidgetReserva } from '@/components/WidgetReserva';
 import { EMPRESA } from '@/config/empresa';
-import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos } from '@/data/passeios';
+import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos, temTaxaNoLocal } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { texto, textoOpcional } from '@/i18n/conteudo';
@@ -272,6 +272,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   diminuir: d.comum.diminuir,
                   aumentar: d.comum.aumentar,
                   semCobranca: d.carrinho.semCobranca,
+                  // só nos passeios com as taxas no "Não inclui" (o helicóptero e o city tour do Rio não têm)
+                  taxasNoLocal: temTaxaNoLocal(p) ? d.carrinho.taxasNoLocal : '',
                   semHorarioHoje: d.checkout.erros.semHorarioHoje,
                   noPix: d.preco.noPix,
                   noCartao: d.preco.noCartao,

@@ -40,6 +40,11 @@ export interface TextosWidget {
   aumentar: string;
   /** "Ainda não cobramos nada: você confere tudo antes de pagar.", logo abaixo dos botões. */
   semCobranca: string;
+  /**
+   * "Não inclui taxas municipais ou de embarque, pagas no local quando cobradas.", logo depois do semCobranca. Vazio no
+   * passeio sem taxa paga no local (temTaxaNoLocal, src/data/passeios.ts): a linha não aparece.
+   */
+  taxasNoLocal: string;
   semHorarioHoje: string;
   noPix: string;
   noCartao: string;
@@ -404,6 +409,8 @@ export function WidgetReserva({
           </button>
           {/* nenhum dos botões cobra na hora: a frase tira a dúvida ali mesmo */}
           <p className="text-small text-(--color-tinta-suave)">{T.semCobranca}</p>
+          {/* o total não inclui as taxas pagas no local (embarque ou prefeitura): dito perto dele, antes da compra */}
+          {T.taxasNoLocal && <p className="text-small text-(--color-tinta-suave)">{T.taxasNoLocal}</p>}
         </div>
         {garantias && <div className="mt-5">{garantias}</div>}
       </div>

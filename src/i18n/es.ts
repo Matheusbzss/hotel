@@ -145,6 +145,8 @@ const es: Dicionario = {
     reservarAgora: 'Reservar',
     // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
     semCobranca: 'Todavía no te cobramos nada: revisas todo antes de pagar.',
+    // impessoal ("que se pagan"): sem verbo em tú, o es-ar lê esta mesma frase
+    taxasNoLocal: 'No incluye tasas municipales o de embarque, que se pagan en el lugar cuando se cobran.',
     horario: 'Horario',
     escolhaHorario: 'Elige el horario',
     umPagamento: 'Un solo pago y un voucher para cada ítem.',
@@ -425,7 +427,7 @@ const es: Dicionario = {
     },
     {
       p: '¿Es seguro pagar en el sitio?',
-      r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
+      r: 'Por ahora el pago no se hace en el sitio: registras la reserva aquí, con conexión cifrada, y pagas con Pix o tarjeta con nuestro equipo por WhatsApp. El sitio no recibe los datos de tu tarjeta.',
       rOnline:
         'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
     },
@@ -598,6 +600,8 @@ const es: Dicionario = {
     aceiteTermos: 'Términos de Uso',
     aceiteMeio: 'y la',
     aceitePolitica: 'Política de Cancelación y Reembolso',
+    // sem verbo em tú ("Tus datos se tratan"): o es-ar lê esta mesma frase
+    privacidadeAviso: 'Tus datos se tratan según nuestra {politica}.',
     pagamento: 'Pago',
     pix: 'Pix',
     // "Tarjeta", sem "de crédito": o débito também é aceito (a linha de baixo, cartaoAvista, explica)
@@ -849,7 +853,7 @@ const es: Dicionario = {
     politicas: ['Cancelación', 'Términos', 'Privacidad'],
   },
   cookies: {
-    texto: 'Usamos cookies para medir nuestros anuncios y mejorar el sitio.',
+    texto: 'Con tu aceptación, usamos cookies de Google y Meta para medir y personalizar nuestros anuncios.',
     aceitar: 'Aceptar',
     recusar: 'Rechazar',
     gerenciar: 'Cambiar mi elección sobre cookies',

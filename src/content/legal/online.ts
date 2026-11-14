@@ -28,13 +28,17 @@ import { ATUALIZADO_EM, type DocumentoLegal } from './tipos.ts';
 const E = EMPRESA;
 const P = DESCONTO_PIX_PORCENTO;
 
-/** A data da versão do pagamento online, que a página mostra em "Atualizado em": troque para o dia de ligar. */
-export const ATUALIZADO_EM_ONLINE = '2026-11-13';
+/**
+ * A data da versão do pagamento online, que a página mostra em "Atualizado em": troque para o dia de ligar. Nunca antes
+ * de ATUALIZADO_EM (src/content/legal/tipos.ts): esta versão traz também o que o texto de hoje mudou (em 2026-11-14, os
+ * anúncios do Google e da Meta no item 5 da privacidade).
+ */
+export const ATUALIZADO_EM_ONLINE = '2026-11-14';
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
- * carrinho): troque para o dia em que a RESEND_API_KEY entrar na Vercel.
+ * carrinho): troque para o dia em que a RESEND_API_KEY entrar na Vercel. Também nunca antes de ATUALIZADO_EM.
  */
-export const ATUALIZADO_EM_EMAILS = '2026-11-13';
+export const ATUALIZADO_EM_EMAILS = '2026-11-14';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */
@@ -324,6 +328,17 @@ const NOVOS_PARES_CANCELAMENTO: readonly ParAR[] = [
 /* antifraude do formulário), só com o pagamento online               */
 
 /**
+ * O parágrafo dos anúncios do Google e da Meta no item 5 da privacidade de hoje (cookies), logo depois do dos cookies do
+ * site. As frases novas do item 5 (os cookies do formulário da Stripe e o do link para sair da lista) entram depois
+ * dele: o que fala dos anúncios fica junto, e o "pode mudar sua escolha" continua no fim do item.
+ */
+const ANUNCIOS_NO_ITEM_5: Record<IdiomaConteudo, string> = {
+  pt: `Com o seu aceite, o Google e a Meta (Facebook e Instagram) também podem usar cookies e identificadores do aparelho para mostrar anúncios da ${E.marca} em outros sites e aplicativos, com base na sua visita a este site. Para desativar os anúncios personalizados, use as Configurações de anúncios do Google (adssettings.google.com), as preferências de anúncios da Meta (facebook.com/adpreferences) ou as páginas aboutads.info/choices e youronlinechoices.eu.`,
+  en: `With your consent, Google and Meta (Facebook and Instagram) may also use cookies and device identifiers to show ${E.marca} ads on other websites and apps based on your visit to this website. To turn off personalised ads, use Google Ads Settings (adssettings.google.com), Meta’s ad preferences (facebook.com/adpreferences) or the pages aboutads.info/choices and youronlinechoices.eu.`,
+  es: `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
+};
+
+/**
  * O que a privacidade ganha quando os e-mails automáticos estão ligados (RESEND_API_KEY no build): os e-mails do pedido,
  * o Resend, o lembrete do carrinho com o link para sair da lista e o prazo do e-mail no carrinho que não virou pedido
  * (90 dias, apagarEmailsVencidos em src/lib/carrinho-lembretes.ts). Entra na versão de hoje, com os e-mails ligados, e
@@ -353,7 +368,7 @@ const MUDANCAS_PRIVACIDADE_EMAILS: Record<IdiomaConteudo, MudancasDoDocumento> =
         ],
       ],
       [
-        'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+        ANUNCIOS_NO_ITEM_5.pt,
         ['Quem abre o link para sair da lista dos lembretes recebe um cookie que dura um dia, só para confirmar a saída.'],
       ],
     ],
@@ -381,7 +396,7 @@ const MUDANCAS_PRIVACIDADE_EMAILS: Record<IdiomaConteudo, MudancasDoDocumento> =
         ],
       ],
       [
-        'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+        ANUNCIOS_NO_ITEM_5.en,
         ['If you open the link to leave the reminder list, a cookie that lasts one day is set, only to confirm that you want to leave.'],
       ],
     ],
@@ -409,7 +424,7 @@ const MUDANCAS_PRIVACIDADE_EMAILS: Record<IdiomaConteudo, MudancasDoDocumento> =
         ],
       ],
       [
-        'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+        ANUNCIOS_NO_ITEM_5.es,
         ['Quien abre el enlace para salir de la lista de recordatorios recibe una cookie que dura un día, solo para confirmar la salida.'],
       ],
     ],
@@ -435,7 +450,7 @@ const MUDANCAS_PRIVACIDADE_PAGAMENTO: Record<IdiomaConteudo, MudancasDoDocumento
     ],
     depois: [
       [
-        'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+        ANUNCIOS_NO_ITEM_5.pt,
         [
           'Na página de pagamento, o formulário da Stripe, que fica dentro do nosso site, usa cookies e informações do aparelho e da navegação para o pagamento funcionar e para prevenir fraudes. Esses dados vão para a Stripe, que os usa conforme a política de privacidade dela (stripe.com/privacy). Eles não dependem do aviso de cookies, porque são necessários para pagar.',
         ],
@@ -459,7 +474,7 @@ const MUDANCAS_PRIVACIDADE_PAGAMENTO: Record<IdiomaConteudo, MudancasDoDocumento
     ],
     depois: [
       [
-        'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+        ANUNCIOS_NO_ITEM_5.en,
         [
           'On the payment page, Stripe’s form, which sits inside our website, uses cookies and information about your device and browsing to make the payment work and to prevent fraud. This data goes to Stripe, which uses it under its own privacy policy (stripe.com/privacy). It does not depend on the cookie notice, because it is needed to pay.',
         ],
@@ -483,7 +498,7 @@ const MUDANCAS_PRIVACIDADE_PAGAMENTO: Record<IdiomaConteudo, MudancasDoDocumento
     ],
     depois: [
       [
-        'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+        ANUNCIOS_NO_ITEM_5.es,
         [
           'En la página de pago, el formulario de Stripe, que está dentro de nuestro sitio, usa cookies y datos del dispositivo y de la navegación para que el pago funcione y para prevenir fraudes. Esos datos van a Stripe, que los usa según su propia política de privacidad (stripe.com/privacy). No dependen del aviso de cookies, porque son necesarios para pagar.',
         ],

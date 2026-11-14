@@ -149,6 +149,12 @@ export function origemDaNota(avaliacoes: Avaliacao[]): Origem | undefined {
 }
 
 /**
+ * Os sites que dão nota, como aparecem em "5 opiniões do Tripadvisor" (opinioes.naOrigem): na seção de opiniões da
+ * página inicial e no cartão de opiniões dos passeios. Origem sem nome aqui (Instagram, WhatsApp...) não aparece.
+ */
+export const NOME_DA_ORIGEM: Partial<Record<Origem, string>> = { google: 'Google', tripadvisor: 'Tripadvisor' };
+
+/**
  * As opiniões do cartão do passeio: só as da agência, com as que citam o passeio (produtoSlug) primeiro,
  * depois as do idioma da página ('es-ar' conta como 'es'), das mais novas para as mais antigas.
  * Nota menor nunca some: a ordem não olha a nota.

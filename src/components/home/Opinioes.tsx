@@ -4,7 +4,7 @@ import { obterPasseio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import { idiomaDeConteudo, texto } from '@/i18n/conteudo';
-import { fotoDoCartao, iniciais, type Avaliacao, type Origem } from '@/lib/avaliacao';
+import { NOME_DA_ORIGEM, fotoDoCartao, iniciais, type Avaliacao, type Origem } from '@/lib/avaliacao';
 import { PONTO_PRESO } from '@/lib/ponto';
 import { FaixaFoto, TITULO_NA_FOTO } from './BlocosHome';
 import { TextoOpiniao } from './TextoOpiniao';
@@ -16,9 +16,6 @@ const FOTO = '/fotos/lancha/lancha-entardecer.jpg';
  * Com "100vw", o navegador baixava a versão de 1200 px; assim ele baixa a original (o servidor nunca amplia).
  */
 const TAMANHO_FOTO = '(max-width: 767px) 340vw, 100vw';
-
-/** Os sites que dão nota (src/lib/avaliacao.ts), como aparecem em "5 opiniões do Tripadvisor". */
-const NOME_DA_ORIGEM: Partial<Record<Origem, string>> = { google: 'Google', tripadvisor: 'Tripadvisor' };
 
 const ESTRELA = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z';
 

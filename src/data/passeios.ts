@@ -209,12 +209,14 @@ const LEVAR_OFFROAD: Lista = {
   ],
 };
 
+/**
+ * As taxas pagas no local, no "Não inclui". O passeio que tem este item mostra também a linha das taxas perto do total,
+ * no cartão de reserva e no checkout (temTaxaNoLocal).
+ */
+const TAXAS_NO_LOCAL = 'Taxas municipais ou de embarque, quando cobradas no local';
+
 const NAO_INCLUI_BASE: Lista = {
-  pt: [
-    'Alimentação e bebidas',
-    'Taxas municipais ou de embarque, quando cobradas no local',
-    'Fotos e vídeos profissionais oferecidos no passeio',
-  ],
+  pt: ['Alimentação e bebidas', TAXAS_NO_LOCAL, 'Fotos e vídeos profissionais oferecidos no passeio'],
   en: ['Food and drinks', 'Municipal or boarding fees, when charged on site', 'Professional photos and videos offered during the tour'],
   es: [
     'Comidas y bebidas',
@@ -267,9 +269,9 @@ export const PASSEIOS: Passeio[] = [
       es: 'El clásico de Búzios: playas e islas vistas desde el mar, con paradas para nadar en aguas claras.',
     },
     descricao: {
-      pt: 'A escuna sai do centro de Búzios e contorna a península com calma, passando por enseadas, ilhas e praias que muita gente só conhece do mar. É o jeito mais fácil de ter uma visão geral do destino logo no primeiro dia.\n\nAo longo do trajeto a tripulação faz paradas para banho e mergulho livre em praias de água transparente. As paradas variam conforme o vento e o mar do dia, sempre priorizando os pontos mais calmos.',
-      en: 'The schooner leaves from downtown Búzios and calmly rounds the peninsula, passing coves, islands and beaches that many people only ever see from the water. It is the easiest way to get to know the destination on your first day.\n\nAlong the way the crew stops for swimming and snorkelling at beaches with crystal-clear water. Stops change with the day’s wind and sea, always choosing the calmest spots.',
-      es: 'La goleta sale del centro de Búzios y recorre la península con calma, pasando por bahías, islas y playas que mucha gente solo conoce desde el mar. Es la forma más fácil de conocer el destino el primer día.\n\nDurante el recorrido la tripulación hace paradas para nadar y hacer snorkel en playas de agua transparente. Las paradas cambian según el viento y el mar del día, siempre eligiendo los lugares más tranquilos.',
+      pt: 'A escuna sai do centro de Búzios e contorna a península com calma, passando por enseadas, ilhas e praias que muita gente só conhece do mar. É um bom jeito de ter uma visão geral do destino logo no primeiro dia.\n\nAo longo do trajeto a tripulação faz paradas para banho e mergulho livre em praias de água transparente. As paradas variam conforme o vento e o mar do dia, sempre priorizando os pontos mais calmos.',
+      en: 'The schooner leaves from downtown Búzios and calmly rounds the peninsula, passing coves, islands and beaches that many people only ever see from the water. It is a good way to get to know the destination on your first day.\n\nAlong the way the crew stops for swimming and snorkelling at beaches with crystal-clear water. Stops change with the day’s wind and sea, always choosing the calmest spots.',
+      es: 'La goleta sale del centro de Búzios y recorre la península con calma, pasando por bahías, islas y playas que mucha gente solo conoce desde el mar. Es una buena forma de conocer el destino el primer día.\n\nDurante el recorrido la tripulación hace paradas para nadar y hacer snorkel en playas de agua transparente. Las paradas cambian según el viento y el mar del día, siempre eligiendo los lugares más tranquilos.',
     },
     inclui: {
       pt: ['Passeio de escuna com tripulação', 'Paradas para banho e mergulho livre', 'Coletes salva-vidas'],
@@ -606,11 +608,11 @@ export const PASSEIOS: Passeio[] = [
       es: 'Desde Cabo Frio o Arraial: paseo en goleta, miradores de Búzios y tiempo libre en la Rua das Pedras.',
     },
     descricao: {
-      pt: 'O jeito mais completo de conhecer Búzios em um dia, para quem está hospedado em Cabo Frio ou Arraial do Cabo. A van busca você no hotel, faz o city tour pelos mirantes e praias mais bonitas da península e leva até o píer para o passeio de escuna, com paradas para banho em águas calmas.\n\nNo fim sobra tempo livre para almoçar e caminhar pela Rua das Pedras e pela Orla Bardot antes do retorno. Se o mar não permitir a navegação no dia, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
-      en: 'The most complete way to see Búzios in one day, for travellers staying in Cabo Frio or Arraial do Cabo. The van picks you up at your hotel, tours the peninsula’s best viewpoints and beaches and takes you to the pier for the schooner trip, with swim stops in calm water.\n\nAt the end there is free time for lunch and a stroll along Rua das Pedras and Orla Bardot before heading back. If the sea does not allow sailing that day, you choose between a new date or a refund, as our cancellation policy provides.',
-      es: 'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, eliges entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+      pt: 'Búzios por terra e pelo mar em um dia, para quem está hospedado em Cabo Frio ou Arraial do Cabo. A van busca você no hotel, faz o city tour pelos mirantes e praias mais bonitas da península e leva até o píer para o passeio de escuna, com paradas para banho em águas calmas.\n\nNo fim sobra tempo livre para almoçar e caminhar pela Rua das Pedras e pela Orla Bardot antes do retorno. Se o mar não permitir a navegação no dia, você escolhe entre remarcar ou receber o reembolso, como prevê a nossa política de cancelamento.',
+      en: 'Búzios by land and by sea in one day, for travellers staying in Cabo Frio or Arraial do Cabo. The van picks you up at your hotel, tours the peninsula’s best viewpoints and beaches and takes you to the pier for the schooner trip, with swim stops in calm water.\n\nAt the end there is free time for lunch and a stroll along Rua das Pedras and Orla Bardot before heading back. If the sea does not allow sailing that day, you choose between a new date or a refund, as our cancellation policy provides.',
+      es: 'Búzios por tierra y por mar en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, eliges entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
       'es-ar':
-        'La forma más completa de conocer Búzios en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
+        'Búzios por tierra y por mar en un día, para quienes se alojan en Cabo Frio o Arraial do Cabo. La van te busca en el hotel, hace el city tour por los miradores y playas más lindos de la península y te lleva al muelle para el paseo en goleta, con paradas para nadar en aguas calmas.\n\nAl final queda tiempo libre para almorzar y caminar por la Rua das Pedras y la Orla Bardot antes de volver. Si el mar no permite navegar ese día, elegís entre una nueva fecha o el reembolso, como prevé nuestra política de cancelación.',
     },
     inclui: {
       pt: [
@@ -764,11 +766,11 @@ export const PASSEIOS: Passeio[] = [
       'es-ar': 'La lancha solo para tu grupo, con marinero, para hasta 6 personas. Elegí 2 o 4 horas.',
     },
     descricao: {
-      pt: 'Na lancha privativa o roteiro é do seu grupo: você combina com o marinheiro as praias e ilhas que quer conhecer e quanto tempo fica em cada parada, conforme o mar do dia. É o jeito mais confortável e rápido de ver Búzios pelo mar, ideal para casais, famílias e amigos.\n\nO preço é pela lancha, para até 6 pessoas contando as crianças. Com 4 horas dá para incluir mais praias e fazer paradas mais longas para banho.',
-      en: 'On a private speedboat the route belongs to your group: you agree with the skipper which beaches and islands to visit and how long to stay at each stop, depending on the day’s sea. It is the most comfortable and fastest way to see Búzios from the water, ideal for couples, families and friends.\n\nThe price is per boat, for up to 6 people including children. With 4 hours you can add more beaches and enjoy longer swim stops.',
-      es: 'En la lancha privada el recorrido es de tu grupo: acuerdas con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
+      pt: 'Na lancha privativa o roteiro é do seu grupo: você combina com o marinheiro as praias e ilhas que quer conhecer e quanto tempo fica em cada parada, conforme o mar do dia. É um jeito confortável e rápido de ver Búzios pelo mar, ideal para casais, famílias e amigos.\n\nO preço é pela lancha, para até 6 pessoas contando as crianças. Com 4 horas dá para incluir mais praias e fazer paradas mais longas para banho.',
+      en: 'On a private speedboat the route belongs to your group: you agree with the skipper which beaches and islands to visit and how long to stay at each stop, depending on the day’s sea. It is a comfortable and fast way to see Búzios from the water, ideal for couples, families and friends.\n\nThe price is per boat, for up to 6 people including children. With 4 hours you can add more beaches and enjoy longer swim stops.',
+      es: 'En la lancha privada el recorrido es de tu grupo: acuerdas con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es una forma cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
       'es-ar':
-        'En la lancha privada el recorrido es de tu grupo: acordás con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es la forma más cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
+        'En la lancha privada el recorrido es de tu grupo: acordás con el marinero qué playas e islas conocer y cuánto tiempo quedarse en cada parada, según el mar del día. Es una forma cómoda y rápida de ver Búzios desde el mar, ideal para parejas, familias y amigos.\n\nEl precio es por lancha, para hasta 6 personas contando a los niños. Con 4 horas se pueden sumar más playas y hacer paradas más largas para nadar.',
     },
     inclui: {
       pt: [
@@ -892,8 +894,8 @@ export const PASSEIOS: Passeio[] = [
       es: 'Toda la península vista desde arriba, con sus decenas de playas e islas.',
     },
     descricao: {
-      pt: 'Do alto, Búzios mostra o desenho que dá fama à península: enseadas recortadas, praias de cores diferentes e ilhas espalhadas pelo mar. É o passeio mais marcante para comemorar uma data especial.\n\nO voo é panorâmico e operado por empresa homologada. O embarque depende de condições meteorológicas favoráveis.',
-      en: 'From above, Búzios reveals the shape that made it famous: jagged coves, beaches of different colours and islands scattered across the sea. The most memorable way to celebrate a special date.\n\nThe flight is panoramic and operated by a certified company. Boarding depends on favourable weather.',
+      pt: 'Do alto, Búzios mostra o desenho que dá fama à península: enseadas recortadas, praias de cores diferentes e ilhas espalhadas pelo mar. Um passeio marcante para comemorar uma data especial.\n\nO voo é panorâmico e operado por empresa homologada. O embarque depende de condições meteorológicas favoráveis.',
+      en: 'From above, Búzios reveals the shape that made it famous: jagged coves, beaches of different colours and islands scattered across the sea. A memorable way to celebrate a special date.\n\nThe flight is panoramic and operated by a certified company. Boarding depends on favourable weather.',
       es: 'Desde arriba, Búzios muestra el dibujo que la hizo famosa: bahías recortadas, playas de distintos colores e islas repartidas por el mar. El paseo ideal para celebrar una fecha especial.\n\nEl vuelo es panorámico y operado por una empresa habilitada. El embarque depende de condiciones meteorológicas favorables.',
     },
     inclui: {
@@ -952,9 +954,9 @@ export const PASSEIOS: Passeio[] = [
       es: 'El mar más azul de Río: Prainhas do Pontal do Atalaia, playa do Farol y la Gruta Azul.',
     },
     descricao: {
-      pt: 'Arraial do Cabo é conhecido como o Caribe brasileiro, e o passeio de barco é a melhor forma de ver por quê. Saindo da Praia dos Anjos, o barco segue para os pontos mais famosos, de água azul-turquesa e areia branquinha.\n\nHá paradas para banho em praias que só se alcançam pelo mar, como a Praia do Farol, onde o tempo de permanência é controlado para preservar a ilha. Alguns barcos têm tobogã e música a bordo; o modelo da embarcação depende da disponibilidade do dia.',
-      en: 'Arraial do Cabo is known as the Brazilian Caribbean, and the boat tour is the best way to see why. Leaving from Praia dos Anjos, the boat heads to the most famous spots, with turquoise water and white sand.\n\nThere are swim stops at beaches reachable only by sea, such as Farol beach, where time on land is limited to protect the island. Some boats have a water slide and music on board; the boat model depends on the day’s availability.',
-      es: 'Arraial do Cabo es conocido como el Caribe brasileño, y el paseo en barco es la mejor forma de ver por qué. Saliendo de la Praia dos Anjos, el barco va a los puntos más famosos, de agua turquesa y arena blanca.\n\nHay paradas para nadar en playas a las que solo se llega por mar, como la playa do Farol, donde el tiempo de permanencia es controlado para preservar la isla. Algunos barcos tienen tobogán y música a bordo; el modelo de embarcación depende de la disponibilidad del día.',
+      pt: 'Arraial do Cabo é conhecido como o Caribe brasileiro, e o passeio de barco mostra por quê. Saindo da Praia dos Anjos, o barco segue para os pontos mais famosos, de água azul-turquesa e areia branquinha.\n\nHá paradas para banho em praias que só se alcançam pelo mar, como a Praia do Farol, onde o tempo de permanência é controlado para preservar a ilha. Alguns barcos têm tobogã e música a bordo; o modelo da embarcação depende da disponibilidade do dia.',
+      en: 'Arraial do Cabo is known as the Brazilian Caribbean, and the boat tour shows you why. Leaving from Praia dos Anjos, the boat heads to the most famous spots, with turquoise water and white sand.\n\nThere are swim stops at beaches reachable only by sea, such as Farol beach, where time on land is limited to protect the island. Some boats have a water slide and music on board; the boat model depends on the day’s availability.',
+      es: 'Arraial do Cabo es conocido como el Caribe brasileño, y el paseo en barco muestra por qué. Saliendo de la Praia dos Anjos, el barco va a los puntos más famosos, de agua turquesa y arena blanca.\n\nHay paradas para nadar en playas a las que solo se llega por mar, como la playa do Farol, donde el tiempo de permanencia es controlado para preservar la isla. Algunos barcos tienen tobogán y música a bordo; el modelo de embarcación depende de la disponibilidad del día.',
     },
     inclui: {
       pt: ['Passeio de barco com tripulação', 'Paradas para banho', 'Coletes salva-vidas'],
@@ -2200,4 +2202,13 @@ export function obterPasseio(slug: string): Passeio | undefined {
 
 export function horariosDoPasseio(p: Passeio): Horarios {
   return p.horarios ?? HORARIOS_POR_CATEGORIA[p.categoria];
+}
+
+/**
+ * O passeio tem taxa paga no local (de embarque ou da prefeitura): o "Não inclui" dele traz TAXAS_NO_LOCAL. Liga a linha
+ * das taxas perto do total (carrinho.taxasNoLocal), no cartão de reserva e no checkout. O helicóptero e o city tour do
+ * Rio não têm o item; o transfer já inclui pedágio e estacionamento.
+ */
+export function temTaxaNoLocal(p: Passeio): boolean {
+  return p.naoInclui.pt.includes(TAXAS_NO_LOCAL);
 }

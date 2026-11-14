@@ -112,15 +112,16 @@ test('o es-ar tem a mesma forma do es (mesmas seções, listas do mesmo tamanho)
 /**
  * Quantos pares argentinos cada documento tem hoje: a trava contra um par sumir em silêncio. Nas versões online: os
  * termos trocam o par do foro pelo da frase nova (escribinos); o cancelamento troca o do resumen da tarjeta pelo da
- * frase nova; a privacidade perde o do lembrete do carrinho (a frase nova não tem verbo em vos).
+ * frase nova; a privacidade perde o do lembrete do carrinho (a frase nova não tem verbo em vos). Em 14/11, a privacidade
+ * ganhou o par do parágrafo dos anúncios do Google e da Meta, no item 5 ("usá la Configuración"), nas duas versões.
  */
 const PARES_ESPERADOS: Record<string, number> = {
   termos: 12,
   cancelamento: 12,
-  privacidade: 13,
+  privacidade: 14,
   'termos-online': 12,
   'cancelamento-online': 12,
-  'privacidade-online': 12,
+  'privacidade-online': 13,
 };
 
 test('só as frases dos pares mudam entre es e es-ar, e cada par é usado uma vez', () => {
@@ -185,6 +186,8 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
     'Podés cambiar tu elección',
     'podés pedir en cualquier',
     'escribí a',
+    // o parágrafo dos anúncios do Google e da Meta (item 5), da revisão para os anúncios
+    'usá la Configuración de anuncios de Google',
   ]) {
     assert.ok(privacidade.includes(trecho), trecho);
   }
@@ -242,6 +245,7 @@ test('o espanhol neutro (es) diz o mesmo com tú: ti, contigo, eres, cuatrimoto,
     'Puedes cambiar tu elección',
     'puedes pedir en cualquier',
     'escribe a',
+    'usa la Configuración de anuncios de Google',
   ]) {
     assert.ok(privacidade.includes(trecho), trecho);
   }

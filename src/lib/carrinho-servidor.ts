@@ -3,7 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { horariosDoPasseio, obterPasseio, type Passeio } from '@/data/passeios';
+import { horariosDoPasseio, obterPasseio, temTaxaNoLocal, type Passeio } from '@/data/passeios';
 import { MAXIMO_SUGESTOES, sugestoesDoCarrinho } from '@/data/sugestoes';
 import { IDS_LUGARES, LUGARES, VEICULOS, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
@@ -207,6 +207,7 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
       totalCentavos: c.totalCentavos,
       totalPixCentavos: c.totalPixCentavos,
       escolha: c.escolha,
+      ...(temTaxaNoLocal(p) ? { taxaNoLocal: true as const } : {}),
     };
   }
   const t = c.escolha as EscolhaTransfer;

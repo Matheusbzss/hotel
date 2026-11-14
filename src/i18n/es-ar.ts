@@ -190,7 +190,8 @@ export const ajustesAR: AjustesAR = {
     },
     {
       p: '¿Es seguro pagar en el sitio?',
-      r: 'Sí. El sitio usa conexión cifrada y no guarda los datos de tu tarjeta.',
+      // a resposta de hoje (o pagamento com a equipe pelo WhatsApp) tem verbo em vos; a do pagamento online, não
+      r: 'Por ahora el pago no se hace en el sitio: registrás la reserva acá, con conexión cifrada, y pagás con Pix o tarjeta con nuestro equipo por WhatsApp. El sitio no recibe los datos de tu tarjeta.',
       rOnline:
         'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
     },

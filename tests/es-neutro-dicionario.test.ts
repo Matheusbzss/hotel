@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    134,
-    `${diferentes} frases diferem entre es e es-ar; esperava 134 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, e as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta"). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    135,
+    `${diferentes} frases diferem entre es e es-ar; esperava 135 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás"). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 

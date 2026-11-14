@@ -140,6 +140,8 @@ const en: Dicionario = {
     reservarAgora: 'Book',
     // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
     semCobranca: "You won't be charged yet: you'll review everything before paying.",
+    // só com passeio que tem as taxas no "Não inclui" (o transfer já inclui pedágio e estacionamento)
+    taxasNoLocal: 'Municipal or boarding fees are not included and are paid on site when charged.',
     horario: 'Time',
     escolhaHorario: 'Choose a time',
     umPagamento: 'One payment and one voucher for each item.',
@@ -417,7 +419,7 @@ const en: Dicionario = {
     },
     {
       p: 'Is it safe to pay on the website?',
-      r: 'Yes. The website uses an encrypted connection and does not store your card details.',
+      r: 'For now, payment is not taken on the website: you register the booking here, over an encrypted connection, and pay by Pix or card with our team on WhatsApp. The website never receives your card details.',
       rOnline:
         'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
     },
@@ -589,6 +591,7 @@ const en: Dicionario = {
     aceiteTermos: 'Terms of Use',
     aceiteMeio: 'and the',
     aceitePolitica: 'Cancellation and Refund Policy',
+    privacidadeAviso: 'Your details are handled as described in our {politica}.',
     pagamento: 'Payment',
     pix: 'Pix',
     // "Card", sem "credit": o débito também é aceito (a linha de baixo, cartaoAvista, explica)
@@ -840,7 +843,7 @@ const en: Dicionario = {
     politicas: ['Cancellation', 'Terms', 'Privacy'],
   },
   cookies: {
-    texto: 'We use cookies to measure our ads and improve the website.',
+    texto: 'With your consent, we use Google and Meta cookies to measure and personalise our ads.',
     aceitar: 'Accept',
     recusar: 'Decline',
     gerenciar: 'Change my cookie choice',

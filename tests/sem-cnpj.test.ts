@@ -101,22 +101,23 @@ test('termos e política de privacidade trazem razão social, CNPJ e endereço e
       .slice(1);
     assert.ok(idiomas.length >= 3, arquivo);
     for (const texto of idiomas) {
-      for (const campo of ['${E.razaoSocial}', '${E.cnpj}', '${enderecoCompleto}']) assert.ok(texto.includes(campo), `${arquivo}: ${campo}`);
+      for (const campo of ['${E.razaoSocial}', '${E.cnpj}', '${enderecoCompleto}'])
+        assert.ok(texto.includes(campo), `${arquivo}: ${campo}`);
     }
   }
 });
 
-test('os ícones do rodapé são só enfeite: sem link, sem número, sem botão', () => {
+test('o rodapé não tem ícone de enfeite nem o WhatsApp da equipe', () => {
   const rodape = readFileSync(RODAPE, 'utf8');
   assert.ok(!/wa\.me|linkWhatsApp|EMPRESA\.whatsapp|telefoneExibicao|instagram\.com/i.test(rodape));
-  const enfeite = rodape.match(/<div aria-hidden="true"[\s\S]*?<\/div>/)?.[0] ?? '';
-  assert.match(enfeite, /IconeInstagram/);
-  assert.match(enfeite, /IconeWhatsApp/);
-  assert.ok(!/<a\b|<Link|<button|href=|onClick|tabIndex|role=/.test(enfeite), enfeite);
+  // revisão para os anúncios (14/11): os ícones do Instagram e do WhatsApp sem link pareciam link quebrado. O do
+  // Instagram volta como link de verdade quando o endereço oficial entrar em EMPRESA.perfis
+  assert.doesNotMatch(rodape, /IconeInstagram|IconeWhatsApp/);
 });
 
 test('o teste reconhece o número com e sem pontuação, e não confunde com outros números', () => {
-  for (const exemplo of ['11.222.333/0001-81', '11222333/0001-81', '"11222333000181"']) assert.deepEqual(numeros(`x ${exemplo} x`), ['11222333000181'], exemplo);
+  for (const exemplo of ['11.222.333/0001-81', '11222333/0001-81', '"11222333000181"'])
+    assert.deepEqual(numeros(`x ${exemplo} x`), ['11222333000181'], exemplo);
   for (const outro of ['--x:86.89378750843586%', '89378750843586', '1793299954033', '+55 21 99050-2377', 'ON-7K3P9Q']) {
     assert.deepEqual(numeros(outro), [], outro);
   }

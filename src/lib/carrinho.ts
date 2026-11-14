@@ -61,6 +61,11 @@ export interface ItemVisivel {
   totalPixCentavos: number;
   /** O que o cliente escolheu: é o que preenche a página de novo quando ele toca em "Mudar". */
   escolha: EscolhaItem;
+  /**
+   * Só no passeio com taxa paga no local (temTaxaNoLocal, src/data/passeios.ts): o checkout avisa, perto do total, que
+   * as taxas municipais ou de embarque não estão incluídas.
+   */
+  taxaNoLocal?: true;
   /** Só no transfer: o que o checkout pergunta deste item. */
   transfer?: {
     /** Os trechos com aeroporto, com o rótulo do número do voo. */

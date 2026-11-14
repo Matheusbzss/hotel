@@ -142,6 +142,9 @@ const pt = {
     reservarAgora: 'Reservar',
     // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
     semCobranca: 'Ainda não cobramos nada: você confere tudo antes de pagar.',
+    // logo depois do semCobranca no cartão de reserva, e do checkout.avisoTotal no checkout, só quando há passeio com as
+    // taxas no "Não inclui" (temTaxaNoLocal, src/data/passeios.ts). O transfer já inclui pedágio e estacionamento
+    taxasNoLocal: 'Não inclui taxas municipais ou de embarque, pagas no local quando cobradas.',
     horario: 'Horário',
     escolhaHorario: 'Escolha o horário',
     umPagamento: 'Um pagamento só e um voucher para cada item.',
@@ -448,7 +451,8 @@ const pt = {
     },
     {
       p: 'É seguro pagar pelo site?',
-      r: 'Sim. O site usa conexão criptografada e não guarda os dados do seu cartão.',
+      // hoje o pagamento é fechado com a equipe pelo WhatsApp: a resposta não dá a entender que já dá para pagar aqui
+      r: 'Por enquanto o pagamento não é feito no site: você registra a reserva aqui, numa conexão criptografada, e paga por Pix ou cartão com a nossa equipe pelo WhatsApp. O site não recebe os dados do seu cartão.',
       rOnline:
         'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
     },
@@ -625,6 +629,9 @@ const pt = {
     aceiteTermos: 'Termos de Uso',
     aceiteMeio: 'e a',
     aceitePolitica: 'Política de Cancelamento e Reembolso',
+    // logo abaixo da caixinha do aceite, com ou sem os e-mails ligados: {politica} é o link (emailPrivacidade, o nome da
+    // política), que abre em outra aba, como os do aceite
+    privacidadeAviso: 'Seus dados são tratados conforme a nossa {politica}.',
     pagamento: 'Pagamento',
     pix: 'Pix',
     // "Cartão", sem "de crédito": o débito também é aceito (a linha de baixo, cartaoAvista, explica)
@@ -879,7 +886,9 @@ const pt = {
     politicas: ['Cancelamento', 'Termos', 'Privacidade'],
   },
   cookies: {
-    texto: 'Usamos cookies para medir nossos anúncios e melhorar o site.',
+    // o que o Google (listas de público) e a Meta (Termos das Ferramentas de Negócios) pedem que o aviso diga; o como
+    // desativar fica no item 5 da Política de Privacidade, no link ao lado
+    texto: 'Com o seu aceite, usamos cookies do Google e da Meta para medir e personalizar os nossos anúncios.',
     aceitar: 'Aceitar',
     recusar: 'Recusar',
     gerenciar: 'Mudar minha escolha sobre cookies',

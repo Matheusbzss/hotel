@@ -69,6 +69,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, Pixel da Meta e Google',
         paragrafos: [
           'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio e armazenamento local para lembrar a sua escolha sobre cookies. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+          `Com o seu aceite, o Google e a Meta (Facebook e Instagram) também podem usar cookies e identificadores do aparelho para mostrar anúncios da ${E.marca} em outros sites e aplicativos, com base na sua visita a este site. Para desativar os anúncios personalizados, use as Configurações de anúncios do Google (adssettings.google.com), as preferências de anúncios da Meta (facebook.com/adpreferences) ou as páginas aboutads.info/choices e youronlinechoices.eu.`,
           'Você pode mudar sua escolha a qualquer momento pelo botão no fim desta página.',
         ],
       },
@@ -175,6 +176,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, the Meta Pixel and Google',
         paragrafos: [
           'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, and local storage to remember your cookie choice. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+          `With your consent, Google and Meta (Facebook and Instagram) may also use cookies and device identifiers to show ${E.marca} ads on other websites and apps based on your visit to this website. To turn off personalised ads, use Google Ads Settings (adssettings.google.com), Meta’s ad preferences (facebook.com/adpreferences) or the pages aboutads.info/choices and youronlinechoices.eu.`,
           'You can change your choice at any time with the button at the end of this page.',
         ],
       },
@@ -281,6 +283,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, Píxel de Meta y Google',
         paragrafos: [
           'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+          `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
           'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',
         ],
       },
@@ -372,6 +375,10 @@ export const AJUSTES_AR_PRIVACIDADE: readonly ParAR[] = [
   [
     'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
     'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste y almacenamiento local para recordar tu elección sobre cookies. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si hacés clic en “Aceptar” en el aviso de cookies.',
+  ],
+  [
+    `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
+    `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usá la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
   ],
   [
     'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',

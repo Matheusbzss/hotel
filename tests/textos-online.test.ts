@@ -43,8 +43,9 @@ test('com o interruptor desligado, os textos legais são os de hoje, os mesmos o
   assert.equal(online.termos, TERMOS_ONLINE);
   assert.equal(online.cancelamento, CANCELAMENTO_ONLINE);
   assert.equal(online.privacidade, PRIVACIDADE_ONLINE);
-  // a data da versão online é a constante a trocar no dia de ligar, nunca antes da revisão de hoje
-  assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-13');
+  // a data da versão online é a constante a trocar no dia de ligar, nunca antes da revisão de hoje (em 14/11, o item 5
+  // da privacidade de hoje ganhou os anúncios do Google e da Meta, e a versão online, que traz o texto de hoje, também)
+  assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-14');
   assert.ok(ATUALIZADO_EM_ONLINE >= ATUALIZADO_EM);
 });
 
@@ -293,6 +294,23 @@ test('com os e-mails ligados (e o pagamento online desligado), a privacidade de 
     const hoje = new Set(frasesDoDocumento(texto(PRIVACIDADE, idioma)));
     const novas = frasesDoDocumento(texto(PRIVACIDADE_EMAILS, idioma)).filter((f) => !hoje.has(f));
     assert.equal(novas.length, 5, `${idioma}: a frase do lembrete trocada e quatro novas`);
+  }
+});
+
+test('item 5 da privacidade: os anúncios do Google e da Meta e como desativar, nas três versões e nos quatro idiomas', () => {
+  for (const [nome, doc] of [
+    ['hoje', PRIVACIDADE],
+    ['e-mails', PRIVACIDADE_EMAILS],
+    ['online', PRIVACIDADE_ONLINE],
+  ] as const) {
+    for (const idioma of IDIOMAS) {
+      const item5 = texto(doc, idioma).secoes.find((s) => s.titulo.startsWith('5. Cookies'));
+      assert.ok(item5, `${nome}.${idioma}: o item 5`);
+      // logo depois do parágrafo dos cookies do site; as frases novas das outras versões (Stripe, "sair da lista") vêm depois
+      assert.match(item5.paragrafos[1], /Google.*Meta.*adssettings\.google\.com.*facebook\.com\/adpreferences/, `${nome}.${idioma}`);
+      // e o "pode mudar sua escolha" continua no fim do item
+      assert.match(item5.paragrafos.at(-1) ?? '', /mudar sua escolha|change your choice|cambiar tu elección/, `${nome}.${idioma}`);
+    }
   }
 });
 

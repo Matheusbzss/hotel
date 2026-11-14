@@ -185,6 +185,8 @@ export function FormularioCarrinho({
   const erroRef = useRef<HTMLParagraphElement>(null);
 
   const temPasseio = itens.some((i) => i.tipo === 'passeio');
+  // algum passeio com taxa paga no local (embarque ou prefeitura): a linha das taxas perto do total
+  const comTaxaNoLocal = itens.some((i) => i.taxaNoLocal);
   const transfers = itens.filter((i) => i.transfer);
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   // passeio e transfer cobram o total; a casa (sinal) ainda não entra no carrinho
@@ -515,6 +517,8 @@ export function FormularioCarrinho({
   const destaque: FormaPagamento = online && forma ? forma : 'pix';
   const outra = (['pix', 'cartao'] as const).find((f) => f !== destaque && (!online || formas.includes(f)));
   const rotuloDaForma = (f: FormaPagamento) => (f === 'pix' ? P.noPix : P.noCartao);
+  // "Seus dados são tratados conforme a nossa {politica}.": o nome da política vira o link, com os espaços dentro do texto
+  const [antesDaPolitica, depoisDaPolitica = ''] = C.privacidadeAviso.split('{politica}');
 
   return (
     <form
@@ -805,6 +809,15 @@ export function FormularioCarrinho({
               {erros.aceite}
             </span>
           )}
+          {/* a Política de Privacidade sempre à mão, com ou sem os e-mails ligados: abre em outra aba, como os links do
+              aceite, para não perder o que já foi preenchido */}
+          <p className="mt-3 text-small text-(--tinta-suave)">
+            {antesDaPolitica}
+            <Link href={links.privacidade} target="_blank" className="link font-semibold">
+              {C.emailPrivacidade}
+            </Link>
+            {depoisDaPolitica}
+          </p>
         </div>
       </div>
 
@@ -881,6 +894,8 @@ export function FormularioCarrinho({
             )}
             <p className="text-small">{K.umPagamento}</p>
             <p className="text-small">{C.avisoTotal}</p>
+            {/* o total não inclui as taxas pagas no local dos passeios; o transfer já inclui pedágio e estacionamento */}
+            {comTaxaNoLocal && <p className="text-small">{K.taxasNoLocal}</p>}
             {online && forma === 'cartao' && <p className="text-small text-(--tinta-suave)">{C.seguro}</p>}
           </div>
         </div>

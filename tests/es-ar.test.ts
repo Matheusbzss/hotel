@@ -268,19 +268,23 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // + 6 da Etapa 7 (a página da casa: "Elegí las fechas", "elegí una opción", "Elegí otras fechas" duas vezes, a
   // "Seña hoy" e o "Dejanos tu nombre y tu e-mail" do Avise-me)
   // + 2 da revisão da página da casa (as colunas da conta pela forma do sinal: "Seña con Pix" e "Seña con tarjeta")
-  dicionario: 134,
+  // + 1 da revisão para os anúncios (14/11): a resposta de hoje de "¿Es seguro pagar en el sitio?" ("registrás la
+  // reserva acá", "pagás"), que antes era igual nas duas versões
+  dicionario: 135,
   guia: 138,
   passeios: 54,
   transfer: 2,
   'legal termos': 12,
   'legal cancelamento': 12,
-  'legal privacidade': 13,
+  // 13 + 1 da revisão para os anúncios (14/11): o parágrafo novo do item 5, dos anúncios do Google e da Meta ("usá la
+  // Configuración de anuncios de Google"); o mesmo +1 vale para as duas versões abaixo
+  'legal privacidade': 14,
   // as versões do pagamento online: as mesmas frases com vos, menos as trocadas, mais as novas com vos
   'legal termos-online': 12,
   'legal cancelamento-online': 12,
-  'legal privacidade-online': 12,
+  'legal privacidade-online': 13,
   // a privacidade de hoje com os e-mails ligados: a de hoje, menos a frase do lembrete (trocada, agora sem verbo em vos)
-  'legal privacidade-emails': 12,
+  'legal privacidade-emails': 13,
   voucher: 1,
   // 9 de antes + 9 das casas (Etapa 7): mesada, hamacas, heladera, lavarropas e hamaca paraguaya
   foto: 18,

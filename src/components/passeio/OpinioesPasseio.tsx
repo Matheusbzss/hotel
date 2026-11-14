@@ -2,11 +2,20 @@ import Link from 'next/link';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { idiomaDeConteudo } from '@/i18n/conteudo';
-import { MINIMO_NO_SITE, notaDaAgencia, trechoDaAvaliacao, trechosDoCartao, type Avaliacao } from '@/lib/avaliacao';
+import {
+  MINIMO_NO_SITE,
+  NOME_DA_ORIGEM,
+  notaDaAgencia,
+  origemDaNota,
+  trechoDaAvaliacao,
+  trechosDoCartao,
+  type Avaliacao,
+} from '@/lib/avaliacao';
 
 /**
  * Cartão compacto de opiniões perto da reserva (desenho A, escolhido pelo dono em 08/11/2026 entre A, B e C).
- * A nota média e a contagem são só das avaliações da agência — o título deixa isso claro —, com 2 trechos
+ * A nota média e a contagem são só das avaliações da agência — o título deixa isso claro —, com a fonte quando
+ * todas vieram do mesmo site ("5 opiniões do Tripadvisor", a mesma regra da página inicial), 2 trechos
  * curtos (quem cita o passeio vem primeiro; frase inteira antes de frase cortada) e o link para a seção
  * de opiniões da página inicial. Some sem o mínimo publicado (a seção de destino do link nem existiria)
  * ou sem nota da agência.
@@ -29,6 +38,10 @@ export function OpinioesPasseio({
   if (avaliacoes.length < MINIMO_NO_SITE || total === 0) return null;
   const trechos = trechosDoCartao(avaliacoes, slug, idioma);
   const nota = media.toLocaleString(LOCALE_INTL[idioma], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  // a contagem com a fonte, como em src/components/home/Opinioes.tsx: com origens misturadas, só a contagem
+  const contagem = total === 1 ? d.passeio.opinioesContagemUma : fmt(d.passeio.opinioesContagem, { n: total });
+  const origem = origemDaNota(avaliacoes);
+  const site = origem && NOME_DA_ORIGEM[origem];
   return (
     <section
       aria-labelledby="opinioes-passeio-titulo"
@@ -47,7 +60,7 @@ export function OpinioesPasseio({
           {nota}
         </span>
         <span className="text-small text-(--color-tinta-suave)">
-          · {total === 1 ? d.passeio.opinioesContagemUma : fmt(d.passeio.opinioesContagem, { n: total })}
+          · {site ? fmt(d.opinioes.naOrigem, { contagem, origem: site }) : contagem}
         </span>
       </p>
       <ul className="mt-4 space-y-3 border-t border-(--color-borda) pt-4">

@@ -24,8 +24,11 @@ export function Contador({
   const botao =
     'flex size-12 shrink-0 items-center justify-center rounded-[4px] bg-(--color-papel) text-(--color-tinta) shadow-[inset_0_0_0_1px_var(--color-borda-campo)] text-2xl leading-none transition-transform duration-[120ms] active:scale-[0.97] hover:shadow-[inset_0_0_0_1px_var(--color-tinta)] disabled:cursor-not-allowed disabled:bg-(--color-superficie) disabled:text-(--color-borda-campo) disabled:shadow-none';
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="min-w-0">
+    // o rótulo ocupa o que sobra ao lado dos botões e quebra por dentro como sempre; só quando nem a maior palavra dele
+    // cabe ao lado (letra grande em tela estreita), os botões descem para a linha de baixo, em vez de passar por cima
+    // do rótulo ou da borda. Com a letra normal, a partir de 320 px, a linha fica igual
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="max-w-full grow basis-0 wrap-break-word">
         <span id={id} className="block font-semibold leading-tight">
           {rotulo}
         </span>

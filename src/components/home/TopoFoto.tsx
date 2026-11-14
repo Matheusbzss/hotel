@@ -30,9 +30,11 @@ export async function TopoFoto({ idioma, d }: { idioma: Idioma; d: Dicionario })
         <a href="#passeios" className="botao mt-6">
           {H.ganchoCta}
         </a>
+        {/* cada garantia fica numa linha só; só quando nem sozinha ela cabe na largura (letra grande em tela estreita), o
+            texto dela quebra por dentro, em vez de ser cortado na borda da foto */}
         <ul className="mt-6 flex flex-wrap gap-2">
           {H.confianca.map((c) => (
-            <li key={c} className="etiqueta vidro vidro-foto">
+            <li key={c} className="etiqueta vidro vidro-foto whitespace-normal">
               {c}
             </li>
           ))}

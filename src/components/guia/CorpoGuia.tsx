@@ -45,13 +45,18 @@ function Detalhes({ itens, idioma }: { itens: NonNullable<Secao['detalhes']>; id
 }
 
 // abaixo de 360 px, 12 px nas bordas da caixa e 8 px de cada lado das células (16 px entre as colunas): com a letra
-// normal, a tabela cabe na tela de 320 px e "130 mm" não quebra; de 360 px para cima, 16 px de cada lado, como sempre
-const FOLGA_CELULA = 'px-4 max-[360px]:px-2 max-[360px]:first:pl-3 max-[360px]:last:pr-3';
+// normal, a tabela cabe na tela de 320 px e "130 mm" não quebra; de 360 px para cima, 16 px de cada lado, como sempre.
+// A quebra é em rem (22.5rem = 360 px com a letra padrão de 16 px): com a letra padrão do navegador maior, a folga
+// estreita vale até mais longe (com 20 px, até 450 px), porque as media queries em rem seguem essa letra
+const FOLGA_CELULA = 'px-4 max-[22.5rem]:px-2 max-[22.5rem]:first:pl-3 max-[22.5rem]:last:pr-3';
 
-/** Números curtos em linhas, que cabem inteiros no celular: o clima de cada mês. */
+/**
+ * Números curtos em linhas, que cabem inteiros no celular: o clima de cada mês. Se mesmo assim a tabela não cabe (letra
+ * muito grande em tela estreita), ela rola de lado dentro da caixa, em vez de cortar a coluna da direita.
+ */
 function TabelaCompacta({ t }: { t: NonNullable<Secao['tabela']> }) {
   return (
-    <div className="celula mt-5 overflow-hidden">
+    <div className="celula mt-5 overflow-x-auto overflow-y-hidden">
       <table className="w-full text-left">
         <caption className="sr-only">{t.legenda}</caption>
         <thead>
@@ -140,7 +145,9 @@ function SecaoDoGuia({
   const fotoAlta = Boolean(s.detalhes || s.tabela);
   return (
     <section id={s.id} aria-labelledby={`${s.id}-titulo`} className="moldura mt-14 scroll-mt-24 md:mt-24">
-      <div className="grid gap-6 lg:grid-cols-12 lg:gap-x-8">
+      {/* grid-cols-1: no celular, uma coluna que encolhe com a tela; sem isto, com a letra grande, a tabela do clima
+          alargava a coluna (e o texto junto) e a página rolava de lado */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-x-8">
         <div className={aoLado ? lado : 'lg:col-span-8'}>
           <h2 id={`${s.id}-titulo`} className="titulo">
             {s.titulo}
@@ -241,14 +248,15 @@ export function CorpoGuia({ guia: g, idioma, d }: { guia: GuiaResolvido; idioma:
         </div>
       </section>
 
-      <div className="moldura mt-6 grid gap-6 md:mt-10 lg:grid-cols-12 lg:gap-x-8">
+      <div className="moldura mt-6 grid grid-cols-1 gap-6 md:mt-10 lg:grid-cols-12 lg:gap-x-8">
         <div className="lg:col-span-7">
           <p className="max-w-[56ch] text-lead leading-[1.35]">{g.resumo}</p>
           <p className="mt-3 text-small text-(--color-tinta-suave)">
             {T.atualizado} {data}
           </p>
         </div>
-        <dl className="grid grid-cols-2 gap-(--vao-celula) self-start lg:col-span-5">
+        {/* duas colunas; com a letra grande em tela estreita, uma só (duas-colunas-celula, em globals.css) */}
+        <dl className="duas-colunas-celula grid gap-(--vao-celula) self-start lg:col-span-5">
           {g.ficha.map((f) => (
             <div key={f.rotulo} className="celula px-3.5 py-2.5">
               <dt className="text-small text-(--color-tinta-suave)">{f.rotulo}</dt>

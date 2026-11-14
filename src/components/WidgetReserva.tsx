@@ -237,25 +237,29 @@ export function WidgetReserva({
         {mostrarOpcoes && (
           <fieldset className="mt-5 min-w-0">
             <legend className="rotulo">{T.escolhaOpcao}</legend>
-            <div className="grid grid-cols-2 gap-1.5" role="radiogroup">
-              {opcoes.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={o.id === opcao.id}
-                  onClick={() => setOpcaoId(o.id)}
-                  className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2.5 text-left"
-                >
-                  <span>{o.nome}</span>
-                  {/* em tela estreita, com preço alto, o "no Pix" desce para a linha de baixo, dentro do botão; o conteúdo fica
-                      no alto, para os nomes dos botões lado a lado ficarem na mesma altura quando só um preço desce. O preço
-                      pode usar 8 px do recuo antes de descer (-mr-2): em 360 px ele fica numa linha só, como sempre foi */}
-                  <span className="numeros -mr-2 text-small font-normal">
-                    {brl(precoPixCentavos(o.tabela.precoCentavos))} <span className="whitespace-nowrap">{T.noPix}</span>
-                  </span>
-                </button>
-              ))}
+            {/* duas colunas; quando cada uma ficaria com menos de 7rem (letra grande em tela estreita), um botão embaixo
+                do outro. Com a letra normal, a partir de 320 px, são sempre duas */}
+            <div className="@container">
+              <div className="grid grid-cols-2 gap-1.5 @max-[14.375rem]:grid-cols-1" role="radiogroup">
+                {opcoes.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={o.id === opcao.id}
+                    onClick={() => setOpcaoId(o.id)}
+                    className="filtro flex-col items-start justify-start !gap-0 whitespace-normal py-2.5 text-left"
+                  >
+                    <span>{o.nome}</span>
+                    {/* em tela estreita, com preço alto, o "no Pix" desce para a linha de baixo, dentro do botão; o conteúdo
+                        fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura quando só um preço desce. O
+                        preço pode usar 8 px do recuo antes de descer (-mr-2): em 360 px ele fica numa linha só, como sempre foi */}
+                    <span className="numeros -mr-2 text-small font-normal">
+                      {brl(precoPixCentavos(o.tabela.precoCentavos))} <span className="whitespace-nowrap">{T.noPix}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </fieldset>
         )}

@@ -137,7 +137,9 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
       />
 
       <div className="moldura pb-24">
-        <div className="mt-12 grid gap-12 lg:grid-cols-12 lg:gap-16">
+        {/* grid-cols-1: no celular, uma coluna que encolhe com a tela; sem isto, com a letra grande, o quadro de reserva
+            alargava a coluna e a página rolava de lado */}
+        <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
             <p className="chegar max-w-[52ch] text-lead">{texto(p.resumo, locale)}</p>
             {/* a ficha do passeio: o que a pessoa confere antes de reservar */}

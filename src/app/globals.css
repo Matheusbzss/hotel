@@ -1133,10 +1133,14 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
     text-shadow: 0 1px 3px rgb(8 12 18 / 0.4);
   }
 
-  /* a ficha do passeio em células; as linhas entre elas são o fundo aparecendo no vão de 1 px */
+  /*
+   * a ficha do passeio em células; as linhas entre elas são o fundo aparecendo no vão de 1 px. Duas colunas iguais; com
+   * a letra grande, quando cada uma ficaria com menos de 8rem, uma coluna só, para caber a palavra comprida
+   * ("estacionamiento"). Com a letra normal, a partir de 320 px, são sempre duas, da mesma largura de antes
+   */
   .ficha {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8rem, calc(50% - 1px))), 1fr));
     gap: 1px;
     overflow: hidden;
     border: 1px solid var(--color-borda);
@@ -1146,6 +1150,12 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
   .ficha > div {
     padding: 0.75rem 0.9rem;
     background: var(--color-papel);
+    /* só a palavra que nem sozinha cabe na célula quebra por dentro */
+    overflow-wrap: break-word;
+  }
+  /* as duas colunas da ficha do guia (Playas, Desde Río...), com a mesma regra da .ficha (o vão é o --vao-celula) */
+  .duas-colunas-celula {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8rem, calc(50% - var(--vao-celula) / 2 - 1px))), 1fr));
   }
   .ficha > .largo {
     grid-column: 1 / -1;

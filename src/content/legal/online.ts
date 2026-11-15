@@ -40,7 +40,7 @@ export const ATUALIZADO_EM_ONLINE = '2026-11-14';
  * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel. Nunca
  * antes de ATUALIZADO_EM.privacidade.
  */
-export const ATUALIZADO_EM_EMAILS = '2026-11-14';
+export const ATUALIZADO_EM_EMAILS = '2026-11-15';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */

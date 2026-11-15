@@ -38,8 +38,8 @@ import { urlDoSite } from './site';
  * (/api/email/sair, também no cabeçalho List-Unsubscribe) tira da lista o e-mail que recebeu o lembrete, depois da
  * confirmação na página (ou do POST do aplicativo de e-mail). O e-mail digitado num carrinho que não virou pedido é
  * apagado 90 dias depois da última mudança (apagarEmailsVencidos, no agendamento diário de /api/saude). No banco
- * (Vercel): as tabelas carrinhos, carrinhos_lembretes e emails_sem_lembrete (migrações 20261113150000 e
- * 20261113233000). No computador: os arquivos de .data/carrinhos/ e .data/emails-sem-lembrete.json. Sem RESEND_API_KEY
+ * (Vercel): as tabelas carrinhos, carrinhos_lembretes e emails_sem_lembrete (migrações 20261115223958 e
+ * 20261115224007). No computador: os arquivos de .data/carrinhos/ e .data/emails-sem-lembrete.json. Sem RESEND_API_KEY
  * nada é lido nem enviado. Os registros do servidor só levam números e a referência curta do carrinho, nunca o e-mail.
  */
 

@@ -75,7 +75,7 @@ Os e-mails ligam só com a `RESEND_API_KEY`, sem depender do pagamento online. P
 
 ## Banco
 
-Migrações **não aplicadas**: `supabase/migrations/20261113150000_emails_e_lembretes.sql` (`carrinhos_lembretes`: quando saiu cada lembrete e quando o cliente voltou, numa tabela separada para não mexer no `atualizado_em` do carrinho, que é a última vez que o cliente mexeu nele; e `emails_sem_lembrete`, quem saiu da lista) e, depois dela, `supabase/migrations/20261113233000_lembretes_copia_do_carrinho.sql` (a coluna `carrinhos_lembretes.veio_de`, que liga a cópia aberta pela volta ao carrinho de origem). RLS ligado sem políticas, como as outras. Aplicar as duas **antes** de pôr a `RESEND_API_KEY`. Os tipos já estão em `src/lib/banco-tipos.ts`; depois de aplicar, regenerar (formato cru do gerador). Sem as migrações, as estatísticas mostram o funil sem os lembretes e o agendamento responde com erro, sem mandar nada.
+Migrações **aplicadas em 15/11/2026**: `supabase/migrations/20261115223958_emails_e_lembretes.sql` (`carrinhos_lembretes`: quando saiu cada lembrete e quando o cliente voltou, numa tabela separada para não mexer no `atualizado_em` do carrinho, que é a última vez que o cliente mexeu nele; e `emails_sem_lembrete`, quem saiu da lista) e, depois dela, `supabase/migrations/20261115224007_lembretes_copia_do_carrinho.sql` (a coluna `carrinhos_lembretes.veio_de`, que liga a cópia aberta pela volta ao carrinho de origem). RLS ligado sem políticas, como as outras. Aplicar as duas **antes** de pôr a `RESEND_API_KEY`. Os tipos já estão em `src/lib/banco-tipos.ts`; depois de aplicar, regenerar (formato cru do gerador). Sem as migrações, as estatísticas mostram o funil sem os lembretes e o agendamento responde com erro, sem mandar nada.
 
 No computador (sem o banco) tudo funciona com arquivos: os lembretes (e a ligação da cópia, `lembretes.veioDe`) ficam no próprio arquivo do carrinho (`.data/carrinhos/`) e a lista de quem saiu em `.data/emails-sem-lembrete.json`.
 
@@ -84,7 +84,7 @@ No computador (sem o banco) tudo funciona com arquivos: os lembretes (e a ligaç
 1. Criar a conta grátis do Resend (resend.com) e adicionar o domínio `orlanativa.online` na região **São Paulo (sa-east-1)**, a mais perto dos clientes e da Vercel (gru1).
 2. Os registros de DNS que o Resend mostrar (MX e TXT em `send`, TXT `resend._domainkey`; e, recomendado, um DMARC `_dmarc` com `v=DMARC1; p=none;`) entram no DNS do orlanativa.online, que está na Vercel.
 3. Conferir na Vercel que o `CRON_SECRET` é longo e aleatório (32 caracteres ou mais, gerados). Se for uma frase inventada, trocar antes de ligar os e-mails (ainda não saiu nenhum link assinado).
-4. Aplicar as duas migrações (`20261113150000` e `20261113233000`).
+4. Feito em 15/11/2026, com o ok do dono: as duas migrações aplicadas (`20261115223958` e `20261115224007`).
 5. Criar a chave: API Keys → Create API Key → Permission **Sending access** → Domain **orlanativa.online**. Colar na Vercel como `RESEND_API_KEY` (Sensitive), trocar `ATUALIZADO_EM_EMAILS` para o dia e publicar de novo (a privacidade passa a citar os e-mails no mesmo deploy).
 6. Conferir um envio de verdade (um pedido de teste) e, no Resend, se o e-mail chegou sem cair no spam. Conferir também que o aviso de uma desistência de teste chega no `EMAIL_RESPOSTA`.
 7. Pensar no plano pago do Resend quando o movimento crescer, e criar um alerta nos registros da Vercel para "cota do dia guardada" e "não enviado (cota".

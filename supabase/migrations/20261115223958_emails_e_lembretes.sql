@@ -1,6 +1,6 @@
 -- Os lembretes do carrinho abandonado (Fase 4, Etapa 6). O desenho está em docs/emails.md.
 --
--- NÃO APLICADA no banco ainda. Aplicar ANTES de cadastrar a RESEND_API_KEY na Vercel: sem a chave, nada daqui é
+-- APLICADA no banco em 15/11/2026, com o ok do dono (o nome do arquivo leva o carimbo do servidor). Aplicar ANTES de cadastrar a RESEND_API_KEY na Vercel: sem a chave, nada daqui é
 -- usado (os e-mails ficam desligados); com a chave e sem estas tabelas, o agendamento dos lembretes responde com
 -- erro e não manda nada, e a página de estatísticas mostra o funil sem os lembretes. Nada aqui muda o que o
 -- cliente vê nem os dados que já existem.

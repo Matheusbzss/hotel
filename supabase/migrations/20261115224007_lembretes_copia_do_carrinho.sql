@@ -1,7 +1,7 @@
 -- A cópia do carrinho aberta pelo link "voltar ao carrinho" do lembrete (Fase 4, Etapa 6, revisão de 13/11). O desenho
 -- está em docs/emails.md.
 --
--- NÃO APLICADA no banco ainda. Aplicar DEPOIS da 20261113150000_emails_e_lembretes.sql e ANTES de cadastrar a
+-- APLICADA no banco em 15/11/2026, com o ok do dono (o nome do arquivo leva o carimbo do servidor). Aplicar DEPOIS da 20261115223958_emails_e_lembretes.sql e ANTES de cadastrar a
 -- RESEND_API_KEY na Vercel. Sem a chave, nada daqui é usado. Nada aqui muda o que o cliente vê nem os dados que já existem.
 --
 -- Por quê: o link do e-mail não entrega mais o código do carrinho que recebeu o lembrete (quem abrisse o link

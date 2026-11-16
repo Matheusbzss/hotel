@@ -33,6 +33,13 @@ import {
 const INTERVALO_CONSULTA_MS = 4000;
 /** Em "confirmando o pagamento", quanto esperar antes de oferecer o botão "Pagar" para quem voltou sem pagar. */
 const ESPERA_PARA_PAGAR_MS = 15_000;
+/**
+ * Quanto esperar pelo formulário da Stripe (o quadro dela dentro da caixa) antes de mostrar o aviso "o formulário não
+ * carregou": a rede que deixa o script pendurado sem dar erro (hotel, Wi-Fi com portal) e o script que carrega sem conseguir
+ * montar o formulário deixavam só uma caixa branca (lacuna 16 do teste de 15/11). Bem acima do tempo normal (o quadro entra
+ * em 1 a 3 s), para a rede lenta de celular não disparar o aviso à toa.
+ */
+const ESPERA_PELO_FORMULARIO_MS = 15_000;
 
 let stripePromessa: Promise<Stripe | null> | null = null;
 
@@ -163,9 +170,15 @@ export interface TextosCheckoutEmbutido {
   recusa: Record<ChaveRecusa, string>;
   processando: string;
   erroGenerico: string;
-  /** Quando o formulário da Stripe não carrega (bloqueador de anúncios, rede de empresa): o que fazer (checkout.semStripe). */
+  /**
+   * Quando o formulário da Stripe não carrega (bloqueador de anúncios, rede de empresa ou de hotel, ou nada na caixa depois
+   * do prazo): o que fazer (checkout.semStripe).
+   */
   semStripe: string;
-  /** "Tentar de novo" (reserva.tentarNovamente): carrega o formulário da Stripe outra vez, ali mesmo. */
+  /**
+   * "Tentar de novo" (reserva.tentarNovamente): com o script da Stripe barrado, carrega o formulário outra vez, ali mesmo;
+   * depois do prazo sem formulário, abre a página do pedido com a página inteira carregando.
+   */
   tentarDeNovo: string;
 }
 
@@ -206,7 +219,10 @@ export function CheckoutEmbutido({
   aoTrocarForma?: (forma: FormaPagamento) => void;
 }) {
   const [stripe, setStripe] = useState(stripeDoNavegador);
+  // o script da Stripe não carregou (a promessa do Stripe.js resolveu sem a Stripe): o aviso no lugar da caixa
   const [semStripe, setSemStripe] = useState(false);
+  // passou o prazo sem o quadro da Stripe na caixa (o script pendurado, o formulário que não montou): o aviso acima dela
+  const [demorou, setDemorou] = useState(false);
   const [segredo, setSegredo] = useState(clientSecret);
   const [formaAtual, setFormaAtual] = useState(forma);
   const [recusa, setRecusa] = useState<ChaveRecusa | undefined>();
@@ -219,6 +235,10 @@ export function CheckoutEmbutido({
   const avisoRef = useRef<HTMLDivElement>(null);
   const erroRef = useRef<HTMLParagraphElement>(null);
   const semStripeRef = useRef<HTMLParagraphElement>(null);
+  // a caixa do formulário: é dentro dela que o prazo procura o quadro da Stripe
+  const caixaRef = useRef<HTMLDivElement>(null);
+  // o aviso "o formulário não carregou" aparece pelos dois motivos; a caixa só sai pelo primeiro (semStripe)
+  const semFormulario = semStripe || demorou;
 
   // a página inteira recarrega: o estado de verdade (pago, confirmando, expirado) vem do servidor. Tem de ser assim
   // (nunca router.push): a página do pedido leva o token do cliente no endereço e nasce sem as tags de anúncio
@@ -235,19 +255,49 @@ export function CheckoutEmbutido({
     };
   }, [stripe]);
 
-  // o aviso (e o erro de pagar com Pix) recebem o foco: o botão que o cliente tocou sumiu ou ficou desligado, e sem
-  // isso o próximo Tab recomeçaria do topo da página. O foco também traz o aviso para a vista
+  // a rede que não responde (hotel, Wi-Fi com portal) deixa o script da Stripe pendurado sem dar erro, e o script que
+  // carrega pode não conseguir montar o formulário: a promessa acima nunca diz "sem a Stripe" e só sobrava a caixa branca.
+  // Passado o prazo sem nenhum quadro da Stripe na caixa, o aviso entra acima dela, e a caixa continua montada: a peça da
+  // Stripe para React, se desmontada, ainda cria o formulário quando o script chega e nunca o destrói, e o Stripe.js recusa
+  // o seguinte ("You cannot have multiple Embedded Checkout objects"). O formulário que chega atrasado (a rede voltou, ou
+  // era só lenta) tira o aviso sozinho. O prazo recomeça a cada sessão nova (o Pix depois do cartão recusado) e a cada
+  // "Tentar de novo" do script barrado
   useEffect(() => {
-    if (semStripe) semStripeRef.current?.focus();
-  }, [semStripe]);
+    if (semStripe) return;
+    const caixa = caixaRef.current;
+    if (!caixa) return;
+    const temQuadro = () => caixa.querySelector('iframe') !== null;
+    const id = window.setTimeout(() => {
+      if (!temQuadro()) setDemorou(true);
+    }, ESPERA_PELO_FORMULARIO_MS);
+    const olho = new MutationObserver(() => {
+      if (!temQuadro()) return;
+      window.clearTimeout(id);
+      setDemorou(false);
+    });
+    olho.observe(caixa, { childList: true, subtree: true });
+    return () => {
+      window.clearTimeout(id);
+      olho.disconnect();
+    };
+  }, [stripe, segredo, semStripe]);
+
+  // o aviso (e o erro de pagar com Pix) recebem o foco: o botão que o cliente tocou sumiu ou ficou desligado, e sem
+  // isso o próximo Tab recomeçaria do topo da página. O foco também traz o aviso para a vista. O aviso do prazo recebe o
+  // foco ao nascer: ele só nasce com a caixa vazia, quando não há mais nada para o cliente fazer ali
+  useEffect(() => {
+    if (semFormulario) semStripeRef.current?.focus();
+  }, [semFormulario]);
   useEffect(() => {
     if (erro) erroRef.current?.focus();
   }, [erro]);
 
   // o Stripe.js que não carregou é pedido de novo (stripeDoNavegador esquece a tentativa que falhou), ali mesmo, sem
-  // recarregar a página: o pedido e a sessão continuam os mesmos
+  // recarregar a página: o pedido e a sessão continuam os mesmos. Só para o script barrado (semStripe): ali a peça da
+  // Stripe recebeu "sem a Stripe" e não criou nada, então montar de novo é seguro. O prazo recomeça do zero
   function carregarDeNovo() {
     setSemStripe(false);
+    setDemorou(false);
     setStripe(stripeDoNavegador());
   }
 
@@ -320,16 +370,19 @@ export function CheckoutEmbutido({
         </div>
       )}
       {/* em cima do QR, antes de o cliente abrir o app do banco: o recebedor pode aparecer com outro nome, e não é golpe */}
-      {formaAtual === 'pix' && !semStripe && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
-      {semStripe ? (
-        // o script da Stripe não carregou (bloqueador de anúncios, rede de empresa ou de hotel): o que fazer, o botão para
-        // carregar de novo ali mesmo e o e-mail da equipe. O pedido já existe e continua esperando o pagamento
+      {formaAtual === 'pix' && !semFormulario && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
+      {semFormulario && (
+        // o formulário da Stripe não carregou: o script barrado na hora (bloqueador de anúncios, rede de empresa ou de hotel),
+        // ou nenhum quadro na caixa depois do prazo (o script pendurado, o formulário que não montou). O que fazer, o botão de
+        // tentar de novo e o e-mail da equipe. O pedido já existe e continua esperando o pagamento
         <div className="rounded-cartao bg-erro-claro px-5 py-4 text-mar">
           <p ref={semStripeRef} tabIndex={-1} role="alert" className="max-w-[52ch] font-semibold outline-none">
             {T.semStripe}
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button type="button" className="botao w-full sm:w-auto" onClick={carregarDeNovo}>
+            {/* o script barrado: carrega de novo ali mesmo. Depois do prazo, a página do pedido com a página inteira carregando
+                (um documento limpo, de onde dá para pagar): montar de novo aqui esbarraria no formulário que ficou para trás */}
+            <button type="button" className="botao w-full sm:w-auto" onClick={semStripe ? carregarDeNovo : irParaOPedido}>
               {T.tentarDeNovo}
             </button>
             {contato && (
@@ -339,9 +392,12 @@ export function CheckoutEmbutido({
             )}
           </div>
         </div>
-      ) : (
-        // a Stripe desenha sem margem: o respiro fica aqui; enquanto troca de sessão, o quadro fica esmaecido
+      )}
+      {!semStripe && (
+        // a Stripe desenha sem margem: o respiro fica aqui; enquanto troca de sessão, o quadro fica esmaecido. A caixa só sai
+        // com o script barrado, nunca pelo prazo: desmontada, a peça da Stripe deixaria um formulário fantasma
         <div
+          ref={caixaRef}
           className="rounded-cartao bg-(--color-papel) p-3 transition-opacity duration-200 aria-busy:opacity-50 sm:p-5"
           aria-busy={trocando}
         >

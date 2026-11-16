@@ -5,20 +5,25 @@ import path from 'node:path';
 import {
   AVISO_DESISTENCIA,
   DESISTENCIA_RESPONDIDA,
+  INICIO_DESISTENCIA_RESPONDIDA,
   MOTIVO_MAXIMO,
   avisoDasDesistencias,
   dentroDoArrependimento,
   desistenciaParaResponder,
   desistenciaPedida,
+  desistenciaRespondida,
   estadoDaDesistencia,
   limparMotivo,
   linhaDaDesistencia,
+  linhaDaDesistenciaRespondida,
   podeDesistir,
   prazoDoArrependimento,
+  rotuloDaDesistenciaRespondida,
 } from '../src/lib/desistencia.ts';
 import { IDIOMAS } from '../src/i18n/config.ts';
 import { dicionario } from '../src/i18n/index.ts';
-import { ehAviso } from '../src/lib/pedidos-painel.ts';
+import { formatarCifra } from '../src/lib/cifra.ts';
+import { agruparPedidos, avisoAberto, ehAviso } from '../src/lib/pedidos-painel.ts';
 import type { Reserva, ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
 
 // A desistência pela mesma ferramenta da compra (Decreto 7.962/2013, art. 5º, § 1º): o link "Desistir da compra" na
@@ -158,23 +163,96 @@ test('o prazo dos 7 dias do arrependimento, contado da compra, vai na linha do h
   );
 });
 
-test('a faixa do painel: pedidos pagos com o pedido de desistência, sem reembolso e sem a marca de respondido', () => {
+test('a faixa do painel: pedido pago com o pedido de desistência, algum voucher pago e sem a marca de respondido', () => {
   const comAviso = (mudar: Partial<ReservaPasseio> = {}) =>
     voucher({ historico: [{ em: '2026-11-09T14:00:00Z', evento: linhaDaDesistencia('motivo') }], ...mudar });
-  assert.equal(desistenciaParaResponder(comAviso()), true);
+  assert.equal(desistenciaParaResponder([comAviso()]), true);
   // sem o pedido de desistência, nada
-  assert.equal(desistenciaParaResponder(voucher()), false);
-  // reembolsado (tudo ou parte): a equipe já respondeu com a devolução
-  assert.equal(desistenciaParaResponder(comAviso({ status: 'reembolsado' })), false);
-  assert.equal(desistenciaParaResponder(comAviso({ reembolsoCentavos: 5000 })), false);
+  assert.equal(desistenciaParaResponder([voucher()]), false);
+  // o pedido inteiro reembolsado: o status deixa de ser pago e o pedido sai da faixa sozinho
+  assert.equal(desistenciaParaResponder([comAviso({ status: 'reembolsado' })]), false);
+  // o reembolso de uma parte do pedido NÃO é a resposta: até 16/11 qualquer centavo devolvido tirava o pedido da faixa,
+  // com o cliente ainda esperando (A6b do teste de 15/11)
+  assert.equal(desistenciaParaResponder([comAviso({ reembolsoCentavos: 5000 })]), true);
   // respondido sem reembolso (a política não devolve): a marca do painel tira da faixa
   const respondido = comAviso();
   respondido.historico.push({ em: '2026-11-09T15:00:00Z', evento: DESISTENCIA_RESPONDIDA });
-  assert.equal(desistenciaParaResponder(respondido), false);
+  assert.equal(desistenciaParaResponder([respondido]), false);
+  // sem voucher nenhum, nada
+  assert.equal(desistenciaParaResponder([]), false);
   // a linha de "respondido" não é um aviso (não fica destacada)
   assert.equal(ehAviso(DESISTENCIA_RESPONDIDA), false);
   assert.equal(avisoDasDesistencias(1), '1 pedido de desistência para responder');
   assert.equal(avisoDasDesistencias(3), '3 pedidos de desistência para responder');
+});
+
+test('a faixa do painel num pedido de dois itens (A6b): o voucher devolvido antes ou depois da desistência não tira da faixa', () => {
+  // os valores do ON-YTMC29 do teste de 15/11 (nenhum dado de cliente): R$ 138,60 devolvidos de um voucher e R$ 217,80
+  // do outro ainda pagos
+  const pago = { em: '2026-11-08T12:00:00Z', evento: 'Pago (webhook da Stripe)' };
+  const devolvido = { em: '2026-11-09T13:00:00Z', evento: `Item ON-AAA234 reembolsado: ${formatarCifra(13860, 'pt-BR')}` };
+  const desistiu = { em: '2026-11-09T14:00:00Z', evento: linhaDaDesistencia('motivo') };
+  const dois = (
+    historico: Reserva['historico'],
+    statusItens: [Reserva['statusItem'], Reserva['statusItem']],
+    comum: Partial<ReservaPasseio> = {},
+  ) => {
+    const pedido = { codigo: 'ON-PED234', totalCentavos: 35640 };
+    const item = (codigo: string, data: string, totalCentavos: number, statusItem: Reserva['statusItem']) =>
+      voucher({
+        codigo,
+        data,
+        totalCentavos,
+        pedido,
+        historico,
+        reembolsoCentavos: 13860,
+        ...comum,
+        ...(statusItem ? { statusItem } : {}),
+      });
+    return [item('ON-AAA234', '2026-11-14', 13860, statusItens[0]), item('ON-BBB234', '2026-11-15', 21780, statusItens[1])];
+  };
+  // devolvido ANTES do pedido de desistência (o achado do teste): entra na faixa
+  assert.equal(desistenciaParaResponder(dois([pago, devolvido, desistiu], ['reembolsado', undefined])), true);
+  // devolvido DEPOIS: continua na faixa, porque o outro voucher ainda espera a resposta
+  assert.equal(desistenciaParaResponder(dois([pago, desistiu, devolvido], ['reembolsado', undefined])), true);
+  // o voucher usado continua pago: o pedido espera a resposta até alguém marcar
+  assert.equal(desistenciaParaResponder(dois([pago, desistiu, devolvido], ['reembolsado', 'usado'])), true);
+  // os dois devolvidos (ou um devolvido e o outro cancelado), com o pedido ainda pago: não sobra voucher pago
+  assert.equal(desistenciaParaResponder(dois([pago, desistiu, devolvido], ['reembolsado', 'reembolsado'])), false);
+  assert.equal(desistenciaParaResponder(dois([pago, desistiu, devolvido], ['reembolsado', 'cancelado'])), false);
+  // o pedido reembolsado inteiro sai sozinho
+  assert.equal(desistenciaParaResponder(dois([pago, desistiu, devolvido], [undefined, undefined], { status: 'reembolsado' })), false);
+  // a marca de respondido tira da faixa: a de sempre e a nova, com o valor
+  for (const resposta of [DESISTENCIA_RESPONDIDA, linhaDaDesistenciaRespondida(13860)]) {
+    const marcado = dois([pago, devolvido, desistiu, { em: '2026-11-09T15:00:00Z', evento: resposta }], ['reembolsado', undefined]);
+    assert.equal(desistenciaParaResponder(marcado), false, resposta);
+  }
+  // como o painel agrupa (os vouchers na ordem da viagem, o primeiro representa o pedido): a mesma resposta
+  const [p] = agruparPedidos(dois([pago, devolvido, desistiu], ['reembolsado', undefined]));
+  assert.equal(p.itens.length, 2);
+  assert.equal(desistenciaParaResponder(p.itens), true);
+});
+
+test('a resposta da desistência no painel: a linha e o botão dizem quando o resto do pedido segue pago', () => {
+  // sem reembolso: a linha e o botão de sempre
+  assert.equal(linhaDaDesistenciaRespondida(0), DESISTENCIA_RESPONDIDA);
+  assert.equal(DESISTENCIA_RESPONDIDA, 'Desistência respondida pela equipe, sem reembolso pelo site');
+  assert.equal(rotuloDaDesistenciaRespondida(0), 'Desistência respondida, sem reembolso');
+  // com uma parte já reembolsada: o valor, com centavos, e o resto do pedido seguindo pago
+  const linha = linhaDaDesistenciaRespondida(13860);
+  assert.equal(linha, `Desistência respondida pela equipe: ${formatarCifra(13860, 'pt-BR')} reembolsados, o resto do pedido segue pago`);
+  assert.match(linha, /R\$\s138,60 reembolsados/);
+  assert.equal(rotuloDaDesistenciaRespondida(13860), 'Desistência respondida (o resto do pedido segue pago)');
+  // as duas linhas começam igual (as já gravadas continuam valendo), nenhuma é aviso, e as duas marcam a resposta
+  assert.equal(INICIO_DESISTENCIA_RESPONDIDA, 'Desistência respondida pela equipe');
+  for (const resposta of [DESISTENCIA_RESPONDIDA, linha]) {
+    assert.ok(resposta.startsWith(INICIO_DESISTENCIA_RESPONDIDA), resposta);
+    assert.equal(ehAviso(resposta), false, resposta);
+    assert.equal(avisoAberto([{ evento: resposta }], 0), false, resposta);
+    assert.equal(desistenciaRespondida({ historico: [{ em: '2026-11-09T15:00:00Z', evento: resposta }] }), true, resposta);
+  }
+  // uma linha que só cita a resposta no meio não conta
+  assert.equal(desistenciaRespondida({ historico: [{ em: '', evento: `Pago. ${DESISTENCIA_RESPONDIDA}` }] }), false);
 });
 
 test('um pedido de desistência só: depois da linha, a página mostra que já chegou', () => {
@@ -186,12 +264,32 @@ test('um pedido de desistência só: depois da linha, a página mostra que já c
   assert.equal(desistenciaPedida(voucher({ historico: [{ em: '', evento: 'Pago. Aviso: pedido de desistência pelo site' }] })), false);
 });
 
-/** O código de um arquivo de src/, sem as linhas de comentário. */
+/** O código de um arquivo de src/, sem as linhas de comentário (e sem o \r dos arquivos gravados com CRLF). */
 const codigo = (...partes: string[]) =>
   readFileSync(path.join('src', ...partes), 'utf8')
+    .replace(/\r/g, '')
     .split('\n')
     .filter((l) => !/^\s*(\/\/|\/?\*)/.test(l))
     .join('\n');
+
+test('o painel e a rota do painel usam a mesma regra da faixa, com os vouchers do pedido, e a linha nova com o valor', () => {
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  // as quatro chamadas do painel (o filtro "Desistências", o botão, a frase vermelha e a faixa do topo) passam os
+  // vouchers do pedido, nunca um voucher só
+  assert.equal(pagina.match(/desistenciaParaResponder\(/g)?.length, 4);
+  assert.equal(pagina.match(/desistenciaParaResponder\(p\.itens\)/g)?.length, 4);
+  // o botão diz quando o resto do pedido segue pago
+  assert.match(pagina, /acao: 'desistencia_respondida',\s*rotulo: rotuloDaDesistenciaRespondida\(p\.reembolsoCentavos\)/);
+  assert.doesNotMatch(pagina, /rotulo: 'Desistência respondida, sem reembolso'/);
+  // a rota: a mesma regra, com os vouchers do pedido; a linha gravada dentro da trava, com o valor relido nela, uma vez
+  const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  assert.match(rota, /if \(!desistenciaParaResponder\(vouchers\)\) return voltar\('acao-nao-vale'\);/);
+  assert.match(
+    rota,
+    /atualizarReserva\(alvo\.codigo, \(r\) =>\s*desistenciaRespondida\(r\) \? null : registrar\(r, linhaDaDesistenciaRespondida\(r\.reembolsoCentavos \?\? 0\)\),?\s*\)/,
+  );
+  assert.doesNotMatch(rota, /registrar\(r, DESISTENCIA_RESPONDIDA\)/);
+});
 
 test('a rota: limite por IP, token do link privado, a regra de cima, a gravação com a trava e nenhum reembolso', () => {
   const rota = codigo('app', 'api', 'pedido', '[codigo]', 'desistir', 'route.ts');

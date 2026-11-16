@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
 import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
 import { contarCotacoesNovas } from '@/lib/cotacoes';
-import { avisoDasDesistencias, desistenciaParaResponder } from '@/lib/desistencia';
+import { avisoDasDesistencias, desistenciaParaResponder, rotuloDaDesistenciaRespondida } from '@/lib/desistencia';
 import { modoPagamentoOnline } from '@/lib/formas-pagamento';
 import { textoDaOrigem } from '@/lib/origem';
 import { linkPainelStripe, modoStripe } from '@/lib/stripe';
@@ -19,10 +19,10 @@ import {
   avisosDeContestacao,
   avisosDeReembolso,
   botaoDevolvidoPorFora,
+  botaoReembolsoDoVoucher,
   botaoVoucherDaStripe,
   botaoVoucherPorFora,
   confirmacaoDoReembolso,
-  confirmacaoDoReembolsoDoVoucher,
   contarReembolsosAResolver,
   contestacoesAbertas,
   devolucaoNoPainel,
@@ -97,7 +97,7 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (
   { valor: 'abertas', rotulo: 'Em aberto', status: ['pendente', 'aguardando_whatsapp'] },
   { valor: 'contestados', rotulo: 'Contestados', status: ['contestado'] },
   // os pedidos de desistência pelo site que ainda esperam a equipe (a faixa do topo leva para cá)
-  { valor: 'desistencias', rotulo: 'Desistências', so: (p) => desistenciaParaResponder(p.itens[0]) },
+  { valor: 'desistencias', rotulo: 'Desistências', so: (p) => desistenciaParaResponder(p.itens) },
   // os reembolsos que pedem uma ação da equipe: o que falhou, o feito direto na Stripe sem voucher, o parado por uma
   // contestação (as três faixas do topo levam para cá)
   { valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: (p) => reembolsoParaResolver(p) },
@@ -293,7 +293,8 @@ function BotaoAcao({
  * de um "abrir" porque não dá para desfazer, e cada botão pede a caixa "Confirmo" marcada. O status do pedido só muda
  * quando a Stripe confirmar (webhook charge.refunded): até lá o painel mostra o pedido como está. Os vouchers vêm de
  * reembolsoNoPainel: nenhum no pedido de um item, nem enquanto um reembolso feito direto na Stripe não disser de qual
- * voucher foi.
+ * voucher foi. Cada voucher sai pelo valor dele, nunca mais do que ainda resta do pagamento (botaoReembolsoDoVoucher: o
+ * rótulo diz quando é o que resta; sem nada a devolver, o botão não aparece).
  */
 function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; filtro: string; restante: number; vouchers: Reserva[] }) {
   const r = p.itens[0];
@@ -315,17 +316,22 @@ function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; f
           cor="bg-erro-claro"
           confirmacao={confirmacaoDoReembolso(restante)}
         />
-        {vouchers.map((i) => (
-          <BotaoAcao
-            key={i.codigo}
-            voucher={i.codigo}
-            item={i.codigo}
-            acao="reembolsar_item"
-            rotulo={`Reembolsar só o voucher ${i.codigo} (${formatarPreco(valorRecebido(i))})`}
-            filtro={filtro}
-            confirmacao={confirmacaoDoReembolsoDoVoucher(valorRecebido(i), i.codigo)}
-          />
-        ))}
+        {vouchers.map((i) => {
+          const botao = botaoReembolsoDoVoucher(i.codigo, valorRecebido(i), restante);
+          return (
+            botao && (
+              <BotaoAcao
+                key={i.codigo}
+                voucher={i.codigo}
+                item={i.codigo}
+                acao="reembolsar_item"
+                rotulo={botao.rotulo}
+                filtro={filtro}
+                confirmacao={botao.confirmacao}
+              />
+            )
+          );
+        })}
       </div>
     </details>
   );
@@ -451,9 +457,12 @@ function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   const pagoNaStripe = stripe && (p.status === 'pago' || p.status === 'contestado');
   if (p.status !== 'cancelado' && p.status !== 'reembolsado' && !pagoNaStripe) acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
   if (!stripe && (p.status === 'pago' || p.status === 'cancelado')) acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
-  // o pedido de desistência respondido sem reembolso (a política não devolve): sai da faixa do topo. Com reembolso, a
-  // própria devolução já tira o pedido de lá
-  if (desistenciaParaResponder(r)) acoes.push({ acao: 'desistencia_respondida', rotulo: 'Desistência respondida, sem reembolso' });
+  // o pedido de desistência respondido pela equipe, sem reembolso (a política não devolve) ou com o resto do pedido
+  // seguindo pago depois do reembolso de uma parte: sai da faixa do topo. Só o reembolso do pedido inteiro tira o pedido
+  // de lá sozinho (o status deixa de ser pago)
+  if (desistenciaParaResponder(p.itens)) {
+    acoes.push({ acao: 'desistencia_respondida', rotulo: rotuloDaDesistenciaRespondida(p.reembolsoCentavos) });
+  }
   return (
     <div className="flex min-w-0 flex-col items-start gap-3">
       {(acoes.length > 0 || reembolso.tipo === 'stripe') && (
@@ -567,7 +576,7 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
         <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
         {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
-        {desistenciaParaResponder(r) && (
+        {desistenciaParaResponder(p.itens) && (
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">
             Pedido de desistência pelo site: responder em até 1 dia útil. Antes de estornar, confirme com o titular pelo e-mail ou WhatsApp
             do pedido; o estorno é só pela forma original (Reembolsar na Stripe), nunca para dados escritos no motivo.
@@ -686,8 +695,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   // o que entrou, menos o que já voltou para o cliente
   const receita = pagos.reduce((s, p) => s + p.recebidoCentavos - p.reembolsoCentavos, 0);
   const contestacoes = avisosDeContestacao(contestacoesAbertas(pedidos));
-  // pagos, com o pedido de desistência pelo site, sem reembolso e sem a marca de respondido: a faixa vale mesmo sem os e-mails
-  const desistencias = pedidos.filter((p) => desistenciaParaResponder(p.itens[0])).length;
+  // pagos, com o pedido de desistência pelo site, pelo menos um voucher pago e sem a marca de respondido (o reembolso de
+  // uma parte não tira da faixa): a faixa vale mesmo sem os e-mails
+  const desistencias = pedidos.filter((p) => desistenciaParaResponder(p.itens)).length;
   // os reembolsos que pedem uma ação da equipe (as contas são por pedido): também valem sem os e-mails
   const reembolsos = avisosDeReembolso(contarReembolsosAResolver(pedidos));
 

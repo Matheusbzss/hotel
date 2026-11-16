@@ -3,11 +3,11 @@ import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
 import { formatarCifra } from '@/lib/cifra';
-import { DESISTENCIA_RESPONDIDA, desistenciaParaResponder, desistenciaRespondida } from '@/lib/desistencia';
+import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { podeMudar } from '@/lib/pagamento-stripe';
-import { valorDoVoucherPorFora, valorRecebido, voucherAtivo, voucherPago, type ErroDoPainel } from '@/lib/pedidos-painel';
+import { valorADevolver, valorDoVoucherPorFora, valorRecebido, voucherAtivo, voucherPago, type ErroDoPainel } from '@/lib/pedidos-painel';
 import {
   inicioDoReembolsoResolvido,
   linhaDaDevolucaoPorOutroMeio,
@@ -80,13 +80,15 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
 
 /**
  * As ações do painel sobre um pedido (o código pode ser o do pedido ou o de qualquer voucher dele):
- * - 'reembolsar' (total) e 'reembolsar_item' (um voucher, pelo valor do item na forma paga) pedem o reembolso à
- *   Stripe e só registram o pedido no histórico: o status muda quando o webhook charge.refunded confirmar. Antes de
- *   qualquer pedido à Stripe: o pedido contestado é recusado (contestado-nao-reembolsa); a caixa "Confirmo" tem de vir
- *   marcada (falta-confirmar); os reembolsos do pagamento são relidos na Stripe e, com MENOS devolvido lá do que o
- *   pedido registra (um reembolso falhou ou foi cancelado), nada é pedido (stripe-devolveu-menos). No 'reembolsar_item',
- *   um reembolso de parte feito direto na Stripe, sem voucher e sem resposta da equipe, também segura (as linhas de
- *   aviso que faltam são gravadas antes da resposta reembolso-sem-voucher). A Stripe que recusa um pagamento contestado
+ * - 'reembolsar' (total) e 'reembolsar_item' (um voucher, pelo valor do item na forma paga, nunca mais do que ainda
+ *   resta do pagamento: valorADevolver, a mesma conta do botão do painel) pedem o reembolso à Stripe e só registram o
+ *   pedido no histórico: o status muda quando o webhook charge.refunded confirmar. Antes de qualquer pedido à Stripe: o
+ *   pedido contestado é recusado (contestado-nao-reembolsa); a caixa "Confirmo" tem de vir marcada (falta-confirmar);
+ *   no 'reembolsar_item', sem nada a devolver deste pagamento, a recusa vem antes de qualquer chamada à Stripe
+ *   (nada-a-devolver); os reembolsos do pagamento são relidos na Stripe e, com MENOS devolvido lá do que o pedido
+ *   registra (um reembolso falhou ou foi cancelado), nada é pedido (stripe-devolveu-menos). No 'reembolsar_item', um
+ *   reembolso de parte feito direto na Stripe, sem voucher e sem resposta da equipe, também segura (as linhas de aviso
+ *   que faltam são gravadas antes da resposta reembolso-sem-voucher). A Stripe que recusa um pagamento contestado
  *   (charge_disputed: o aviso da contestação ainda não chegou) volta como contestado-nao-reembolsa;
  * - os reembolsos que a equipe resolve sem chamar a Stripe (16/11), nenhum devolve dinheiro: 'devolvido_por_fora' (o
  *   reembolso que falhou já foi devolvido por outro meio: só a linha que fecha o aviso), 'voucher_por_fora' (depois de
@@ -99,8 +101,9 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  *   reembolso que falhou: invalida todos os vouchers e não soma o valor devolvido (como no ON-A8RVZN); esse caminho é
  *   'devolvido_por_fora' e 'voucher_por_fora'. As ações manuais continuam valendo para os pedidos do WhatsApp e os
  *   antigos;
- * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido sem reembolso (src/lib/desistencia.ts):
- *   só a linha no histórico, que tira o pedido da faixa do topo.
+ * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido (src/lib/desistencia.ts), sem reembolso
+ *   ou com o resto do pedido seguindo pago depois do reembolso de uma parte: só a linha no histórico, que tira o pedido
+ *   da faixa do topo.
  * Os botões do painel mandam o código do voucher no endereço; no 'reembolsar_item', é ele o voucher devolvido.
  * Quem clica é uma pessoa, num formulário: toda ação recusada volta para o painel com ?erro= e um código curto,
  * que a página troca por uma frase fixa na faixa vermelha (ERROS_DO_PAINEL; nunca o texto que veio no endereço,
@@ -139,6 +142,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (alvo.status === 'contestado') return voltar('contestado-nao-reembolsa');
     if (!podeMudar(alvo.status, 'reembolsado')) return voltar('status-nao-reembolsa');
     if (!confirmou) return voltar('falta-confirmar');
+    // o que ainda resta do pagamento: o que entrou menos o que já voltou ou tem de voltar (a conta do painel). Um voucher
+    // nunca pede à Stripe mais do que isso; sem nada a devolver, a recusa vem antes de qualquer chamada à Stripe
+    const restante = vouchers.reduce((soma, v) => soma + valorRecebido(v), 0) - (alvo.reembolsoCentavos ?? 0);
+    if (acao === 'reembolsar_item' && restante <= 0) return voltar('nada-a-devolver');
     try {
       // os reembolsos do pagamento relidos na Stripe, antes de qualquer pedido novo: com MENOS devolvido lá do que o
       // pedido registra (um reembolso falhou ou foi cancelado), o site não pede outro. "Reembolsar tudo" vai à Stripe
@@ -157,7 +164,11 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       const item = vouchers.find((v) => v.codigo === voucher);
       if (!item) return voltar('voucher-de-fora');
       if (item.statusItem === 'reembolsado' || item.statusItem === 'cancelado') return voltar('item-ja-devolvido');
-      const centavos = valorDoVoucher(alvo, item);
+      // o valor do voucher, nunca mais do que ainda resta do pagamento (a mesma conta do botão "Reembolsar só o voucher
+      // …"): no ON-4KPC6F do teste de 15/11 (R$ 396,00 pagos e R$ 308,00 já devolvidos), pedir os R$ 242,00 do voucher
+      // fez a Stripe recusar com um erro genérico
+      const centavos = valorADevolver(valorDoVoucher(alvo, item), restante);
+      if (centavos <= 0) return voltar('nada-a-devolver');
       // um reembolso deste item já em vigor na Stripe (concluído ou ainda a caminho): não se devolve duas vezes. A
       // chave de idempotência da Stripe só protege por 24 horas; o reembolso que falhou deixa o botão livre
       if (reembolsos.some((feito) => feito.metadata?.referencia === voucher && reembolsoEmVigor(feito.status))) {
@@ -196,11 +207,15 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     }
   }
 
-  // o pedido de desistência pelo site respondido sem reembolso (a política não devolve): só a linha no histórico, que
-  // tira o pedido da faixa do topo do painel; o status e o pagamento não mudam
+  // o pedido de desistência pelo site respondido pela equipe: sem reembolso (a política não devolve) ou com o resto do
+  // pedido seguindo pago depois do reembolso de uma parte. Só a linha no histórico, que tira o pedido da faixa do topo do
+  // painel; o status e o pagamento não mudam. A regra é a da faixa (os vouchers do pedido: sobra pelo menos um pago), e a
+  // linha leva o valor já devolvido relido dentro da trava; repetir não grava de novo
   if (acao === 'desistencia_respondida') {
-    if (!desistenciaParaResponder(alvo)) return voltar('acao-nao-vale');
-    await atualizarReserva(alvo.codigo, (r) => (desistenciaRespondida(r) ? null : registrar(r, DESISTENCIA_RESPONDIDA)));
+    if (!desistenciaParaResponder(vouchers)) return voltar('acao-nao-vale');
+    await atualizarReserva(alvo.codigo, (r) =>
+      desistenciaRespondida(r) ? null : registrar(r, linhaDaDesistenciaRespondida(r.reembolsoCentavos ?? 0)),
+    );
     return voltar();
   }
 

@@ -102,6 +102,8 @@ export const ERROS_DO_PAINEL = {
   'reembolso-sem-voucher':
     'A Stripe já devolveu parte deste pedido por fora do site, sem dizer de qual voucher. Diga primeiro de qual voucher foi; nada foi devolvido agora.',
   'falta-confirmar': 'Marque a caixa de confirmação antes de continuar. Nada foi feito.',
+  'nada-a-devolver':
+    'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
 } as const;
 
 export type ErroDoPainel = keyof typeof ERROS_DO_PAINEL;
@@ -365,12 +367,38 @@ export const botaoVoucherDaStripe = (voucher: string, centavos: number) => ({
 });
 
 /**
- * Quanto o voucher devolvido por outro meio soma ao que voltou ao cliente: o valor dele, nunca mais do que ainda resta
- * do pagamento (o que entrou menos o que já voltou ou tem de voltar). Assim o pedido nunca registra mais devolvido do que
- * recebeu, nem depois de um desconto feito direto na Stripe. O painel e a rota usam a mesma conta.
+ * Quanto de um voucher ainda dá para devolver: o valor dele, nunca mais do que ainda resta do pagamento (o que entrou
+ * menos o que já voltou ou tem de voltar), nem negativo. Assim o pedido nunca registra nem pede mais devolvido do que
+ * recebeu, nem depois de um desconto feito direto na Stripe. É a conta do voucher devolvido por outro meio e a do
+ * reembolso de um voucher pela Stripe (o botão "Reembolsar só o voucher …" e o valor que a rota pede à Stripe).
  */
-export const valorDoVoucherPorFora = (valorCentavos: number, restanteCentavos: number): number =>
+export const valorADevolver = (valorCentavos: number, restanteCentavos: number): number =>
   Math.max(0, Math.min(valorCentavos, restanteCentavos));
+
+/** Quanto o voucher devolvido por outro meio soma ao que voltou ao cliente: valorADevolver (o painel e a rota usam esta). */
+export const valorDoVoucherPorFora = valorADevolver;
+
+/**
+ * O botão "Reembolsar só o voucher …" do pedido pago pela Stripe: o valor do voucher, nunca mais do que ainda resta do
+ * pagamento (valorADevolver; a rota pede à Stripe a mesma conta). No ON-4KPC6F do teste de 15/11 (R$ 396,00 pagos e
+ * R$ 308,00 já devolvidos), o botão oferecia R$ 242,00 de um voucher e a Stripe recusou com um erro genérico. Com o valor
+ * limitado, o rótulo diz que é o que resta do pagamento; a caixa "Confirmo" leva o mesmo valor do botão. Sem nada a
+ * devolver, null: o botão não aparece (e a rota recusa antes de chamar a Stripe, nada-a-devolver).
+ */
+export function botaoReembolsoDoVoucher(
+  voucher: string,
+  valorCentavos: number,
+  restanteCentavos: number,
+): { centavos: number; rotulo: string; confirmacao: string } | null {
+  const centavos = valorADevolver(valorCentavos, restanteCentavos);
+  if (centavos <= 0) return null;
+  const oQueResta = centavos < valorCentavos ? ', o que resta do pagamento' : '';
+  return {
+    centavos,
+    rotulo: `Reembolsar só o voucher ${voucher} (${cifra(centavos)}${oQueResta})`,
+    confirmacao: confirmacaoDoReembolsoDoVoucher(centavos, voucher),
+  };
+}
 
 /**
  * O que o cartão do pedido mostra sobre reembolso, numa regra só (testada em tests/painel-avisos.test.ts):
@@ -381,7 +409,8 @@ export const valorDoVoucherPorFora = (valorCentavos: number, restanteCentavos: n
  *   contestação aberta ou perdida depois dela, que não se devolve por fora) e, com o pedido pago, um "voucher devolvido
  *   por outro meio" por voucher ainda pago (`vouchersPagos`). Só as linhas de reembolsosFalhos contam: a devolução falha
  *   de um pagamento repetido não tira os botões de um pedido saudável;
- * - stripe: os botões de sempre ("Reembolsar tudo" e, no pedido com vários itens, um por voucher ativo).
+ * - stripe: os botões de sempre ("Reembolsar tudo" e, no pedido com vários itens, um por voucher ativo, pelo valor do
+ *   voucher, nunca mais do que ainda resta do pagamento: botaoReembolsoDoVoucher).
  * Nos dois últimos, `semVoucher` traz os reembolsos de parte feitos direto na Stripe sem voucher, ainda por resolver (só
  * no pedido pago com vários itens). Enquanto houver algum, nenhum botão por voucher aparece (o reembolso pode ter sido de
  * um deles): primeiro a equipe diz de qual voucher foi.

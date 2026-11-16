@@ -1,12 +1,26 @@
-import { agruparPedidos, valorRecebido, type PedidoPainel } from './pedidos-painel.ts';
+import { agruparPedidos, valorRecebido, voucherPago, type PedidoPainel } from './pedidos-painel.ts';
 import type { MetodoPagamento, Reserva } from './reservas';
 import { DDIS, hojeEmBuzios, somarDias } from './validacao.ts';
 
 /**
  * Os números da página de estatísticas. Conta só o pedido pago, no dia do pagamento (no fuso de Búzios) e
- * pelo valor que entrou. Aqui só se soma, sem tocar no banco: assim dá para testar
- * (tests/estatisticas.test.ts).
+ * pelo valor que entrou, menos o que já voltou para o cliente: a mesma conta de "Vendido (pagos, menos reembolsos)" da
+ * página de pedidos, para as duas páginas darem o mesmo número. O reembolso é descontado no dia do pagamento do pedido,
+ * não no dia do reembolso. O voucher devolvido ou cancelado sozinho não é item vendido. Aqui só se soma, sem tocar no
+ * banco: assim dá para testar (tests/estatisticas.test.ts).
+ *
+ * Limite que fica: os rankings por item (por passeio, por cidade, as sugestões) só sabem tirar o voucher MARCADO como
+ * devolvido. Um reembolso sem voucher (um desconto num pedido de um item, ou o feito direto na Stripe antes de a equipe
+ * dizer de qual voucher foi) desce o dinheiro do pedido e continua inteiro no item; cada ranking calcula a porcentagem
+ * sobre a própria soma.
  */
+
+/** O que ficou do pedido: o que entrou, menos o que já voltou para o cliente (a conta da página de pedidos). */
+const liquido = (p: PedidoPainel) => p.recebidoCentavos - p.reembolsoCentavos;
+/** O voucher devolvido ou cancelado sozinho não é item vendido (a mesma regra do voucher ainda pago do painel). */
+const itemVendido = (i: Reserva) => voucherPago(i);
+/** Os itens vendidos de um pedido. */
+const itensVendidos = (p: PedidoPainel) => p.itens.filter(itemVendido);
 
 /** Um intervalo de dias (AAAA-MM-DD), com o primeiro e o último incluídos. */
 export interface Periodo {
@@ -255,8 +269,8 @@ const produtoDoItem = (i: Reserva) =>
 const veioDaSugestao = (i: Reserva) => i.tipo !== 'transfer' && i.sugestao === true;
 
 function resumir(pedidos: PedidoPainel[]): Resumo {
-  const itens = pedidos.flatMap((p) => p.itens);
-  const centavos = pedidos.reduce((soma, p) => soma + p.recebidoCentavos, 0);
+  const itens = pedidos.flatMap(itensVendidos);
+  const centavos = pedidos.reduce((soma, p) => soma + liquido(p), 0);
   return {
     pedidos: pedidos.length,
     centavos,
@@ -327,7 +341,7 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
   const pagos = agruparPedidos(reservas).filter((p) => p.status === 'pago');
   const doPeriodo = (intervalo: Periodo) => pagos.filter((p) => dentro(diaDoPagamento(p), intervalo));
   const vendidos = doPeriodo(periodo);
-  const itens = vendidos.flatMap((p) => p.itens);
+  const itens = vendidos.flatMap(itensVendidos);
 
   const porDia = diasDe(periodo);
   const lugar = new Map(porDia.map((d, n) => [d.de, n]));
@@ -335,10 +349,14 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
     const dia = porDia[lugar.get(diaDoPagamento(p)) ?? -1];
     if (!dia) continue;
     dia.pedidos += 1;
-    dia.centavos += p.recebidoCentavos;
+    dia.centavos += liquido(p);
   }
 
-  const quantosItens = (n: number, ouMais = false) => vendidos.filter((p) => (ouMais ? p.itens.length >= n : p.itens.length === n)).length;
+  const quantosItens = (n: number, ouMais = false) =>
+    vendidos.filter((p) => {
+      const quantos = itensVendidos(p).length;
+      return ouMais ? quantos >= n : quantos === n;
+    }).length;
   const sugeridos = itens.filter(veioDaSugestao);
 
   return {
@@ -360,13 +378,13 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
           : { chave: i.passeio.cidade, rotulo: i.passeio.cidade, centavos: valorRecebido(i) },
       ),
     ),
-    porPais: juntar(vendidos.map((p) => ({ ...paisDoTelefone(p.itens[0].cliente.telefone), centavos: p.recebidoCentavos }))),
-    porPagamento: juntar(vendidos.map((p) => ({ chave: p.metodo, rotulo: FORMA_DE_PAGAMENTO[p.metodo], centavos: p.recebidoCentavos }))),
-    porOrigem: juntar(vendidos.map((p) => ({ ...origemDoPedido(p), centavos: p.recebidoCentavos }))),
+    porPais: juntar(vendidos.map((p) => ({ ...paisDoTelefone(p.itens[0].cliente.telefone), centavos: liquido(p) }))),
+    porPagamento: juntar(vendidos.map((p) => ({ chave: p.metodo, rotulo: FORMA_DE_PAGAMENTO[p.metodo], centavos: liquido(p) }))),
+    porOrigem: juntar(vendidos.map((p) => ({ ...origemDoPedido(p), centavos: liquido(p) }))),
     porCampanha: juntar(
       vendidos.flatMap((p) => {
         const campanha = p.itens[0].origem?.utm_campaign;
-        return campanha ? [{ chave: campanha, rotulo: campanha, centavos: p.recebidoCentavos }] : [];
+        return campanha ? [{ chave: campanha, rotulo: campanha, centavos: liquido(p) }] : [];
       }),
     ),
     itensPorPedido: [
@@ -378,7 +396,7 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
     sugestoes: {
       centavos: sugeridos.reduce((soma, i) => soma + valorRecebido(i), 0),
       itens: sugeridos.length,
-      pedidos: vendidos.filter((p) => p.itens.some(veioDaSugestao)).length,
+      pedidos: vendidos.filter((p) => itensVendidos(p).some(veioDaSugestao)).length,
       porPasseio: juntar(sugeridos.map(produtoDoItem)),
     },
     funil: funilDe(carrinhos, periodo),

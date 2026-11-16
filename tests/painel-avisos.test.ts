@@ -16,6 +16,7 @@ import {
   avisosDeContestacao,
   avisosDeReembolso,
   botaoDevolvidoPorFora,
+  botaoReembolsoDoVoucher,
   botaoVoucherDaStripe,
   botaoVoucherPorFora,
   confirmacaoDoReembolso,
@@ -32,7 +33,9 @@ import {
   reembolsoNoPainel,
   reembolsoParaResolver,
   reembolsosParadosPelaContestacao,
+  valorADevolver,
   valorDoVoucherPorFora,
+  valorRecebido,
 } from '../src/lib/pedidos-painel.ts';
 import {
   linhaDaDevolucaoPorOutroMeio,
@@ -794,6 +797,57 @@ test('os botões de devolver pedem a caixa "Confirmo" com o mesmo valor do botã
   assert.equal(valorDoVoucherPorFora(15400, -500), 0);
 });
 
+test('o botão "Reembolsar só o voucher": nunca mais do que resta do pagamento, dito no botão; sem nada a devolver, nenhum botão', () => {
+  // o valor do voucher cabe no que resta: o rótulo e a caixa de sempre, com o mesmo valor
+  assert.deepEqual(botaoReembolsoDoVoucher('ON-BBB234', 15400, 39600), {
+    centavos: 15400,
+    rotulo: `Reembolsar só o voucher ON-BBB234 (${cifra(15400)})`,
+    confirmacao: `Confirmo: devolver ${cifra(15400)} do voucher ON-BBB234. Não dá para desfazer.`,
+  });
+  // exatamente o que resta: ainda o valor do voucher, sem a nota
+  assert.equal(botaoReembolsoDoVoucher('ON-AAA234', 24200, 24200)?.rotulo, `Reembolsar só o voucher ON-AAA234 (${cifra(24200)})`);
+  // o ON-4KPC6F do teste de 15/11: R$ 396,00 pagos e R$ 308,00 já devolvidos. O voucher de R$ 242,00 só pede R$ 88,00, e o
+  // botão diz que é o que resta; a caixa "Confirmo" leva o mesmo valor
+  assert.deepEqual(botaoReembolsoDoVoucher('ON-AAA234', 24200, 39600 - 30800), {
+    centavos: 8800,
+    rotulo: `Reembolsar só o voucher ON-AAA234 (${cifra(8800)}, o que resta do pagamento)`,
+    confirmacao: `Confirmo: devolver ${cifra(8800)} do voucher ON-AAA234. Não dá para desfazer.`,
+  });
+  // nada a devolver (ou um voucher sem valor): nenhum botão
+  for (const [valor, resta] of [
+    [24200, 0],
+    [24200, -500],
+    [0, 39600],
+  ])
+    assert.equal(botaoReembolsoDoVoucher('ON-AAA234', valor, resta), null, `${valor} ${resta}`);
+  // a mesma conta do voucher devolvido por outro meio, que a rota também usa
+  assert.equal(valorDoVoucherPorFora, valorADevolver);
+  assert.equal(valorADevolver(24200, 8800), 8800);
+  assert.equal(valorADevolver(15400, 39600), 15400);
+
+  // no pedido como o painel o agrupa: o voucher ON-BBB234 devolvido pelo site e um desconto feito direto na Stripe, que a
+  // equipe anotou como desconto. Resta R$ 88,00, e o único voucher ainda ativo oferece só isso
+  const comDesconto = historico(
+    'Pago (webhook da Stripe)',
+    linhaDoReembolsoSemVoucher(SEM_VOUCHER),
+    linhaDoReembolsoSemMudarVoucher('re_direto'),
+  );
+  const m = reembolsoNoPainel(doisItens({ reembolsoCentavos: 30800, historico: comDesconto }, [undefined, 'reembolsado']));
+  assert.equal(m.tipo, 'stripe');
+  if (m.tipo !== 'stripe') return;
+  assert.equal(m.restanteCentavos, 8800);
+  assert.deepEqual(
+    m.vouchers.map((v) => v.codigo),
+    ['ON-AAA234'],
+  );
+  assert.equal(
+    botaoReembolsoDoVoucher(m.vouchers[0].codigo, valorRecebido(m.vouchers[0]), m.restanteCentavos)?.rotulo,
+    `Reembolsar só o voucher ON-AAA234 (${cifra(8800)}, o que resta do pagamento)`,
+  );
+  // o "Reembolsar tudo" do mesmo pedido já pedia só o que resta
+  assert.equal(confirmacaoDoReembolso(m.restanteCentavos), `Confirmo: devolver ${cifra(8800)} ao cliente. Não dá para desfazer.`);
+});
+
 test('os códigos novos de erro do painel têm a sua frase, e cada uma diz que nada saiu agora ou o que fazer', () => {
   assert.equal(
     ERROS_DO_PAINEL['stripe-devolveu-menos'],
@@ -866,6 +920,38 @@ test('a rota do painel: contestado e "Confirmo" antes da Stripe; a Stripe com me
   assert.ok(captura.indexOf("voltar('contestado-nao-reembolsa')") < captura.indexOf("voltar('stripe-falhou')"));
 });
 
+test('a rota do painel: o reembolso de um voucher nunca pede à Stripe mais do que resta; sem nada a devolver, recusa antes da Stripe', () => {
+  const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  const reembolsar = trechoDaAcao(rota, 'reembolsar');
+  // o que resta do pagamento: o que entrou (a conta do painel, valorRecebido de cada voucher) menos o que já voltou
+  const resta = reembolsar.indexOf(
+    'const restante = vouchers.reduce((soma, v) => soma + valorRecebido(v), 0) - (alvo.reembolsoCentavos ?? 0);',
+  );
+  const nada = reembolsar.indexOf("if (acao === 'reembolsar_item' && restante <= 0) return voltar('nada-a-devolver');");
+  const lista = reembolsar.indexOf('await reembolsosDoPagamento(alvo.paymentIntentId)');
+  const tudo = reembolsar.indexOf('criarReembolso(alvo.paymentIntentId)');
+  const conta = reembolsar.indexOf('const centavos = valorADevolver(valorDoVoucher(alvo, item), restante);');
+  const semValor = reembolsar.indexOf("if (centavos <= 0) return voltar('nada-a-devolver');");
+  const doItem = reembolsar.indexOf('criarReembolso(alvo.paymentIntentId, centavos, voucher)');
+  for (const [nome, onde] of Object.entries({ resta, nada, lista, tudo, conta, semValor, doItem })) assert.notEqual(onde, -1, nome);
+  // sem nada a devolver, a recusa vem antes de qualquer chamada à Stripe (a lista relida e os dois pedidos de reembolso)
+  assert.ok(resta < nada && nada < lista && nada < tudo && nada < doItem);
+  // o valor pedido à Stripe é o limitado ao que resta (a conta do botão), conferido antes do pedido, e não muda depois
+  assert.ok(lista < conta && conta < semValor && semValor < doItem);
+  assert.equal(reembolsar.match(/\bcentavos = /g)?.length, 1);
+  // o botão do painel faz a mesma conta
+  assert.match(
+    codigo('lib', 'pedidos-painel.ts'),
+    /const centavos = valorADevolver\(valorCentavos, restanteCentavos\);\s+if \(centavos <= 0\) return null;/,
+  );
+  // e a recusa diz que nada saiu
+  assert.equal(
+    ERROS_DO_PAINEL['nada-a-devolver'],
+    'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
+  );
+  assert.equal(fraseDoErro('nada-a-devolver'), ERROS_DO_PAINEL['nada-a-devolver']);
+});
+
 test('a rota do painel: as ações novas não devolvem dinheiro pela Stripe, só uma muda o status e as três de dinheiro pedem "Confirmo"', () => {
   const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
   const acoes = ['devolvido_por_fora', 'voucher_por_fora', 'voucher_da_stripe', 'reembolso_sem_voucher'] as const;
@@ -904,7 +990,19 @@ test('a página do painel: a caixa "Confirmo" nos botões de devolver, nenhuma c
     return pagina.slice(pagina.lastIndexOf('<BotaoAcao', inicio), pagina.indexOf('/>', inicio));
   };
   assert.match(botao('reembolsar'), /confirmacao=\{confirmacaoDoReembolso\(restante\)\}/);
-  assert.match(botao('reembolsar_item'), /confirmacao=\{confirmacaoDoReembolsoDoVoucher\(valorRecebido\(i\), i\.codigo\)\}/);
+  // o voucher: o rótulo e a caixa saem de botaoReembolsoDoVoucher, com o mesmo valor (nunca mais do que resta do pagamento),
+  // e sem nada a devolver o botão não aparece (16/11, depois do ON-4KPC6F)
+  assert.match(botao('reembolsar_item'), /rotulo=\{botao\.rotulo\}/);
+  assert.match(botao('reembolsar_item'), /confirmacao=\{botao\.confirmacao\}/);
+  assert.match(
+    pagina,
+    /const botao = botaoReembolsoDoVoucher\(i\.codigo, valorRecebido\(i\), restante\);\s+return \(\s+botao && \(\s+<BotaoAcao\s[^>]*?acao="reembolsar_item"/,
+  );
+  assert.doesNotMatch(pagina, /Reembolsar só o voucher \$\{/);
+  // o rótulo mais comprido quebra a linha dentro do botão no celular: nada no botão impede a quebra
+  const botaoAcao = pagina.slice(pagina.indexOf('function BotaoAcao('), pagina.indexOf('function ReembolsoStripe('));
+  assert.match(botaoAcao, /<button type="submit" className=\{`min-h-10 px-4 text-small font-semibold/);
+  assert.doesNotMatch(botaoAcao, /whitespace-nowrap|text-nowrap|truncate/);
   for (const acao of ['devolvido_por_fora', 'voucher_por_fora', 'voucher_da_stripe'])
     assert.match(botao(acao), /confirmacao=\{botao\.confirmacao\}/, acao);
   assert.doesNotMatch(botao('reembolso_sem_voucher'), /confirmacao=/);

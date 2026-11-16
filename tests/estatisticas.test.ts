@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { calcularEstatisticas, escolherPeriodo, marcasDoEixo, paisDoTelefone, variacao, verPorSemana } from '../src/lib/estatisticas.ts';
 import type { CarrinhoNoFunil } from '../src/lib/estatisticas.ts';
 import { agruparPedidos, valorRecebido } from '../src/lib/pedidos-painel.ts';
@@ -269,4 +271,139 @@ test('a comparação e as marcas do eixo', () => {
   assert.deepEqual(marcasDoEixo(3), [0, 1, 2, 3]);
   assert.deepEqual(marcasDoEixo(7), [0, 2, 4, 6, 8]);
   assert.deepEqual(marcasDoEixo(38000, 100), [0, 10000, 20000, 30000, 40000]);
+});
+
+// Desde 16/11 (o teste de 15/11 achou R$ 1.400,60 de diferença entre as duas páginas): as estatísticas fazem a conta da
+// página de pedidos, "Vendido (pagos, menos reembolsos)", e o voucher devolvido ou cancelado sozinho não é item vendido.
+
+/** Um pedido pago no cartão com dois itens, como o ON-YTMC29 do teste (os valores dele, nenhum dado de cliente). */
+const pedidoComUmDevolvido = (reembolsoCentavos: number, statusDoPasseio?: Reserva['statusItem']) => {
+  const dados = {
+    pedido: { codigo: 'ON-PEDIDO', totalCentavos: 35640 },
+    reembolsoCentavos,
+    pagamento: { metodo: 'cartao' as const, pagoEm: '2026-11-02T15:00:00.000Z' },
+    origem: { utm_source: 'meta', utm_medium: 'pago', utm_campaign: 'verao' },
+  };
+  return [
+    passeio({
+      codigo: 'ON-ITEM1',
+      ...dados,
+      totalCentavos: 13860,
+      sugestao: true,
+      ...(statusDoPasseio ? { statusItem: statusDoPasseio } : {}),
+    }),
+    transfer({ codigo: 'ON-ITEM2', ...dados, totalCentavos: 21780 }),
+  ];
+};
+
+test('o voucher devolvido sozinho: o faturamento é o que ficou, e ele não é item vendido nem entra nos rankings', () => {
+  const e = calcularEstatisticas(pedidoComUmDevolvido(13860, 'reembolsado'), [], NOVEMBRO);
+  assert.equal(e.resumo.pedidos, 1);
+  // R$ 356,40 pagos, R$ 138,60 devolvidos
+  assert.equal(e.resumo.centavos, 21780);
+  assert.equal(e.resumo.ticketCentavos, 21780);
+  assert.equal(e.resumo.itens, 1);
+  assert.equal(e.resumo.itensPorPedido, 1);
+  // o dia do gráfico leva o que ficou
+  assert.deepEqual(
+    e.porDia.filter((d) => d.pedidos).map((d) => [d.de, d.pedidos, d.centavos]),
+    [['2026-11-02', 1, 21780]],
+  );
+  // o passeio devolvido sai dos rankings por item e das sugestões
+  assert.deepEqual(
+    e.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['transfer', 21780, 1]],
+  );
+  assert.deepEqual(
+    e.porCidade.map((f) => [f.chave, f.quantidade]),
+    [['transfer', 1]],
+  );
+  assert.deepEqual(
+    { centavos: e.sugestoes.centavos, itens: e.sugestoes.itens, pedidos: e.sugestoes.pedidos },
+    { centavos: 0, itens: 0, pedidos: 0 },
+  );
+  assert.equal(e.resumo.sugestoesCentavos, 0);
+  // o pedido de dois itens com um devolvido entra em "1 item"
+  assert.deepEqual(
+    e.itensPorPedido.map((i) => i.pedidos),
+    [1, 0, 0, 0],
+  );
+  // o país, a forma de pagamento, a origem e a campanha também pelo que ficou
+  for (const fatias of [e.porPais, e.porPagamento, e.porOrigem, e.porCampanha])
+    assert.deepEqual(
+      fatias.map((f) => [f.centavos, f.quantidade]),
+      [[21780, 1]],
+    );
+  // o voucher cancelado sozinho também não é item vendido
+  assert.equal(calcularEstatisticas(pedidoComUmDevolvido(0, 'cancelado'), [], NOVEMBRO).resumo.itens, 1);
+  // sem reembolso, nada muda: os dois itens, pelo valor cheio
+  const inteiro = calcularEstatisticas(pedidoComUmDevolvido(0), [], NOVEMBRO);
+  assert.equal(inteiro.resumo.centavos, 35640);
+  assert.equal(inteiro.resumo.itens, 2);
+  assert.equal(inteiro.sugestoes.pedidos, 1);
+});
+
+test('o reembolso sem voucher (um desconto num pedido de um item): o dinheiro do pedido desce, o item fica nos rankings', () => {
+  const e = calcularEstatisticas(
+    [passeio({ codigo: 'ON-DESCONTO', reembolsoCentavos: 2000, pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' } })],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(e.resumo.centavos, 8000);
+  assert.equal(e.resumo.itens, 1);
+  assert.deepEqual(
+    e.porDia.filter((d) => d.pedidos).map((d) => d.centavos),
+    [8000],
+  );
+  assert.deepEqual(
+    e.porPagamento.map((f) => [f.rotulo, f.centavos]),
+    [['Cartão', 8000]],
+  );
+  // o limite que fica: o ranking por item só tira o voucher marcado como devolvido, então o passeio continua cheio
+  assert.deepEqual(
+    e.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['escuna-arraial', 10000, 1]],
+  );
+  assert.deepEqual(
+    e.itensPorPedido.map((i) => i.pedidos),
+    [1, 0, 0, 0],
+  );
+});
+
+test('a página de pedidos e as estatísticas dão o mesmo número (o período "Tudo")', () => {
+  // a conta da página de pedidos, lida do código dela
+  const pagina = readFileSync(path.join('src', 'app', 'admin', 'page.tsx'), 'utf8');
+  assert.match(pagina, /const receita = pagos\.reduce\(\(s, p\) => s \+ p\.recebidoCentavos - p\.reembolsoCentavos, 0\);/);
+  assert.match(pagina, /Vendido \(pagos, menos reembolsos\)/);
+  const reservas: Reserva[] = [
+    // pago no Pix, sem reembolso: R$ 90,00
+    passeio({ codigo: 'ON-PIX' }),
+    // pago no cartão, com um voucher devolvido: R$ 217,80 dos R$ 356,40
+    ...pedidoComUmDevolvido(13860, 'reembolsado'),
+    // pago no cartão, com um desconto sem voucher: R$ 80,00 dos R$ 100,00
+    passeio({ codigo: 'ON-DESCONTO', reembolsoCentavos: 2000, pagamento: { metodo: 'cartao', pagoEm: '2026-10-20T15:00:00.000Z' } }),
+    // fora da conta: reembolsado inteiro, contestado e esperando pagamento
+    passeio({ codigo: 'ON-REEMBOLSADO', status: 'reembolsado', reembolsoCentavos: 9000 }),
+    passeio({ codigo: 'ON-CONTESTADO', status: 'contestado' }),
+    passeio({ codigo: 'ON-PENDENTE', status: 'pendente', pagamento: { metodo: 'pix' } }),
+  ];
+  const pagos = agruparPedidos(reservas).filter((p) => p.status === 'pago');
+  const receita = pagos.reduce((s, p) => s + p.recebidoCentavos - p.reembolsoCentavos, 0);
+  assert.equal(receita, 9000 + 21780 + 8000);
+  const e = calcularEstatisticas(reservas, [], escolherPeriodo({ periodo: 'tudo' }, '2026-11-16', '2026-10-01'));
+  assert.equal(e.resumo.pedidos, pagos.length);
+  assert.equal(e.resumo.centavos, receita);
+  // o gráfico e os rankings por pedido fecham com o mesmo número
+  assert.equal(
+    e.porDia.reduce((s, d) => s + d.centavos, 0),
+    receita,
+  );
+  for (const fatias of [e.porPais, e.porPagamento, e.porOrigem])
+    assert.equal(
+      fatias.reduce((s, f) => s + f.centavos, 0),
+      receita,
+    );
+  // e a página das estatísticas diz que é o número sem os reembolsos, num rótulo que pode quebrar a linha no celular
+  const estatisticas = readFileSync(path.join('src', 'app', 'admin', 'estatisticas', 'page.tsx'), 'utf8');
+  assert.match(estatisticas, /<p className="text-small text-tinta-suave">Faturamento \(menos reembolsos\)<\/p>/);
 });

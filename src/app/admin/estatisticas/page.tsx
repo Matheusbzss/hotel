@@ -392,7 +392,8 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
 
       <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Resumo">
         <div className="col-span-2 flex flex-col justify-center bg-white px-5 py-5 lg:col-span-1 lg:row-span-2">
-          <p className="text-small text-tinta-suave">Faturamento</p>
+          {/* o mesmo número de "Vendido (pagos, menos reembolsos)" da página de pedidos */}
+          <p className="text-small text-tinta-suave">Faturamento (menos reembolsos)</p>
           <p className="mt-1 whitespace-nowrap text-[clamp(2.25rem,11vw,3.25rem)] font-bold leading-none">{formatarPreco(r.centavos)}</p>
           <Comparacao atual={r.centavos} anterior={antes?.centavos} />
         </div>

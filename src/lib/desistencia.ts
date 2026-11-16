@@ -1,6 +1,7 @@
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
+import { formatarCifra } from './cifra.ts';
 import { segundosAteOInicio } from './formas-pagamento.ts';
-import { provedorDaReserva } from './pedidos-painel.ts';
+import { provedorDaReserva, voucherPago } from './pedidos-painel.ts';
 import type { Reserva } from './reservas';
 
 /**
@@ -21,10 +22,28 @@ export const MOTIVO_MAXIMO = 500;
 /** O arrependimento do Código de Defesa do Consumidor (art. 49): 7 dias, contados aqui do pagamento. */
 export const ARREPENDIMENTO_DIAS = 7;
 /**
+ * O começo de toda linha "respondida" que a equipe grava no painel: é por ele que se sabe que a equipe respondeu ao pedido
+ * de desistência (as duas linhas de linhaDaDesistenciaRespondida começam com ele, e as já gravadas também).
+ */
+export const INICIO_DESISTENCIA_RESPONDIDA = 'Desistência respondida pela equipe';
+/**
  * A linha que a equipe grava no painel quando respondeu ao pedido de desistência sem reembolso pelo site (fora dos 7
- * dias, a política não devolveu): o pedido sai da faixa do topo do painel.
+ * dias, a política não devolveu): o pedido sai da faixa do topo do painel. É o texto de sempre, sem mudar.
  */
 export const DESISTENCIA_RESPONDIDA = 'Desistência respondida pela equipe, sem reembolso pelo site';
+
+/**
+ * A linha que o painel grava ao marcar a desistência como respondida: sem reembolso nenhum, a de sempre; com uma parte do
+ * pedido já reembolsada (antes ou depois do pedido de desistência), o que já voltou e que o resto do pedido segue pago.
+ */
+export const linhaDaDesistenciaRespondida = (reembolsoCentavos: number): string =>
+  reembolsoCentavos > 0
+    ? `${INICIO_DESISTENCIA_RESPONDIDA}: ${formatarCifra(reembolsoCentavos, 'pt-BR')} reembolsados, o resto do pedido segue pago`
+    : DESISTENCIA_RESPONDIDA;
+
+/** O rótulo do botão do painel que marca a desistência como respondida (com a mesma regra da linha). */
+export const rotuloDaDesistenciaRespondida = (reembolsoCentavos: number): string =>
+  reembolsoCentavos > 0 ? 'Desistência respondida (o resto do pedido segue pago)' : 'Desistência respondida, sem reembolso';
 
 /**
  * O motivo numa linha só, sem espaços sobrando e cortado no máximo. Ele vai para o histórico (o painel mostra) e para o
@@ -84,16 +103,25 @@ export function linhaDaDesistencia(motivo?: string, prazo?: { compraEm?: string;
 export const desistenciaPedida = (r: Pick<Reserva, 'historico'>): boolean =>
   (r.historico ?? []).some((h) => h.evento.startsWith(AVISO_DESISTENCIA));
 
-/** A equipe marcou no painel que respondeu ao pedido de desistência sem reembolso pelo site. */
+/**
+ * A equipe marcou no painel que respondeu ao pedido de desistência: sem reembolso pelo site, ou com o resto do pedido
+ * seguindo pago (as linhas de linhaDaDesistenciaRespondida, e as gravadas antes delas, que têm o mesmo começo).
+ */
 export const desistenciaRespondida = (r: Pick<Reserva, 'historico'>): boolean =>
-  (r.historico ?? []).some((h) => h.evento.startsWith(DESISTENCIA_RESPONDIDA));
+  (r.historico ?? []).some((h) => h.evento.startsWith(INICIO_DESISTENCIA_RESPONDIDA));
 
 /**
- * O pedido de desistência ainda espera a equipe: o pedido continua pago, nada voltou para o cliente e ninguém marcou
- * no painel que respondeu. É o que a faixa do topo do painel conta (funciona mesmo sem os e-mails ligados).
+ * O pedido de desistência ainda espera a equipe: o pedido continua pago, sobra pelo menos um voucher pago (nem cancelado
+ * nem reembolsado sozinho) e ninguém marcou no painel que respondeu. Reembolso nenhum conta como resposta por si só: o de
+ * uma parte do pedido, feito antes ou depois do pedido de desistência, deixa um voucher pago sobre o qual o cliente ainda
+ * espera resposta; o do pedido inteiro tira o pedido da conta porque o status deixa de ser pago. Recebe os vouchers do
+ * pedido (o primeiro representa o pedido: o status e o histórico ficam nele). É o que a faixa do topo do painel conta, o
+ * filtro "Desistências", a frase vermelha, o botão e a rota do painel (funciona mesmo sem os e-mails ligados).
  */
-export function desistenciaParaResponder(r: Pick<Reserva, 'status' | 'historico' | 'reembolsoCentavos'>): boolean {
-  return r.status === 'pago' && !(r.reembolsoCentavos ?? 0) && desistenciaPedida(r) && !desistenciaRespondida(r);
+export function desistenciaParaResponder(vouchers: readonly Pick<Reserva, 'status' | 'historico' | 'statusItem'>[]): boolean {
+  const [r] = vouchers;
+  if (!r) return false;
+  return r.status === 'pago' && vouchers.some(voucherPago) && desistenciaPedida(r) && !desistenciaRespondida(r);
 }
 
 /** A frase da faixa do topo do painel. */

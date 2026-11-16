@@ -1,9 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HREFLANG, IDIOMAS, IDIOMAS_GUIAS, LOCALE_INTL, OG_LOCALE, PREFIXOS_IDIOMA, isIdioma, isIdiomaGuia } from '../src/i18n/config.ts';
+import {
+  HREFLANG,
+  IDIOMAS,
+  IDIOMAS_GUIAS,
+  LOCALE_INTL,
+  OG_LOCALE,
+  PREFIXOS_IDIOMA,
+  fmt,
+  isIdioma,
+  isIdiomaGuia,
+} from '../src/i18n/config.ts';
 import { idiomaDeConteudo, texto, textoOpcional } from '../src/i18n/conteudo.ts';
 import { ajustesAR } from '../src/i18n/es-ar.ts';
 import { dicionario, mesclar } from '../src/i18n/index.ts';
+import { ANTECEDENCIA_TRANSFER_MINUTOS } from '../src/lib/horarios.ts';
 import { CHAVES_RECUSA } from '../src/lib/recusas.ts';
 
 // O espanhol da Argentina ('es-ar') é o espanhol ('es') com só as frases que mudam por cima (src/i18n/es-ar.ts).
@@ -157,6 +168,20 @@ test('a contestação vale para cartão e para Pix: o texto do cliente não fala
     for (const t of [d.pedido.contestadoTitulo, d.pedido.contestadoTexto, d.status.contestado])
       assert.doesNotMatch(t, /cart[ãa]o|tarjeta|card/i, `${idioma}: ${t}`);
   }
+});
+
+test('Pacote 6: a frase da antecedência do transfer nos quatro idiomas, com o {h} das horas e nenhum número à mão', () => {
+  const horas = ANTECEDENCIA_TRANSFER_MINUTOS / 60;
+  for (const idioma of IDIOMAS) {
+    const t = dicionario(idioma).transfer.erroAntecedencia;
+    assert.ok(t.trim(), idioma);
+    // o número de horas vem da regra (src/lib/horarios.ts), uma vez só
+    assert.equal(t.split('{h}').length, 2, `${idioma}: ${t}`);
+    assert.doesNotMatch(t, /\d/, `${idioma}: ${t}`);
+    assert.match(fmt(t, { h: horas }), new RegExp(`(?<!\\d)${horas} (horas|hours)(?!\\p{L})`, 'u'), `${idioma}: ${t}`);
+  }
+  // sem verbo em tú nem em vos: o es-ar lê a frase do es (src/i18n/es-ar.ts não muda)
+  assert.equal(dicionario('es-ar').transfer.erroAntecedencia, dicionario('es').transfer.erroAntecedencia);
 });
 
 test('o reembolso que falhou vale para cartão e para Pix: o texto do cliente não fala em cartão, nem promete prazo', () => {

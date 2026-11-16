@@ -547,6 +547,8 @@ const es: Dicionario = {
     trajetoIncompleto: 'Elige la salida y el destino y, fuera de los aeropuertos, indica el hotel, la posada o la dirección.',
     erroData: 'Elige una fecha a partir de mañana.',
     erroHora: 'Indica el horario.',
+    // sem verbo em tú nem em vos: o es-ar lê esta mesma frase. O {h} sai de ANTECEDENCIA_TRANSFER_MINUTOS (hoje, 2)
+    erroAntecedencia: 'Para ese horario ya no hay tiempo: el traslado necesita al menos {h} horas de anticipación.',
     erroVolta: 'Indica la fecha y el horario de la vuelta, después de la ida.',
     reservarTitulo: 'Arma tu traslado',
     saida: 'Salida',

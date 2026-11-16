@@ -8,9 +8,14 @@ import {
   precoTrecho,
   primeiroDiaTransfer,
   totalTransfer,
+  transferComAntecedencia,
 } from '../src/data/transfer.ts';
+import { ANTECEDENCIA_MINIMA_MINUTOS, ANTECEDENCIA_TRANSFER_MINUTOS } from '../src/lib/horarios.ts';
 
 const SEM_MALAS = { grandes: 0, medias: 0, mao: 0 };
+
+/** A hora de Búzios (UTC-3 o ano todo) como um instante: as('2026-11-15T22:00') são as 22h00 de 15/11 em Búzios. */
+const as = (dataHora: string) => new Date(`${dataHora}:00-03:00`);
 
 test('preços fixos por trecho e por veículo (tabela da Etapa 6)', () => {
   for (const rio of ['galeao', 'santos-dumont', 'rio-de-janeiro'] as const) {
@@ -75,6 +80,45 @@ test('na van: até 17 pessoas, 1 grande e 1 de mão por pessoa', () => {
 test('transfer só a partir de amanhã', () => {
   assert.equal(primeiroDiaTransfer('2026-11-02'), '2026-11-03');
   assert.equal(primeiroDiaTransfer('2026-12-31'), '2027-01-01');
+});
+
+// Pacote 6 (decisão do dono de 16/11): "de amanhã em diante" não bastava. Às 23h50 o site aceitava (e, com o cartão
+// ligado, cobrava na hora) um transfer da 0h10 do dia seguinte: o achado pix#2 do teste de 15/11.
+test('transfer: a ida precisa de 2 horas de antecedência, também perto da meia-noite', () => {
+  assert.equal(ANTECEDENCIA_TRANSFER_MINUTOS, 120);
+  // às 21h59 e às 22h00 o transfer da 0h de amanhã ainda entra (121 e 120 minutos); às 22h01, não (119)
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', as('2026-11-15T21:59')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', as('2026-11-15T22:00')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', as('2026-11-15T22:01')), false);
+  // às 23h50: a 0h10 (20 minutos) e a 1h49 (119) não; a 1h50 (120), sim
+  assert.equal(transferComAntecedencia('2026-11-16', '00:10', as('2026-11-15T23:50')), false);
+  assert.equal(transferComAntecedencia('2026-11-16', '01:49', as('2026-11-15T23:50')), false);
+  assert.equal(transferComAntecedencia('2026-11-16', '01:50', as('2026-11-15T23:50')), true);
+  // de dia nada muda: às 10h, o transfer das 9h de amanhã entra
+  assert.equal(transferComAntecedencia('2026-11-16', '09:00', as('2026-11-15T10:00')), true);
+});
+
+test('transfer: a conta da antecedência atravessa a virada do mês e do ano, no fuso de Búzios', () => {
+  // 31/12 às 23h30: o transfer da 0h30 de 01/01 começa em 60 minutos (não); o da 1h30, em 120 (sim)
+  assert.equal(transferComAntecedencia('2027-01-01', '00:30', as('2026-12-31T23:30')), false);
+  assert.equal(transferComAntecedencia('2027-01-01', '01:30', as('2026-12-31T23:30')), true);
+  // 30/11 às 23h: a 0h59 de 01/12 (119 minutos) não; a 1h (120), sim
+  assert.equal(transferComAntecedencia('2026-12-01', '00:59', as('2026-11-30T23:00')), false);
+  assert.equal(transferComAntecedencia('2026-12-01', '01:00', as('2026-11-30T23:00')), true);
+  // o relógio do servidor em UTC: 1h00 e 1h01 UTC de 16/11 são 22h00 e 22h01 de 15/11 em Búzios
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', new Date('2026-11-16T01:00:00Z')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', new Date('2026-11-16T01:01:00Z')), false);
+});
+
+test('transfer: data ou hora que não dá para ler, ou que já passou, nunca passa na antecedência', () => {
+  const agora = as('2026-11-15T10:00');
+  for (const data of ['amanhã', '2026-13-45', '', '2026-11-14']) assert.equal(transferComAntecedencia(data, '10:00', agora), false, data);
+  for (const hora of ['', 'xx:yy']) assert.equal(transferComAntecedencia('2026-11-16', hora, agora), false, hora);
+});
+
+test('a antecedência do transfer: em horas inteiras (a frase mostra horas) e nunca menor que a de qualquer serviço', () => {
+  assert.equal(ANTECEDENCIA_TRANSFER_MINUTOS % 60, 0);
+  assert.ok(ANTECEDENCIA_TRANSFER_MINUTOS >= ANTECEDENCIA_MINIMA_MINUTOS);
 });
 
 test('os aeroportos estão na lista', () => {

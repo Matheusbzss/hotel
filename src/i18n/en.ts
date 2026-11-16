@@ -538,6 +538,7 @@ const en: Dicionario = {
     trajetoIncompleto: 'Choose where from and where to and, outside the airports, enter the hotel, guesthouse or address.',
     erroData: 'Choose a date from tomorrow onwards.',
     erroHora: 'Enter the time.',
+    erroAntecedencia: 'It’s too late for that time: transfers need at least {h} hours’ notice.',
     erroVolta: 'Enter the return date and time, after the outbound trip.',
     reservarTitulo: 'Plan your transfer',
     saida: 'From',

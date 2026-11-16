@@ -575,6 +575,8 @@ const pt = {
     trajetoIncompleto: 'Escolha a saída e o destino e, fora dos aeroportos, informe o hotel, a pousada ou o endereço.',
     erroData: 'Escolha uma data a partir de amanhã.',
     erroHora: 'Informe o horário.',
+    // o {h} sai de ANTECEDENCIA_TRANSFER_MINUTOS (src/lib/horarios.ts): hoje, 2
+    erroAntecedencia: 'Para esse horário não dá mais tempo: o transfer precisa de pelo menos {h} horas de antecedência.',
     erroVolta: 'Informe a data e o horário da volta, depois da ida.',
     reservarTitulo: 'Monte o seu transfer',
     saida: 'Saída',

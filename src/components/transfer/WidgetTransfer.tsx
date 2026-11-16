@@ -10,6 +10,7 @@ import {
   cabeNaVan,
   cabeNoCarro,
   precoTrecho,
+  transferComAntecedencia,
   type IdLugar,
   type Idioma,
   type Malas,
@@ -20,6 +21,7 @@ import type { TrechoEscolhido } from '@/lib/carrinho';
 import type { PontaCotacao, TextosCotacao } from '@/lib/cotacao';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
+import { ANTECEDENCIA_TRANSFER_MINUTOS } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { rastrear } from '@/lib/pixel';
 import { hojeEmBuzios, somarDias } from '@/lib/validacao';
@@ -66,6 +68,8 @@ export interface TextosTransfer {
   trajetoIncompleto: string;
   erroData: string;
   erroHora: string;
+  /** "… pelo menos {h} horas de antecedência.": o {h} sai de ANTECEDENCIA_TRANSFER_MINUTOS. */
+  erroAntecedencia: string;
   erroVolta: string;
   sobCotacaoTitulo: string;
   sobCotacaoTexto: string;
@@ -318,12 +322,16 @@ export function WidgetTransfer({
   });
 
   const primeiroDia = hoje ? primeiroDiaTransfer(hoje) : '';
+  // o número de horas vem da regra (src/lib/horarios.ts): a frase muda sozinha se o prazo mudar
+  const erroAntecedencia = T.erroAntecedencia.replace('{h}', String(ANTECEDENCIA_TRANSFER_MINUTOS / 60));
   // fora dos aeroportos, cada ponta precisa do hotel, da pousada ou do endereço
   const pontaOk = (p: Ponta) => Boolean(p.lugar) && (LUGARES[p.lugar as IdLugar].aeroporto || p.endereco.trim().length >= 3);
   function problema(): string {
     if (![saida, destino, ...(idaVolta ? [vSaida, vDestino] : [])].every(pontaOk)) return T.trajetoIncompleto;
     if (!data || (primeiroDia && data < primeiroDia)) return T.erroData;
     if (!hora) return T.erroHora;
+    // a mesma regra do servidor (conferirEscolha), com o relógio do aparelho: perto da meia-noite pesa na madrugada de amanhã
+    if (!transferComAntecedencia(data, hora)) return erroAntecedencia;
     if (idaVolta && (!dataVolta || !horaVolta || `${dataVolta}T${horaVolta}` <= `${data}T${hora}`)) return T.erroVolta;
     return '';
   }
@@ -363,7 +371,10 @@ export function WidgetTransfer({
         router.push(finalizarHref);
         return;
       }
-    } else setErro(r.erro === 'cheio' ? T.cheio : T.erroAdicionar);
+    } else {
+      // 'antecedencia': o relógio do aparelho deixou passar e o servidor recusou (ou o prazo venceu no meio do caminho)
+      setErro(r.erro === 'cheio' ? T.cheio : r.erro === 'antecedencia' ? erroAntecedencia : T.erroAdicionar);
+    }
     setEnviando('');
   };
 

@@ -2,11 +2,23 @@ import type { Idioma } from '@/i18n/config';
 
 /**
  * Para reservar no mesmo dia: o horário precisa começar pelo menos este tanto depois de agora
- * (120 = 2 horas). O prazo do Pix usa o mesmo número (src/lib/formas-pagamento.ts). Se mudar, ajuste também
+ * (120 = 2 horas). O prazo do Pix usa o mesmo número (src/lib/formas-pagamento.ts); o transfer tem o número dele
+ * (ANTECEDENCIA_TRANSFER_MINUTOS, logo abaixo). Se mudar, ajuste também
  * os textos que falam das 2 horas nos quatro idiomas: a resposta da pergunta sobre o horário de saída (faq)
  * e pedido.semPixPrazo.
  */
 export const ANTECEDENCIA_MINIMA_MINUTOS = 120;
+
+/**
+ * Transfer: além de ser de amanhã em diante (primeiroDiaTransfer), a ida precisa começar pelo menos este tanto depois
+ * de agora, no fuso de Búzios e atravessando a virada do dia (transferComAntecedencia, src/data/transfer.ts). 120 = as
+ * mesmas 2 horas de qualquer serviço (decisão do dono de 16/11): antes, às 23h50 dava para reservar (e, com o cartão
+ * ligado, pagar) um transfer da 0h10. Número próprio do transfer: muda sem mexer no prazo do Pix nem nos passeios.
+ * Sempre múltiplo de 60 (a frase transfer.erroAntecedencia mostra o número em horas) e nunca menor que
+ * ANTECEDENCIA_MINIMA_MINUTOS (tests/transfer.test.ts confere os dois). Se subir para 6 ou 12 horas, a página do
+ * transfer precisa avisar antes do erro (uma linha em transfer.regras) e a etiqueta "Qualquer horário" precisa ser revista.
+ */
+export const ANTECEDENCIA_TRANSFER_MINUTOS = 120;
 
 /** "14:30" → 870 (minutos desde a meia-noite). */
 export function paraMinutos(hora: string): number {

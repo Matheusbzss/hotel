@@ -5,7 +5,16 @@ import path from 'node:path';
 import { z } from 'zod';
 import { horariosDoPasseio, obterPasseio, temTaxaNoLocal, type Passeio } from '@/data/passeios';
 import { MAXIMO_SUGESTOES, sugestoesDoCarrinho } from '@/data/sugestoes';
-import { IDS_LUGARES, LUGARES, VEICULOS, cabeNoVeiculo, precoTrecho, primeiroDiaTransfer, type IdLugar } from '@/data/transfer';
+import {
+  IDS_LUGARES,
+  LUGARES,
+  VEICULOS,
+  cabeNoVeiculo,
+  precoTrecho,
+  primeiroDiaTransfer,
+  transferComAntecedencia,
+  type IdLugar,
+} from '@/data/transfer';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
@@ -140,6 +149,9 @@ export function conferirEscolha(bruta: unknown, agora: Date = new Date()): Confe
   // transfer só a partir de amanhã, até 1 ano; a volta depois da ida
   const hoje = hojeEmBuzios(agora);
   if (e.ida.data < primeiroDiaTransfer(hoje) || e.ida.data > somarDias(hoje, 366)) return { ok: false, erro: 'data' };
+  // "de amanhã em diante" não basta: perto da meia-noite, o transfer da 0h de amanhã começaria em minutos. Sem a
+  // antecedência, o item não entra no carrinho (400 'antecedencia'), sai do carrinho e do checkout e o pedido não nasce
+  if (!transferComAntecedencia(e.ida.data, e.ida.hora, agora)) return { ok: false, erro: 'antecedencia' };
   if (e.volta && `${e.volta.data}T${e.volta.hora}` <= `${e.ida.data}T${e.ida.hora}`) return { ok: false, erro: 'volta' };
   if (!cabeNoVeiculo(e.veiculo, e.passageiros, e.malas)) return { ok: false, erro: 'veiculo' };
   const precos = trechos.map((t) => precoTrecho(t.saida.lugar, t.destino.lugar, e.veiculo));

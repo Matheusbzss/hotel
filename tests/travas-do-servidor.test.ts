@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // As rotas do Next e o arquivo das reservas não rodam em node puro (usam o atalho "@/" e módulos só do servidor).
-// Estes testes leem o código deles e seguram cinco travas que não podem se perder numa mudança futura. O
+// Estes testes leem o código deles e seguram seis travas que não podem se perder numa mudança futura. O
 // comportamento de ponta a ponta é conferido na simulação da Stripe, fora do npm test. Só leitura: nada é gravado.
 
 /** O código de um arquivo de src/, sem as linhas de comentário. */
@@ -96,4 +96,42 @@ test('o pedido de cotação tem o limite por IP antes de gravar, com a mesma res
   assert.notEqual(trava, -1);
   // vem antes de gravar: o envio barrado nunca chega ao painel
   assert.ok(trava < rota.indexOf('criarCotacao('));
+});
+
+test('o transfer pede a antecedência no servidor, no cartão do transfer e no transfer que chega pela URL', () => {
+  /** A lista do import de '@/data/transfer' de um arquivo: a regra é a mesma função nos três lugares. */
+  const doTransfer = (fonte: string) => fonte.match(/import \{([^}]*)\} from '@\/data\/transfer';/)?.[1] ?? '';
+
+  // o servidor: conferirEscolha é a única porta do carrinho, do checkout e da criação do pedido
+  const carrinho = codigo('lib', 'carrinho-servidor.ts');
+  assert.match(doTransfer(carrinho), /\btransferComAntecedencia\b/);
+  const inicio = carrinho.indexOf('export function conferirEscolha(');
+  assert.notEqual(inicio, -1);
+  const conferir = carrinho.slice(inicio, carrinho.indexOf('\nexport ', inicio + 1));
+  const trava = conferir.search(
+    /if \(!transferComAntecedencia\(e\.ida\.data, e\.ida\.hora, agora\)\) return \{ ok: false, erro: 'antecedencia' \};/,
+  );
+  assert.notEqual(trava, -1);
+  // depois do "de amanhã em diante" e antes do preço, com o mesmo agora do resto da conferência
+  assert.ok(conferir.indexOf('primeiroDiaTransfer(hoje)') < trava);
+  assert.ok(trava < conferir.indexOf('precoTrecho('));
+
+  // o cartão do transfer: problema() faz a mesma conta, com o relógio do aparelho, logo depois do "informe o horário"
+  const widget = codigo('components', 'transfer', 'WidgetTransfer.tsx');
+  assert.match(doTransfer(widget), /\btransferComAntecedencia\b/);
+  const comeco = widget.indexOf('function problema(): string {');
+  assert.notEqual(comeco, -1);
+  const problema = widget.slice(comeco, widget.indexOf('\n  }', comeco));
+  assert.match(problema, /if \(!hora\) return T\.erroHora;\s+if \(!transferComAntecedencia\(data, hora\)\) return erroAntecedencia;/);
+
+  // quando só o servidor recusa (o relógio do aparelho errado, ou o transfer de um link antigo em /transfer/checkout),
+  // o código 'antecedencia' mostra a frase nova, nunca a genérica; o número de horas vem da regra, não escrito à mão
+  const formulario = codigo('components', 'transfer', 'FormularioTransfer.tsx');
+  for (const [nome, fonte] of [
+    ['WidgetTransfer.tsx', widget],
+    ['FormularioTransfer.tsx', formulario],
+  ]) {
+    assert.match(fonte, /r\.erro === 'antecedencia' \? erroAntecedencia :/, nome);
+    assert.match(fonte, /const erroAntecedencia = .*T\.erroAntecedencia.*ANTECEDENCIA_TRANSFER_MINUTOS \/ 60/, nome);
+  }
 });

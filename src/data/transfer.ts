@@ -13,7 +13,9 @@
  *   como "valijas") é opcional e só entra onde a frase muda; quem lê usa texto() de src/i18n/conteudo.ts.
  */
 
-// com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
+// com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
+import { dentroDoPrazo } from '../lib/formas-pagamento.ts';
+import { ANTECEDENCIA_TRANSFER_MINUTOS } from '../lib/horarios.ts';
 import { precoComAjuste } from '../lib/orcamento.ts';
 
 import type { Idioma } from '../i18n/config';
@@ -179,11 +181,27 @@ export function cabeNaVan(pessoas: number, m: Malas): boolean {
   return pessoas <= VEICULOS.van.capacidade && m.grandes + m.medias <= pessoas && m.mao <= pessoas;
 }
 
-/** Transfer não se reserva no mesmo dia: o primeiro dia é amanhã (no fuso de Búzios). */
+/**
+ * Transfer não se reserva no mesmo dia: o primeiro dia é amanhã (no fuso de Búzios). Só isso não basta: perto da
+ * meia-noite, o transfer da 0h de amanhã começaria em minutos. A ida também precisa da antecedência
+ * (transferComAntecedencia, logo abaixo).
+ */
 export function primeiroDiaTransfer(hoje: string): string {
   const d = new Date(`${hoje}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * A ida do transfer ainda pode ser reservada: começa pelo menos ANTECEDENCIA_TRANSFER_MINUTOS (src/lib/horarios.ts)
+ * depois de agora, no fuso de Búzios. A conta é a do prazo de pagar (dentroDoPrazo, src/lib/formas-pagamento.ts): ela
+ * atravessa a virada do dia, do mês e do ano e aceita o limite cravado (às 22h00 o transfer da 0h de amanhã ainda entra;
+ * às 22h01, não). Uma data ou hora que não dá para ler não passa. Vale no servidor (conferirEscolha,
+ * src/lib/carrinho-servidor.ts: o carrinho, o checkout e o pedido) e no cartão do transfer (WidgetTransfer), com o
+ * relógio do aparelho; com ele errado, o servidor recusa com o código 'antecedencia' e a tela mostra a mesma frase.
+ */
+export function transferComAntecedencia(data: string, hora: string, agora: Date = new Date()): boolean {
+  return dentroDoPrazo({ tipo: 'transfer', data, transfer: { ida: { hora } } }, agora, ANTECEDENCIA_TRANSFER_MINUTOS);
 }
 
 export function cabeNoVeiculo(veiculo: Veiculo, pessoas: number, m: Malas): boolean {

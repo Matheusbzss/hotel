@@ -8,7 +8,7 @@ import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import type { EscolhaTransfer, TrechoEscolhido } from '@/lib/carrinho';
-import { formatarHora } from '@/lib/horarios';
+import { ANTECEDENCIA_TRANSFER_MINUTOS, formatarHora } from '@/lib/horarios';
 import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
 import { rastrear } from '@/lib/pixel';
 import { textoMalas } from '@/lib/transfer-view';
@@ -84,6 +84,8 @@ export function FormularioTransfer({
   const nomePonta = (p: PontaPedido) =>
     p.endereco ? `${texto(LUGARES[p.lugar].nome, idioma)}, ${p.endereco}` : texto(LUGARES[p.lugar].nome, idioma);
   const dataHora = (t: TrechoPedido) => fmt(textos.dataHora, { data: formatarDataIso(t.data, locale), hora: formatarHora(t.hora, idioma) });
+  // o número de horas vem da regra (src/lib/horarios.ts): a frase muda sozinha se o prazo mudar
+  const erroAntecedencia = fmt(T.erroAntecedencia, { h: ANTECEDENCIA_TRANSFER_MINUTOS / 60 });
 
   /** O trecho como o carrinho guarda: fora dos aeroportos, o hotel, a pousada ou o endereço. */
   const trecho = (t: TrechoPedido): TrechoEscolhido => {
@@ -114,7 +116,8 @@ export function FormularioTransfer({
       router.push(links.checkout);
       return;
     }
-    setErro(r.erro === 'cheio' ? K.cheio : K.erroAdicionar);
+    // 'antecedencia': a ida do link começa sem a antecedência do transfer (a regra do servidor, conferirEscolha)
+    setErro(r.erro === 'cheio' ? K.cheio : r.erro === 'antecedencia' ? erroAntecedencia : K.erroAdicionar);
     setEnviando(false);
   }
 

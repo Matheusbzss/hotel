@@ -1,18 +1,49 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eventoDoReembolsoFalho } from '../src/app/api/webhooks/stripe/eventos.ts';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { eventoDoReembolsoFalho, leituraDaContestacao } from '../src/app/api/webhooks/stripe/eventos.ts';
+import { formatarCifra } from '../src/lib/cifra.ts';
 import { AVISO_PAGO_DEPOIS_DO_HORARIO, avisoDeValorDiferente } from '../src/lib/pagamento-stripe.ts';
-import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL } from '../src/lib/email/marcas.ts';
+import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho } from '../src/lib/email/marcas.ts';
 import {
   ERROS_DO_PAINEL,
+  NENHUM_VOUCHER,
+  SEM_REEMBOLSO_DEPOIS_DA_FALHA,
+  SEM_REEMBOLSO_NA_CONTESTACAO,
+  agruparPedidos,
   avisoAberto,
   avisosDeContestacao,
+  avisosDeReembolso,
+  botaoDevolvidoPorFora,
+  botaoVoucherDaStripe,
+  botaoVoucherPorFora,
+  confirmacaoDoReembolso,
+  confirmacaoDoReembolsoDoVoucher,
+  contarReembolsosAResolver,
   contestacoesAbertas,
+  devolucaoNoPainel,
   ehAviso,
   fraseDoErro,
+  frasesDoReembolsoNoPainel,
+  motivoDoReembolsoFalho,
   motivoNoPainel,
   oQueFazerNaContestacao,
+  reembolsoNoPainel,
+  reembolsoParaResolver,
+  reembolsosParadosPelaContestacao,
+  valorDoVoucherPorFora,
 } from '../src/lib/pedidos-painel.ts';
+import {
+  linhaDaDevolucaoPorOutroMeio,
+  linhaDoReembolsoFalho,
+  linhaDoReembolsoParadoPelaContestacao,
+  linhaDoReembolsoSemMudarVoucher,
+  linhaDoReembolsoSemVoucher,
+  linhaDoVoucherDevolvidoPorOutroMeio,
+  linhaDoVoucherLigado,
+} from '../src/lib/reembolsos-a-resolver.ts';
+import type { Reserva, ReservaPasseio } from '../src/lib/reservas.ts';
 
 // O painel destaca as linhas do histórico que pedem uma ação da equipe: as que começam com "Aviso:".
 // Só a regra, sem tela nem banco.
@@ -194,4 +225,578 @@ test('o motivo do pagamento que não entrou aparece em português para a equipe'
     assert.ok(m.frase.length > 0 && m.resumo.length > 'recusado: '.length, c);
   }
   assert.equal(motivoNoPainel(' Insufficient_Funds ', 'cartao').codigo, 'insufficient_funds');
+});
+
+// Os reembolsos no painel (16/11, depois do teste de 15/11): o que falhou na Stripe, o feito direto na Stripe sem
+// voucher e o parado por uma contestação. As faixas, o filtro, as frases e os botões saem de uma regra só
+// (reembolsoNoPainel); os pedidos são fictícios, montados como o painel os agrupa.
+
+/** Os valores das frases saem de formatarCifra (com o espaço que não quebra do pt-BR). */
+const cifra = (centavos: number) => formatarCifra(centavos, 'pt-BR');
+/** Um histórico com as linhas na ordem, um segundo entre uma e outra. */
+const historico = (...eventos: string[]) =>
+  eventos.map((evento, n) => ({ em: `2026-11-16T12:00:${String(n).padStart(2, '0')}.000Z`, evento }));
+
+/** Um voucher de exemplo, pago pela Stripe no cartão (nenhum é de cliente). */
+function voucher(parcial: Partial<ReservaPasseio> = {}): Reserva {
+  return {
+    codigo: 'ON-ABC234',
+    token: 'token-de-teste',
+    criadaEm: '2026-11-15T12:00:00Z',
+    atualizadaEm: '2026-11-15T12:00:00Z',
+    idioma: 'pt',
+    status: 'pago',
+    provedor: 'stripe',
+    paymentIntentId: 'pi_do_pedido',
+    tipo: 'passeio',
+    data: '2026-11-20',
+    horario: { hora: '09:00', busca: false },
+    totalCentavos: 15400,
+    cliente: { nome: 'Teste', email: 'teste@exemplo.com', telefone: '+55 21 90000-0000' },
+    pagamento: { metodo: 'cartao', pagoEm: '2026-11-15T12:00:00Z' },
+    historico: historico('Pago (webhook da Stripe)'),
+    passeio: { slug: 'escuna-buzios', nome: 'Escuna', cidade: 'Búzios', unidade: 'pessoa' },
+    adultos: 2,
+    criancas: 0,
+    unidades: 2,
+    hospedagem: { cidade: 'buzios', hotel: 'Pousada de teste' },
+    ...parcial,
+  } as ReservaPasseio;
+}
+
+/** Um pedido de um item (R$ 154,00), como o painel agrupa. */
+const umItem = (parcial: Partial<ReservaPasseio> = {}) => agruparPedidos([voucher(parcial)])[0];
+
+/**
+ * Um pedido de dois itens, ON-AAA234 (R$ 242,00, o primeiro da viagem: representa o pedido) e ON-BBB234 (R$ 154,00),
+ * com o status, o valor devolvido e o histórico do pedido nos dois, como nos arquivos do computador.
+ */
+function doisItens(
+  comum: Partial<ReservaPasseio> = {},
+  statusItens: [Reserva['statusItem'], Reserva['statusItem']] = [undefined, undefined],
+) {
+  const pedido = { codigo: 'ON-PED234', totalCentavos: 39600 };
+  const item = (codigo: string, data: string, totalCentavos: number, statusItem: Reserva['statusItem']) =>
+    voucher({ codigo, data, totalCentavos, pedido, ...comum, ...(statusItem ? { statusItem } : {}) });
+  return agruparPedidos([
+    item('ON-AAA234', '2026-11-20', 24200, statusItens[0]),
+    item('ON-BBB234', '2026-11-21', 15400, statusItens[1]),
+  ])[0];
+}
+
+const FALHO_TOTAL = { id: 're_total', centavos: 15400, motivo: 'expired_or_canceled_card' };
+const FALHO_DO_VOUCHER = { id: 're_voucher', centavos: 24200, voucher: 'ON-AAA234', motivo: 'expired_or_canceled_card' };
+const SEM_VOUCHER = { id: 're_direto', centavos: 15400 };
+
+test('o aviso do reembolso deixa de ser destacado quando a equipe resolve; o parado, quando a contestação termina', () => {
+  // o reembolso que falhou: destacado até a linha da devolução por outro meio DESTE reembolso
+  const falhou = linhaDoReembolsoFalho(FALHO_TOTAL);
+  assert.equal(avisoAberto(historico('Pago (webhook da Stripe)', falhou), 1), true);
+  const devolvido = historico('Pago (webhook da Stripe)', falhou, linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL));
+  assert.equal(avisoAberto(devolvido, 1), false);
+  assert.equal(avisoAberto(devolvido, 2), false, 'a linha de fecho não é aviso');
+  const deOutro = historico(falhou, linhaDaDevolucaoPorOutroMeio({ ...FALHO_TOTAL, id: 're_outro' }));
+  assert.equal(avisoAberto(deOutro, 0), true, 'a devolução de outro reembolso não fecha este');
+
+  // o feito direto na Stripe sem voucher: fechado pelo voucher ligado ou pelo desconto, em qualquer ponto do histórico
+  const direto = linhaDoReembolsoSemVoucher(SEM_VOUCHER);
+  assert.equal(avisoAberto(historico(direto), 0), true);
+  assert.equal(avisoAberto(historico(direto, linhaDoVoucherLigado('re_direto', 'ON-AAA234')), 0), false);
+  assert.equal(avisoAberto(historico(linhaDoVoucherLigado('re_direto', 'ON-AAA234'), direto), 1), false);
+  assert.equal(avisoAberto(historico(direto, linhaDoReembolsoSemMudarVoucher('re_direto')), 0), false);
+
+  // o parado pela contestação: destacado até a contestação terminar, nas linhas que o webhook grava de verdade
+  const parado = linhaDoReembolsoParadoPelaContestacao({ id: 're_parado', centavos: 15400 });
+  const disputa = (
+    status: 'needs_response' | 'under_review' | 'warning_needs_response' | 'won' | 'lost' | 'warning_closed' | 'prevented',
+  ) => leituraDaContestacao({ id: 'du_teste', amount: 15400, status, reason: 'fraudulent' }).evento;
+  assert.equal(avisoAberto(historico(disputa('needs_response'), parado), 1), true);
+  for (const status of ['won', 'lost', 'warning_closed', 'prevented'] as const) {
+    assert.equal(avisoAberto(historico(disputa('needs_response'), parado, disputa(status)), 1), false, status);
+    // o fim de uma contestação ANTERIOR ao aviso não fecha
+    assert.equal(avisoAberto(historico(disputa(status), parado), 1), true, `${status} antes`);
+  }
+  for (const status of ['under_review', 'warning_needs_response'] as const)
+    assert.equal(avisoAberto(historico(parado, disputa(status)), 0), true, `${status} não termina a contestação`);
+
+  // os outros avisos continuam como antes, e a linha do e-mail à equipe não é aviso
+  assert.equal(avisoAberto(historico(AVISO_PAGO_DEPOIS_DO_HORARIO, linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL)), 0), true);
+  assert.equal(ehAviso(marcaDoAvisoDeReembolsoFalho('re_total')), false);
+});
+
+test('as faixas dos reembolsos: vazias sem pedido, no singular, no plural, e as três na ordem', () => {
+  assert.deepEqual(avisosDeReembolso({ falhos: 0, semVoucher: 0, parados: 0 }), []);
+  assert.deepEqual(avisosDeReembolso({ falhos: 1, semVoucher: 1, parados: 1 }), [
+    '1 reembolso que a Stripe não conseguiu devolver: devolver por outro meio e registrar',
+    '1 reembolso feito direto na Stripe, sem voucher: dizer de qual voucher foi',
+    '1 reembolso parado por contestação: aceitar ou responder no painel da Stripe',
+  ]);
+  assert.deepEqual(avisosDeReembolso({ falhos: 2, semVoucher: 3, parados: 4 }), [
+    '2 reembolsos que a Stripe não conseguiu devolver: devolver por outro meio e registrar',
+    '3 reembolsos feitos direto na Stripe, sem voucher: dizer de qual voucher foi',
+    '4 reembolsos parados por contestação: aceitar ou responder no painel da Stripe',
+  ]);
+  assert.deepEqual(avisosDeReembolso({ falhos: 0, semVoucher: 2, parados: 0 }), [
+    '2 reembolsos feitos direto na Stripe, sem voucher: dizer de qual voucher foi',
+  ]);
+});
+
+test('reembolsoNoPainel: o que cada pedido mostra (WhatsApp, contestado, falhou, Stripe, nada a devolver)', () => {
+  // pedido do WhatsApp: nada da Stripe
+  assert.deepEqual(reembolsoNoPainel(umItem({ provedor: 'whatsapp', paymentIntentId: undefined, pagamento: { metodo: 'whatsapp' } })), {
+    tipo: 'nenhum',
+  });
+  // contestado, no cartão e no Pix: sem botão de reembolso, com a frase no lugar
+  for (const metodo of ['cartao', 'pix'] as const)
+    assert.deepEqual(reembolsoNoPainel(umItem({ status: 'contestado', pagamento: { metodo } })), { tipo: 'contestado' }, metodo);
+  // a frase do contestado é verdade também no pedido de informação do banco: não manda responder nem diz que a Stripe recusa
+  assert.doesNotMatch(SEM_REEMBOLSO_NA_CONTESTACAO, /respond|não aceita/i);
+  // ainda esperando pagamento: nada
+  for (const status of ['pendente', 'expirado', 'cancelado'] as const)
+    assert.deepEqual(reembolsoNoPainel(umItem({ status })), { tipo: 'nenhum' }, status);
+
+  // reembolsado com o reembolso que falhou: um "Registrar" e nenhum voucher; depois de registrado, nada pendente
+  const totalFalhou = historico(
+    'Pago (webhook da Stripe)',
+    'Reembolso total (R$ 154,00) confirmado pela Stripe',
+    linhaDoReembolsoFalho(FALHO_TOTAL),
+  );
+  const reembolsado = reembolsoNoPainel(umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: totalFalhou }));
+  assert.equal(reembolsado.tipo, 'falhou');
+  if (reembolsado.tipo !== 'falhou') return;
+  assert.deepEqual(reembolsado.pendentes, [{ ...FALHO_TOTAL, devolvido: false }]);
+  assert.deepEqual(reembolsado.vouchersPagos, []);
+  const jaDevolvido = reembolsoNoPainel(
+    umItem({
+      status: 'reembolsado',
+      reembolsoCentavos: 15400,
+      historico: [...totalFalhou, ...historico(linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL))],
+    }),
+  );
+  assert.equal(jaDevolvido.tipo, 'falhou');
+  if (jaDevolvido.tipo === 'falhou') assert.deepEqual(jaDevolvido.pendentes, []);
+
+  // pago, com o reembolso de um voucher que falhou: o "Registrar" dele e o outro voucher em vouchersPagos
+  const voucherFalhou = reembolsoNoPainel(
+    doisItens({ reembolsoCentavos: 24200, historico: historico('Pago (webhook da Stripe)', linhaDoReembolsoFalho(FALHO_DO_VOUCHER)) }, [
+      'reembolsado',
+      undefined,
+    ]),
+  );
+  assert.equal(voucherFalhou.tipo, 'falhou');
+  if (voucherFalhou.tipo !== 'falhou') return;
+  assert.deepEqual(
+    voucherFalhou.pendentes.map((f) => f.id),
+    ['re_voucher'],
+  );
+  assert.deepEqual(
+    voucherFalhou.vouchersPagos.map((v) => v.codigo),
+    ['ON-BBB234'],
+  );
+  assert.equal(voucherFalhou.restanteCentavos, 15400);
+
+  // pago, sem falha: os botões de sempre; o voucher só no pedido com vários itens
+  const normal = reembolsoNoPainel(umItem());
+  assert.deepEqual(normal, { tipo: 'stripe', restanteCentavos: 15400, vouchers: [], semVoucher: [] });
+  const dois = reembolsoNoPainel(doisItens());
+  assert.equal(dois.tipo, 'stripe');
+  if (dois.tipo === 'stripe') {
+    assert.equal(dois.restanteCentavos, 39600);
+    assert.deepEqual(
+      dois.vouchers.map((v) => v.codigo),
+      ['ON-AAA234', 'ON-BBB234'],
+    );
+  }
+  // o voucher já devolvido sozinho sai da lista
+  const umDevolvido = reembolsoNoPainel(doisItens({ reembolsoCentavos: 24200 }, ['reembolsado', undefined]));
+  assert.equal(umDevolvido.tipo, 'stripe');
+  if (umDevolvido.tipo === 'stripe')
+    assert.deepEqual(
+      umDevolvido.vouchers.map((v) => v.codigo),
+      ['ON-BBB234'],
+    );
+  // nada mais a devolver: nenhum botão
+  assert.deepEqual(reembolsoNoPainel(umItem({ reembolsoCentavos: 15400 })), { tipo: 'nenhum' });
+
+  // a devolução falha de um pagamento repetido (outro pi_) não tira os botões de um pedido saudável
+  const repetido = eventoDoReembolsoFalho(
+    {
+      id: 're_repetido',
+      amount: 15400,
+      status: 'failed',
+      failure_reason: 'expired_or_canceled_card',
+      metadata: {},
+      payment_intent: 'pi_outro',
+    },
+    'pi_do_pedido',
+  );
+  assert.ok(repetido);
+  assert.equal(reembolsoNoPainel(umItem({ historico: historico('Pago (webhook da Stripe)', repetido) })).tipo, 'stripe');
+});
+
+test('reembolsoNoPainel: o reembolso feito direto na Stripe sem voucher segura os botões por voucher até a equipe dizer de qual foi', () => {
+  const comAviso = historico(
+    'Pago (webhook da Stripe)',
+    'Reembolso de R$ 154,00 confirmado pela Stripe',
+    linhaDoReembolsoSemVoucher(SEM_VOUCHER),
+  );
+  const aberto = reembolsoNoPainel(doisItens({ reembolsoCentavos: 15400, historico: comAviso }));
+  assert.equal(aberto.tipo, 'stripe');
+  if (aberto.tipo !== 'stripe') return;
+  assert.deepEqual(aberto.vouchers, [], 'nenhum "Reembolsar só o voucher…" enquanto não se sabe de qual foi');
+  assert.deepEqual(aberto.semVoucher, [{ ...SEM_VOUCHER, resolvido: false }]);
+
+  // ligado ao voucher ON-BBB234: ele deixa de valer, e o outro volta a ter o botão
+  const ligado = reembolsoNoPainel(
+    doisItens({ reembolsoCentavos: 15400, historico: [...comAviso, ...historico(linhaDoVoucherLigado('re_direto', 'ON-BBB234'))] }, [
+      undefined,
+      'reembolsado',
+    ]),
+  );
+  assert.ok(ligado.tipo === 'stripe');
+  if (ligado.tipo === 'stripe') {
+    assert.deepEqual(ligado.semVoucher, []);
+    assert.deepEqual(
+      ligado.vouchers.map((v) => v.codigo),
+      ['ON-AAA234'],
+    );
+  }
+  // anotado como desconto: os dois vouchers continuam valendo e com o botão
+  const desconto = reembolsoNoPainel(
+    doisItens({ reembolsoCentavos: 15400, historico: [...comAviso, ...historico(linhaDoReembolsoSemMudarVoucher('re_direto'))] }),
+  );
+  if (desconto.tipo === 'stripe')
+    assert.deepEqual(
+      desconto.vouchers.map((v) => v.codigo),
+      ['ON-AAA234', 'ON-BBB234'],
+    );
+  assert.ok(desconto.tipo === 'stripe' && desconto.semVoucher.length === 0);
+
+  // o pedido de um item nunca pergunta de qual voucher foi (o reembolso de parte nele é um desconto)
+  const umSo = reembolsoNoPainel(umItem({ reembolsoCentavos: 5000, historico: comAviso }));
+  assert.ok(umSo.tipo === 'stripe' && umSo.semVoucher.length === 0);
+
+  // depois de um reembolso que falhou, o reembolso feito direto na Stripe também tem os botões de dizer de qual foi, e os
+  // "voucher devolvido por outro meio" esperam a resposta
+  const falhouEDireto = reembolsoNoPainel(
+    doisItens({ reembolsoCentavos: 24200, historico: [...comAviso, ...historico(linhaDoReembolsoFalho(FALHO_DO_VOUCHER))] }, [
+      'reembolsado',
+      undefined,
+    ]),
+  );
+  assert.equal(falhouEDireto.tipo, 'falhou');
+  if (falhouEDireto.tipo === 'falhou') {
+    assert.equal(falhouEDireto.semVoucher.length, 1);
+    assert.deepEqual(falhouEDireto.vouchersPagos, []);
+  }
+});
+
+test('o filtro "Reembolsos a resolver" e as contas das faixas: por pedido, e o contestado fica na faixa das contestações', () => {
+  const parado = linhaDoReembolsoParadoPelaContestacao({ id: 're_parado', centavos: 15400 });
+  const aberta = leituraDaContestacao({ id: 'du_teste', amount: 15400, status: 'needs_response', reason: 'fraudulent' }).evento;
+  const perdida = leituraDaContestacao({ id: 'du_teste', amount: 15400, status: 'lost', reason: 'fraudulent' }).evento;
+  const pedidos = {
+    falhou: umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL)) }),
+    devolvido: umItem({
+      status: 'reembolsado',
+      reembolsoCentavos: 15400,
+      historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL), linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL)),
+    }),
+    direto: doisItens({ reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoSemVoucher(SEM_VOUCHER)) }),
+    parado: umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: historico(aberta, parado) }),
+    paradoContestado: umItem({ status: 'contestado', historico: historico(aberta, parado) }),
+    paradoEncerrado: umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: historico(aberta, parado, perdida) }),
+    normal: umItem(),
+  };
+  const esperado = {
+    falhou: true,
+    devolvido: false,
+    direto: true,
+    parado: true,
+    paradoContestado: false,
+    paradoEncerrado: false,
+    normal: false,
+  };
+  for (const [nome, p] of Object.entries(pedidos)) assert.equal(reembolsoParaResolver(p), esperado[nome as keyof typeof esperado], nome);
+  assert.deepEqual(contarReembolsosAResolver(Object.values(pedidos)), { falhos: 1, semVoucher: 1, parados: 1 });
+  // dois reembolsos que falharam no mesmo pedido contam um pedido
+  const doisFalhos = doisItens(
+    { reembolsoCentavos: 39600, historico: historico(linhaDoReembolsoFalho(FALHO_DO_VOUCHER), linhaDoReembolsoFalho(FALHO_TOTAL)) },
+    ['reembolsado', 'reembolsado'],
+  );
+  assert.deepEqual(contarReembolsosAResolver([doisFalhos]), { falhos: 1, semVoucher: 0, parados: 0 });
+  // a leitura da linha parada: o valor e o id, uma vez por reembolso
+  assert.deepEqual(reembolsosParadosPelaContestacao(historico(aberta, parado, parado)), [
+    { id: 're_parado', centavos: 15400, encerrado: false },
+  ]);
+});
+
+test('o motivo da falha do reembolso em português para a equipe; o que a lista não conhece fica "motivo não informado"', () => {
+  const motivos: [string, string][] = [
+    ['expired_or_canceled_card', 'cartão vencido ou cancelado'],
+    ['lost_or_stolen_card', 'cartão dado como perdido ou roubado'],
+    ['declined', 'recusado pelo banco'],
+    ['insufficient_funds', 'faltou saldo na conta da Stripe por mais de 45 dias'],
+    ['merchant_request', 'cancelado a pedido da empresa'],
+    ['charge_for_pending_refund_disputed', 'o cliente abriu uma contestação com o reembolso a caminho'],
+    ['unknown', 'motivo não informado'],
+  ];
+  for (const [codigo, frase] of motivos) assert.equal(motivoDoReembolsoFalho(codigo), frase, codigo);
+  for (const codigo of ['', '  ', null, undefined, 'motivo não informado', 'codigo_novo', 'constructor', '__proto__'])
+    assert.equal(motivoDoReembolsoFalho(codigo), 'motivo não informado', String(codigo));
+  assert.equal(motivoDoReembolsoFalho(' Expired_Or_Canceled_Card '), 'cartão vencido ou cancelado');
+});
+
+test('as frases vermelhas do pedido: o valor com centavos, o motivo em português, e o cuidado com o cartão perdido ou roubado', () => {
+  // o reembolso do pedido inteiro que falhou
+  const [inteiro] = frasesDoReembolsoNoPainel(
+    umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL)) }),
+  );
+  assert.equal(
+    inteiro,
+    `O reembolso de ${cifra(15400)} falhou na Stripe (cartão vencido ou cancelado): o cliente não recebeu. Devolva por outro meio (um Pix, por exemplo) só para o titular do pedido, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre abaixo.`,
+  );
+  // o de um voucher
+  const [doVoucher] = frasesDoReembolsoNoPainel(
+    doisItens({ reembolsoCentavos: 24200, historico: historico(linhaDoReembolsoFalho(FALHO_DO_VOUCHER)) }, ['reembolsado', undefined]),
+  );
+  assert.ok(doVoucher.startsWith(`O reembolso de ${cifra(24200)} do voucher ON-AAA234 falhou na Stripe (cartão vencido ou cancelado): `));
+  // o cartão dado como perdido ou roubado: mais uma frase; o código cru nunca aparece na frase
+  const roubado = frasesDoReembolsoNoPainel(
+    umItem({
+      status: 'reembolsado',
+      reembolsoCentavos: 15400,
+      historico: historico(linhaDoReembolsoFalho({ ...FALHO_TOTAL, motivo: 'lost_or_stolen_card' })),
+    }),
+  );
+  assert.equal(roubado.length, 2);
+  assert.match(roubado[0], /\(cartão dado como perdido ou roubado\)/);
+  assert.equal(roubado[1], 'Não diga o motivo ao cliente. Antes de devolver por outro meio, confirme que quem pede é o titular do cartão.');
+  for (const frase of [inteiro, doVoucher, ...roubado]) assert.doesNotMatch(frase, /_card|expired|stolen/);
+  // depois de registrada a devolução, a frase some
+  assert.deepEqual(
+    frasesDoReembolsoNoPainel(
+      umItem({
+        status: 'reembolsado',
+        reembolsoCentavos: 15400,
+        historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL), linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL)),
+      }),
+    ),
+    [],
+  );
+  // o feito direto na Stripe sem voucher
+  assert.deepEqual(
+    frasesDoReembolsoNoPainel(doisItens({ reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoSemVoucher(SEM_VOUCHER)) })),
+    [
+      `A Stripe devolveu ${cifra(15400)} deste pedido por fora do site, sem dizer de qual voucher. Diga abaixo de qual voucher foi: isso não devolve dinheiro de novo.`,
+    ],
+  );
+  // o parado pela contestação: não devolver por fora; também no pedido contestado (a faixa é a das contestações)
+  const parado = linhaDoReembolsoParadoPelaContestacao({ id: 're_parado', centavos: 15400 });
+  assert.deepEqual(frasesDoReembolsoNoPainel(umItem({ status: 'contestado', historico: historico(parado) })), [
+    `O reembolso de ${cifra(15400)} não foi concluído porque o cliente abriu uma contestação no banco. Não devolva por outro meio: o banco devolve pela contestação. Aceite ou responda a contestação no painel da Stripe.`,
+  ]);
+  // um pedido contestado nunca manda "devolver por outro meio" um reembolso que falhou antes da contestação
+  assert.deepEqual(
+    frasesDoReembolsoNoPainel(
+      umItem({ status: 'contestado', reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL)) }),
+    ),
+    [],
+  );
+  // e um pedido normal não tem frase
+  assert.deepEqual(frasesDoReembolsoNoPainel(umItem()), []);
+});
+
+test('o valor do pedido: o que chegou ao cliente, a parte por outro meio e o que falta devolver', () => {
+  assert.deepEqual(devolucaoNoPainel(umItem()), {});
+  assert.deepEqual(devolucaoNoPainel(umItem({ status: 'reembolsado', reembolsoCentavos: 15400 })), {
+    reembolsado: `Reembolsado ${cifra(15400)}`,
+  });
+  // o reembolso inteiro falhou: nada chegou, falta tudo
+  const falhou = umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL)) });
+  assert.deepEqual(devolucaoNoPainel(falhou), { falta: `Falta devolver ${cifra(15400)}: o reembolso falhou na Stripe` });
+  // a equipe devolveu por outro meio
+  const devolvido = umItem({
+    status: 'reembolsado',
+    reembolsoCentavos: 15400,
+    historico: historico(linhaDoReembolsoFalho(FALHO_TOTAL), linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL)),
+  });
+  assert.deepEqual(devolucaoNoPainel(devolvido), { reembolsado: `Reembolsado ${cifra(15400)} (${cifra(15400)} por outro meio)` });
+  // misto: R$ 396,00 registrados, R$ 242,00 que falharam → R$ 154,00 pela mesma forma
+  const misto = doisItens({
+    status: 'reembolsado',
+    reembolsoCentavos: 39600,
+    historico: historico(linhaDoReembolsoFalho(FALHO_DO_VOUCHER)),
+  });
+  assert.deepEqual(devolucaoNoPainel(misto), {
+    reembolsado: `Reembolsado ${cifra(15400)}`,
+    falta: `Falta devolver ${cifra(24200)}: o reembolso falhou na Stripe`,
+  });
+  // o voucher devolvido por outro meio (depois de uma falha) conta como "por outro meio", uma vez só mesmo repetida
+  const porFora = linhaDoVoucherDevolvidoPorOutroMeio('ON-BBB234', 15400);
+  const comVoucherPorFora = doisItens(
+    {
+      status: 'reembolsado',
+      reembolsoCentavos: 39600,
+      historico: historico(linhaDoReembolsoFalho(FALHO_DO_VOUCHER), linhaDaDevolucaoPorOutroMeio(FALHO_DO_VOUCHER), porFora, porFora),
+    },
+    ['reembolsado', 'reembolsado'],
+  );
+  assert.deepEqual(devolucaoNoPainel(comVoucherPorFora), { reembolsado: `Reembolsado ${cifra(39600)} (${cifra(39600)} por outro meio)` });
+});
+
+test('os botões de devolver pedem a caixa "Confirmo" com o mesmo valor do botão; o voucher por fora nunca passa do que resta', () => {
+  assert.equal(confirmacaoDoReembolso(15400), `Confirmo: devolver ${cifra(15400)} ao cliente. Não dá para desfazer.`);
+  assert.equal(
+    confirmacaoDoReembolsoDoVoucher(15400, 'ON-AAA234'),
+    `Confirmo: devolver ${cifra(15400)} do voucher ON-AAA234. Não dá para desfazer.`,
+  );
+  assert.deepEqual(botaoDevolvidoPorFora(15400), {
+    rotulo: `Registrar: ${cifra(15400)} devolvidos por outro meio`,
+    confirmacao: `Confirmo: o cliente já recebeu ${cifra(15400)} por outro meio.`,
+  });
+  assert.deepEqual(botaoVoucherPorFora('ON-BBB234', 15400), {
+    rotulo: `Registrar: voucher ON-BBB234 (${cifra(15400)}) devolvido por outro meio`,
+    confirmacao: `Confirmo: o cliente já recebeu ${cifra(15400)} por outro meio. O voucher deixa de valer.`,
+  });
+  assert.deepEqual(botaoVoucherDaStripe('ON-BBB234', 15400), {
+    rotulo: `Foi o voucher ON-BBB234 (${cifra(15400)}): marcar como devolvido`,
+    confirmacao: 'Confirmo: o voucher ON-BBB234 deixa de valer. Nenhum dinheiro é devolvido agora.',
+  });
+  assert.equal(NENHUM_VOUCHER, 'Nenhum voucher: foi só um desconto');
+  assert.equal(
+    SEM_REEMBOLSO_DEPOIS_DA_FALHA,
+    'Depois de um reembolso que falhou, o site não pede outro reembolso deste pagamento à Stripe.',
+  );
+  // o voucher devolvido por fora soma o valor dele, nunca mais do que ainda resta do pagamento (nem negativo)
+  assert.equal(valorDoVoucherPorFora(15400, 39600), 15400);
+  assert.equal(valorDoVoucherPorFora(15400, 10400), 10400);
+  assert.equal(valorDoVoucherPorFora(15400, 0), 0);
+  assert.equal(valorDoVoucherPorFora(15400, -500), 0);
+});
+
+test('os códigos novos de erro do painel têm a sua frase, e cada uma diz que nada saiu agora ou o que fazer', () => {
+  assert.equal(
+    ERROS_DO_PAINEL['stripe-devolveu-menos'],
+    'A Stripe tem menos dinheiro devolvido neste pagamento do que o site registra: um reembolso falhou ou foi cancelado lá. O site não pediu outro. Veja o aviso no pedido ou confira no painel da Stripe.',
+  );
+  assert.equal(
+    ERROS_DO_PAINEL['contestado-nao-reembolsa'],
+    'Este pagamento está contestado: o reembolso não é feito pelo site enquanto a contestação estiver aberta. Veja no painel da Stripe o que fazer. Nada foi devolvido agora.',
+  );
+  assert.equal(
+    ERROS_DO_PAINEL['reembolso-sem-voucher'],
+    'A Stripe já devolveu parte deste pedido por fora do site, sem dizer de qual voucher. Diga primeiro de qual voucher foi; nada foi devolvido agora.',
+  );
+  assert.equal(ERROS_DO_PAINEL['falta-confirmar'], 'Marque a caixa de confirmação antes de continuar. Nada foi feito.');
+  for (const c of ['stripe-devolveu-menos', 'contestado-nao-reembolsa', 'reembolso-sem-voucher', 'falta-confirmar'])
+    assert.equal(fraseDoErro(c), ERROS_DO_PAINEL[c as keyof typeof ERROS_DO_PAINEL], c);
+});
+
+/** O código de um arquivo de src/, sem as linhas de comentário (e sem o \r dos arquivos gravados com CRLF). */
+const codigo = (...partes: string[]) =>
+  readFileSync(path.join('src', ...partes), 'utf8')
+    .replace(/\r/g, '')
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\/?\*|\{\/\*)/.test(l))
+    .join('\n');
+
+/** O trecho de uma ação da rota do painel: do `if (acao === '<nome>'` até a ação seguinte. */
+function trechoDaAcao(rota: string, acao: string): string {
+  const inicio = rota.indexOf(`if (acao === '${acao}'`);
+  assert.notEqual(inicio, -1, acao);
+  const fim = rota.slice(inicio + 1).search(/\n {2}if \(acao === '|\n {2}const manual = ACOES_MANUAIS/);
+  return rota.slice(inicio, fim === -1 ? undefined : inicio + 1 + fim);
+}
+
+test('a rota do painel: contestado e "Confirmo" antes da Stripe; a Stripe com menos devolvido barra; a linha do aviso antes da resposta', () => {
+  const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  assert.match(rota, /const confirmou = form\.get\('confirmo'\) === 'sim';/);
+  const reembolsar = trechoDaAcao(rota, 'reembolsar');
+  const contestado = reembolsar.indexOf("if (alvo.status === 'contestado') return voltar('contestado-nao-reembolsa');");
+  const confirmo = reembolsar.indexOf("if (!confirmou) return voltar('falta-confirmar');");
+  const lista = reembolsar.indexOf('await reembolsosDoPagamento(alvo.paymentIntentId)');
+  const menos = reembolsar.indexOf(
+    "if (stripeDevolveuMenos(reembolsos, alvo.reembolsoCentavos ?? 0)) return voltar('stripe-devolveu-menos');",
+  );
+  const tudo = reembolsar.indexOf('criarReembolso(alvo.paymentIntentId)');
+  const doItem = reembolsar.indexOf('criarReembolso(alvo.paymentIntentId, centavos, voucher)');
+  for (const [nome, onde] of Object.entries({ contestado, confirmo, lista, menos, tudo, doItem })) assert.notEqual(onde, -1, nome);
+  // nessa ordem: o contestado e a caixa antes de ler a Stripe; a lista relida e a trava antes dos dois pedidos de reembolso
+  assert.ok(contestado < confirmo && confirmo < lista && lista < menos && menos < tudo && tudo < doItem);
+  assert.equal(reembolsar.match(/criarReembolso\(/g)?.length, 2);
+  assert.equal(reembolsar.match(/reembolsosDoPagamento\(/g)?.length, 1, 'a lista é lida uma vez, para os dois');
+
+  // o reembolso feito direto na Stripe sem voucher: as linhas de aviso gravadas (conferidas dentro da trava) e só então a
+  // resposta, antes do pedido de reembolso do voucher
+  const semDono = reembolsar.indexOf('if (semDono.length) {');
+  const grava = reembolsar.indexOf('await atualizarReserva(alvo.codigo, (r) => {', semDono);
+  const faltam = reembolsar.indexOf('avisosDeReembolsoSemVoucher(r, { doPedido: true, total: false, foraDoSite: semDono }', semDono);
+  const resposta = reembolsar.indexOf("return voltar('reembolso-sem-voucher');");
+  assert.ok(
+    semDono !== -1 && semDono < grava && grava < faltam && faltam < resposta && resposta < doItem,
+    `${semDono} ${grava} ${faltam} ${resposta}`,
+  );
+
+  // a Stripe que recusa o pagamento contestado (charge_disputed) volta como contestado-nao-reembolsa
+  const captura = reembolsar.slice(reembolsar.indexOf('} catch (e) {'));
+  assert.match(
+    captura,
+    /if \(e instanceof Stripe\.errors\.StripeError && e\.code === 'charge_disputed'\) \{[\s\S]*?return voltar\('contestado-nao-reembolsa'\);/,
+  );
+  assert.ok(captura.indexOf("voltar('contestado-nao-reembolsa')") < captura.indexOf("voltar('stripe-falhou')"));
+});
+
+test('a rota do painel: as ações novas não devolvem dinheiro pela Stripe, só uma muda o status e as três de dinheiro pedem "Confirmo"', () => {
+  const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  const acoes = ['devolvido_por_fora', 'voucher_por_fora', 'voucher_da_stripe', 'reembolso_sem_voucher'] as const;
+  for (const acao of acoes) {
+    const trecho = trechoDaAcao(rota, acao);
+    assert.doesNotMatch(trecho, /criarReembolso|reembolsosDoPagamento|stripe\(/, acao);
+    // só o voucher devolvido por outro meio, quando não sobra voucher pago, leva o pedido a reembolsado
+    if (acao === 'voucher_por_fora')
+      assert.match(trecho, /if \(ultimo && podeMudar\(r\.status, 'reembolsado'\)\) r\.status = 'reembolsado';/);
+    else assert.doesNotMatch(trecho, /\.status = /, acao);
+    // a caixa "Confirmo" antes de qualquer gravação (o desconto não mexe em dinheiro nem em voucher: não pede)
+    const confirmo = trecho.indexOf("if (!confirmou) return voltar('falta-confirmar');");
+    const gravacoes = [trecho.indexOf('atualizarReserva('), trecho.indexOf('atualizarItem(')].filter((n) => n !== -1);
+    assert.ok(gravacoes.length > 0, acao);
+    if (acao === 'reembolso_sem_voucher') assert.equal(confirmo, -1);
+    else assert.ok(confirmo !== -1 && gravacoes.every((n) => confirmo < n), acao);
+  }
+  // o voucher por fora: soma uma vez por voucher (a conferência dentro da trava) e marca o voucher depois do pedido
+  const porFora = trechoDaAcao(rota, 'voucher_por_fora');
+  assert.match(porFora, /gravado\.linha = vouchersDevolvidosPorOutroMeio\(r\.historico\)\.some\(\(v\) => v\.voucher === voucher\);/);
+  assert.match(porFora, /const centavos = valorDoVoucherPorFora\(valor, recebido - \(r\.reembolsoCentavos \?\? 0\)\);/);
+  assert.ok(porFora.indexOf('await atualizarReserva(') < porFora.indexOf('await atualizarItem('));
+  // o registro por fora repetido não grava de novo: a conferência é dentro da trava de versão
+  assert.match(
+    trechoDaAcao(rota, 'devolvido_por_fora'),
+    /return falho && !falho\.devolvido \? registrar\(r, linhaDaDevolucaoPorOutroMeio\(falho\)\) : null;/,
+  );
+});
+
+test('a página do painel: a caixa "Confirmo" nos botões de devolver, nenhuma caixa da Stripe no contestado, o filtro e as faixas', () => {
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  /** O elemento <BotaoAcao … /> de uma ação (o primeiro). */
+  const botao = (acao: string) => {
+    const inicio = pagina.indexOf(`acao="${acao}"`);
+    assert.notEqual(inicio, -1, acao);
+    return pagina.slice(pagina.lastIndexOf('<BotaoAcao', inicio), pagina.indexOf('/>', inicio));
+  };
+  assert.match(botao('reembolsar'), /confirmacao=\{confirmacaoDoReembolso\(restante\)\}/);
+  assert.match(botao('reembolsar_item'), /confirmacao=\{confirmacaoDoReembolsoDoVoucher\(valorRecebido\(i\), i\.codigo\)\}/);
+  for (const acao of ['devolvido_por_fora', 'voucher_por_fora', 'voucher_da_stripe'])
+    assert.match(botao(acao), /confirmacao=\{botao\.confirmacao\}/, acao);
+  assert.doesNotMatch(botao('reembolso_sem_voucher'), /confirmacao=/);
+  // a caixa é obrigatória no formulário (o navegador não envia sem ela) e manda o valor que a rota confere
+  assert.match(pagina, /<input type="checkbox" name="confirmo" value="sim" required/);
+  // o contestado não tem a caixa "Reembolsar na Stripe…": só o tipo "stripe" de reembolsoNoPainel a mostra
+  assert.match(pagina, /reembolso\.tipo === 'stripe' && \(\s*<ReembolsoStripe /);
+  assert.doesNotMatch(pagina, /pagoNaStripe && <ReembolsoStripe/);
+  assert.match(pagina, /reembolso\.tipo === 'contestado' && <p [^>]*>\{SEM_REEMBOLSO_NA_CONTESTACAO\}<\/p>/);
+  // o filtro e as faixas, todas levando a ele
+  assert.match(pagina, /\{ valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: \(p\) => reembolsoParaResolver\(p\) \}/);
+  assert.match(pagina, /const reembolsos = avisosDeReembolso\(contarReembolsosAResolver\(pedidos\)\);/);
+  assert.match(pagina, /reembolsos\.map\(\(aviso\) => \(\s*<a key=\{aviso\} href="\/admin\?status=reembolsos"/);
 });

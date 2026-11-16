@@ -11,16 +11,35 @@ import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import {
+  NENHUM_VOUCHER,
+  SEM_REEMBOLSO_DEPOIS_DA_FALHA,
+  SEM_REEMBOLSO_NA_CONTESTACAO,
   agruparPedidos,
   avisoAberto,
   avisosDeContestacao,
+  avisosDeReembolso,
+  botaoDevolvidoPorFora,
+  botaoVoucherDaStripe,
+  botaoVoucherPorFora,
+  confirmacaoDoReembolso,
+  confirmacaoDoReembolsoDoVoucher,
+  contarReembolsosAResolver,
   contestacoesAbertas,
+  devolucaoNoPainel,
   fraseDoErro,
+  fraseDoReembolsoSemVoucher,
+  frasesDoReembolsoNoPainel,
   motivoNoPainel,
   oQueFazerNaContestacao,
+  reembolsoNoPainel,
+  reembolsoParaResolver,
+  valorDoVoucherPorFora,
   valorRecebido,
+  voucherAtivo,
   type PedidoPainel,
+  type ReembolsoNoPainel,
 } from '@/lib/pedidos-painel';
+import type { ReembolsoSemVoucher } from '@/lib/reembolsos-a-resolver';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
@@ -79,6 +98,9 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (
   { valor: 'contestados', rotulo: 'Contestados', status: ['contestado'] },
   // os pedidos de desistência pelo site que ainda esperam a equipe (a faixa do topo leva para cá)
   { valor: 'desistencias', rotulo: 'Desistências', so: (p) => desistenciaParaResponder(p.itens[0]) },
+  // os reembolsos que pedem uma ação da equipe: o que falhou, o feito direto na Stripe sem voucher, o parado por uma
+  // contestação (as três faixas do topo levam para cá)
+  { valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: (p) => reembolsoParaResolver(p) },
   { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
 ];
 
@@ -222,7 +244,11 @@ function textosDaBusca(r: Reserva): string[] {
 
 /**
  * Um botão de ação do pedido: um form POST para a rota do painel, com o código do voucher no endereço. No
- * reembolso de um item só, o voucher a reembolsar vai também no campo `voucher` (é dele que a rota lê).
+ * reembolso de um item só, o voucher a reembolsar vai também no campo `voucher` (é dele que a rota lê); nas ações
+ * sobre um reembolso que a Stripe fez ou não conseguiu fazer, o id dele vai no campo `reembolso`. Com `confirmacao`, o
+ * formulário ganha a caixa de marcar obrigatória: o navegador não envia sem ela marcada, e a rota confere de novo. É o
+ * gesto de propósito antes de devolver dinheiro ou tirar a validade de um voucher (decisão do dono de 16/11), sem
+ * JavaScript, igual no celular e no computador; tocar no texto também marca a caixa.
  */
 function BotaoAcao({
   voucher,
@@ -231,6 +257,8 @@ function BotaoAcao({
   filtro,
   cor = 'bg-superficie',
   item,
+  reembolso,
+  confirmacao,
 }: {
   voucher: string;
   acao: string;
@@ -238,12 +266,21 @@ function BotaoAcao({
   filtro: string;
   cor?: string;
   item?: string;
+  reembolso?: string;
+  confirmacao?: string;
 }) {
   return (
     <form method="post" action={`/api/admin/reservas/${voucher}`}>
       <input type="hidden" name="acao" value={acao} />
       <input type="hidden" name="filtro" value={filtro} />
       {item && <input type="hidden" name="voucher" value={item} />}
+      {reembolso && <input type="hidden" name="reembolso" value={reembolso} />}
+      {confirmacao && (
+        <label className="mb-2 flex cursor-pointer items-start gap-3 text-small">
+          <input type="checkbox" name="confirmo" value="sim" required className="size-6 shrink-0 accent-[var(--color-mar)]" />
+          <span>{confirmacao}</span>
+        </label>
+      )}
       <button type="submit" className={`min-h-10 px-4 text-small font-semibold text-mar hover:bg-borda ${cor}`}>
         {rotulo}
       </button>
@@ -253,20 +290,19 @@ function BotaoAcao({
 
 /**
  * Devolver o dinheiro pela Stripe: tudo, ou um voucher só (a chuva num passeio de um pedido de três). Fica atrás
- * de um "abrir" porque não dá para desfazer. O status do pedido só muda quando a Stripe confirmar (webhook
- * charge.refunded): até lá o painel mostra o pedido como está.
+ * de um "abrir" porque não dá para desfazer, e cada botão pede a caixa "Confirmo" marcada. O status do pedido só muda
+ * quando a Stripe confirmar (webhook charge.refunded): até lá o painel mostra o pedido como está. Os vouchers vêm de
+ * reembolsoNoPainel: nenhum no pedido de um item, nem enquanto um reembolso feito direto na Stripe não disser de qual
+ * voucher foi.
  */
-function ReembolsoStripe({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; filtro: string; restante: number; vouchers: Reserva[] }) {
   const r = p.itens[0];
-  const restante = p.recebidoCentavos - p.reembolsoCentavos;
-  if (!r.paymentIntentId || restante <= 0) return null;
-  const vouchersAtivos = p.itens.filter((i) => (i.statusItem ?? 'ativo') === 'ativo');
   return (
     <details className="text-small">
       <summary className="inline-flex min-h-10 cursor-pointer items-center bg-superficie px-4 font-semibold text-mar hover:bg-borda">
         Reembolsar na Stripe…
       </summary>
-      <div className="mt-2 space-y-2 border border-borda bg-white p-3">
+      <div className="mt-2 space-y-3 border border-borda bg-white p-3">
         <p className="text-tinta-suave">
           Devolve o dinheiro pela Stripe (cartão: 5 a 10 dias úteis; Pix: o prazo depende do banco do cliente). Não dá para desfazer. O
           status muda quando a Stripe confirmar.
@@ -277,27 +313,122 @@ function ReembolsoStripe({ p, filtro }: { p: PedidoPainel; filtro: string }) {
           rotulo={`Reembolsar tudo (${formatarPreco(restante)})`}
           filtro={filtro}
           cor="bg-erro-claro"
+          confirmacao={confirmacaoDoReembolso(restante)}
         />
-        {p.itens.length > 1 &&
-          vouchersAtivos.map((i) => (
-            <BotaoAcao
-              key={i.codigo}
-              voucher={i.codigo}
-              item={i.codigo}
-              acao="reembolsar_item"
-              rotulo={`Reembolsar só o voucher ${i.codigo} (${formatarPreco(valorRecebido(i))})`}
-              filtro={filtro}
-            />
-          ))}
+        {vouchers.map((i) => (
+          <BotaoAcao
+            key={i.codigo}
+            voucher={i.codigo}
+            item={i.codigo}
+            acao="reembolsar_item"
+            rotulo={`Reembolsar só o voucher ${i.codigo} (${formatarPreco(valorRecebido(i))})`}
+            filtro={filtro}
+            confirmacao={confirmacaoDoReembolsoDoVoucher(valorRecebido(i), i.codigo)}
+          />
+        ))}
       </div>
     </details>
   );
 }
 
-/** O status é do pedido inteiro, com todos os vouchers: um pagamento só. */
+/**
+ * Depois de um reembolso que falhou na Stripe, nenhum botão da Stripe: um "Registrar" por reembolso ainda por devolver
+ * (a equipe já devolveu por outro meio; grava a linha que fecha o aviso) e, com o pedido ainda pago, um "voucher
+ * devolvido por outro meio" por voucher ainda pago. Cada um pede a caixa "Confirmo". Nenhum chama a Stripe.
+ */
+function ReembolsoQueFalhou({
+  p,
+  filtro,
+  reembolso,
+}: {
+  p: PedidoPainel;
+  filtro: string;
+  reembolso: Extract<ReembolsoNoPainel, { tipo: 'falhou' }>;
+}) {
+  const r = p.itens[0];
+  // o pedido reembolsado com a falha já devolvida por outro meio: nada mais a fazer aqui
+  if (!reembolso.pendentes.length && p.status !== 'pago') return null;
+  return (
+    <div className="max-w-xl space-y-3">
+      {reembolso.pendentes.map((f) => {
+        const botao = botaoDevolvidoPorFora(f.centavos);
+        return (
+          <BotaoAcao
+            key={f.id}
+            voucher={r.codigo}
+            acao="devolvido_por_fora"
+            reembolso={f.id}
+            rotulo={botao.rotulo}
+            confirmacao={botao.confirmacao}
+            filtro={filtro}
+            cor="bg-erro-claro"
+          />
+        );
+      })}
+      {p.status === 'pago' && <p className="text-small text-tinta-suave">{SEM_REEMBOLSO_DEPOIS_DA_FALHA}</p>}
+      {reembolso.vouchersPagos.map((i) => {
+        const botao = botaoVoucherPorFora(i.codigo, valorDoVoucherPorFora(valorRecebido(i), reembolso.restanteCentavos));
+        return (
+          <BotaoAcao
+            key={i.codigo}
+            voucher={r.codigo}
+            acao="voucher_por_fora"
+            item={i.codigo}
+            rotulo={botao.rotulo}
+            confirmacao={botao.confirmacao}
+            filtro={filtro}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * O reembolso de parte feito direto na Stripe, sem dizer de qual voucher: para cada um, um botão por voucher ativo
+ * ("Foi o voucher …", com a caixa "Confirmo": o voucher deixa de valer, sem novo reembolso) e "Nenhum voucher: foi só um
+ * desconto". Nenhum chama a Stripe. Com mais de um reembolso assim, cada grupo vem com a frase do seu valor.
+ */
+function ReembolsoSemVoucherNoPainel({ p, filtro, semVoucher }: { p: PedidoPainel; filtro: string; semVoucher: ReembolsoSemVoucher[] }) {
+  const r = p.itens[0];
+  const ativos = p.itens.filter(voucherAtivo);
+  return (
+    <div className="max-w-xl space-y-3">
+      {semVoucher.map((s) => (
+        <div key={s.id} className="space-y-3">
+          {semVoucher.length > 1 && <p className="text-small text-tinta-suave">{fraseDoReembolsoSemVoucher(s.centavos)}</p>}
+          {ativos.map((i) => {
+            const botao = botaoVoucherDaStripe(i.codigo, valorRecebido(i));
+            return (
+              <BotaoAcao
+                key={i.codigo}
+                voucher={r.codigo}
+                acao="voucher_da_stripe"
+                reembolso={s.id}
+                item={i.codigo}
+                rotulo={botao.rotulo}
+                confirmacao={botao.confirmacao}
+                filtro={filtro}
+              />
+            );
+          })}
+          <BotaoAcao voucher={r.codigo} acao="reembolso_sem_voucher" reembolso={s.id} rotulo={NENHUM_VOUCHER} filtro={filtro} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * O status é do pedido inteiro, com todos os vouchers: um pagamento só. O que o pedido mostra sobre reembolso vem de
+ * reembolsoNoPainel (src/lib/pedidos-painel.ts): os botões da Stripe de sempre, nenhum no pedido contestado (a frase no
+ * lugar), os de registrar depois de um reembolso que falhou e os de dizer de qual voucher foi o reembolso feito direto
+ * na Stripe.
+ */
 function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   const r = p.itens[0];
   const stripe = p.provedor === 'stripe';
+  const reembolso = reembolsoNoPainel(p);
   const acoes: { acao: string; rotulo: string }[] = [];
   if (EM_ABERTO.includes(p.status)) {
     if (p.metodo === 'whatsapp') {
@@ -324,11 +455,23 @@ function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   // própria devolução já tira o pedido de lá
   if (desistenciaParaResponder(r)) acoes.push({ acao: 'desistencia_respondida', rotulo: 'Desistência respondida, sem reembolso' });
   return (
-    <div className="flex flex-wrap items-start gap-2">
-      {acoes.map((a) => (
-        <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} />
-      ))}
-      {pagoNaStripe && <ReembolsoStripe p={p} filtro={filtro} />}
+    <div className="flex min-w-0 flex-col items-start gap-3">
+      {(acoes.length > 0 || reembolso.tipo === 'stripe') && (
+        <div className="flex flex-wrap items-start gap-2">
+          {acoes.map((a) => (
+            <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} />
+          ))}
+          {reembolso.tipo === 'stripe' && (
+            <ReembolsoStripe p={p} filtro={filtro} restante={reembolso.restanteCentavos} vouchers={reembolso.vouchers} />
+          )}
+        </div>
+      )}
+      {/* no contestado, a frase no lugar da caixa "Reembolsar na Stripe…" (o que fazer fica na frase vermelha de cima) */}
+      {reembolso.tipo === 'contestado' && <p className="max-w-xl text-small text-tinta-suave">{SEM_REEMBOLSO_NA_CONTESTACAO}</p>}
+      {reembolso.tipo === 'falhou' && <ReembolsoQueFalhou p={p} filtro={filtro} reembolso={reembolso} />}
+      {(reembolso.tipo === 'falhou' || reembolso.tipo === 'stripe') && reembolso.semVoucher.length > 0 && (
+        <ReembolsoSemVoucherNoPainel p={p} filtro={filtro} semVoucher={reembolso.semVoucher} />
+      )}
     </div>
   );
 }
@@ -368,6 +511,8 @@ function ValorDoPedido({ p }: { p: PedidoPainel }) {
       </>
     );
   }
+  // o que chegou ao cliente (com a parte por outro meio) e o que falta devolver porque o reembolso falhou na Stripe
+  const devolucao = devolucaoNoPainel(p);
   // a Stripe manda a bandeira em minúsculas ("visa", "mastercard")
   const bandeira = g.cartaoBandeira ? g.cartaoBandeira.charAt(0).toUpperCase() + g.cartaoBandeira.slice(1) : '';
   const forma =
@@ -385,7 +530,8 @@ function ValorDoPedido({ p }: { p: PedidoPainel }) {
       </p>
       <p className="text-small text-tinta-suave">{PROVEDOR[p.provedor]}</p>
       {g.apresentado && <p className="text-small text-tinta-suave">Cliente viu {moedaApresentada(g.apresentado)}</p>}
-      {p.reembolsoCentavos > 0 && <p className="mt-1 text-small font-semibold">Reembolsado {formatarPreco(p.reembolsoCentavos)}</p>}
+      {devolucao.reembolsado && <p className="mt-1 text-small font-semibold">{devolucao.reembolsado}</p>}
+      {devolucao.falta && <p className="mt-1 text-small font-semibold text-[#7a1f12]">{devolucao.falta}</p>}
       {p.provedor === 'stripe' ? (
         <>
           {r.paymentIntentId && <LinkStripe id={r.paymentIntentId} />}
@@ -427,6 +573,12 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
             do pedido; o estorno é só pela forma original (Reembolsar na Stripe), nunca para dados escritos no motivo.
           </p>
         )}
+        {/* o reembolso que falhou, o feito direto na Stripe sem voucher e o parado por uma contestação: o que fazer */}
+        {frasesDoReembolsoNoPainel(p).map((frase, n) => (
+          <p key={n} className="mt-2 text-small font-semibold text-[#7a1f12]">
+            {frase}
+          </p>
+        ))}
         {varios && <p className="mt-2 text-small font-semibold">{p.itens.length} itens</p>}
         <p className="mt-2 text-small text-tinta-suave">Criado {dataHora(p.criadoEm)}</p>
         {p.pagoEm && <p className="text-small text-tinta-suave">Pago {dataHora(p.pagoEm)}</p>}
@@ -536,6 +688,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   const contestacoes = avisosDeContestacao(contestacoesAbertas(pedidos));
   // pagos, com o pedido de desistência pelo site, sem reembolso e sem a marca de respondido: a faixa vale mesmo sem os e-mails
   const desistencias = pedidos.filter((p) => desistenciaParaResponder(p.itens[0])).length;
+  // os reembolsos que pedem uma ação da equipe (as contas são por pedido): também valem sem os e-mails
+  const reembolsos = avisosDeReembolso(contarReembolsosAResolver(pedidos));
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -586,6 +740,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           {avisoDasDesistencias(desistencias)}: responder em até 1 dia útil →
         </a>
       )}
+      {reembolsos.map((aviso) => (
+        <a key={aviso} href="/admin?status=reembolsos" className="mt-3 block bg-erro-claro px-5 py-3 font-semibold text-mar">
+          {aviso} →
+        </a>
+      ))}
       {erroAcao && (
         <p role="alert" className="mt-3 bg-erro-claro px-5 py-3 font-semibold text-mar">
           {erroAcao}

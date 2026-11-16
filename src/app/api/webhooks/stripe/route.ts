@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { formatarCifra } from '@/lib/cifra';
+import { agendarAvisoDoReembolsoFalho } from '@/lib/email/pedidos';
 import {
   aplicarSessao,
   concluirEventoStripe,
@@ -321,7 +322,8 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
  * dinheiro do pedido. Se o reembolso é um que o site pediu e o aviso dele (charge.refunded) ainda não foi tratado, o
  * que ele faria com o reembolso ainda valendo entra agora (efeitoDoReembolsoDoSite, com a cobrança relida), na mesma
  * gravação: o pedido termina igual em qualquer ordem dos dois avisos. O voucher reembolsado não volta a valer; o valor
- * que falhou continua contado no reembolso do pedido.
+ * que falhou continua contado no reembolso do pedido. Depois da resposta sai o e-mail à equipe (agendarAvisoDoReembolsoFalho,
+ * src/lib/email/pedidos.ts), uma vez por reembolso: a falha pode chegar semanas depois, com ninguém olhando o painel.
  */
 async function reembolsoFalhou(reembolso: Stripe.Refund): Promise<Resultado> {
   const codigo = codigoDaMetadata(reembolso.metadata) ?? (await codigoDoPagamento(reembolso.payment_intent));
@@ -353,6 +355,9 @@ async function reembolsoFalhou(reembolso: Stripe.Refund): Promise<Resultado> {
   // o voucher do reembolso, depois do pedido (como no charge.refunded); a repetição completa o que ficou para trás
   const voucher = lido.efeito?.voucher;
   if (voucher) await atualizarItem(voucher.codigo, 'reembolsado', voucher.evento);
+  // o e-mail à equipe, depois da resposta e lido da linha já gravada: um por reembolso (a devolução falha de um
+  // pagamento repetido fica só no histórico)
+  agendarAvisoDoReembolsoFalho(codigo, atual.id);
   const aplicado = lido.efeito?.pedido ? ' (o aviso do reembolso não tinha chegado: aplicado ao pedido agora)' : '';
   return { codigo, resultado: `aviso de reembolso falho registrado${aplicado}` };
 }

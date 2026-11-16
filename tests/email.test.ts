@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { EMPRESA } from '../src/config/empresa.ts';
 import { HREFLANG, IDIOMAS, type Idioma } from '../src/i18n/config.ts';
 import { TEXTOS_CONSULTA } from '../src/lib/consulta-textos.ts';
@@ -26,6 +28,7 @@ import {
 } from '../src/lib/email/cota.ts';
 import {
   emailAvisoDaDesistencia,
+  emailAvisoDoReembolsoFalho,
   emailDesistenciaRecebida,
   emailLembrete,
   emailLinkDoPedido,
@@ -39,8 +42,16 @@ import {
   type TipoEmail,
 } from '../src/lib/email/mensagens.ts';
 import { escaparHtml } from '../src/lib/email/modelo.ts';
+import { marcaDoAvisoDeReembolsoFalho } from '../src/lib/email/marcas.ts';
 import { zerarLimitesEmMemoria } from '../src/lib/limite-ip.ts';
 import { TEXTOS_EMAIL } from '../src/lib/email/textos.ts';
+import { avisoDoReembolsoFalho } from '../src/lib/pedidos-painel.ts';
+import {
+  linhaDaDevolucaoPorOutroMeio,
+  linhaDaDevolucaoRepetidaQueFalhou,
+  linhaDoReembolsoFalho,
+  linhaDoReembolsoParadoPelaContestacao,
+} from '../src/lib/reembolsos-a-resolver.ts';
 
 // Etapa 6: os e-mails automáticos. Cada e-mail é montado nos quatro idiomas com dados de exemplo e conferido por
 // dentro (nenhum marcador sobrando, o link do pedido no HTML e no texto, o que o cliente digitou escapado, o WhatsApp
@@ -311,6 +322,97 @@ test('o aviso da desistência para a equipe: o motivo entre « », o prazo, o li
   assert.ok(semMotivo.texto.includes('O cliente não escreveu motivo.'));
 });
 
+// O aviso à equipe quando um reembolso falha na Stripe (decisão do dono de 16/11): a falha pode chegar semanas depois,
+// com ninguém olhando o painel. Um por reembolso, essencial na cota, desligado sem a chave, sem nenhum dado do cartão.
+
+const AVISO_DO_REEMBOLSO = {
+  codigo: 'ON-7K3P9Q',
+  valor: 'R$ 154,00',
+  motivo: 'cartão vencido ou cancelado',
+  contestacao: false,
+  naoDizerOMotivo: false,
+  linkPainel: 'https://orlanativa.online/admin?q=ON-7K3P9Q',
+  site: SITE,
+};
+
+test('o aviso à equipe do reembolso que falhou: o valor, o motivo em português, o que fazer e o link do painel', () => {
+  const m = emailAvisoDoReembolsoFalho(AVISO_DO_REEMBOLSO);
+  assert.equal(m.assunto, 'Reembolso que falhou: pedido ON-7K3P9Q');
+  assert.ok(
+    m.texto.includes(
+      'A Stripe não conseguiu devolver R$ 154,00 do pedido ON-7K3P9Q (motivo: cartão vencido ou cancelado). O cliente ainda não recebeu. Abra o pedido no painel, devolva por outro meio só para o titular, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre a devolução no painel.',
+    ),
+    m.texto,
+  );
+  assert.ok(m.html.includes('href="https://orlanativa.online/admin?q=ON-7K3P9Q"'));
+  assert.ok(m.texto.includes('https://orlanativa.online/admin?q=ON-7K3P9Q'));
+  assert.ok(!m.texto.includes('Não diga o motivo') && !m.texto.includes('Não devolva por outro meio'));
+  // o cartão dado como perdido ou roubado: a equipe não repassa o motivo
+  const roubado = emailAvisoDoReembolsoFalho({
+    ...AVISO_DO_REEMBOLSO,
+    motivo: 'cartão dado como perdido ou roubado',
+    naoDizerOMotivo: true,
+  });
+  assert.ok(roubado.texto.includes('Não diga o motivo ao cliente.'));
+  // a contestação aberta com o reembolso a caminho: NÃO devolver por outro meio (o banco devolve pela contestação)
+  const contestacao = emailAvisoDoReembolsoFalho({
+    ...AVISO_DO_REEMBOLSO,
+    motivo: 'o cliente abriu uma contestação com o reembolso a caminho',
+    contestacao: true,
+  });
+  assert.ok(
+    contestacao.texto.includes(
+      'Não devolva por outro meio: o cliente abriu uma contestação no banco. Aceite ou responda a contestação no painel da Stripe.',
+    ),
+  );
+  assert.ok(!contestacao.texto.includes('devolva por outro meio só para o titular'));
+  assert.ok(!contestacao.texto.includes('registre a devolução'));
+  // nenhum dado legal da empresa, nenhum dado do cartão
+  for (const msg of [m, roubado, contestacao]) {
+    for (const valor of DADOS_LEGAIS) assert.ok(!msg.html.includes(valor) && !msg.texto.includes(valor), valor);
+    assert.doesNotMatch(`${msg.html} ${msg.texto}`, /•|visa|mastercard|final \d{4}/i);
+  }
+});
+
+test('o aviso à equipe sai uma vez por reembolso, lido da linha que o webhook gravou, sem o código cru nem dado do cartão', () => {
+  const linhas = (...eventos: string[]) => eventos.map((evento, n) => ({ em: `2026-11-16T12:00:0${n}.000Z`, evento }));
+  const falho = { id: 're_A', centavos: 15400, motivo: 'expired_or_canceled_card' };
+  const pago = 'Pago (webhook da Stripe)';
+  // a primeira vez: o valor e o motivo em português (o código cru fica só no histórico)
+  assert.deepEqual(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho)), 're_A'), {
+    centavos: 15400,
+    motivo: 'cartão vencido ou cancelado',
+    contestacao: false,
+    naoDizerOMotivo: false,
+  });
+  // o e-mail deste reembolso já saiu: não sai de novo; o de OUTRO reembolso não segura este
+  assert.equal(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_A')), 're_A'), null);
+  assert.ok(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_AB')), 're_A'));
+  // a equipe já devolveu por outro meio antes de o e-mail sair: nada a avisar
+  assert.equal(avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho(falho), linhaDaDevolucaoPorOutroMeio(falho)), 're_A'), null);
+  // o cartão dado como perdido ou roubado: não dizer o motivo ao cliente
+  assert.equal(
+    avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho({ ...falho, motivo: 'lost_or_stolen_card' })), 're_A')?.naoDizerOMotivo,
+    true,
+  );
+  // a contestação com o reembolso a caminho: o aviso manda não devolver por fora
+  const parado = linhas(linhaDoReembolsoParadoPelaContestacao({ id: 're_B', centavos: 24200 }));
+  assert.deepEqual(avisoDoReembolsoFalho(parado, 're_B'), {
+    centavos: 24200,
+    motivo: 'o cliente abriu uma contestação com o reembolso a caminho',
+    contestacao: true,
+    naoDizerOMotivo: false,
+  });
+  // a devolução falha de um pagamento repetido fica só no histórico; reembolso sem linha também não avisa
+  const repetido = linhas(
+    linhaDaDevolucaoRepetidaQueFalhou({ id: 're_C', centavos: 15400, pagamento: 'pi_outro', motivo: 'expired_or_canceled_card' }),
+  );
+  assert.equal(avisoDoReembolsoFalho(repetido, 're_C'), null);
+  assert.equal(avisoDoReembolsoFalho(linhas(pago), 're_D'), null);
+  // a linha do envio não é um aviso do painel
+  assert.ok(!marcaDoAvisoDeReembolsoFalho('re_A').startsWith('Aviso:'));
+});
+
 test('os links do voucher no e-mail não quebram no meio ("Descargar el PDF" inteiro): só depois do "·"', () => {
   const m = emailPagamentoAprovado({ ...pedido('es', true), total: VALOR, anexos: false });
   const links = m.html.match(/<a href="https:\/\/orlanativa\.online\/(reserva|api\/voucher)\/[^"]+"[^>]*>/g) ?? [];
@@ -332,7 +434,13 @@ test('a cota do dia: passando de 60, só os essenciais saem; o mesmo endereço r
       assert.equal(emailEssencial(tipo), false, tipo);
       assert.equal(await cabeNaCotaDoDia(tipo, dia), false, `${tipo}: guardado`);
     }
-    for (const tipo of ['pagamento-aprovado', 'pix-vencido', 'desistencia-recebida', 'desistencia-equipe'] as TipoEmail[]) {
+    for (const tipo of [
+      'pagamento-aprovado',
+      'pix-vencido',
+      'desistencia-recebida',
+      'desistencia-equipe',
+      'reembolso-falho-equipe',
+    ] as TipoEmail[]) {
       assert.equal(emailEssencial(tipo), true, tipo);
       assert.equal(await cabeNaCotaDoDia(tipo, dia), true, `${tipo}: sempre sai`);
     }
@@ -633,4 +741,52 @@ test('o envio respeita a cota do dia: guardada, o e-mail não vai ao Resend e o 
   } finally {
     delete process.env.RESEND_API_KEY;
   }
+});
+
+test('o envio do aviso do reembolso que falhou: desligado sem a chave, para a equipe, uma chave por reembolso, depois da resposta', async (t) => {
+  /** O código de um arquivo de src/, sem as linhas de comentário (e sem o \r dos arquivos gravados com CRLF). */
+  const codigo = (...partes: string[]) =>
+    readFileSync(path.join('src', ...partes), 'utf8')
+      .replace(/\r/g, '')
+      .split('\n')
+      .filter((l) => !/^\s*(\/\/|\/?\*)/.test(l))
+      .join('\n');
+  const pedidos = codigo('lib', 'email', 'pedidos.ts');
+  const envio = pedidos.slice(pedidos.indexOf('export async function enviarAvisoDoReembolsoFalho('));
+  const fim = envio.indexOf('\n}\n');
+  const corpo = envio.slice(0, fim);
+  // sem a chave, nada sai e nada é lido: o registro só com o tipo e o código do pedido
+  assert.match(
+    corpo,
+    /^export async function enviarAvisoDoReembolsoFalho\(codigo: string, reembolsoId: string\): Promise<void> \{\s+if \(!emailLigado\(\)\) \{\s+console\.log\(`\[email\] desligado \(sem RESEND_API_KEY\): reembolso-falho-equipe \$\{codigo\}`\);\s+return;\s+\}/,
+  );
+  // o que o e-mail diz sai do histórico (uma vez por reembolso), vai para a equipe e grava a marca só quando sai
+  assert.match(corpo, /const aviso = avisoDoReembolsoFalho\(r\.historico, reembolsoId\);\s+if \(!aviso\) return;/);
+  assert.match(corpo, /tipo: 'reembolso-falho-equipe',/);
+  assert.match(corpo, /para: responderPara\(\),/);
+  assert.match(corpo, /chave: `reembolso-falho-equipe\/\$\{reembolsoId\}`,/);
+  assert.match(corpo, /if \(saiu\(resultado\)\) await anotar\(r\.codigo, marcaDoAvisoDeReembolsoFalho\(reembolsoId\)\);/);
+  // nenhum dado do cartão entra no e-mail
+  assert.doesNotMatch(corpo, /cartaoFinal|cartaoBandeira|cartaoPais/);
+  // o webhook agenda o aviso depois de gravar a linha do reembolso que falhou (o e-mail lê essa linha)
+  const rota = codigo('app', 'api', 'webhooks', 'stripe', 'route.ts');
+  const falhou = rota.slice(rota.indexOf('async function reembolsoFalhou('), rota.indexOf('async function contestacao('));
+  const grava = falhou.indexOf('await atualizarReserva(alvo.codigo, (r) => {');
+  const agenda = falhou.indexOf('agendarAvisoDoReembolsoFalho(codigo, atual.id);');
+  assert.ok(grava !== -1 && agenda > grava, `${grava} ${agenda}`);
+  assert.ok(falhou.indexOf("if (!evento) return { codigo, resultado: 'o reembolso não está falho na Stripe: ignorado' };") < agenda);
+
+  // pelo envio de verdade: sem a chave, nenhuma chamada, e o registro sem o endereço da equipe
+  delete process.env.RESEND_API_KEY;
+  const log = t.mock.method(console, 'log', () => {});
+  const falso = fetchFalso([{ status: 200, corpo: { id: 'x' } }]);
+  const r = await enviarEmail(
+    { ...EMAIL, tipo: 'reembolso-falho-equipe', para: 'financeiro@exemplo.com', chave: 'reembolso-falho-equipe/re_A' },
+    { fetch: falso.fetch, esperar: semEspera },
+  );
+  assert.deepEqual(r, { enviado: false, motivo: 'desligado' });
+  assert.equal(falso.chamadas.length, 0);
+  const linha = String(log.mock.calls[0].arguments[0]);
+  assert.match(linha, /reembolso-falho-equipe ON-7K3P9Q/);
+  assert.ok(!linha.includes('financeiro@exemplo.com'));
 });

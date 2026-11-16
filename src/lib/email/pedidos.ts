@@ -15,7 +15,7 @@ import {
 } from '../formas-pagamento';
 import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
-import { provedorDaReserva, valorRecebido } from '../pedidos-painel';
+import { avisoDoReembolsoFalho, provedorDaReserva, valorRecebido } from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
@@ -24,9 +24,16 @@ import { linkWhatsApp } from '../whatsapp';
 import { enderecoCabeNoDia } from './cota';
 import { depoisDaResposta } from './depois';
 import { emailLigado, enviarEmail, responderPara, saiu, type Anexo } from './enviar';
-import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL, type TipoEmailDoPedido } from './marcas';
+import {
+  AVISO_EMAIL_PAGO_SAINDO,
+  MARCA_DO_AVISO_A_EQUIPE,
+  MARCA_DO_EMAIL,
+  marcaDoAvisoDeReembolsoFalho,
+  type TipoEmailDoPedido,
+} from './marcas';
 import {
   emailAvisoDaDesistencia,
+  emailAvisoDoReembolsoFalho,
   emailDesistenciaRecebida,
   emailLinkDoPedido,
   emailPagamentoAprovado,
@@ -56,6 +63,7 @@ export { MARCA_DO_EMAIL, type TipoEmailDoPedido } from './marcas';
  * - link-do-pedido: pedido na página "Consultar meu pedido".
  * - desistencia-recebida: a confirmação do pedido de desistência pelo site, com a data e a hora em que chegou; junto,
  *   o aviso à equipe (enviarAvisoDaDesistencia).
+ * - reembolso-falho-equipe: só para a equipe, quando um reembolso falha na Stripe (enviarAvisoDoReembolsoFalho).
  * Cada envio fica no histórico do pedido ("E-mail ao cliente: …"), e o mesmo e-mail não sai de novo quando o aviso
  * chega repetido (a linha no histórico e a chave de idempotência do Resend). Sem RESEND_API_KEY, nada sai e nada é
  * lido do banco. Nada aqui desfaz um pagamento: quem chama agenda com agendarEmailDoPedido, depois da resposta.
@@ -374,4 +382,49 @@ export function agendarAvisosDaDesistencia(codigo: string, motivo: string): void
   // cada um na sua tarefa: a falha de um não segura o outro
   depoisDaResposta(`desistencia-recebida ${codigo}`, () => enviarEmailDoPedido('desistencia-recebida', codigo));
   depoisDaResposta(`desistencia-equipe ${codigo}`, () => enviarAvisoDaDesistencia(codigo, motivo));
+}
+
+/**
+ * O aviso à equipe (EMAIL_RESPOSTA) de um reembolso que a Stripe não conseguiu concluir (decisão do dono de 16/11): a
+ * falha pode chegar semanas depois, quando ninguém está olhando o painel. Lido da linha que o webhook gravou no histórico
+ * (avisoDoReembolsoFalho, src/lib/pedidos-painel.ts): o valor e o motivo em português, sem nenhum dado do cartão; na
+ * contestação aberta com o reembolso a caminho, o e-mail manda NÃO devolver por outro meio. Um por reembolso (a linha
+ * marcaDoAvisoDeReembolsoFalho no histórico e a chave de idempotência); a devolução falha de um pagamento repetido fica
+ * só no histórico. Sem a chave do Resend, não sai: a faixa do topo do painel continua contando o pedido.
+ */
+export async function enviarAvisoDoReembolsoFalho(codigo: string, reembolsoId: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): reembolso-falho-equipe ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const aviso = avisoDoReembolsoFalho(r.historico, reembolsoId);
+  if (!aviso) return;
+  const mensagem = emailAvisoDoReembolsoFalho({
+    codigo: pedido,
+    valor: formatarCifra(aviso.centavos, 'pt-BR'),
+    motivo: aviso.motivo,
+    contestacao: aviso.contestacao,
+    naoDizerOMotivo: aviso.naoDizerOMotivo,
+    linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
+    site: siteDoEmail(),
+  });
+  const resultado = await enviarEmail({
+    tipo: 'reembolso-falho-equipe',
+    referencia: pedido,
+    para: responderPara(),
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `reembolso-falho-equipe/${reembolsoId}`,
+  });
+  if (saiu(resultado)) await anotar(r.codigo, marcaDoAvisoDeReembolsoFalho(reembolsoId));
+}
+
+/** Agenda o aviso à equipe do reembolso que falhou para depois da resposta (o webhook da Stripe responde na hora). */
+export function agendarAvisoDoReembolsoFalho(codigo: string, reembolsoId: string): void {
+  depoisDaResposta(`reembolso-falho-equipe ${codigo}`, () => enviarAvisoDoReembolsoFalho(codigo, reembolsoId));
 }

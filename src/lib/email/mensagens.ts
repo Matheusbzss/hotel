@@ -17,6 +17,7 @@ export type TipoEmail =
   | 'link-do-pedido'
   | 'desistencia-recebida'
   | 'desistencia-equipe'
+  | 'reembolso-falho-equipe'
   | 'lembrete-1'
   | 'lembrete-2';
 
@@ -263,6 +264,49 @@ export function emailAvisoDaDesistencia(d: {
       d.motivo ? `Motivo escrito pelo cliente: «${d.motivo}»` : 'O cliente não escreveu motivo.',
       'Antes de estornar, confirme com o titular pelo e-mail ou pelo WhatsApp do pedido. O estorno é só pela forma original do pagamento ("Reembolsar na Stripe", no painel), nunca para uma conta ou chave escrita no motivo. Responda ao cliente em até 1 dia útil.',
     ],
+    codigo: { rotulo: 'Pedido', valor: d.codigo },
+    botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
+    rodape: { linhas: ['Aviso automático do site para a equipe.'] },
+    site: d.site,
+  });
+}
+
+/**
+ * O aviso à equipe (EMAIL_RESPOSTA, em português) de um reembolso que a Stripe não conseguiu concluir (refund.failed),
+ * porque a falha pode chegar semanas depois, quando ninguém está olhando o painel: o valor, o motivo em português e o que
+ * fazer. Na contestação aberta com o reembolso a caminho, NÃO devolver por outro meio (o banco devolve pela
+ * contestação). No cartão dado como perdido ou roubado, não dizer o motivo ao cliente. Nenhum dado do cartão. O botão
+ * abre o pedido no painel.
+ */
+export function emailAvisoDoReembolsoFalho(d: {
+  codigo: string;
+  /** O valor que não voltou, já escrito ("R$ 154,00"). */
+  valor: string;
+  /** O motivo em português (motivoDoReembolsoFalho, src/lib/pedidos-painel.ts). */
+  motivo: string;
+  /** O cliente abriu uma contestação com o reembolso a caminho. */
+  contestacao: boolean;
+  /** O cartão dado como perdido ou roubado. */
+  naoDizerOMotivo: boolean;
+  linkPainel: string;
+  site: SiteDoEmail;
+}): MensagemEmail {
+  const falhou = `A Stripe não conseguiu devolver ${d.valor} do pedido ${d.codigo} (motivo: ${d.motivo}).`;
+  const paragrafos = d.contestacao
+    ? [
+        falhou,
+        'Não devolva por outro meio: o cliente abriu uma contestação no banco. Aceite ou responda a contestação no painel da Stripe.',
+      ]
+    : [
+        `${falhou} O cliente ainda não recebeu. Abra o pedido no painel, devolva por outro meio só para o titular, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre a devolução no painel.`,
+        ...(d.naoDizerOMotivo ? ['Não diga o motivo ao cliente.'] : []),
+      ];
+  return mensagem({
+    idioma: 'pt',
+    assunto: `Reembolso que falhou: pedido ${d.codigo}`,
+    preCabecalho: falhou,
+    titulo: 'Reembolso que falhou',
+    paragrafos,
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
     rodape: { linhas: ['Aviso automático do site para a equipe.'] },

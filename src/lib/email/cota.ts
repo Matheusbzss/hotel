@@ -10,7 +10,8 @@ import type { TipoEmail } from './mensagens';
  * aprovado" (com os vouchers) não sairia. Então:
  * - cada e-mail que vai ao Resend conta no dia (na tabela limites_ip, pela mesma função do limite por IP; no
  *   computador, em memória). Passando de 60 no dia, só os essenciais saem: o pagamento aprovado, o Pix vencido, a
- *   confirmação da desistência e o aviso dela à equipe. O pedido recebido, o link do pedido e os lembretes do carrinho
+ *   confirmação da desistência, o aviso dela à equipe e o aviso à equipe do reembolso que falhou. O pedido recebido, o
+ *   link do pedido e os lembretes do carrinho
  *   esperam o dia seguinte (o lembrete volta para a fila; os outros não saem);
  * - um mesmo endereço recebe no máximo 3 "pedido recebido" por dia (o link do pedido, no máximo 3 por pedido por dia:
  *   src/lib/consulta-pedido.ts).
@@ -29,6 +30,7 @@ const ESSENCIAIS: ReadonlySet<TipoEmail> = new Set<TipoEmail>([
   'pix-vencido',
   'desistencia-recebida',
   'desistencia-equipe',
+  'reembolso-falho-equipe',
 ]);
 
 export const emailEssencial = (tipo: TipoEmail): boolean => ESSENCIAIS.has(tipo);

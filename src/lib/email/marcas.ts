@@ -18,6 +18,11 @@ export const MARCA_DO_EMAIL: Record<TipoEmailDoPedido, string> = {
 /** O aviso da desistência que foi para a equipe (EMAIL_RESPOSTA). */
 export const MARCA_DO_AVISO_A_EQUIPE = 'E-mail à equipe: aviso do pedido de desistência';
 
+/** O aviso à equipe (EMAIL_RESPOSTA) de um reembolso que a Stripe não conseguiu concluir: um por reembolso. */
+export const MARCA_DO_AVISO_DE_REEMBOLSO_FALHO = 'E-mail à equipe: aviso do reembolso que falhou';
+/** A linha do histórico do aviso de um reembolso (re_… ou pyr_…), que impede o segundo e-mail do mesmo reembolso. */
+export const marcaDoAvisoDeReembolsoFalho = (reembolsoId: string): string => `${MARCA_DO_AVISO_DE_REEMBOLSO_FALHO} (${reembolsoId})`;
+
 /**
  * Gravado ANTES de mandar o e-mail do pagamento aprovado: se a função for cortada no meio (o tempo da rota acabou) ou
  * o envio falhar, o aviso fica no histórico e o painel destaca. Quando o e-mail sai, a linha MARCA_DO_EMAIL do pagamento

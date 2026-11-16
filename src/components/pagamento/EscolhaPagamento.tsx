@@ -97,8 +97,10 @@ export function EscolhaPagamento({
   return (
     <fieldset className={`min-w-0 ${className}`}>
       <legend className="text-lead font-semibold">{T.formaPagamento}</legend>
-      {/* rádios de verdade (o grupo é o fieldset): setas do teclado e leitores de tela funcionam sem nada a mais */}
-      <div className="mt-5 grid gap-3">
+      {/* rádios de verdade (o grupo é o fieldset): setas do teclado e leitores de tela funcionam sem nada a mais.
+          grid-cols-1: uma coluna que encolhe com a tela. Sem isto a coluna fica da largura da linha mais larga das caixas
+          e, com a letra grande em tela estreita, passa do fieldset e da tela (a página rolava de lado: T4b, 15/11) */}
+      <div className="mt-5 grid grid-cols-1 gap-3">
         {opcoes.map((forma) => {
           const ativa = escolhida === forma;
           const centavos = valorDaForma(totais, forma);
@@ -118,7 +120,9 @@ export function EscolhaPagamento({
                 aria-describedby={forma === 'pix' && pixMarcado ? idRecebedor : undefined}
                 className="sr-only"
               />
-              <span className="flex items-center justify-between gap-4">
+              {/* com a letra grande em tela estreita, o preço desce para a linha de baixo, à direita (ml-auto), em vez de
+                  alargar a caixa (e a página). Com a letra normal, a partir de 320 px, ele fica ao lado do nome */}
+              <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <span className="flex items-center gap-3">
                   {/* a bolinha do rádio, desenhada para acompanhar a cor da tinta (taste-skill-ignore) */}
                   <span
@@ -127,7 +131,7 @@ export function EscolhaPagamento({
                   />
                   <span className="text-lead font-semibold leading-tight">{forma === 'pix' ? T.pix : T.cartao}</span>
                 </span>
-                <span className="cifra text-figure">{brl(centavos)}</span>
+                <span className="cifra ml-auto text-figure">{brl(centavos)}</span>
               </span>
               {/* o aproximado em dólar flutua à direita, sob o preço, e a descrição corre em volta dele: na tela
                   estreita ela quebra em duas linhas e o dólar não cai sozinho para a linha de baixo. A descrição é um

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { cookies, headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
-import { ComDolar, Pedaco, Pedacos } from '@/components/ComDolar';
+import { ComDolar, Inteiro, Pedaco, Pedacos } from '@/components/ComDolar';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { AoVoltarParaAAba } from '@/components/pagamento/AoVoltarParaAAba';
 import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
@@ -180,6 +180,20 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const formasAbertas = pagamento?.formas;
   const rotulo = { pix: d.preco.noPix, cartao: d.preco.noCartao };
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));
+  // a faixa do total: o valor e o rótulo ("R$ 5.148,00" e "no Pix") ficam juntos; só quando nem assim cabem (letra
+  // grande em tela estreita: a faixa com menos de 14rem, @container), o rótulo desce para a linha de baixo (Inteiro).
+  // O valor nunca se parte: entre "R$" e o número, a formatação põe um espaço que não quebra (no inglês, nenhum)
+  const valorDaFaixa = (p: ParteDoTotal) => (
+    <Inteiro>
+      {brl(p.centavos)}
+      {p.forma && (
+        <>
+          {' '}
+          <span className="whitespace-nowrap">{rotulo[p.forma]}</span>
+        </>
+      )}
+    </Inteiro>
+  );
   const partes = (totalCentavos: number, totalPixCentavos?: number): ParteDoTotal[] =>
     emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas) : [{ centavos: totalCentavos }];
   // cada valor fica inteiro com o rótulo ("R$ 138,60 con Pix") e o "·" só aparece entre dois pedaços da mesma linha
@@ -209,7 +223,10 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
 
   return (
     <main id="conteudo" className="tom-fundo moldura pb-24 pt-8 md:pb-32 md:pt-12">
-      <div className="grid gap-10 lg:grid-cols-12">
+      {/* grid-cols-1: no celular, uma coluna que encolhe com a tela. Sem isto a coluna fica da largura do maior texto que
+          não quebra (a escolha da forma, o botão "Pagar", a faixa do total, o código do pedido) e, com a letra grande em
+          tela estreita, a página rola de lado (como o formulário do checkout, FormularioCarrinho) */}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className={statusOnline ? 'lg:col-span-7' : 'lg:col-span-6'}>
           {statusOnline && pagamento ? (
             // a chave é o status: quando ele muda (a página se redesenha), a tela começa do zero no estado novo
@@ -287,7 +304,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
           <div className="tom-papel">
             <div className="px-6 pt-6 md:px-8">
               <p className="text-small font-semibold">{d.pedido.codigo}</p>
-              <p className="display numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{codigo}</p>
+              {/* os códigos nunca quebram no hífen de "ON-" (só junto com o grid-cols-1 da página: sem ele, um código largo
+                  alargaria a coluna e a página voltaria a rolar de lado) */}
+              <p className="display numeros mt-1 whitespace-nowrap text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{codigo}</p>
               <h2 className="mt-6 font-semibold">{pago ? d.pedido.vouchers : d.pedido.itens}</h2>
             </div>
             <ul className="divide-y divide-(--color-borda) px-6 pb-2 md:px-8">
@@ -300,12 +319,12 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   {pago && r.status !== 'pago' ? (
                     // um item cancelado ou reembolsado sozinho, num pedido pago: o voucher dele não vale mais
                     <p className="mt-1.5 text-small font-semibold">
-                      {d.reserva.voucher} <span className="numeros">{r.codigo}</span> · {statusDoItem(r)}
+                      {d.reserva.voucher} <span className="numeros whitespace-nowrap">{r.codigo}</span> · {statusDoItem(r)}
                     </p>
                   ) : pago ? (
                     <>
                       <p className="mt-1.5 text-small">
-                        {d.reserva.voucher} <span className="numeros font-semibold">{r.codigo}</span>
+                        {d.reserva.voucher} <span className="numeros whitespace-nowrap font-semibold">{r.codigo}</span>
                       </p>
                       <p className="mt-2 flex flex-wrap gap-x-5">
                         <a
@@ -330,22 +349,23 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                 </li>
               ))}
             </ul>
-            <div className="tom-campo px-6 py-5 md:px-8">
+            {/* @container: a largura da faixa decide quando o valor e o rótulo podem quebrar entre si (valorDaFaixa) */}
+            <div className="@container tom-campo px-6 py-5 md:px-8">
               <p className="font-semibold">
                 {status === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[status]}
               </p>
-              {/* cada valor fica inteiro com o rótulo e o dólar ao lado; o que não couber desce sem o "·" na frente */}
+              {/* cada valor fica inteiro com o rótulo e o dólar ao lado; o que não couber desce sem o "·" na frente. Com a
+                  letra grande em tela estreita, quando o valor com o rótulo não cabe nem sozinho na linha, o rótulo desce
+                  (max-w-full: a caixa encolhe até a largura da faixa, e o Inteiro quebra em vez de passar da borda) */}
               <p className="numeros mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
-                <span className="text-lead font-semibold">
+                <span className="max-w-full text-lead font-semibold">
                   <ComDolar dolar={usd(principal.centavos)} className="text-small font-normal text-(--tinta-suave)">
-                    <span className="whitespace-nowrap">{valor(principal)}</span>
+                    {valorDaFaixa(principal)}
                   </ComDolar>
                 </span>
                 {segunda && (
-                  <span className="text-small">
-                    <ComDolar dolar={usd(segunda.centavos)}>
-                      <span className="whitespace-nowrap">{valor(segunda)}</span>
-                    </ComDolar>
+                  <span className="max-w-full text-small">
+                    <ComDolar dolar={usd(segunda.centavos)}>{valorDaFaixa(segunda)}</ComDolar>
                   </span>
                 )}
               </p>

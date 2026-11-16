@@ -401,9 +401,11 @@ export function CheckoutEmbutido({
           className="rounded-cartao bg-(--color-papel) p-3 transition-opacity duration-200 aria-busy:opacity-50 sm:p-5"
           aria-busy={trocando}
         >
-          {/* a chave troca com a sessão: o formulário da Stripe é montado de novo com o client_secret novo */}
+          {/* a chave troca com a sessão: o formulário da Stripe é montado de novo com o client_secret novo. A altura
+              guardada enquanto ele carrega é em px: o que a Stripe desenha não cresce com a letra do celular (em rem, com a
+              letra em 150%, sobrava um vão branco de 147 px embaixo do formulário). Com a letra normal, 448 px = 28rem */}
           <EmbeddedCheckoutProvider key={segredo} stripe={stripe} options={{ clientSecret: segredo, onComplete: irParaOPedido }}>
-            <EmbeddedCheckout className="min-h-[28rem]" />
+            <EmbeddedCheckout className="min-h-[448px]" />
           </EmbeddedCheckoutProvider>
         </div>
       )}

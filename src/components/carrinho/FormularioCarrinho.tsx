@@ -454,8 +454,9 @@ export function FormularioCarrinho({
         <aside className="lg:order-last lg:col-span-5">
           <div className="space-y-5 lg:sticky lg:top-24">
             <div className="tom-campo px-6 py-5">
+              {/* o código nunca quebra no hífen de "ON-": quando não cabe ao lado do rótulo, desce inteiro */}
               <p className="text-small">
-                {O.codigoPedido} <span className="numeros font-semibold">{sessao.codigo}</span>
+                {O.codigoPedido} <span className="numeros whitespace-nowrap font-semibold">{sessao.codigo}</span>
               </p>
               {/* o preço desce para a linha de baixo quando não cabe ao lado do rótulo, como no total do formulário */}
               <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">

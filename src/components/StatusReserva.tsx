@@ -195,7 +195,9 @@ export function StatusReserva({
     <div className="tom-papel">
       <div className="px-6 pb-6 pt-6 md:px-8">
         <p className="text-small font-semibold">{r.status === 'pago' ? textos.voucher : textos.codigoReserva}</p>
-        <p className="display numeros mt-1 text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
+        {/* o código nunca quebra no hífen de "ON-" (só junto com o grid-cols-1 das grades desta página: sem ele, um código
+            largo alargaria a coluna e a página voltaria a rolar de lado) */}
+        <p className="display numeros mt-1 whitespace-nowrap text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
         {t ? (
           <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
             <div className="col-span-2">
@@ -321,8 +323,11 @@ export function StatusReserva({
     // reembolso que falhou, quanto ainda não voltou ou voltou de outro jeito, uma frase por parágrafo. Sem falha, só no
     // pedido de um item: com vários, o reembolso pode ser de outro voucher e quem conta é a página do pedido
     const frasesDoPago = r.reembolsoPartes || !r.pedidoCodigo ? frasesDoReembolsoDaPagina(false) : [];
+    // grid-cols-1 (nas três grades desta página): no celular, uma coluna que encolhe com a tela. Sem isto a coluna fica
+    // da largura do maior texto que não quebra (o código do voucher, a escolha da forma, o botão "Pagar") e, com a letra
+    // grande em tela estreita, a página rola de lado (como o formulário do checkout, FormularioCarrinho)
     return (
-      <div className="grid gap-10 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <h1 className="display text-head">{textos.confirmadoTitulo}</h1>
           <p className="mt-4 max-w-[46ch] text-lead">{t ? textos.transferConfirmado : textos.confirmadoTexto}</p>
@@ -369,7 +374,7 @@ export function StatusReserva({
   // pagamento online em aberto: confirmando, tempo esgotado ou cartão recusado, com o checkout embutido aqui mesmo
   if (pagamento && (r.status === 'pendente' || r.status === 'expirado')) {
     return (
-      <div className="grid gap-10 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <PagarPedido
             codigoPedido={r.pedidoCodigo ?? r.codigo}
@@ -414,7 +419,7 @@ export function StatusReserva({
   const m = mensagens[r.status] ?? mensagens.pendente;
 
   return (
-    <div className="grid gap-10 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
       <div className="lg:col-span-6">
         <h1 className="display text-head">{m.titulo}</h1>
         {[m.texto].flat().map((frase, n) => (

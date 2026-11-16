@@ -116,7 +116,10 @@ export function segundosAteOInicio(item: ItemAgendado, agora: Date): number {
   return faltamMinutos * 60 - agora.getUTCSeconds();
 }
 
-/** O QR do Pix vale no máximo 30 minutos (FASE-4.md, Etapa 5, item 2), o mesmo tempo da sessão de pagamento (src/lib/stripe.ts). */
+/**
+ * O QR do Pix vale no máximo 30 minutos (FASE-4.md, Etapa 5, item 2), contados do toque em "Continuar". A sessão do Pix
+ * dura os 30 minutos para tocar mais a validade do QR (src/lib/stripe.ts), para o QR nunca morrer antes do prometido.
+ */
 export const PIX_EXPIRA_SEGUNDOS = 30 * 60;
 /**
  * E nunca menos que isto, para dar tempo de abrir o app do banco e pagar: o QR gerado nos últimos 10 minutos do prazo do
@@ -133,10 +136,12 @@ export const PIX_VALIDADE_MINIMA_SEGUNDOS = 10 * 60;
  * esta mesma conta, com o mesmo `agora`.
  * A Stripe aceita de 60 a 1.209.600 segundos e conta a partir de quando o cliente toca em pagar e o QR aparece, não da
  * criação da sessão (referência da API da Stripe, criação da Checkout Session, payment_method_options.pix.
- * expires_after_seconds: "The number of seconds after PaymentIntent confirmation when the Pix expires"). Quem demora
- * para tocar em pagar leva esse tempo a mais: no máximo os 31 minutos da sessão (com a folga). No pior caso (a sessão
- * criada em cima do prazo, o toque no último minuto dela e o QR de 10 minutos) o QR vence uns 41 minutos depois do
- * prazo, ainda 79 minutos antes do serviço e antes de o cartão fechar (30 minutos antes).
+ * expires_after_seconds: "The number of seconds after PaymentIntent confirmation when the Pix expires"). A sessão que
+ * vence cancela o pagamento e mata o QR (visto em 15/11): por isso a sessão do Pix dura os 30 minutos para tocar em
+ * pagar, mais a validade do QR e 1 minuto de folga (src/lib/stripe.ts), e passados os 30 minutos sem QR a leitura da
+ * sessão a fecha (limiteDoToqueDoPix). Nenhum QR passa do fim da sessão, então o pior caso é o fim da sessão do Pix:
+ * criada em cima do prazo, com o QR de 10 minutos, ela termina 41 minutos depois do prazo, ainda 79 minutos antes do
+ * serviço e antes de o cartão fechar (30 minutos antes).
  */
 export function validadeDoPix(itens: ItemAgendado[], agora: Date = new Date()): number | null {
   if (!itens.length) return null;

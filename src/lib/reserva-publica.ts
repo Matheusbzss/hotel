@@ -13,8 +13,8 @@ import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { provedorDaReserva, valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
-import { chaveDaRecusa, type ChaveRecusa } from './recusas';
-import { ehTransfer, type Provedor, type Reserva, type StatusReserva } from './reservas';
+import { recusaParaOCliente, type ChaveRecusa } from './recusas';
+import { ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type StatusReserva } from './reservas';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
 import { mensagemDoErro } from './erros.ts';
@@ -63,7 +63,8 @@ export interface ReservaPublica {
   cartaoFinal?: string;
   /**
    * A última recusa do cartão, enquanto o pedido não está pago, já como a chave do texto (recusa.<chave>):
-   * nunca o decline_code cru. O Pix vencido sem pagamento não é recusa: aparece só como status expirado.
+   * nunca o decline_code cru. Num pedido de Pix, nunca: o Pix não é recusado, vence sem pagamento e aparece só como
+   * status expirado.
    */
   recusa?: ChaveRecusa;
   /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade dela. */
@@ -72,13 +73,16 @@ export interface ReservaPublica {
   reembolsoCentavos?: number;
 }
 
-/** O motivo que pagamento-stripe.ts grava quando o Pix gerado não foi pago no prazo: não é recusa de cartão. */
-const PIX_EXPIRADO = 'pix_expirado';
-
-/** A chave do texto da última recusa do cartão, ou nada (pedido pago, sem recusa, ou o Pix que venceu). */
-export function recusaDoPedido(status: StatusReserva, motivoCodigo: string | undefined): ChaveRecusa | undefined {
-  if (status === 'pago' || !motivoCodigo || motivoCodigo === PIX_EXPIRADO) return undefined;
-  return chaveDaRecusa(motivoCodigo);
+/**
+ * A chave do texto da última recusa do cartão, ou nada: pedido pago, sem recusa, o Pix que venceu ou um pedido de Pix,
+ * venha o código que vier (recusaParaOCliente, src/lib/recusas.ts). A forma é a registrada no pedido.
+ */
+export function recusaDoPedido(
+  status: StatusReserva,
+  motivoCodigo: string | undefined,
+  metodo: MetodoPagamento | undefined,
+): ChaveRecusa | undefined {
+  return recusaParaOCliente(status, motivoCodigo, metodo);
 }
 
 /** O link privado do pedido (a página do pedido leva sozinha à da reserva quando ele tem um item só). */
@@ -263,8 +267,9 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     pedidoCodigo: r.pedido?.codigo,
     cartaoBandeira: r.pagamento.cartaoBandeira,
     cartaoFinal: r.pagamento.cartaoFinal,
-    // a recusa de uma tentativa anterior não interessa depois de pago; fraude e cartão roubado viram 'generica'
-    recusa: recusaDoPedido(r.status, r.pagamento.motivoCodigo),
+    // a recusa de uma tentativa anterior não interessa depois de pago; fraude e cartão roubado viram 'generica'; num
+    // pedido de Pix nenhum código vira texto de cartão recusado
+    recusa: recusaDoPedido(r.status, r.pagamento.motivoCodigo, r.pagamento.metodo),
     apresentado: r.pagamento.apresentado,
     reembolsoCentavos: r.reembolsoCentavos,
   };

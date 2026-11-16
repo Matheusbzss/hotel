@@ -293,8 +293,9 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
     await renomearBloqueiosDaSessao(anterior, sessao.id).catch((e) =>
       console.error(`[pedido] não deu para passar os bloqueios de casa para a sessão nova do pedido ${codigo}: ${mensagem(e)}`),
     );
-    // a anterior, se ainda aberta, deixa de aceitar pagamento. O QR de um Pix já gerado não se fecha: se ele for pago,
-    // vale como o pagamento do pedido e o webhook fecha esta sessão nova
+    // a anterior, se ainda aberta, deixa de aceitar pagamento: fechar a sessão cancela o pagamento pendente dela e MATA
+    // o QR de um Pix já gerado (visto em 15/11). Se ele for pago no instante antes do fechamento, vale como o pagamento
+    // do pedido e o webhook fecha esta sessão nova
     await expirarSessao(anterior).catch((e) =>
       console.error(`[pedido] não deu para expirar a sessão anterior do pedido ${codigo}: ${mensagem(e)}`),
     );

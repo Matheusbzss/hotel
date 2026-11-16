@@ -6,8 +6,9 @@ import { formatarCifra } from './cifra.ts';
 import { inicioDoItem, type FormaPagamento } from './formas-pagamento.ts';
 import { agoraEmBuzios, paraMinutos } from './horarios.ts';
 import { provedorDaReserva } from './pedidos-painel.ts';
+import { PIX_EXPIRADO } from './recusas.ts';
 import type { Reserva, StatusReserva } from './reservas';
-import { modoStripe, obterSessao } from './stripe.ts';
+import { expirarSessao, limiteDoToqueDoPix, modoStripe, obterSessao } from './stripe.ts';
 
 /**
  * O pedido e a Stripe: o que cada estado da sessão significa para o pedido, quais mudanças de status são
@@ -45,10 +46,21 @@ export function podeMudar(de: StatusReserva, para: StatusReserva): boolean {
 
 /** O que a sessão relida na Stripe diz sobre o pagamento. */
 export interface LeituraSessao {
-  /** 'pago'; 'pendente' (aberta, ou Pix gerado e ainda não pago); 'expirado' (vencida, ou Pix não pago no prazo). */
+  /**
+   * 'pago'; 'pendente' (aberta, ou Pix gerado e ainda não pago); 'expirado' (vencida, Pix não pago no prazo, ou o tempo
+   * de gerar o Pix acabou).
+   */
   status: Extract<StatusReserva, 'pago' | 'pendente' | 'expirado'>;
-  /** O decline_code (ou o code) da última recusa do cartão; no Pix vencido sem pagamento, 'pix_expirado'. */
+  /**
+   * O decline_code (ou o code) da última recusa do cartão; no Pix vencido sem pagamento, 'pix_expirado'
+   * (PIX_EXPIRADO). Num Pix, nunca o código cru do erro: ele cairia na recusa genérica do cartão.
+   */
   motivoCodigo?: string;
+  /**
+   * A sessão continua aberta na Stripe e tem de ser fechada (aplicarSessao fecha, depois de gravar o pedido): o Pix
+   * dela venceu sem pagamento, ou o tempo de gerar o Pix acabou. Só no Pix.
+   */
+  fecharSessao?: true;
   cartao?: { bandeira: string; final: string; pais?: string };
   /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade da moeda. */
   apresentado?: { moeda: string; valorCentavos: number };
@@ -67,14 +79,30 @@ export interface LeituraSessao {
 const expandido = <T>(valor: string | T | null | undefined): T | undefined => (valor && typeof valor === 'object' ? valor : undefined);
 const iso = (unix: number) => new Date(unix * 1000).toISOString();
 
-/** Traduz a sessão da Stripe (relida com obterSessao) para o status do pedido e os dados do pagamento. */
-export function interpretarSessao(sessao: Stripe.Checkout.Session): LeituraSessao {
+/**
+ * A folga da regra do QR que promete mais que a sessão: na bancada o QR veio com 1 s a mais que o configurado, e a
+ * sessão nasce na Stripe uns instantes depois do `agora` do servidor. Um toque nos últimos segundos da folga da sessão
+ * não a fecha à toa.
+ */
+const TOLERANCIA_DO_QR_SEGUNDOS = 5;
+
+/**
+ * Traduz a sessão da Stripe (relida com obterSessao) para o status do pedido e os dados do pagamento. `agora` só conta
+ * no Pix com a sessão aberta (o tempo de tocar em "Continuar"); o cartão não depende dele.
+ */
+export function interpretarSessao(sessao: Stripe.Checkout.Session, agora: Date = new Date()): LeituraSessao {
   const pi = expandido<Stripe.PaymentIntent>(sessao.payment_intent);
   const paymentIntentId = typeof sessao.payment_intent === 'string' ? sessao.payment_intent : pi?.id;
   const cobranca = expandido<Stripe.Charge>(pi?.latest_charge);
   const erro = pi?.last_payment_error;
   const motivo = erro?.decline_code ?? erro?.code;
   const forma = sessao.metadata?.forma;
+  // só o site escreve a metadata, e a sessão do Pix só aceita Pix
+  const pix = forma === 'pix';
+  // a tentativa de Pix que morreu sem pagamento. Com a sessão aberta, o erro está no pagamento; depois que a sessão
+  // fecha, a Stripe cancela o pagamento e apaga o erro, mas a cobrança que falhou continua em latest_charge (medido em
+  // 16/11). A sessão fechada com o QR ainda vivo não deixa cobrança falha: aí não houve Pix vencido
+  const pixNaoPago = pix && Boolean(erro || (cobranca?.status === 'failed' && cobranca.payment_method_details?.type === 'pix'));
   const comum: Pick<LeituraSessao, 'sessaoId' | 'paymentIntentId' | 'forma' | 'valorCentavos'> = {
     sessaoId: sessao.id,
     ...(paymentIntentId ? { paymentIntentId } : {}),
@@ -99,18 +127,45 @@ export function interpretarSessao(sessao: Stripe.Checkout.Session): LeituraSessa
       ...(pais ? { clientePais: pais } : {}),
     };
   }
-  if (sessao.status === 'expired') return { ...comum, status: 'expirado', ...(motivo ? { motivoCodigo: motivo } : {}) };
+  if (sessao.status === 'expired') {
+    // no Pix, nunca o código cru do erro: ou "Pix não pago no prazo" (houve uma tentativa que morreu), ou nada
+    if (pix) return { ...comum, status: 'expirado', ...(pixNaoPago ? { motivoCodigo: PIX_EXPIRADO } : {}) };
+    return { ...comum, status: 'expirado', ...(motivo ? { motivoCodigo: motivo } : {}) };
+  }
   if (sessao.status === 'complete') {
-    // o cliente concluiu sem pagar na hora: é o Pix com o QR gerado (no cartão a sessão só fica completa com o
-    // pagamento feito). Pagamento cancelado ou que falhou = o Pix venceu sem ser pago (async_payment_failed).
-    // O motivo é sempre 'pix_expirado', nunca o código que a Stripe deixa no erro do pagamento: esse código cru
-    // cairia na recusa genérica do cartão, e o cliente leria "cartão recusado" num pedido de Pix.
+    // o cliente concluiu sem pagar na hora: seria o Pix com o QR gerado (no cartão a sessão só fica completa com o
+    // pagamento feito). No modo de teste nunca aconteceu: a sessão do Pix fica aberta com o QR na tela e só fica
+    // completa já paga (15/11). Fica por garantia, se a produção mandar os avisos async_payment_*: pagamento cancelado
+    // ou que falhou = o Pix venceu sem ser pago. O motivo é sempre 'pix_expirado', nunca o código que a Stripe deixa
+    // no erro do pagamento: esse código cru cairia na recusa genérica do cartão.
     if (pi && (pi.status === 'canceled' || pi.status === 'requires_payment_method')) {
-      return { ...comum, status: 'expirado', motivoCodigo: 'pix_expirado' };
+      return { ...comum, status: 'expirado', motivoCodigo: PIX_EXPIRADO };
     }
     return { ...comum, status: 'pendente' };
   }
-  // aberta: o cliente ainda está no formulário; se um cartão foi recusado, o motivo fica aqui
+  if (pix) {
+    // aberta, no Pix: o cliente está no formulário, com ou sem o QR na tela
+    // 1) o QR venceu (ou a tentativa falhou) e ninguém gerou outro: Pix não pago no prazo. A prova é o erro ou a cobrança
+    // de Pix que falhou, não o estado sozinho; com outro QR já na tela o pagamento está em requires_action
+    if (pi?.status === 'requires_payment_method' && pixNaoPago) {
+      return { ...comum, status: 'expirado', motivoCodigo: PIX_EXPIRADO, fecharSessao: true };
+    }
+    // 2) ninguém gerou o Pix dentro do tempo de tocar em "Continuar": o tempo para pagar terminou
+    const limite = limiteDoToqueDoPix(sessao);
+    const semTentativa = !pi || pi.status === 'requires_payment_method' || pi.status === 'canceled';
+    if (limite !== null && semTentativa && Math.floor(agora.getTime() / 1000) >= limite) {
+      return { ...comum, status: 'expirado', fecharSessao: true };
+    }
+    // 3) rede de segurança: um QR gerado tarde demais, que promete valer até depois do fim da sessão. Compara dois
+    // horários da própria Stripe, com a folga de poucos segundos
+    const qrAte = pi?.status === 'requires_action' ? pi.next_action?.pix_display_qr_code?.expires_at : undefined;
+    if (typeof qrAte === 'number' && qrAte > sessao.expires_at + TOLERANCIA_DO_QR_SEGUNDOS) {
+      return { ...comum, status: 'expirado', fecharSessao: true };
+    }
+    // no Pix, nunca um motivo de recusa: o Pix não é recusado
+    return { ...comum, status: 'pendente' };
+  }
+  // aberta, no cartão: o cliente ainda está no formulário; se um cartão foi recusado, o motivo fica aqui
   return { ...comum, status: 'pendente', ...(motivo ? { motivoCodigo: motivo } : {}) };
 }
 
@@ -320,6 +375,9 @@ export interface ResultadoSessao {
  * registrado nem o status mudam, e o resultado traz pagamentoRepetido. Um pedido contestado não volta a pago por
  * aqui, nem pela sessão do mesmo pagamento (é só o aviso de pago chegando de novo, fora de ordem): quem tira o
  * pedido de contestado é o fim da contestação (charge.dispute.closed, no webhook).
+ * Quando a leitura pede (fecharSessao: o Pix venceu sem pagamento, ou o tempo de gerar o Pix acabou), a sessão é
+ * fechada na Stripe DEPOIS de o pedido ser gravado: fechada, a Stripe apaga o erro do pagamento, então o motivo tem de
+ * ser decidido nesta leitura.
  */
 export async function aplicarSessao(
   codigo: string,
@@ -328,7 +386,7 @@ export async function aplicarSessao(
   agora: Date = new Date(),
 ): Promise<ResultadoSessao> {
   const { atualizarReserva, obterReservaDoPedido, registrar } = await import('./reservas.ts');
-  const leitura = interpretarSessao(sessao);
+  const leitura = interpretarSessao(sessao, agora);
   const alvo = await obterReservaDoPedido(codigo);
   if (!alvo) return { reserva: null, leitura, virouPago: false };
 
@@ -404,9 +462,21 @@ export async function aplicarSessao(
       return r;
     }
     virouExpirado = leitura.status === 'expirado';
-    const porque = leitura.motivoCodigo === 'pix_expirado' ? 'Pix não pago no prazo' : 'O tempo para pagar terminou';
+    const porque = leitura.motivoCodigo === PIX_EXPIRADO ? 'Pix não pago no prazo' : 'O tempo para pagar terminou';
     return registrar(r, `${leitura.status === 'expirado' ? porque : `Status ${leitura.status}`} (${quem})`);
   });
+
+  // a leitura pediu para fechar a sessão: fecha na Stripe, para o formulário dela não gerar outro QR. O aviso de sessão
+  // vencida que isso provoca (checkout.session.expired) relê a sessão e não muda nada. Fecha sempre que a leitura
+  // pedir, mesmo sem mudança no pedido; já fechada, expirarSessao devolve false. Se o fechamento falhar, o pedido já
+  // está certo, mas a consulta não relê pedido expirado (deveSincronizar, src/app/api/pedido/pedido-stripe.ts): a
+  // sessão fica aberta até vencer sozinha (até 61 minutos). Se o cliente gerar outro QR nela e pagar, o pedido vai de
+  // expirado para pago pela porta de sempre; "Pagar de novo" cria a sessão nova e fecha a antiga.
+  if (leitura.fecharSessao) {
+    await expirarSessao(sessao.id).catch((e) =>
+      console.error(`[pagamento] não deu para fechar a sessão do pedido ${codigo}: ${mensagemDoErro(e)}`),
+    );
+  }
 
   if (virouPago && reserva) await pedidoPago(reserva, leitura);
   if (virouExpirado && reserva) await pedidoExpirou(reserva, leitura);
@@ -440,7 +510,8 @@ async function enviarConfirmacaoPorEmail(reserva: Reserva, _dados: LeituraSessao
 }
 
 /**
- * O pedido virou expirado (a sessão venceu, ou o Pix gerado não foi pago no prazo): no Pix, o e-mail com o link para
+ * O pedido virou expirado (a sessão venceu, o Pix gerado não foi pago no prazo ou o tempo de gerar o Pix acabou; nos
+ * dois últimos a sessão é fechada logo antes, em aplicarSessao): no Pix, o e-mail com o link para
  * pagar de novo (Etapa 6), um por sessão vencida. O cartão que vence sem pagamento não manda nada: o cliente já
  * recebeu o link do pedido no e-mail do pedido recebido. Uma falha aqui não muda o pedido.
  */
@@ -459,9 +530,11 @@ async function cadastrarHospedes(_reserva: Reserva, _dados: LeituraSessao): Prom
 
 /**
  * A rede de segurança quando o webhook atrasa: relê a sessão corrente do pedido na Stripe e aplica o que ela
- * diz. Quem decide a hora, e segura as consultas repetidas, é conferirNaStripe (src/app/api/pedido/pedido-stripe.ts),
- * para a rota do status e para as páginas do pedido e da reserva. O navegador nunca decide: quem consulta é o
- * servidor. Devolve a reserva (mudada ou não), ou null se o pedido não existir.
+ * diz, pela mesma aplicarSessao do webhook (inclusive expirar o Pix vencido e o Pix sem toque depois dos 30
+ * minutos, fechando a sessão). Quem decide a hora, e segura as consultas repetidas, é conferirNaStripe
+ * (src/app/api/pedido/pedido-stripe.ts), para a rota do status e para as páginas do pedido e da reserva. O
+ * navegador nunca decide: quem consulta é o servidor. Devolve a reserva (mudada ou não), ou null se o pedido não
+ * existir.
  */
 export async function sincronizarComStripe(codigo: string, agora: Date = new Date()): Promise<Reserva | null> {
   const { obterReservaDoPedido } = await import('./reservas.ts');

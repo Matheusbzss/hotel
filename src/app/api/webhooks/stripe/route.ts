@@ -167,9 +167,12 @@ async function devolverPagamento(pedido: Reserva, pi: string, motivo: string): P
 }
 
 /**
- * Os quatro eventos da sessão (concluída, Pix pago, Pix não pago no prazo, vencida) fazem a mesma coisa: relêem a
- * sessão na Stripe e aplicam o que ela diz. Um pagamento que o pedido não pode ficar (segunda aba, pedido cancelado
- * ou já devolvido) volta ao cliente; pago por uma sessão anterior, a sessão corrente ainda aberta é fechada.
+ * Os quatro eventos da sessão (concluída, os dois async_payment_* e vencida) fazem a mesma coisa: relêem a sessão na
+ * Stripe e aplicam o que ela diz. No Pix, o pago chega como checkout.session.completed já pago (a sessão fica aberta
+ * com o QR na tela até o pagamento) e o vencido como payment_intent.payment_failed (pagamentoFalhou); os dois
+ * async_payment_* continuam assinados, mas nunca chegaram no teste de 15/11 (a Stripe dá o Pix como de confirmação
+ * imediata). Um pagamento que o pedido não pode ficar (segunda aba, pedido cancelado ou já devolvido) volta ao
+ * cliente; pago por uma sessão anterior, a sessão corrente ainda aberta é fechada.
  */
 async function sessaoMudou(alvo: AlvoDoEvento): Promise<Resultado> {
   const { codigo } = alvo;
@@ -211,8 +214,9 @@ async function sessaoMudou(alvo: AlvoDoEvento): Promise<Resultado> {
  * Pagamento que falhou. No cartão (recusado), o motivo (decline_code) fica no pedido, sem mudar o status, para a
  * página mostrar em linguagem simples e oferecer o Pix; é lido da sessão corrente relida na Stripe, e a recusa de uma
  * sessão anterior (o cliente já trocou de forma) é ignorada, assim como a de um pedido já pago. No Pix, a falha é o
- * QR que venceu sem pagamento: aí vale a sessão relida (o pedido expira com "Pix não pago no prazo"), como no
- * checkout.session.async_payment_failed, que também chega.
+ * QR que venceu sem pagamento, e é por este aviso que o vencimento chega (o checkout.session.async_payment_failed não
+ * chegou no teste de 15/11): aí vale a sessão relida, e aplicarSessao expira o pedido com "Pix não pago no prazo" e
+ * fecha a sessão na Stripe. Se o cliente já gerou outro QR na mesma sessão, a releitura diz pendente e nada muda.
  */
 async function pagamentoFalhou(pi: Stripe.PaymentIntent): Promise<Resultado> {
   const codigo = codigoDaMetadata(pi.metadata);

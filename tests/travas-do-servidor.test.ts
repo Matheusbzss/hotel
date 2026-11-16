@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // As rotas do Next e o arquivo das reservas não rodam em node puro (usam o atalho "@/" e módulos só do servidor).
-// Estes testes leem o código deles e seguram quatro travas que não podem se perder numa mudança futura. O
+// Estes testes leem o código deles e seguram cinco travas que não podem se perder numa mudança futura. O
 // comportamento de ponta a ponta é conferido na simulação da Stripe, fora do npm test. Só leitura: nada é gravado.
 
 /** O código de um arquivo de src/, sem as linhas de comentário. */
@@ -57,6 +57,32 @@ test('sem o banco, toda gravação de um voucher leva o que é do pedido aos out
     /async function levarAosIrmaos\(gravada: Reserva\): Promise<void> \{\s+if \(usarBanco\(\) \|\| !gravada\.pedido\) return;/,
   );
   assert.match(reservas, /copiarDoPedido\(atual\.reserva, gravada\)/);
+});
+
+test('o Pix vencido: a sessão só fecha na Stripe depois de o pedido ser gravado, e a página nunca lê recusa num Pix', () => {
+  const pagamento = codigo('lib', 'pagamento-stripe.ts');
+  const inicio = pagamento.indexOf('export async function aplicarSessao(');
+  assert.notEqual(inicio, -1);
+  // só o corpo de aplicarSessao, até a função seguinte
+  const aplicar = pagamento.slice(inicio, pagamento.indexOf('\nexport ', inicio + 1));
+  // a leitura usa o mesmo agora (o tempo de tocar em "Continuar" no Pix)
+  assert.match(aplicar, /const leitura = interpretarSessao\(sessao, agora\);/);
+  const gravar = aplicar.indexOf('await atualizarReserva(');
+  const fechar = aplicar.search(/if \(leitura\.fecharSessao\) \{?\s*await expirarSessao\(sessao\.id\)/);
+  assert.notEqual(gravar, -1);
+  assert.notEqual(fechar, -1);
+  // fechada, a Stripe apaga o erro do pagamento: primeiro o pedido gravado com o motivo, depois a sessão fechada,
+  // e só então os e-mails
+  assert.ok(gravar < fechar);
+  assert.ok(fechar < aplicar.indexOf('await pedidoExpirou('));
+  // uma falha ao fechar não desfaz o pedido gravado: fica no registro do servidor
+  assert.match(aplicar, /await expirarSessao\(sessao\.id\)\.catch\(/);
+
+  // a página: paraPublico passa a forma registrada no pedido à regra da recusa, que nunca dá texto de cartão num Pix
+  const publica = codigo('lib', 'reserva-publica.ts');
+  assert.match(publica, /recusa: recusaDoPedido\(r\.status, r\.pagamento\.motivoCodigo, r\.pagamento\.metodo\),/);
+  assert.match(publica, /return recusaParaOCliente\(status, motivoCodigo, metodo\);/);
+  assert.doesNotMatch(publica, /chaveDaRecusa\(/);
 });
 
 test('o pedido de cotação tem o limite por IP antes de gravar, com a mesma resposta 429 das outras rotas', () => {

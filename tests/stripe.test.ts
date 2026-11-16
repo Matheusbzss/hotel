@@ -5,6 +5,7 @@ import {
   PIX_EXPIRA_SEGUNDOS,
   PixForaDoPrazo,
   VALIDADE_SESSAO_MINUTOS,
+  limiteDoToqueDoPix,
   linkPainelStripe,
   localeStripe,
   modoStripe,
@@ -28,7 +29,7 @@ import {
   sessaoNovaNoPedido,
   zerarEventosEmMemoria,
 } from '../src/lib/pagamento-stripe.ts';
-import { CHAVES_RECUSA, chaveDaRecusa, mostrarDicaInternacional } from '../src/lib/recusas.ts';
+import { CHAVES_RECUSA, PIX_EXPIRADO, chaveDaRecusa, mostrarDicaInternacional, recusaParaOCliente } from '../src/lib/recusas.ts';
 import type { Reserva, StatusReserva } from '../src/lib/reservas.ts';
 
 // Nada aqui chama a Stripe nem o banco: as sessões são exemplos em JSON com os campos do SDK, e os eventos
@@ -171,8 +172,10 @@ test('a sessão do Pix: os preços com o desconto, só Pix, QR de 30 minutos e s
   assert.deepEqual(p.payment_intent_data, { metadata: { codigo: 'ON-ABC123' } });
   assert.deepEqual(p.payment_method_options, { pix: { expires_after_seconds: PIX_EXPIRA_SEGUNDOS } });
   assert.equal(PIX_EXPIRA_SEGUNDOS, 30 * 60);
-  // o QR e a sessão duram o mesmo tanto, longe do prazo do Pix
+  // longe do prazo do Pix, o QR vale os mesmos 30 minutos que o cliente tem para tocar em "Continuar"; a sessão dura
+  // os dois somados, mais o minuto de folga: o QR gerado no último minuto não morre com ela
   assert.equal(PIX_EXPIRA_SEGUNDOS, VALIDADE_SESSAO_MINUTOS * 60);
+  assert.equal((p.expires_at ?? 0) - Math.floor(AGORA.getTime() / 1000), VALIDADE_SESSAO_MINUTOS * 60 + PIX_EXPIRA_SEGUNDOS + 60);
 });
 
 test('perto do prazo do Pix, o QR dura só até ele: a sessão usa a mesma conta da tela (validadeDoPix)', () => {
@@ -181,9 +184,10 @@ test('perto do prazo do Pix, o QR dura só até ele: a sessão usa a mesma conta
   const p = parametrosDaSessao({ ...DADOS, itens: [perto, DADOS.itens[1]], forma: 'pix' });
   assert.deepEqual(p.payment_method_options, { pix: { expires_after_seconds: 25 * 60 } });
   assert.equal(validadeDoPix([perto, DADOS.itens[1]], AGORA), 25 * 60);
-  // a sessão continua com os 30 minutos (o mínimo da Stripe): o que encurta é o QR
+  // o tempo para tocar em "Continuar" continua com os 30 minutos (o mínimo da Stripe): o que encurta é o QR, e a sessão
+  // dura os 30 minutos mais os 25 do QR e a folga
   const segundos = (p.expires_at ?? 0) - Math.floor(AGORA.getTime() / 1000);
-  assert.ok(segundos >= VALIDADE_SESSAO_MINUTOS * 60, `expira em ${segundos} s`);
+  assert.equal(segundos, VALIDADE_SESSAO_MINUTOS * 60 + 25 * 60 + 60, `expira em ${segundos} s`);
   // o cartão não leva nada disso
   assert.equal(parametrosDaSessao({ ...DADOS, itens: [perto] }).payment_method_options, undefined);
 });
@@ -209,6 +213,50 @@ test('fora do prazo do Pix (menos de 2 horas para o primeiro serviço), a sessã
   // um item sem data que dê para ler também não abre Pix
   const semData = { ...DADOS.itens[0], data: '' };
   assert.throws(() => parametrosDaSessao({ ...DADOS, itens: [semData], forma: 'pix' }), PixForaDoPrazo);
+});
+
+const AGORA_S = Math.floor(AGORA.getTime() / 1000);
+
+test('a sessão do Pix dura o tempo de tocar em "Continuar" mais o QR e a folga; a do cartão, os 30 minutos', () => {
+  // a sessão que vence cancela o pagamento e mata o QR (visto em 15/11): ela tem de durar mais que o QR do último minuto
+  const casos = [
+    // longe do prazo do Pix: QR de 30 minutos
+    { itens: DADOS.itens, validade: 30 * 60 },
+    // o passeio das 14h25 (AGORA é meio-dia em Búzios): QR de 25 minutos
+    { itens: [{ ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:25' } }], validade: 25 * 60 },
+    // o passeio das 14h05: QR dos 10 minutos mínimos
+    { itens: [{ ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:05' } }], validade: 10 * 60 },
+  ];
+  for (const { itens, validade } of casos) {
+    const pix = parametrosDaSessao({ ...DADOS, itens, forma: 'pix' });
+    assert.deepEqual(pix.payment_method_options, { pix: { expires_after_seconds: validade } });
+    assert.equal((pix.expires_at ?? 0) - AGORA_S, 30 * 60 + validade + 60, `QR de ${validade} s`);
+    // o cartão, com os mesmos itens: os 30 minutos de sempre (com a folga)
+    const cartao = (parametrosDaSessao({ ...DADOS, itens }).expires_at ?? 0) - AGORA_S;
+    assert.ok(cartao >= 30 * 60 && cartao <= 30 * 60 + 60, `cartão expira em ${cartao} s`);
+  }
+  // de 41 a 61 minutos, dentro do que a Stripe aceita (de 30 minutos a 24 horas)
+  assert.equal(30 * 60 + 10 * 60 + 60, 41 * 60);
+  assert.equal(30 * 60 + 30 * 60 + 60, 61 * 60);
+});
+
+test('o limite do toque no Pix: o fim da sessão menos o QR e a folga, nunca antes de 30 minutos; no cartão, nenhum', () => {
+  const pixDe = (created: number, expires_at: number, validade: number) =>
+    ({ created, expires_at, payment_method_options: { pix: { expires_after_seconds: validade } } }) as unknown as Stripe.Checkout.Session;
+  // a sessão nova (o relógio daqui 5 s à frente do da Stripe): o fim menos o QR e o minuto de folga
+  for (const validade of [600, 1500, 1800]) {
+    const nova = pixDe(AGORA_S - 5, AGORA_S + 1800 + validade + 60, validade);
+    assert.equal(limiteDoToqueDoPix(nova), nova.expires_at - validade - 60, String(validade));
+    assert.equal(limiteDoToqueDoPix(nova), AGORA_S + 30 * 60, String(validade));
+  }
+  // a sessão aberta antes desta regra (31 minutos): o limite fica nos 30 minutos da criação, nunca antes
+  for (const validade of [600, 1800]) {
+    assert.equal(limiteDoToqueDoPix(pixDe(AGORA_S, AGORA_S + 1860, validade)), AGORA_S + 30 * 60, String(validade));
+  }
+  // o cartão (e a sessão sem a validade do Pix) não tem limite de toque
+  const cartao = { created: AGORA_S, expires_at: AGORA_S + 1860, payment_method_options: null } as unknown as Stripe.Checkout.Session;
+  assert.equal(limiteDoToqueDoPix(cartao), null);
+  assert.equal(limiteDoToqueDoPix({ ...cartao, payment_method_options: { pix: { expires_after_seconds: null } } } as never), null);
 });
 
 test('o Link fica escondido só na sessão do cartão; a do Pix não leva o campo, e Apple Pay e Google Pay seguem no "card"', () => {
@@ -470,6 +518,266 @@ test('sessão aberta com o cartão recusado: continua pendente e guarda o motivo
   });
 });
 
+/* O Pix com a sessão aberta: o QR que vence (P3), o tempo de tocar em "Continuar" e o QR tardio (P4). Os testes passam
+   sempre o `agora`: o `created` das sessões de exemplo já ficou no passado. */
+
+/** A criação das sessões de exemplo (o `created` de sessao()). */
+const CRIADA = 1794700000;
+/** O instante `segundos` depois da criação da sessão de exemplo. */
+const aos = (segundos: number) => new Date((CRIADA + segundos) * 1000);
+const META_PIX = { codigo: 'ON-ABC123', forma: 'pix', idioma: 'pt', vouchers: 'ON-ABC123' };
+
+/** Uma sessão de Pix como o site cria: 30 minutos para tocar em "Continuar", mais o QR de `validade` segundos e a folga. */
+const sessaoPix = (parcial: Record<string, unknown>, validade = 1800) =>
+  sessao({
+    amount_total: 85860,
+    metadata: META_PIX,
+    payment_method_options: { pix: { expires_after_seconds: validade } },
+    expires_at: CRIADA + 30 * 60 + validade + 60,
+    ...parcial,
+  });
+
+/** O toque em "Continuar" aos 2 minutos: o QR na tela, por 30 minutos (com o segundo a mais que a Stripe dá). */
+const TOQUE = CRIADA + 120;
+const qrNaTela = (expiraEm: number) => ({ type: 'pix_display_qr_code', pix_display_qr_code: { expires_at: expiraEm } });
+const PI_PIX_NA_TELA = {
+  id: 'pi_3Pix1',
+  object: 'payment_intent',
+  status: 'requires_action',
+  created: TOQUE,
+  amount: 85860,
+  currency: 'brl',
+  metadata: { codigo: 'ON-ABC123' },
+  payment_method_types: ['pix'],
+  last_payment_error: null,
+  latest_charge: null,
+  next_action: qrNaTela(TOQUE + 1801),
+};
+/** A cópia fiel do aviso real do QR que venceu sozinho (15/11): "card_error" num Pix, sem decline_code. */
+const ERRO_PIX_VENCIDO = { type: 'card_error', code: 'payment_intent_payment_attempt_expired', payment_method: { type: 'pix' } };
+/** O da simulação (e-mail de teste expire_with_delay): a tentativa que falhou, com generic_decline. */
+const ERRO_PIX_SIMULADO = {
+  type: 'card_error',
+  code: 'payment_intent_payment_attempt_failed',
+  decline_code: 'generic_decline',
+  payment_method: { type: 'pix' },
+};
+/** A cobrança de Pix que falhou: continua em latest_charge depois de a sessão fechar (medido em 16/11). */
+const COBRANCA_PIX_FALHA = {
+  id: 'py_3Pix1',
+  object: 'charge',
+  created: TOQUE + 1801,
+  status: 'failed',
+  paid: false,
+  amount: 85860,
+  payment_method_details: { type: 'pix', pix: {} },
+};
+/** O QR que venceu com a sessão ainda aberta, sem ninguém gerar outro. */
+const piPixVencido = (erro: Record<string, unknown> | null = ERRO_PIX_VENCIDO) => ({
+  ...PI_PIX_NA_TELA,
+  status: 'requires_payment_method',
+  next_action: null,
+  last_payment_error: erro,
+  latest_charge: COBRANCA_PIX_FALHA,
+});
+
+test('Pix com o QR na tela: pendente, sem motivo e sem fechar a sessão', () => {
+  assert.deepEqual(interpretarSessao(sessaoPix({ payment_intent: PI_PIX_NA_TELA }), aos(10 * 60)), {
+    sessaoId: 'cs_test_a1b2c3',
+    paymentIntentId: 'pi_3Pix1',
+    forma: 'pix',
+    valorCentavos: 85860,
+    status: 'pendente',
+  });
+});
+
+test('Pix vencido com a sessão aberta: expirado na hora, com "Pix não pago no prazo", e a sessão é fechada', () => {
+  // o vencimento natural (a cópia fiel do aviso real) e o da simulação
+  for (const erro of [ERRO_PIX_VENCIDO, ERRO_PIX_SIMULADO]) {
+    // aos 4 minutos (o QR do e-mail expire_with_delay vence em uns 3) e aos 33, já depois do limite do toque
+    for (const minuto of [4, 33]) {
+      const caso = `${erro.code} aos ${minuto} min`;
+      const l = interpretarSessao(sessaoPix({ payment_intent: piPixVencido(erro) }), aos(minuto * 60));
+      assert.equal(l.status, 'expirado', caso);
+      assert.equal(l.motivoCodigo, PIX_EXPIRADO, caso);
+      assert.equal(l.fecharSessao, true, caso);
+      assert.equal(l.forma, 'pix', caso);
+      assert.equal(l.paymentIntentId, 'pi_3Pix1', caso);
+    }
+  }
+  // a cobrança de Pix que falhou também prova a tentativa morta, mesmo sem o erro
+  const soCobranca = interpretarSessao(sessaoPix({ payment_intent: piPixVencido(null) }), aos(4 * 60));
+  assert.equal(soCobranca.motivoCodigo, PIX_EXPIRADO);
+  assert.equal(soCobranca.fecharSessao, true);
+  // o código cru cairia no texto do cartão recusado: por isso ele nunca é o motivo num Pix
+  assert.equal(chaveDaRecusa(ERRO_PIX_VENCIDO.code), 'generica');
+});
+
+test('Pix com outro QR gerado antes do aviso, ou com o erro antigo ainda no pagamento: continua pendente', () => {
+  // outro QR, gerado aos 25 minutos: o pagamento voltou a requires_action e o erro foi apagado (a cobrança falha da
+  // tentativa anterior pode continuar em latest_charge)
+  const outroQr = { ...PI_PIX_NA_TELA, next_action: qrNaTela(CRIADA + 25 * 60 + 1801), latest_charge: COBRANCA_PIX_FALHA };
+  // requires_action com o erro da tentativa anterior ainda preenchido
+  const erroAntigo = { ...outroQr, last_payment_error: ERRO_PIX_VENCIDO };
+  for (const [caso, pi] of [
+    ['outro QR', outroQr],
+    ['erro antigo', erroAntigo],
+  ] as const) {
+    const l = interpretarSessao(sessaoPix({ payment_intent: pi }), aos(26 * 60));
+    assert.equal(l.status, 'pendente', caso);
+    assert.equal(l.motivoCodigo, undefined, caso);
+    assert.equal(l.fecharSessao, undefined, caso);
+  }
+});
+
+test('Pix com o pagamento sem tentativa morta (sem erro e sem cobrança falha): pendente, sem motivo e sem fechar', () => {
+  // a regra do Pix vencido exige a prova da falha, não só o estado do pagamento
+  const l = interpretarSessao(
+    sessaoPix({ payment_intent: { ...PI_PIX_NA_TELA, status: 'requires_payment_method', next_action: null } }),
+    aos(10 * 60),
+  );
+  assert.equal(l.status, 'pendente');
+  assert.equal(l.motivoCodigo, undefined);
+  assert.equal(l.fecharSessao, undefined);
+});
+
+test('sessão de Pix fechada: "Pix não pago no prazo" só com a tentativa morta; senão, sem motivo; nunca o código cru', () => {
+  // fechada (pelo site ou vencida): a Stripe cancela o pagamento e apaga o erro, mas a cobrança falha do Pix fica
+  const cancelado = { ...PI_PIX_NA_TELA, status: 'canceled', next_action: null };
+  const vencido = interpretarSessao(
+    sessaoPix({ status: 'expired', payment_intent: { ...cancelado, latest_charge: COBRANCA_PIX_FALHA } }),
+    aos(62 * 60),
+  );
+  assert.equal(vencido.status, 'expirado');
+  assert.equal(vencido.motivoCodigo, PIX_EXPIRADO);
+  // já fechada: nada a fechar
+  assert.equal(vencido.fecharSessao, undefined);
+  // fechada com o QR ainda vivo (sem cobrança falha, medido em 16/11) ou sem ninguém gerar o código: sem motivo
+  for (const pi of [cancelado, null]) {
+    const l = interpretarSessao(sessaoPix({ status: 'expired', payment_intent: pi }), aos(62 * 60));
+    assert.equal(l.status, 'expirado');
+    assert.equal(l.motivoCodigo, undefined);
+    assert.equal(l.fecharSessao, undefined);
+  }
+  // o erro que ficasse no pagamento nunca vira o motivo: num Pix é "Pix não pago no prazo" ou nada
+  const recusa = { type: 'card_error', code: 'card_declined', decline_code: 'insufficient_funds' };
+  for (const erro of [ERRO_PIX_VENCIDO, ERRO_PIX_SIMULADO, recusa]) {
+    const l = interpretarSessao(sessaoPix({ status: 'expired', payment_intent: { ...cancelado, last_payment_error: erro } }), aos(62 * 60));
+    assert.equal(l.motivoCodigo, PIX_EXPIRADO, erro.code);
+  }
+});
+
+test('o cartão não muda com as regras do Pix: aberto, a qualquer hora, fica pendente com o motivo da recusa', () => {
+  const recusado = {
+    ...PI_CARTAO_PAGO,
+    status: 'requires_payment_method',
+    latest_charge: 'ch_3Recusada',
+    last_payment_error: { type: 'card_error', code: 'card_declined', decline_code: 'insufficient_funds' },
+  };
+  for (const minuto of [0, 29, 31, 600]) {
+    const l = interpretarSessao(sessao({ payment_intent: recusado }), aos(minuto * 60));
+    assert.equal(l.status, 'pendente', String(minuto));
+    assert.equal(l.motivoCodigo, 'insufficient_funds', String(minuto));
+    assert.equal(l.fecharSessao, undefined, String(minuto));
+    assert.deepEqual(interpretarSessao(sessao({}), aos(minuto * 60)), {
+      sessaoId: 'cs_test_a1b2c3',
+      forma: 'cartao',
+      valorCentavos: 95400,
+      status: 'pendente',
+    });
+  }
+});
+
+test('Pix sem ninguém gerar o código: pendente até o limite do toque; no limite, o tempo para pagar terminou e a sessão fecha', () => {
+  for (const validade of [600, 1500, 1800]) {
+    const s = sessaoPix({}, validade);
+    // um segundo antes do limite (30 minutos depois da criação): pendente
+    const antes = interpretarSessao(s, aos(30 * 60 - 1));
+    assert.equal(antes.status, 'pendente', String(validade));
+    assert.equal(antes.fecharSessao, undefined, String(validade));
+    // no limite: expirado, sem motivo ("O tempo para pagar terminou"), e a sessão é fechada
+    const no = interpretarSessao(s, aos(30 * 60));
+    assert.equal(no.status, 'expirado', String(validade));
+    assert.equal(no.motivoCodigo, undefined, String(validade));
+    assert.equal(no.fecharSessao, true, String(validade));
+  }
+  // a sessão aberta antes desta regra (31 minutos): o mesmo corte aos 30 minutos
+  const antiga = sessao({
+    metadata: META_PIX,
+    payment_method_options: { pix: { expires_after_seconds: 1800 } },
+    expires_at: CRIADA + 1860,
+  });
+  assert.equal(interpretarSessao(antiga, aos(30 * 60 - 1)).status, 'pendente');
+  assert.equal(interpretarSessao(antiga, aos(30 * 60)).fecharSessao, true);
+});
+
+test('Pix com o QR vivo dentro da sessão: pendente, mesmo depois do limite do toque', () => {
+  // o toque aos 24 minutos (o caso do teste de 15/11): o QR vale até os 54, e a sessão vai até os 61
+  const toque = CRIADA + 24 * 60;
+  const pi = { ...PI_PIX_NA_TELA, created: toque, next_action: qrNaTela(toque + 1801) };
+  for (const minuto of [31, 40, 50]) {
+    const l = interpretarSessao(sessaoPix({ payment_intent: pi }), aos(minuto * 60));
+    assert.equal(l.status, 'pendente', String(minuto));
+    assert.equal(l.fecharSessao, undefined, String(minuto));
+  }
+});
+
+test('Pix com o QR que promete mais que a sessão: até 5 s de tolerância; passou dela, expirado e a sessão fecha', () => {
+  const fim = CRIADA + 30 * 60 + 1800 + 60;
+  const comQrAte = (expiraEm: number) => sessaoPix({ payment_intent: { ...PI_PIX_NA_TELA, next_action: qrNaTela(expiraEm) } });
+  for (const folga of [0, 3, 5]) {
+    const l = interpretarSessao(comQrAte(fim + folga), aos(31 * 60));
+    assert.equal(l.status, 'pendente', `+${folga} s`);
+    assert.equal(l.fecharSessao, undefined, `+${folga} s`);
+  }
+  const tarde = interpretarSessao(comQrAte(fim + 6), aos(31 * 60));
+  assert.equal(tarde.status, 'expirado');
+  assert.equal(tarde.motivoCodigo, undefined);
+  assert.equal(tarde.fecharSessao, true);
+  // sem o prazo do QR na resposta, a regra não dispara
+  assert.equal(interpretarSessao(sessaoPix({ payment_intent: { ...PI_PIX_NA_TELA, next_action: null } }), aos(31 * 60)).status, 'pendente');
+});
+
+test('a ordem das regras do Pix: depois do limite do toque com o QR já vencido, é "Pix não pago no prazo"', () => {
+  // a regra do QR vencido vem antes da do tempo de tocar: o histórico diz "Pix não pago no prazo", não "O tempo para
+  // pagar terminou"
+  const l = interpretarSessao(sessaoPix({ payment_intent: piPixVencido() }), aos(45 * 60));
+  assert.equal(l.status, 'expirado');
+  assert.equal(l.motivoCodigo, PIX_EXPIRADO);
+  assert.equal(l.fecharSessao, true);
+});
+
+test('para todo QR de 10 a 30 minutos, o gerado no limite do toque (mais o minuto de folga) acaba até o fim da sessão', () => {
+  // o passeio das 14h30: com AGORA + s segundos, o QR vale 1800 − s (de 30 a 10 minutos, segundo a segundo)
+  const item = { ...DADOS.itens[0], data: '2026-11-09', horario: { hora: '14:30' } };
+  for (let s = 0; s <= 1200; s++) {
+    const agoraS = AGORA_S + s;
+    const p = parametrosDaSessao({ ...DADOS, itens: [item], forma: 'pix', agora: new Date(agoraS * 1000) });
+    const validade = p.payment_method_options?.pix?.expires_after_seconds ?? 0;
+    const fim = p.expires_at ?? 0;
+    const caso = `QR de ${validade} s`;
+    assert.equal(validade, 1800 - s, caso);
+    // a sessão criada na Stripe no mesmo segundo: o toque no limite, mais o minuto de folga, gera um QR que acaba até o fim
+    const naHora = { created: agoraS, expires_at: fim, payment_method_options: p.payment_method_options };
+    const limite = limiteDoToqueDoPix(naHora as unknown as Stripe.Checkout.Session) ?? 0;
+    assert.equal(limite, agoraS + 30 * 60, caso);
+    assert.ok(limite + 60 + validade <= fim, caso);
+    // criada 2 s depois do agora daqui, com o segundo a mais que a Stripe dá ao QR: a regra do QR tardio não fecha
+    const depois = { ...naHora, created: agoraS + 2 };
+    const limiteDepois = limiteDoToqueDoPix(depois as unknown as Stripe.Checkout.Session) ?? 0;
+    const lida = interpretarSessao(
+      sessao({
+        ...depois,
+        metadata: META_PIX,
+        payment_intent: { ...PI_PIX_NA_TELA, next_action: qrNaTela(limiteDepois + 60 + validade + 1) },
+      }),
+      new Date((limiteDepois + 90) * 1000),
+    );
+    assert.equal(lida.status, 'pendente', caso);
+    assert.equal(lida.fecharSessao, undefined, caso);
+  }
+});
+
 test('o webhook processa cada evento uma vez só: a entrega repetida espera a primeira terminar e depois não muda nada', async () => {
   zerarEventosEmMemoria();
   const resumo = { sessao: 'cs_test_a1b2c3' };
@@ -555,6 +863,73 @@ test('o motivo da recusa vira a chave do dicionário; fraude e cartão roubado f
   assert.equal(chaveDaRecusa(undefined), 'generica');
   assert.equal(chaveDaRecusa(''), 'generica');
   assert.equal(new Set(CHAVES_RECUSA).size, 7);
+});
+
+test('a tabela das recusas relida em 16/11: a confirmação do banco, os "invalid_" que não são dado errado e a auditoria', () => {
+  // a falha da confirmação do banco (3D Secure, vem como código de erro) e o irmão de authentication_required, com
+  // maiúsculas e espaços
+  for (const c of [
+    'payment_intent_authentication_failure',
+    'authentication_not_handled',
+    ' Payment_Intent_Authentication_Failure ',
+    'AUTHENTICATION_NOT_HANDLED ',
+  ]) {
+    assert.equal(chaveDaRecusa(c), 'autenticacao', c);
+  }
+  // o cartão que não tem a confirmação: "tente de novo e confirme" seria conselho errado (só entram códigos conferidos)
+  assert.equal(chaveDaRecusa('three_d_secure_authentication_not_supported'), 'generica');
+  // começam com "invalid_", mas não são dado digitado errado; os outros "invalid_" continuam pedindo para conferir
+  assert.equal(chaveDaRecusa('invalid_account'), 'generica');
+  assert.equal(chaveDaRecusa('invalid_amount'), 'generica');
+  assert.equal(chaveDaRecusa('invalid_cvc'), 'dados');
+  // o que a Stripe mandou de verdade na auditoria dos cartões de teste (16/11); fraude, perdido e roubado, genéricos
+  const auditoria = [
+    ['expired_card', 'vencido'],
+    ['incorrect_cvc', 'dados'],
+    ['processing_error', 'processamento'],
+    ['lost_card', 'generica'],
+    ['stolen_card', 'generica'],
+    ['fraudulent', 'generica'],
+    ['card_velocity_exceeded', 'saldo'],
+  ] as const;
+  for (const [codigo, chave] of auditoria) assert.equal(chaveDaRecusa(codigo), chave, codigo);
+});
+
+test('a confirmação do banco que falha chega como código de erro e vira o texto da autenticação', () => {
+  // visto em 15/11 (cartão 4000 0027 6000 3184, FAIL): invalid_request_error, sem decline_code e sem cobrança
+  const l = interpretarSessao(
+    sessao({
+      payment_intent: {
+        ...PI_CARTAO_PAGO,
+        status: 'requires_payment_method',
+        latest_charge: null,
+        last_payment_error: { type: 'invalid_request_error', code: 'payment_intent_authentication_failure' },
+      },
+    }),
+    AGORA,
+  );
+  assert.equal(l.status, 'pendente');
+  assert.equal(l.motivoCodigo, 'payment_intent_authentication_failure');
+  assert.equal(chaveDaRecusa(l.motivoCodigo), 'autenticacao');
+  assert.equal(recusaParaOCliente('pendente', l.motivoCodigo, 'cartao'), 'autenticacao');
+});
+
+test('a recusa que o cliente lê: nunca num pedido de Pix, no pago ou no Pix vencido', () => {
+  // o Pix não é recusado: venha o código que vier, nada de texto de cartão recusado
+  for (const c of ['insufficient_funds', 'generic_decline', 'payment_intent_payment_attempt_expired', 'card_declined']) {
+    assert.equal(recusaParaOCliente('pendente', c, 'pix'), undefined, c);
+    assert.equal(recusaParaOCliente('expirado', c, 'pix'), undefined, c);
+  }
+  // no cartão, a recusa vira a chave do texto; fraude, perdido e roubado, o texto geral
+  assert.equal(recusaParaOCliente('pendente', 'insufficient_funds', 'cartao'), 'saldo');
+  assert.equal(recusaParaOCliente('expirado', 'stolen_card', 'cartao'), 'generica');
+  // pago: a recusa de uma tentativa anterior não interessa mais
+  assert.equal(recusaParaOCliente('pago', 'insufficient_funds', 'cartao'), undefined);
+  // o Pix vencido não é recusa, seja qual for a forma registrada; sem código, nada
+  assert.equal(PIX_EXPIRADO, 'pix_expirado');
+  assert.equal(recusaParaOCliente('expirado', PIX_EXPIRADO, 'cartao'), undefined);
+  assert.equal(recusaParaOCliente('expirado', PIX_EXPIRADO, undefined), undefined);
+  assert.equal(recusaParaOCliente('pendente', undefined, 'cartao'), undefined);
 });
 
 test('a dica do cartão de fora acompanha toda recusa, menos a "internacional" (o motivo já diz o mesmo)', () => {

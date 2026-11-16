@@ -18,16 +18,20 @@ import { PIX_EXPIRA_SEGUNDOS, validadeDoPix, valorDoItem, type FormaPagamento, t
 /** A versão da API, fixa na do pacote `stripe` instalado: a leitura dos campos da sessão depende dela. */
 export const VERSAO_API_STRIPE = '2026-10-28.endive' as const;
 /**
- * A sessão vale 30 minutos (decisão do dono). É o mínimo da Stripe: o expires_at da sessão vai de 30 minutos a 24 horas
- * depois da criação ("It can be anywhere from 30 minutes to 24 hours after Checkout Session creation").
+ * O tempo para pagar, em minutos (decisão do dono): no cartão, a sessão inteira; no Pix, o tempo para tocar em
+ * "Continuar" e gerar o QR, que depois vale o tempo dele (parametrosDaSessao, limiteDoToqueDoPix). É o mínimo da
+ * Stripe: o expires_at da sessão vai de 30 minutos a 24 horas depois da criação ("It can be anywhere from 30 minutes to
+ * 24 hours after Checkout Session creation"), e não muda depois de criada.
  */
 export const VALIDADE_SESSAO_MINUTOS = 30;
 /** Um minuto de folga: a Stripe conta os 30 minutos a partir da criação, e o relógio daqui pode estar à frente. */
 const FOLGA_SEGUNDOS = 60;
 /**
- * O QR do Pix vale até 30 minutos: o tempo que falta para o prazo do Pix, entre 10 e 30 minutos (validadeDoPix,
- * src/lib/formas-pagamento.ts, a regra única do prazo). A constante mora lá, porque formas-pagamento.ts não pode
- * carregar o SDK da Stripe.
+ * O QR do Pix vale até 30 minutos, contados do toque em "Continuar": o tempo que falta para o prazo do Pix, entre 10 e
+ * 30 minutos (validadeDoPix, src/lib/formas-pagamento.ts, a regra única do prazo). A constante mora lá, porque
+ * formas-pagamento.ts não pode carregar o SDK da Stripe. A sessão que vence cancela o pagamento e mata o QR (visto em
+ * 15/11): por isso a sessão do Pix dura os 30 minutos para tocar MAIS a validade do QR e a folga (41 a 61 minutos), e
+ * passados os 30 minutos sem QR a leitura da sessão a fecha (limiteDoToqueDoPix, interpretarSessao).
  */
 export { PIX_EXPIRA_SEGUNDOS };
 
@@ -166,10 +170,26 @@ export function parametrosDaSessao(d: DadosDaSessao): Stripe.Checkout.SessionCre
     // o QR do Pix: o tempo até o prazo do Pix (2 horas antes do primeiro serviço), entre 10 e 30 minutos, contados de
     // quando o QR aparece
     ...(validadePix !== null ? { payment_method_options: { pix: { expires_after_seconds: validadePix } } } : {}),
-    expires_at: Math.floor(agora.getTime() / 1000) + VALIDADE_SESSAO_MINUTOS * 60 + FOLGA_SEGUNDOS,
+    // a sessão: no cartão, 30 minutos. No Pix, os 30 minutos para tocar em "Continuar" MAIS a validade do QR: a sessão que
+    // vence cancela o pagamento e mata o QR (visto em 15/11), então ela precisa durar mais que o QR gerado no último minuto
+    expires_at: Math.floor(agora.getTime() / 1000) + VALIDADE_SESSAO_MINUTOS * 60 + (validadePix ?? 0) + FOLGA_SEGUNDOS,
     return_url: d.returnUrl,
     redirect_on_completion: 'if_required',
   };
+}
+
+/**
+ * Até quando (segundos Unix) o cliente pode tocar em "Continuar" numa sessão de Pix: o fim da sessão menos a validade do
+ * QR e a folga. Depois disso um QR novo duraria menos do que a tela promete, e a leitura da sessão a fecha
+ * (interpretarSessao, src/lib/pagamento-stripe.ts). Nunca antes de 30 minutos da criação (as sessões abertas antes desta
+ * regra duravam só 31 minutos). null no cartão (a sessão não tem a validade do Pix).
+ */
+export function limiteDoToqueDoPix(
+  sessao: Pick<Stripe.Checkout.Session, 'created' | 'expires_at' | 'payment_method_options'>,
+): number | null {
+  const validade = sessao.payment_method_options?.pix?.expires_after_seconds;
+  if (typeof validade !== 'number') return null;
+  return Math.max(sessao.expires_at - validade - FOLGA_SEGUNDOS, sessao.created + VALIDADE_SESSAO_MINUTOS * 60);
 }
 
 /**
@@ -181,7 +201,11 @@ export async function criarSessaoPagamento(d: DadosDaSessao): Promise<Stripe.Che
   return stripe().checkout.sessions.create(parametrosDaSessao(d), { idempotencyKey: `${d.pedido.codigo}-${d.tentativa}` });
 }
 
-/** Fecha uma sessão ainda aberta (antes de abrir outra para o mesmo pedido). Devolve false se ela já não estava aberta. */
+/**
+ * Fecha uma sessão ainda aberta: antes de abrir outra para o mesmo pedido, ou quando a leitura dela pede (o Pix venceu,
+ * ou o tempo de gerar o Pix acabou: aplicarSessao). Fechar cancela o pagamento pendente e mata o QR de um Pix já gerado.
+ * Devolve false se ela já não estava aberta.
+ */
 export async function expirarSessao(id: string): Promise<boolean> {
   try {
     await stripe().checkout.sessions.expire(id);

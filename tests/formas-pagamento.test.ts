@@ -325,8 +325,9 @@ test('o reservado para o mesmo dia perto do limite de 2 horas ainda paga com Pix
   // às 12h em ponto ainda; às 12h00min01s, só o cartão, e o motivo é o prazo
   assert.deepEqual(escolherFormas(passeioDas14, as('2026-11-02T12:00:00'), null), { formas: ['cartao', 'pix'] });
   assert.deepEqual(escolherFormas(passeioDas14, as('2026-11-02T12:00:01'), null), { formas: ['cartao'], semPix: 'prazo' });
-  // o pior caso: a sessão criada em cima do prazo, o toque em pagar no último minuto dela (31 minutos, com a folga) e o
-  // QR de 10 minutos. Ele vence 41 minutos depois do prazo: ainda 79 minutos antes do serviço, e antes de o cartão fechar
+  // o pior caso é o fim da sessão do Pix, que nenhum QR passa (a sessão que vence mata o QR): criada em cima do prazo,
+  // com o QR de 10 minutos, ela dura os 30 minutos para tocar em pagar, mais o QR e o minuto de folga (src/lib/stripe.ts).
+  // Termina 41 minutos depois do prazo: ainda 79 minutos antes do serviço, e antes de o cartão fechar
   const minutosDaSessao = VALIDADE_SESSAO_MINUTOS + 1;
   let piorFolga = Infinity;
   // das 9h às 12h02, de 5 em 5 segundos (passa pelas 12h em ponto, o último instante com Pix)

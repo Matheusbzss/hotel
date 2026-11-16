@@ -1,6 +1,6 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL } from './email/marcas.ts';
-import { chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
+import { PIX_EXPIRADO, chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import type { MetodoPagamento, Provedor, Reserva, StatusReserva } from './reservas';
 
 /**
@@ -134,13 +134,12 @@ const SO_A_EQUIPE_VE = new Map<string, string>([
   ['restricted_card', 'bloqueio do cartão ou da compra'],
 ]);
 
-const PIX_VENCIDO = 'pix_expirado';
 const ROTULO_CARTAO = 'Última recusa do cartão';
 const ROTULO_PIX = 'Última tentativa no Pix';
 
 export function motivoNoPainel(motivoCodigo: string, metodo: MetodoPagamento): MotivoNoPainel {
   const codigo = motivoCodigo.trim().toLowerCase();
-  if (codigo === PIX_VENCIDO) return { rotulo: ROTULO_PIX, frase: 'o Pix não foi pago no prazo', resumo: 'não foi pago no prazo' };
+  if (codigo === PIX_EXPIRADO) return { rotulo: ROTULO_PIX, frase: 'o Pix não foi pago no prazo', resumo: 'não foi pago no prazo' };
   // outro código num pedido de Pix não é recusa de cartão: fica o código, sem inventar o motivo
   if (metodo === 'pix') return { rotulo: ROTULO_PIX, frase: 'o Pix não foi concluído', resumo: 'não foi concluído', codigo };
   const reservado = SO_A_EQUIPE_VE.get(codigo);
@@ -152,8 +151,9 @@ export function motivoNoPainel(motivoCodigo: string, metodo: MetodoPagamento): M
       codigo,
     };
   }
-  // a confirmação do banco que falhou vem como código de erro, não de recusa: para a equipe é a mesma frase
-  const chave = codigo === 'payment_intent_authentication_failure' ? 'autenticacao' : chaveDaRecusa(codigo);
+  // a confirmação do banco que falhou vem como código de erro, não de recusa: a tabela de src/lib/recusas.ts já o
+  // conhece, e a equipe lê a mesma frase da autenticação
+  const chave = chaveDaRecusa(codigo);
   const frase = RECUSA_PARA_A_EQUIPE[chave];
   const dica = chave === 'internacional' ? ' (costuma ser compra internacional não liberada)' : '';
   return { rotulo: ROTULO_CARTAO, frase: `${frase}${dica}`, resumo: `recusado: ${frase}`, codigo };

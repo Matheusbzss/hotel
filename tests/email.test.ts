@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { leituraDaContestacao } from '../src/app/api/webhooks/stripe/eventos.ts';
 import { EMPRESA } from '../src/config/empresa.ts';
 import { HREFLANG, IDIOMAS, type Idioma } from '../src/i18n/config.ts';
 import { TEXTOS_CONSULTA } from '../src/lib/consulta-textos.ts';
@@ -379,25 +380,34 @@ test('o aviso à equipe sai uma vez por reembolso, lido da linha que o webhook g
   const falho = { id: 're_A', centavos: 15400, motivo: 'expired_or_canceled_card' };
   const pago = 'Pago (webhook da Stripe)';
   // a primeira vez: o valor e o motivo em português (o código cru fica só no histórico)
-  assert.deepEqual(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho)), 're_A'), {
+  assert.deepEqual(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho)), 're_A', 'reembolsado'), {
     centavos: 15400,
     motivo: 'cartão vencido ou cancelado',
     contestacao: false,
     naoDizerOMotivo: false,
   });
   // o e-mail deste reembolso já saiu: não sai de novo; o de OUTRO reembolso não segura este
-  assert.equal(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_A')), 're_A'), null);
-  assert.ok(avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_AB')), 're_A'));
+  assert.equal(
+    avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_A')), 're_A', 'reembolsado'),
+    null,
+  );
+  assert.ok(
+    avisoDoReembolsoFalho(linhas(pago, linhaDoReembolsoFalho(falho), marcaDoAvisoDeReembolsoFalho('re_AB')), 're_A', 'reembolsado'),
+  );
   // a equipe já devolveu por outro meio antes de o e-mail sair: nada a avisar
-  assert.equal(avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho(falho), linhaDaDevolucaoPorOutroMeio(falho)), 're_A'), null);
+  assert.equal(
+    avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho(falho), linhaDaDevolucaoPorOutroMeio(falho)), 're_A', 'reembolsado'),
+    null,
+  );
   // o cartão dado como perdido ou roubado: não dizer o motivo ao cliente
   assert.equal(
-    avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho({ ...falho, motivo: 'lost_or_stolen_card' })), 're_A')?.naoDizerOMotivo,
+    avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho({ ...falho, motivo: 'lost_or_stolen_card' })), 're_A', 'reembolsado')
+      ?.naoDizerOMotivo,
     true,
   );
   // a contestação com o reembolso a caminho: o aviso manda não devolver por fora
   const parado = linhas(linhaDoReembolsoParadoPelaContestacao({ id: 're_B', centavos: 24200 }));
-  assert.deepEqual(avisoDoReembolsoFalho(parado, 're_B'), {
+  assert.deepEqual(avisoDoReembolsoFalho(parado, 're_B', 'pago'), {
     centavos: 24200,
     motivo: 'o cliente abriu uma contestação com o reembolso a caminho',
     contestacao: true,
@@ -407,10 +417,89 @@ test('o aviso à equipe sai uma vez por reembolso, lido da linha que o webhook g
   const repetido = linhas(
     linhaDaDevolucaoRepetidaQueFalhou({ id: 're_C', centavos: 15400, pagamento: 'pi_outro', motivo: 'expired_or_canceled_card' }),
   );
-  assert.equal(avisoDoReembolsoFalho(repetido, 're_C'), null);
-  assert.equal(avisoDoReembolsoFalho(linhas(pago), 're_D'), null);
+  assert.equal(avisoDoReembolsoFalho(repetido, 're_C', 'pago'), null);
+  assert.equal(avisoDoReembolsoFalho(linhas(pago), 're_D', 'pago'), null);
   // a linha do envio não é um aviso do painel
   assert.ok(!marcaDoAvisoDeReembolsoFalho('re_A').startsWith('Aviso:'));
+});
+
+test('o aviso à equipe quando há contestação: aberta depois da falha ou o pedido já contestado, "não devolva"; perdida, nada; ganha, devolver', () => {
+  const linhas = (...eventos: string[]) => eventos.map((evento, n) => ({ em: `2026-11-16T12:00:0${n}.000Z`, evento }));
+  // as linhas que o webhook grava de verdade para a contestação
+  const disputa = (status: 'needs_response' | 'lost' | 'won', id = 'du_depois') =>
+    leituraDaContestacao({ id, amount: 39600, status, reason: 'fraudulent' }).evento;
+  const doPedido = { id: 're_A', centavos: 15400, motivo: 'expired_or_canceled_card' };
+  const doVoucher = { id: 're_V', centavos: 24200, voucher: 'ON-5F4U5U', motivo: 'expired_or_canceled_card' };
+  const devolver = { motivo: 'cartão vencido ou cancelado', contestacao: false, naoDizerOMotivo: false };
+  const naoDevolver = { ...devolver, contestacao: true };
+  for (const [falho, status] of [
+    [doPedido, 'reembolsado'],
+    [doVoucher, 'pago'],
+  ] as const) {
+    const linha = linhaDoReembolsoFalho(falho);
+    // a falha e, depois, a contestação aberta (o pedido inteiro continua reembolsado; o de um voucher vira contestado)
+    for (const agora of [status, 'contestado'] as const)
+      assert.deepEqual(avisoDoReembolsoFalho(linhas(linha, disputa('needs_response')), falho.id, agora), {
+        centavos: falho.centavos,
+        ...naoDevolver,
+      });
+    // perdida: o banco já devolveu ao cliente, o aviso fecha sem nada a devolver
+    assert.equal(avisoDoReembolsoFalho(linhas(linha, disputa('needs_response'), disputa('lost')), falho.id, 'reembolsado'), null);
+    // ganha: o dinheiro ficou com a empresa, e o aviso volta a mandar devolver por outro meio
+    assert.deepEqual(avisoDoReembolsoFalho(linhas(linha, disputa('needs_response'), disputa('won')), falho.id, status), {
+      centavos: falho.centavos,
+      ...devolver,
+    });
+    // a contestação gravada antes da falha não conta... a não ser que o pedido já esteja contestado na hora do e-mail
+    assert.deepEqual(avisoDoReembolsoFalho(linhas(disputa('needs_response', 'du_antes'), linha), falho.id, status), {
+      centavos: falho.centavos,
+      ...devolver,
+    });
+    assert.deepEqual(avisoDoReembolsoFalho(linhas(disputa('needs_response', 'du_antes'), linha), falho.id, 'contestado'), {
+      centavos: falho.centavos,
+      ...naoDevolver,
+    });
+  }
+  // o pedido já contestado quando o e-mail é montado, sem linha de contestação depois da falha: o texto do 2.2, nunca o
+  // "devolva por outro meio"
+  const aviso = avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho(doVoucher)), 're_V', 'contestado');
+  assert.deepEqual(aviso, { centavos: 24200, ...naoDevolver });
+  const m = emailAvisoDoReembolsoFalho({
+    ...AVISO_DO_REEMBOLSO,
+    valor: 'R$ 242,00',
+    motivo: aviso?.motivo ?? '',
+    contestacao: Boolean(aviso?.contestacao),
+  });
+  assert.ok(
+    m.texto.includes(
+      'Não devolva por outro meio: o cliente abriu uma contestação no banco. Aceite ou responda a contestação no painel da Stripe.',
+    ),
+    m.texto,
+  );
+  assert.ok(!m.texto.includes('devolva por outro meio só para o titular') && !m.texto.includes('registre a devolução'), m.texto);
+  // o cartão dado como perdido ou roubado continua marcado (o motivo nunca vai ao cliente)
+  assert.equal(
+    avisoDoReembolsoFalho(linhas(linhaDoReembolsoFalho({ ...doPedido, motivo: 'lost_or_stolen_card' })), 're_A', 'contestado')
+      ?.naoDizerOMotivo,
+    true,
+  );
+  // e o e-mail do "não devolva" também leva o lembrete, com o pedido já contestado (E2) e com a contestação aberta depois
+  // da falha (E1): o primeiro parágrafo diz o motivo à equipe, que não o repassa ao cliente
+  const roubado = linhaDoReembolsoFalho({ ...doPedido, motivo: 'lost_or_stolen_card' });
+  for (const [historico, agora] of [
+    [linhas(roubado), 'contestado'],
+    [linhas(roubado, disputa('needs_response')), 'reembolsado'],
+  ] as const) {
+    const avisoRoubado = avisoDoReembolsoFalho(historico, 're_A', agora);
+    const e = emailAvisoDoReembolsoFalho({
+      ...AVISO_DO_REEMBOLSO,
+      motivo: avisoRoubado?.motivo ?? '',
+      contestacao: Boolean(avisoRoubado?.contestacao),
+      naoDizerOMotivo: Boolean(avisoRoubado?.naoDizerOMotivo),
+    });
+    assert.ok(e.texto.includes('Não devolva por outro meio: o cliente abriu uma contestação no banco.'), e.texto);
+    assert.ok(e.texto.includes('Não diga o motivo ao cliente.'), e.texto);
+  }
 });
 
 test('os links do voucher no e-mail não quebram no meio ("Descargar el PDF" inteiro): só depois do "·"', () => {
@@ -761,7 +850,8 @@ test('o envio do aviso do reembolso que falhou: desligado sem a chave, para a eq
     /^export async function enviarAvisoDoReembolsoFalho\(codigo: string, reembolsoId: string\): Promise<void> \{\s+if \(!emailLigado\(\)\) \{\s+console\.log\(`\[email\] desligado \(sem RESEND_API_KEY\): reembolso-falho-equipe \$\{codigo\}`\);\s+return;\s+\}/,
   );
   // o que o e-mail diz sai do histórico (uma vez por reembolso), vai para a equipe e grava a marca só quando sai
-  assert.match(corpo, /const aviso = avisoDoReembolsoFalho\(r\.historico, reembolsoId\);\s+if \(!aviso\) return;/);
+  // com o status do pedido na hora de montar o e-mail: já contestado, o texto manda não devolver por outro meio
+  assert.match(corpo, /const aviso = avisoDoReembolsoFalho\(r\.historico, reembolsoId, r\.status\);\s+if \(!aviso\) return;/);
   assert.match(corpo, /tipo: 'reembolso-falho-equipe',/);
   assert.match(corpo, /para: responderPara\(\),/);
   assert.match(corpo, /chave: `reembolso-falho-equipe\/\$\{reembolsoId\}`,/);

@@ -274,9 +274,10 @@ export function emailAvisoDaDesistencia(d: {
 /**
  * O aviso à equipe (EMAIL_RESPOSTA, em português) de um reembolso que a Stripe não conseguiu concluir (refund.failed),
  * porque a falha pode chegar semanas depois, quando ninguém está olhando o painel: o valor, o motivo em português e o que
- * fazer. Na contestação aberta com o reembolso a caminho, NÃO devolver por outro meio (o banco devolve pela
- * contestação). No cartão dado como perdido ou roubado, não dizer o motivo ao cliente. Nenhum dado do cartão. O botão
- * abre o pedido no painel.
+ * fazer. Na contestação aberta com o reembolso a caminho, e também numa contestação aberta depois da falha ou com o
+ * pedido já contestado (16/11, Pacote 4), NÃO devolver por outro meio (o banco devolve pela contestação). No cartão dado
+ * como perdido ou roubado, nos dois textos, não dizer o motivo ao cliente. Nenhum dado do cartão. O botão abre o pedido
+ * no painel.
  */
 export function emailAvisoDoReembolsoFalho(d: {
   codigo: string;
@@ -284,7 +285,7 @@ export function emailAvisoDoReembolsoFalho(d: {
   valor: string;
   /** O motivo em português (motivoDoReembolsoFalho, src/lib/pedidos-painel.ts). */
   motivo: string;
-  /** O cliente abriu uma contestação com o reembolso a caminho. */
+  /** O cliente abriu uma contestação (com o reembolso a caminho, depois de ele falhar, ou o pedido já está contestado). */
   contestacao: boolean;
   /** O cartão dado como perdido ou roubado. */
   naoDizerOMotivo: boolean;
@@ -296,6 +297,7 @@ export function emailAvisoDoReembolsoFalho(d: {
     ? [
         falhou,
         'Não devolva por outro meio: o cliente abriu uma contestação no banco. Aceite ou responda a contestação no painel da Stripe.',
+        ...(d.naoDizerOMotivo ? ['Não diga o motivo ao cliente.'] : []),
       ]
     : [
         `${falhou} O cliente ainda não recebeu. Abra o pedido no painel, devolva por outro meio só para o titular, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre a devolução no painel.`,

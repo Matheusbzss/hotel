@@ -235,6 +235,11 @@ const es: Dicionario = {
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tienes dudas, escríbenos.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devuelto por el mismo medio de pago.',
     reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tienes dudas, escríbenos.',
+    // o reembolso que a Stripe não conseguiu devolver: sem prazo, sem o motivo e sem falar em cartão. Sem verbo em "tú"
+    // nem em "vos" ("te" serve aos dois): o es-ar lê estas frases daqui
+    reembolsoPendenteTitulo: 'Reembolso pendiente',
+    reembolsoFalhou: 'No pudimos devolver {valor} por el mismo medio de pago. Nuestro equipo te va a contactar.',
+    reembolsoOutroMeio: 'Como no se pudo devolver por el mismo medio de pago, nuestro equipo devolvió {valor} de otra forma.',
     // sem verbo em "tú" nem em "vos": serve igual às duas versões do espanhol (o es-ar não precisa de frase própria)
     desistirLink: 'Desistir de la compra',
     desistirTexto:

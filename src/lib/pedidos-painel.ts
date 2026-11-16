@@ -4,6 +4,7 @@ import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho }
 import { PIX_EXPIRADO, chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import {
   avisoDeReembolsoFechado,
+  falhaADevolverPorOutroMeio,
   partesDoReembolso,
   reembolsosFalhos,
   reembolsosSemVoucher,
@@ -318,6 +319,14 @@ export function reembolsosParadosPelaContestacao(historico: readonly { evento: s
 export const fraseDoReembolsoParado = (centavos: number): string =>
   `O reembolso de ${cifra(centavos)} não foi concluído porque o cliente abriu uma contestação no banco. Não devolva por outro meio: o banco devolve pela contestação. Aceite ou responda a contestação no painel da Stripe.`;
 
+/**
+ * Os reembolsos que falharam na Stripe e, depois da falha, o cliente abriu uma contestação que ainda não terminou: o
+ * painel trata como o reembolso parado pela contestação (a mesma frase e a mesma faixa), sem "devolva por outro meio" e
+ * sem botão de registrar, até ela terminar (perdida: nada mais a devolver; ganha: a falha volta a pedir a devolução).
+ */
+const falhasParadasPelaContestacao = (historico: readonly { evento: string }[]): ReembolsoFalho[] =>
+  reembolsosFalhos(historico).filter((f) => f.contestacao === 'aberta');
+
 /** A frase vermelha do reembolso de parte feito direto na Stripe, sem dizer de qual voucher. */
 export const fraseDoReembolsoSemVoucher = (centavos: number): string =>
   `A Stripe devolveu ${cifra(centavos)} deste pedido por fora do site, sem dizer de qual voucher. Diga abaixo de qual voucher foi: isso não devolve dinheiro de novo.`;
@@ -368,9 +377,10 @@ export const valorDoVoucherPorFora = (valorCentavos: number, restanteCentavos: n
  * - nenhum: não é da Stripe, sem pagamento, nada mais a devolver, ou um status sem reembolso;
  * - contestado: sem botão de reembolso (a frase SEM_REEMBOLSO_NA_CONTESTACAO no lugar);
  * - falhou: o pedido pago ou reembolsado teve um reembolso que falhou na Stripe (por devolver ou já devolvido por outro
- *   meio): nenhum botão da Stripe; um "Registrar" por reembolso ainda por devolver (`pendentes`) e, com o pedido pago,
- *   um "voucher devolvido por outro meio" por voucher ainda pago (`vouchersPagos`). Só as linhas de reembolsosFalhos
- *   contam: a devolução falha de um pagamento repetido não tira os botões de um pedido saudável;
+ *   meio): nenhum botão da Stripe; um "Registrar" por reembolso ainda por devolver (`pendentes`: sem a falha com uma
+ *   contestação aberta ou perdida depois dela, que não se devolve por fora) e, com o pedido pago, um "voucher devolvido
+ *   por outro meio" por voucher ainda pago (`vouchersPagos`). Só as linhas de reembolsosFalhos contam: a devolução falha
+ *   de um pagamento repetido não tira os botões de um pedido saudável;
  * - stripe: os botões de sempre ("Reembolsar tudo" e, no pedido com vários itens, um por voucher ativo).
  * Nos dois últimos, `semVoucher` traz os reembolsos de parte feitos direto na Stripe sem voucher, ainda por resolver (só
  * no pedido pago com vários itens). Enquanto houver algum, nenhum botão por voucher aparece (o reembolso pode ter sido de
@@ -400,7 +410,7 @@ export function reembolsoNoPainel(p: PedidoPainel): ReembolsoNoPainel {
   const falhos = reembolsosFalhos(r.historico);
   if (falhos.length) {
     const vouchersPagos = pago && !semVoucher.length && restanteCentavos > 0 ? p.itens.filter(voucherPago) : [];
-    return { tipo: 'falhou', pendentes: falhos.filter((f) => !f.devolvido), vouchersPagos, restanteCentavos, semVoucher };
+    return { tipo: 'falhou', pendentes: falhos.filter(falhaADevolverPorOutroMeio), vouchersPagos, restanteCentavos, semVoucher };
   }
   if (!pago || restanteCentavos <= 0) return { tipo: 'nenhum' };
   const vouchers = varios && !semVoucher.length ? p.itens.filter(voucherAtivo) : [];
@@ -410,18 +420,22 @@ export function reembolsoNoPainel(p: PedidoPainel): ReembolsoNoPainel {
 /** As pendências de reembolso de um pedido: cada uma é uma faixa do topo. */
 function pendenciasDoReembolso(p: PedidoPainel): { falhos: boolean; semVoucher: boolean; parados: boolean } {
   const m = reembolsoNoPainel(p);
+  const historico = p.itens[0]?.historico ?? [];
+  const parado =
+    reembolsosParadosPelaContestacao(historico).some((x) => !x.encerrado) || falhasParadasPelaContestacao(historico).length > 0;
   return {
     falhos: m.tipo === 'falhou' && m.pendentes.length > 0,
     semVoucher: (m.tipo === 'falhou' || m.tipo === 'stripe') && m.semVoucher.length > 0,
     // o pedido contestado já entra na faixa das contestações
-    parados: p.status !== 'contestado' && reembolsosParadosPelaContestacao(p.itens[0]?.historico ?? []).some((x) => !x.encerrado),
+    parados: p.status !== 'contestado' && parado,
   };
 }
 
 /**
  * O pedido tem um reembolso para a equipe resolver: um que falhou e ainda não foi devolvido por outro meio, um feito
- * direto na Stripe sem dizer de qual voucher, ou um parado por uma contestação que ainda não terminou. É o filtro
- * "Reembolsos a resolver", para onde as três faixas levam.
+ * direto na Stripe sem dizer de qual voucher, ou um parado por uma contestação que ainda não terminou (a contestação
+ * aberta com o reembolso a caminho, ou aberta depois de o reembolso falhar). É o filtro "Reembolsos a resolver", para
+ * onde as três faixas levam.
  */
 export function reembolsoParaResolver(p: PedidoPainel): boolean {
   const d = pendenciasDoReembolso(p);
@@ -456,22 +470,26 @@ export const avisosDeReembolso = ({ falhos, semVoucher, parados }: { falhos: num
 
 /**
  * As frases vermelhas do pedido sobre reembolso, embaixo do status: os que falharam e ainda não foram devolvidos por
- * outro meio, os feitos direto na Stripe sem voucher e os parados por uma contestação que ainda não terminou.
+ * outro meio, os feitos direto na Stripe sem voucher e os parados por uma contestação que ainda não terminou (a aberta
+ * com o reembolso a caminho, e a aberta depois de o reembolso falhar: a mesma frase, "não devolva por outro meio").
  */
 export function frasesDoReembolsoNoPainel(p: PedidoPainel): string[] {
   const m = reembolsoNoPainel(p);
+  const historico = p.itens[0]?.historico ?? [];
   return [
     ...(m.tipo === 'falhou' ? m.pendentes.flatMap((f) => frasesDoReembolsoFalho(f)) : []),
     ...(m.tipo === 'falhou' || m.tipo === 'stripe' ? m.semVoucher.map((s) => fraseDoReembolsoSemVoucher(s.centavos)) : []),
-    ...reembolsosParadosPelaContestacao(p.itens[0]?.historico ?? [])
+    ...reembolsosParadosPelaContestacao(historico)
       .filter((x) => !x.encerrado)
       .map((x) => fraseDoReembolsoParado(x.centavos)),
+    ...falhasParadasPelaContestacao(historico).map((f) => fraseDoReembolsoParado(f.centavos)),
   ];
 }
 
 /**
- * O que o valor do pedido diz do dinheiro devolvido (partesDoReembolso): o que chegou ao cliente, com a parte por outro
- * meio entre parênteses, e, em vermelho, o que falta devolver porque o reembolso falhou na Stripe.
+ * O que o valor do pedido diz do dinheiro devolvido (partesDoReembolso, como a equipe lê): o que chegou ao cliente, com a
+ * parte por outro meio entre parênteses, e, em vermelho, o que falta devolver porque o reembolso falhou na Stripe. A
+ * falha com uma contestação aberta ou perdida depois dela não entra no "Falta devolver" (não se devolve por fora).
  */
 export function devolucaoNoPainel(p: Pick<PedidoPainel, 'itens' | 'reembolsoCentavos'>): { reembolsado?: string; falta?: string } {
   const historico = p.itens[0]?.historico ?? [];
@@ -489,7 +507,10 @@ export interface AvisoDoReembolsoFalho {
   centavos: number;
   /** O motivo em português (motivoDoReembolsoFalho). */
   motivo: string;
-  /** O cliente abriu uma contestação com o reembolso a caminho: NÃO devolver por outro meio. */
+  /**
+   * O cliente abriu uma contestação (com o reembolso a caminho, depois de ele falhar, ou o pedido já está contestado):
+   * NÃO devolver por outro meio.
+   */
   contestacao: boolean;
   /** O cartão dado como perdido ou roubado: não dizer o motivo ao cliente. */
   naoDizerOMotivo: boolean;
@@ -497,20 +518,27 @@ export interface AvisoDoReembolsoFalho {
 
 /**
  * O aviso por e-mail à equipe de um reembolso que falhou, lido da linha que o webhook gravou no histórico, ou null: o
- * e-mail deste reembolso já saiu (marcaDoAvisoDeReembolsoFalho), a equipe já registrou a devolução por outro meio, a
- * contestação já terminou, ou não há linha de falha deste reembolso (a devolução falha de um pagamento repetido fica só
- * no histórico). Um e-mail por reembolso, sem nenhum dado do cartão.
+ * e-mail deste reembolso já saiu (marcaDoAvisoDeReembolsoFalho), a equipe já registrou a devolução por outro meio, o
+ * banco já devolveu ao cliente pela contestação perdida depois da falha, a contestação do reembolso parado já terminou,
+ * ou não há linha de falha deste reembolso (a devolução falha de um pagamento repetido fica só no histórico). Com uma
+ * contestação aberta depois da falha, ou com o pedido já contestado na hora de montar o e-mail (`status`), o aviso manda
+ * NÃO devolver por outro meio (`contestacao`), como no reembolso parado pela contestação. Um e-mail por reembolso, sem
+ * nenhum dado do cartão.
  */
-export function avisoDoReembolsoFalho(historico: readonly { evento: string }[], reembolsoId: string): AvisoDoReembolsoFalho | null {
+export function avisoDoReembolsoFalho(
+  historico: readonly { evento: string }[],
+  reembolsoId: string,
+  status: StatusReserva,
+): AvisoDoReembolsoFalho | null {
   const marca = marcaDoAvisoDeReembolsoFalho(reembolsoId);
   if (historico.some((h) => h.evento.startsWith(marca))) return null;
   const falho = reembolsosFalhos(historico).find((f) => f.id === reembolsoId);
   if (falho) {
-    if (falho.devolvido) return null;
+    if (falho.devolvido || falho.contestacao === 'perdida') return null;
     return {
       centavos: falho.centavos,
       motivo: motivoDoReembolsoFalho(falho.motivo),
-      contestacao: false,
+      contestacao: falho.contestacao === 'aberta' || status === 'contestado',
       naoDizerOMotivo: perdidoOuRoubado(falho.motivo),
     };
   }

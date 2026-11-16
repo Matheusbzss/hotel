@@ -16,16 +16,18 @@ import { estadoDaDesistencia } from '@/lib/desistencia';
 import { textoDolar } from '@/lib/dolar';
 import { linkEmail } from '@/lib/email';
 import { formasDoPagamento, mostrarWhatsApp, type FormaPagamento, type MotivoSemPix } from '@/lib/formas-pagamento';
+import { frasesDoReembolso } from '@/lib/frases-do-reembolso';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
+import { partesDaPagina } from '@/lib/reembolsos-a-resolver';
 import {
   itensPagaveis,
   linkDoPedido,
   pagamentoEmAberto,
   paraPublico,
-  textoReembolsado,
   textosDaDesistencia,
   textosDoPagamento,
+  textosDoReembolso,
   tokenConfere,
   totaisDasFormas,
   type ReservaPublica,
@@ -95,6 +97,21 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const fechado = primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos;
   const total = emAberto ? `${brl(noPix)} ${d.preco.noPix} · ${brl(pedido.totalCentavos)} ${d.preco.noCartao}` : brl(fechado);
   const reembolso = primeira.reembolsoCentavos ?? 0;
+  // o reembolso que falhou na Stripe (partesDaPagina, lido como o cliente lê): o que voltou pela mesma forma de
+  // pagamento, o pendente e o que a equipe devolveu de outro jeito. Sem falha, tudo pela mesma forma: o texto de sempre
+  const partesDoReembolso = partesDaPagina({ voucherDePedido: false, codigo }, reembolso, primeira.historico) ?? {
+    originalCentavos: reembolso,
+    pendenteCentavos: 0,
+    outroMeioCentavos: 0,
+  };
+  const reembolsoPendente = partesDoReembolso.pendenteCentavos > 0;
+  const devolvidoAoCliente = partesDoReembolso.originalCentavos + partesDoReembolso.outroMeioCentavos;
+  const frasesDoReembolsoDoPedido = (inteiro: boolean) => frasesDoReembolso(partesDoReembolso, inteiro, textosDoReembolso(d), brl);
+  // no pedido pago, a caixa do reembolso de parte (sem nada devolvido, nenhuma)
+  const frasesDoPago = pago ? frasesDoReembolsoDoPedido(false) : [];
+  // o voucher reembolsado sozinho cujo dinheiro ainda não voltou: "Reembolso pendente" no lugar de "Reembolsado"
+  const statusDoItem = (r: ReservaPublica) =>
+    r.status === 'reembolsado' && (r.reembolsoPartes?.pendenteCentavos ?? 0) > 0 ? d.pedido.reembolsoPendenteTitulo : d.status[r.status];
 
   const nomeItem = (r: ReservaPublica) =>
     r.transfer
@@ -121,13 +138,18 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
       .join('\n'),
     total,
   });
-  const cabecalho: Record<StatusReserva, { titulo: string; texto: string }> = {
+  const cabecalho: Record<StatusReserva, { titulo: string; texto: string | string[] }> = {
     pago: { titulo: d.pedido.confirmadoTitulo, texto: d.pedido.confirmadoTexto },
     aguardando_whatsapp: { titulo: d.pedido.registradoTitulo, texto: d.pedido.registradoTexto },
     pendente: { titulo: d.pedido.confirmando, texto: d.pedido.confirmandoTexto },
     expirado: { titulo: d.pedido.tempoEsgotado, texto: d.pedido.tempoEsgotadoTexto },
     cancelado: { titulo: d.pedido.canceladoTitulo, texto: d.pedido.canceladoTexto },
-    reembolsado: { titulo: d.status.reembolsado, texto: textoReembolsado(d) },
+    // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; uma frase por
+    // parágrafo; sem falha, a frase de sempre
+    reembolsado: {
+      titulo: reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status.reembolsado,
+      texto: frasesDoReembolsoDoPedido(true),
+    },
     // texto neutro: a contestação é entre o cliente e o banco dele
     contestado: { titulo: d.pedido.contestadoTitulo, texto: d.pedido.contestadoTexto },
     recusado: { titulo: d.reserva.recusadoTitulo, texto: d.reserva.recusadoTexto },
@@ -211,9 +233,19 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
           ) : (
             <>
               <h1 className="display text-head">{titulo}</h1>
-              <p className="mt-4 max-w-[44ch] text-lead">{texto}</p>
-              {pago && reembolso > 0 && (
-                <p className="mt-4 max-w-[44ch] bg-superficie px-5 py-4">{fmt(d.pedido.reembolsadoParcial, { valor: brl(reembolso) })}</p>
+              {[texto].flat().map((frase, n) => (
+                <p key={n} className="mt-4 max-w-[44ch] text-lead">
+                  {frase}
+                </p>
+              ))}
+              {/* pago, com uma parte devolvida: quanto voltou; com um reembolso que falhou, quanto ainda não voltou ou
+                  voltou de outro jeito, uma frase por parágrafo na mesma caixa */}
+              {frasesDoPago.length > 0 && (
+                <div className="mt-4 max-w-[44ch] space-y-2 bg-superficie px-5 py-4">
+                  {frasesDoPago.map((frase, n) => (
+                    <p key={n}>{frase}</p>
+                  ))}
+                </div>
               )}
               {esperando ? (
                 // o caminho do WhatsApp (o pagamento combinado com a equipe): o botão é a própria forma de pagar
@@ -264,7 +296,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   {pago && r.status !== 'pago' ? (
                     // um item cancelado ou reembolsado sozinho, num pedido pago: o voucher dele não vale mais
                     <p className="mt-1.5 text-small font-semibold">
-                      {d.reserva.voucher} <span className="numeros">{r.codigo}</span> · {d.status[r.status]}
+                      {d.reserva.voucher} <span className="numeros">{r.codigo}</span> · {statusDoItem(r)}
                     </p>
                   ) : pago ? (
                     <>
@@ -294,7 +326,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
               ))}
             </ul>
             <div className="tom-campo px-6 py-5 md:px-8">
-              <p className="font-semibold">{d.status[status]}</p>
+              <p className="font-semibold">
+                {status === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[status]}
+              </p>
               {/* cada valor fica inteiro com o rótulo e o dólar ao lado; o que não couber desce sem o "·" na frente */}
               <p className="numeros mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
                 <span className="text-lead font-semibold">
@@ -310,9 +344,15 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   </span>
                 )}
               </p>
-              {reembolso > 0 && (
+              {/* o que voltou ao cliente (pela mesma forma ou de outro jeito) e, com um reembolso que falhou, o que ainda não voltou */}
+              {devolvidoAoCliente > 0 && (
                 <p className="numeros mt-1 text-small">
-                  {d.status.reembolsado} · {brl(reembolso)}
+                  {d.status.reembolsado} · {brl(devolvidoAoCliente)}
+                </p>
+              )}
+              {reembolsoPendente && (
+                <p className="numeros mt-1 text-small">
+                  {d.pedido.reembolsoPendenteTitulo} · {brl(partesDoReembolso.pendenteCentavos)}
                 </p>
               )}
             </div>

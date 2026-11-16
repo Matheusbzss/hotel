@@ -229,6 +229,10 @@ const en: Dicionario = {
       'This payment has been disputed with the bank. While the bank reviews it, the voucher is on hold. If you have any questions, talk to us.',
     reembolsadoParcial: 'Partial refund of {valor}, returned to the original payment method.',
     reembolsadoTexto: 'The amount has been returned to the original payment method. If you have any questions, talk to us.',
+    // o reembolso que a Stripe não conseguiu devolver: sem prazo, sem o motivo e sem falar em cartão
+    reembolsoPendenteTitulo: 'Refund pending',
+    reembolsoFalhou: 'We couldn’t return {valor} to the original payment method. Our team will contact you.',
+    reembolsoOutroMeio: 'Since the original payment method couldn’t receive it, our team returned {valor} another way.',
     desistirLink: 'Cancel this purchase',
     desistirTexto:
       'You can withdraw within 7 days of the purchase, before the service, for a full refund. After that, the cancellation policy applies. Our team replies by email within 1 business day.',

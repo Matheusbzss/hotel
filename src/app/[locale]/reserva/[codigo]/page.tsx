@@ -17,9 +17,9 @@ import {
   itensPagaveis,
   linkDoPedido,
   paraPublico,
-  textoReembolsado,
   textosDaDesistencia,
   textosDoPagamento,
+  textosDoReembolso,
   tokenConfere,
   totaisDasFormas,
 } from '@/lib/reserva-publica';
@@ -137,8 +137,9 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           transferConfirmado: d.transfer.confirmadoTexto,
           contestadoTitulo: d.pedido.contestadoTitulo,
           contestadoTexto: d.pedido.contestadoTexto,
-          reembolsadoTexto: textoReembolsado(d),
-          reembolsadoParcial: d.pedido.reembolsadoParcial,
+          // o de sempre, o parcial e, com um reembolso que falhou na Stripe, o pendente e o devolvido de outro jeito
+          ...textosDoReembolso(d),
+          reembolsoPendenteTitulo: d.pedido.reembolsoPendenteTitulo,
           noPix: d.preco.noPix,
           noCartao: d.preco.noCartao,
           dolar: d.preco.dolar,

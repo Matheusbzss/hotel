@@ -204,6 +204,10 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     // Etapa 5: para que serve o e-mail do checkout ("si la compra no se completa")
     (d: typeof es) => d.checkout.emailAjuda,
     (d: typeof es) => d.checkout.emailPrivacidade,
+    // Pacote 4 (16/11): o reembolso que falhou na Stripe; "te va a contactar" serve ao tú e ao vos, sem verbo na segunda pessoa
+    (d: typeof es) => d.pedido.reembolsoPendenteTitulo,
+    (d: typeof es) => d.pedido.reembolsoFalhou,
+    (d: typeof es) => d.pedido.reembolsoOutroMeio,
   ]) {
     assert.equal(t(ar), t(es));
   }

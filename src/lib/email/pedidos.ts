@@ -388,9 +388,11 @@ export function agendarAvisosDaDesistencia(codigo: string, motivo: string): void
  * O aviso à equipe (EMAIL_RESPOSTA) de um reembolso que a Stripe não conseguiu concluir (decisão do dono de 16/11): a
  * falha pode chegar semanas depois, quando ninguém está olhando o painel. Lido da linha que o webhook gravou no histórico
  * (avisoDoReembolsoFalho, src/lib/pedidos-painel.ts): o valor e o motivo em português, sem nenhum dado do cartão; na
- * contestação aberta com o reembolso a caminho, o e-mail manda NÃO devolver por outro meio. Um por reembolso (a linha
- * marcaDoAvisoDeReembolsoFalho no histórico e a chave de idempotência); a devolução falha de um pagamento repetido fica
- * só no histórico. Sem a chave do Resend, não sai: a faixa do topo do painel continua contando o pedido.
+ * contestação aberta com o reembolso a caminho, numa contestação aberta depois da falha e com o pedido já contestado na
+ * hora de montar o e-mail, ele manda NÃO devolver por outro meio; com a contestação já perdida, não sai (o banco
+ * devolveu). Um por reembolso (a linha marcaDoAvisoDeReembolsoFalho no histórico e a chave de idempotência); a devolução
+ * falha de um pagamento repetido fica só no histórico. Sem a chave do Resend, não sai: a faixa do topo do painel
+ * continua contando o pedido.
  */
 export async function enviarAvisoDoReembolsoFalho(codigo: string, reembolsoId: string): Promise<void> {
   if (!emailLigado()) {
@@ -401,7 +403,8 @@ export async function enviarAvisoDoReembolsoFalho(codigo: string, reembolsoId: s
   const r = lista[0];
   if (!r) return;
   const pedido = r.pedido?.codigo ?? r.codigo;
-  const aviso = avisoDoReembolsoFalho(r.historico, reembolsoId);
+  // o status do pedido agora: já contestado, o e-mail manda não devolver por outro meio
+  const aviso = avisoDoReembolsoFalho(r.historico, reembolsoId, r.status);
   if (!aviso) return;
   const mensagem = emailAvisoDoReembolsoFalho({
     codigo: pedido,

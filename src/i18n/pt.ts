@@ -238,6 +238,11 @@ const pt = {
       'Este pagamento foi contestado no banco. Enquanto o banco analisa, o voucher fica suspenso. Se tiver dúvidas, fale com a gente.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devolvido pela mesma forma de pagamento.',
     reembolsadoTexto: 'O valor foi devolvido pela mesma forma de pagamento. Se tiver dúvidas, fale com a gente.',
+    // o reembolso que a Stripe não conseguiu devolver (raro: cartão cancelado, por exemplo; o de Pix também pode falhar):
+    // sem prazo, sem o motivo e sem falar em cartão. Depois que a equipe devolve de outro jeito, a última frase
+    reembolsoPendenteTitulo: 'Reembolso pendente',
+    reembolsoFalhou: 'Não conseguimos devolver {valor} pela mesma forma de pagamento. A nossa equipe vai entrar em contato com você.',
+    reembolsoOutroMeio: 'Como não deu para devolver pela mesma forma de pagamento, a nossa equipe devolveu {valor} de outro jeito.',
     // a desistência pelo próprio site (Decreto 7.962/2013, art. 5º, § 1º), num pedido pago antes do primeiro serviço
     desistirLink: 'Desistir da compra',
     desistirTexto:

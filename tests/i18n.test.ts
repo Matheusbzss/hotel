@@ -98,6 +98,9 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
     // o valor e a porcentagem vêm do código, já formatados: nunca um número escrito à mão
     assert.ok(d.checkout.pagar.includes('{valor}'), `${idioma} checkout.pagar`);
     assert.ok(d.pedido.reembolsadoParcial.includes('{valor}'), `${idioma} pedido.reembolsadoParcial`);
+    // o reembolso que falhou na Stripe (Pacote 4): o valor vem formatado do código, com os centavos
+    assert.ok(d.pedido.reembolsoFalhou.includes('{valor}'), `${idioma} pedido.reembolsoFalhou`);
+    assert.ok(d.pedido.reembolsoOutroMeio.includes('{valor}'), `${idioma} pedido.reembolsoOutroMeio`);
     assert.ok(d.pedido.recusadoPix.includes('{p}%'), `${idioma} pedido.recusadoPix`);
     const novos = [
       d.checkout.formaPagamento,
@@ -125,6 +128,10 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
       d.pedido.contestadoTexto,
       d.pedido.reembolsadoParcial,
       d.pedido.reembolsadoTexto,
+      // Pacote 4 (16/11): o reembolso que falhou na Stripe, na tela do cliente
+      d.pedido.reembolsoPendenteTitulo,
+      d.pedido.reembolsoFalhou,
+      d.pedido.reembolsoOutroMeio,
       d.status.contestado,
       d.carrinho.continuarPagamento,
       // Etapa 5: para que serve o e-mail do checkout e o aviso de quando o formulário da Stripe não carrega
@@ -149,5 +156,17 @@ test('a contestação vale para cartão e para Pix: o texto do cliente não fala
     const d = dicionario(idioma);
     for (const t of [d.pedido.contestadoTitulo, d.pedido.contestadoTexto, d.status.contestado])
       assert.doesNotMatch(t, /cart[ãa]o|tarjeta|card/i, `${idioma}: ${t}`);
+  }
+});
+
+test('o reembolso que falhou vale para cartão e para Pix: o texto do cliente não fala em cartão, nem promete prazo', () => {
+  for (const idioma of IDIOMAS) {
+    const d = dicionario(idioma);
+    for (const t of [d.pedido.reembolsoPendenteTitulo, d.pedido.reembolsoFalhou, d.pedido.reembolsoOutroMeio]) {
+      assert.ok(t.trim(), idioma);
+      assert.doesNotMatch(t, /cart[ãa]o|tarjeta|card/i, `${idioma}: ${t}`);
+      // nenhum prazo (o reembolso por outro meio depende da equipe e do cliente) e nenhum motivo da falha
+      assert.doesNotMatch(t, /\d|prazo|plazo|days?\b|d[ií]as?\b|vencid|cancelad|roubad|robad|stolen|expired/i, `${idioma}: ${t}`);
+    }
   }
 });

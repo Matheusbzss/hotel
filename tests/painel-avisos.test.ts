@@ -645,6 +645,125 @@ test('o valor do pedido: o que chegou ao cliente, a parte por outro meio e o que
   assert.deepEqual(devolucaoNoPainel(comVoucherPorFora), { reembolsado: `Reembolsado ${cifra(39600)} (${cifra(39600)} por outro meio)` });
 });
 
+test('o reembolso que falhou e, depois, uma contestação: a frase e a faixa do parado, sem "Falta devolver" nem "Registrar"; perdida fecha; ganha volta', () => {
+  // as linhas que o webhook grava de verdade para a contestação
+  const disputa = (status: 'needs_response' | 'lost' | 'won', centavos: number, id = 'du_depois') =>
+    leituraDaContestacao({ id, amount: centavos, status, reason: 'fraudulent' }).evento;
+  const parado = (centavos: number) =>
+    `O reembolso de ${cifra(centavos)} não foi concluído porque o cliente abriu uma contestação no banco. Não devolva por outro meio: o banco devolve pela contestação. Aceite ou responda a contestação no painel da Stripe.`;
+  const pendentes = (p: ReturnType<typeof umItem>) => {
+    const m = reembolsoNoPainel(p);
+    return m.tipo === 'falhou' ? m.pendentes.map((f) => f.id) : m.tipo;
+  };
+  /** A linha da falha no histórico do pedido continua destacada (pede a devolução por outro meio)? */
+  const destacada = (p: ReturnType<typeof umItem>) => {
+    const h = p.itens[0].historico;
+    return avisoAberto(
+      h,
+      h.findIndex((x) => x.evento.includes('falhou na Stripe')),
+    );
+  };
+
+  // O PEDIDO INTEIRO (um item, R$ 154,00): o reembolso total falhou; com a contestação, o pedido continua reembolsado
+  const total = historico(
+    'Pago (webhook da Stripe)',
+    `Reembolso total (${cifra(15400)}) confirmado pela Stripe`,
+    linhaDoReembolsoFalho(FALHO_TOTAL),
+  );
+  const inteiro = (...depois: string[]) =>
+    umItem({ status: 'reembolsado', reembolsoCentavos: 15400, historico: [...total, ...historico(...depois)] });
+  // sem contestação: devolver por outro meio (como antes)
+  assert.match(frasesDoReembolsoNoPainel(inteiro())[0], /Devolva por outro meio \(um Pix, por exemplo\)/);
+  // a falha e, depois, a contestação aberta: a frase do parado, a faixa dos parados, nenhum "Registrar", nenhum "Falta devolver"
+  const aberto = inteiro(disputa('needs_response', 15400));
+  assert.deepEqual(frasesDoReembolsoNoPainel(aberto), [parado(15400)]);
+  assert.deepEqual(pendentes(aberto), []);
+  assert.deepEqual(devolucaoNoPainel(aberto), { reembolsado: `Reembolsado ${cifra(15400)}` });
+  assert.deepEqual(contarReembolsosAResolver([aberto]), { falhos: 0, semVoucher: 0, parados: 1 });
+  assert.deepEqual(avisosDeReembolso(contarReembolsosAResolver([aberto])), [
+    '1 reembolso parado por contestação: aceitar ou responder no painel da Stripe',
+  ]);
+  assert.equal(reembolsoParaResolver(aberto), true);
+  assert.equal(destacada(aberto), false, 'a linha "devolver por outro meio" deixa de ser destacada');
+  // depois, perdida: o banco devolveu ao cliente; o aviso fecha sem nada a devolver
+  const perdido = inteiro(disputa('needs_response', 15400), disputa('lost', 15400));
+  assert.deepEqual(frasesDoReembolsoNoPainel(perdido), []);
+  assert.deepEqual(pendentes(perdido), []);
+  assert.deepEqual(devolucaoNoPainel(perdido), { reembolsado: `Reembolsado ${cifra(15400)}` });
+  assert.deepEqual(contarReembolsosAResolver([perdido]), { falhos: 0, semVoucher: 0, parados: 0 });
+  assert.equal(reembolsoParaResolver(perdido), false);
+  assert.equal(destacada(perdido), false);
+  // ou ganha: o dinheiro ficou com a empresa, e volta tudo do reembolso que falhou
+  const ganho = inteiro(disputa('needs_response', 15400), disputa('won', 15400));
+  assert.match(frasesDoReembolsoNoPainel(ganho)[0], /^O reembolso de R\$\s154,00 falhou na Stripe .+ Devolva por outro meio/);
+  assert.deepEqual(pendentes(ganho), ['re_total']);
+  assert.deepEqual(devolucaoNoPainel(ganho), { falta: `Falta devolver ${cifra(15400)}: o reembolso falhou na Stripe` });
+  assert.deepEqual(contarReembolsosAResolver([ganho]), { falhos: 1, semVoucher: 0, parados: 0 });
+  assert.equal(destacada(ganho), true);
+  // a contestação ANTES da falha não conta: devolver por outro meio
+  const antes = umItem({
+    status: 'reembolsado',
+    reembolsoCentavos: 15400,
+    historico: historico('Pago (webhook da Stripe)', disputa('needs_response', 15400, 'du_antes'), linhaDoReembolsoFalho(FALHO_TOTAL)),
+  });
+  assert.deepEqual(pendentes(antes), ['re_total']);
+  assert.deepEqual(contarReembolsosAResolver([antes]), { falhos: 1, semVoucher: 0, parados: 0 });
+
+  // UM VOUCHER (pedido de 2 itens, R$ 396,00): o reembolso do voucher ON-AAA234 falhou com o pedido pago; a contestação
+  // leva o pedido a contestado (a faixa das contestações), a perdida a reembolsado, a ganha de volta a pago
+  const doVoucher = historico('Pago (webhook da Stripe)', linhaDoReembolsoFalho(FALHO_DO_VOUCHER));
+  const voucherCom = (status: Reserva['status'], reembolsoCentavos: number, ...depois: string[]) =>
+    doisItens({ status, reembolsoCentavos, historico: [...doVoucher, ...historico(...depois)] }, ['reembolsado', undefined]);
+  const contestado = voucherCom('contestado', 24200, disputa('needs_response', 39600));
+  assert.deepEqual(reembolsoNoPainel(contestado), { tipo: 'contestado' });
+  assert.deepEqual(frasesDoReembolsoNoPainel(contestado), [parado(24200)]);
+  assert.deepEqual(devolucaoNoPainel(contestado), { reembolsado: `Reembolsado ${cifra(24200)}` });
+  assert.deepEqual(contarReembolsosAResolver([contestado]), { falhos: 0, semVoucher: 0, parados: 0 });
+  assert.equal(destacada(contestado), false);
+  const voucherPerdido = voucherCom('reembolsado', 39600, disputa('needs_response', 39600), disputa('lost', 39600));
+  assert.deepEqual(frasesDoReembolsoNoPainel(voucherPerdido), []);
+  assert.deepEqual(reembolsoNoPainel(voucherPerdido), {
+    tipo: 'falhou',
+    pendentes: [],
+    vouchersPagos: [],
+    restanteCentavos: 0,
+    semVoucher: [],
+  });
+  assert.deepEqual(devolucaoNoPainel(voucherPerdido), { reembolsado: `Reembolsado ${cifra(39600)}` });
+  assert.deepEqual(contarReembolsosAResolver([voucherPerdido]), { falhos: 0, semVoucher: 0, parados: 0 });
+  const voucherGanho = voucherCom('pago', 24200, disputa('needs_response', 39600), disputa('won', 39600));
+  assert.match(frasesDoReembolsoNoPainel(voucherGanho)[0], /^O reembolso de R\$\s242,00 do voucher ON-AAA234 falhou na Stripe/);
+  const ganhoNoPainel = reembolsoNoPainel(voucherGanho);
+  assert.equal(ganhoNoPainel.tipo, 'falhou');
+  if (ganhoNoPainel.tipo === 'falhou') {
+    assert.deepEqual(
+      ganhoNoPainel.pendentes.map((f) => f.id),
+      ['re_voucher'],
+    );
+    assert.deepEqual(
+      ganhoNoPainel.vouchersPagos.map((v) => v.codigo),
+      ['ON-BBB234'],
+    );
+  }
+  assert.deepEqual(devolucaoNoPainel(voucherGanho), { falta: `Falta devolver ${cifra(24200)}: o reembolso falhou na Stripe` });
+  assert.deepEqual(contarReembolsosAResolver([voucherGanho]), { falhos: 1, semVoucher: 0, parados: 0 });
+  // a contestação de antes da falha (já ganha) não conta
+  const voucherAntes = doisItens(
+    {
+      reembolsoCentavos: 24200,
+      historico: historico(
+        'Pago (webhook da Stripe)',
+        disputa('needs_response', 39600, 'du_antes'),
+        disputa('won', 39600, 'du_antes'),
+        linhaDoReembolsoFalho(FALHO_DO_VOUCHER),
+      ),
+    },
+    ['reembolsado', undefined],
+  );
+  assert.deepEqual(contarReembolsosAResolver([voucherAntes]), { falhos: 1, semVoucher: 0, parados: 0 });
+  assert.match(frasesDoReembolsoNoPainel(voucherAntes)[0], /Devolva por outro meio/);
+});
+
 test('os botões de devolver pedem a caixa "Confirmo" com o mesmo valor do botão; o voucher por fora nunca passa do que resta', () => {
   assert.equal(confirmacaoDoReembolso(15400), `Confirmo: devolver ${cifra(15400)} ao cliente. Não dá para desfazer.`);
   assert.equal(

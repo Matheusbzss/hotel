@@ -9,10 +9,12 @@ import { fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import type { ItemVisivel } from './carrinho';
 import { formasDoPagamento, valorACobrar, type FormaPagamento, type ItemCobravel, type ItemPagavel } from './formas-pagamento';
+import type { TextosDoReembolso } from './frases-do-reembolso';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { provedorDaReserva, valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
+import { partesDaPagina, type PartesDoReembolso } from './reembolsos-a-resolver';
 import { recusaParaOCliente, type ChaveRecusa } from './recusas';
 import { ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type StatusReserva } from './reservas';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
@@ -71,6 +73,13 @@ export interface ReservaPublica {
   apresentado?: { moeda: string; valorCentavos: number };
   /** Quanto já voltou para o cliente, em centavos (reembolso total ou de um item só). */
   reembolsoCentavos?: number;
+  /**
+   * Só quando um reembolso que falhou na Stripe (ou um voucher devolvido por outro meio) diz respeito a esta página e
+   * muda o que ela diz: o que voltou pela mesma forma de pagamento, o pendente e o devolvido por outro meio
+   * (partesDaPagina, src/lib/reembolsos-a-resolver.ts; no voucher de um pedido com vários itens, o daquele voucher e o
+   * do pedido inteiro). Só os três valores: nunca o id do reembolso nem o motivo da falha.
+   */
+  reembolsoPartes?: PartesDoReembolso;
 }
 
 /**
@@ -142,6 +151,18 @@ export function totaisDasFormas(itens: ItemCobravel[]): { cartaoCentavos: number
 
 /** O texto do pedido ou do voucher reembolsado por inteiro (a página do pedido e a da reserva). */
 export const textoReembolsado = (d: Dicionario): string => d.pedido.reembolsadoTexto;
+
+/**
+ * Os textos das frases do reembolso (frasesDoReembolso, src/lib/frases-do-reembolso.ts), nas chaves pedido.*: o de
+ * sempre, o parcial, o que a Stripe não conseguiu devolver e o que a equipe devolveu de outro jeito. A página do pedido
+ * e a da reserva usam os mesmos.
+ */
+export const textosDoReembolso = (d: Dicionario): TextosDoReembolso => ({
+  reembolsadoTexto: textoReembolsado(d),
+  reembolsadoParcial: d.pedido.reembolsadoParcial,
+  reembolsoFalhou: d.pedido.reembolsoFalhou,
+  reembolsoOutroMeio: d.pedido.reembolsoOutroMeio,
+});
 
 /**
  * Os textos da tela de pagar um pedido em aberto (página do pedido e da reserva), nas chaves checkout.*, pedido.* e recusa.*.
@@ -255,6 +276,8 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const d = dicionario(idioma);
   const status = statusDoVoucher(r);
   const emAberto = pagamentoEmAberto(status);
+  // o reembolso que falhou (ou já devolvido por outro meio) que diz respeito a esta página: só os três valores
+  const reembolsoPartes = partesDaPagina({ voucherDePedido: Boolean(r.pedido), codigo: r.codigo }, r.reembolsoCentavos ?? 0, r.historico);
   const pagamento = {
     status,
     // em aberto, os dois totais (a forma ainda não está fechada); pago no Pix, o cliente vê o que pagou, com o desconto
@@ -272,6 +295,7 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     recusa: recusaDoPedido(r.status, r.pagamento.motivoCodigo, r.pagamento.metodo),
     apresentado: r.pagamento.apresentado,
     reembolsoCentavos: r.reembolsoCentavos,
+    ...(reembolsoPartes ? { reembolsoPartes } : {}),
   };
   if (ehTransfer(r)) {
     const transfer = transferVisivel(r, idioma, d);

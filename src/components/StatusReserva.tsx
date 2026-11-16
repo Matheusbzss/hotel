@@ -5,6 +5,7 @@ import { fmt, type Idioma } from '@/i18n/config';
 import type { EstadoDesistencia } from '@/lib/desistencia';
 import { textoDolar } from '@/lib/dolar';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
+import { frasesDoReembolso, type TextosDoReembolso } from '@/lib/frases-do-reembolso';
 import { formatarCentavos } from '@/lib/orcamento';
 import { partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
@@ -156,6 +157,23 @@ export function StatusReserva({
     .replace('{total}', brl);
   const wa = (m: string) => `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(m)}`;
 
+  // quanto já voltou para o cliente; o número é do pedido inteiro (num pedido com vários itens, soma os reembolsos)
+  const reembolso = r.reembolsoCentavos ?? 0;
+  // o reembolso que falhou na Stripe e diz respeito a esta página (o servidor decide, partesDaPagina): o que voltou pela
+  // mesma forma de pagamento, o pendente e o que a equipe devolveu de outro jeito. Sem falha, tudo pela mesma forma: o
+  // texto de sempre
+  const partes = r.reembolsoPartes ?? { originalCentavos: reembolso, pendenteCentavos: 0, outroMeioCentavos: 0 };
+  const textosDoReembolso: TextosDoReembolso = {
+    reembolsadoTexto: textos.reembolsadoTexto,
+    reembolsadoParcial: textos.reembolsadoParcial,
+    reembolsoFalhou: textos.reembolsoFalhou,
+    reembolsoOutroMeio: textos.reembolsoOutroMeio,
+  };
+  const frasesDoReembolsoDaPagina = (inteiro: boolean) =>
+    frasesDoReembolso(partes, inteiro, textosDoReembolso, (centavos) => formatarCentavos(centavos, locale));
+  // o voucher reembolsado cujo dinheiro ainda não voltou: "Reembolso pendente" no lugar de "Reembolsado"
+  const reembolsoPendente = r.status === 'reembolsado' && partes.pendenteCentavos > 0;
+
   const Voucher = (
     <div className="tom-papel">
       <div className="px-6 pb-6 pt-6 md:px-8">
@@ -269,7 +287,7 @@ export function StatusReserva({
         </div>
       )}
       <div className="tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">
-        <span className="font-semibold">{statusTextos[r.status]}</span>
+        <span className="font-semibold">{reembolsoPendente ? textos.reembolsoPendenteTitulo : statusTextos[r.status]}</span>
         {/* o recorte esconde o "·" que cairia no começo de uma linha; a folga em cima, embaixo e à direita (com a
             margem negativa do mesmo tamanho, para a faixa não mudar de tamanho) evita que ele corte a ponta das
             letras; à esquerda não pode haver folga: é ali que o "·" se esconde */}
@@ -280,21 +298,22 @@ export function StatusReserva({
     </div>
   );
 
-  // quanto já voltou para o cliente; o número é do pedido inteiro (num pedido com vários itens, soma os reembolsos)
-  const reembolso = r.reembolsoCentavos ?? 0;
-
   if (r.status === 'pago') {
+    // pago, com uma parte devolvida (reembolso parcial feito no painel da Stripe): a frase diz quanto voltou; com um
+    // reembolso que falhou, quanto ainda não voltou ou voltou de outro jeito, uma frase por parágrafo. Sem falha, só no
+    // pedido de um item: com vários, o reembolso pode ser de outro voucher e quem conta é a página do pedido
+    const frasesDoPago = r.reembolsoPartes || !r.pedidoCodigo ? frasesDoReembolsoDaPagina(false) : [];
     return (
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <h1 className="display text-head">{textos.confirmadoTitulo}</h1>
           <p className="mt-4 max-w-[46ch] text-lead">{t ? textos.transferConfirmado : textos.confirmadoTexto}</p>
-          {/* pago, com uma parte devolvida (reembolso parcial feito no painel da Stripe): a frase diz quanto voltou.
-              Só no pedido de um item: com vários, o reembolso pode ser de outro voucher e quem conta é a página do pedido */}
-          {reembolso > 0 && !r.pedidoCodigo && (
-            <p className="mt-4 max-w-[46ch] bg-superficie px-5 py-4">
-              {fmt(textos.reembolsadoParcial, { valor: formatarCentavos(reembolso, locale) })}
-            </p>
+          {frasesDoPago.length > 0 && (
+            <div className="mt-4 max-w-[46ch] space-y-2 bg-superficie px-5 py-4">
+              {frasesDoPago.map((frase, n) => (
+                <p key={n}>{frase}</p>
+              ))}
+            </div>
           )}
           <div className="mt-8">{Voucher}</div>
         </div>
@@ -356,14 +375,16 @@ export function StatusReserva({
 
   // reembolso de uma parte só (feito no painel da Stripe): a frase diz quanto voltou
   const parcial = reembolso > 0 && reembolso < r.totalCentavos;
-  const mensagens: Record<string, { titulo: string; texto: string }> = {
+  const mensagens: Record<string, { titulo: string; texto: string | string[] }> = {
     pendente: { titulo: statusTextos.pendente, texto: textos.atualizaSozinho },
     recusado: { titulo: textos.recusadoTitulo, texto: textos.recusadoTexto },
     expirado: { titulo: textos.expiradoTitulo, texto: textos.expiradoTexto },
     cancelado: { titulo: textos.canceladoTitulo, texto: textos.canceladoTexto },
+    // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; depois que a
+    // equipe devolve de outro jeito, a frase diz isso. Uma frase por parágrafo; sem falha, a frase de sempre
     reembolsado: {
-      titulo: statusTextos.reembolsado,
-      texto: parcial ? fmt(textos.reembolsadoParcial, { valor: formatarCentavos(reembolso, locale) }) : textos.reembolsadoTexto,
+      titulo: reembolsoPendente ? textos.reembolsoPendenteTitulo : statusTextos.reembolsado,
+      texto: frasesDoReembolsoDaPagina(!parcial),
     },
     // texto neutro: a contestação é entre o cliente e o banco dele
     contestado: { titulo: textos.contestadoTitulo, texto: textos.contestadoTexto },
@@ -375,7 +396,11 @@ export function StatusReserva({
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-6">
         <h1 className="display text-head">{m.titulo}</h1>
-        <p className="mt-4 max-w-[44ch] text-lead">{m.texto}</p>
+        {[m.texto].flat().map((frase, n) => (
+          <p key={n} className="mt-4 max-w-[44ch] text-lead">
+            {frase}
+          </p>
+        ))}
         <div className="mt-8 flex flex-wrap gap-3">
           {r.status === 'aguardando_whatsapp' ? (
             // o caminho do WhatsApp (o pagamento combinado com a equipe): o botão é a própria forma de pagar

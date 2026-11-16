@@ -1,11 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eventoDoReembolsoFalho } from '../src/app/api/webhooks/stripe/eventos.ts';
+import { aplicarContestacao, eventoDoReembolsoFalho, leituraDaContestacao } from '../src/app/api/webhooks/stripe/eventos.ts';
 import { formatarCifra } from '../src/lib/cifra.ts';
 import { ehAviso } from '../src/lib/pedidos-painel.ts';
 import {
   DEVOLVIDO_POR_OUTRO_MEIO,
   avisoDeReembolsoFechado,
+  falhaADevolverPorOutroMeio,
+  falhasDaPagina,
   inicioDoReembolsoResolvido,
   linhaDaDevolucaoPorOutroMeio,
   linhaDaDevolucaoRepetidaQueFalhou,
@@ -15,6 +17,7 @@ import {
   linhaDoReembolsoSemVoucher,
   linhaDoVoucherDevolvidoPorOutroMeio,
   linhaDoVoucherLigado,
+  partesDaPagina,
   partesDoReembolso,
   reembolsosFalhos,
   reembolsosSemVoucher,
@@ -195,4 +198,203 @@ test('o reembolso feito direto na Stripe, sem voucher: vai e volta, e se resolve
   const falho = linhaDoReembolsoFalho({ id: 're_H', centavos: 15400, motivo: 'declined' });
   assert.deepEqual(reembolsosSemVoucher(linhas(falho)), []);
   assert.deepEqual(reembolsosFalhos(linhas(aviso)), []);
+});
+
+// O reembolso que falhou e, DEPOIS, uma contestação (achado da revisão do Pacote 3): o banco pode devolver pela
+// contestação, e a equipe devolvendo também por outro meio pagaria o cliente duas vezes. As linhas são as que o webhook
+// grava de verdade (leituraDaContestacao e, a de outro pagamento do mesmo pedido, aplicarContestacao).
+
+/** A linha que o webhook grava para a contestação relida na Stripe. */
+const contestacao = (status: string, id = 'du_teste', centavos = 15400) =>
+  leituraDaContestacao({ id, amount: centavos, status: status as never, reason: 'fraudulent' }).evento;
+
+/** A linha da contestação de OUTRO pagamento do mesmo pedido (duas abas), gravada por aplicarContestacao. */
+async function contestacaoDeOutroPagamento(status: string): Promise<string> {
+  const pedido = { codigo: 'ON-PED234', status: 'reembolsado', historico: [], reembolsoCentavos: 15400, paymentIntentId: 'pi_do_pedido' };
+  const gravadas: string[] = [];
+  await aplicarContestacao(
+    pedido.codigo,
+    { id: 'du_outro', amount: 15400, status: status as never, reason: 'fraudulent', payment_intent: 'pi_outro' },
+    15400,
+    {
+      lerPedido: async () => pedido as never,
+      acharSessao: async () => null,
+      aplicarPago: async () => false,
+      gravar: async (_codigo, alterar) => alterar(structuredClone(pedido) as never),
+      registrar: (r, evento) => {
+        gravadas.push(evento);
+        return r;
+      },
+    },
+  );
+  assert.equal(gravadas.length, 1);
+  return gravadas[0];
+}
+
+const DO_PEDIDO = { id: 're_inteiro', centavos: 15400, motivo: 'expired_or_canceled_card' };
+const DO_VOUCHER = { id: 're_voucher', centavos: 24200, voucher: 'ON-5F4U5U', motivo: 'expired_or_canceled_card' };
+
+test('a falha e, depois, a contestação: aberta suspende, perdida fecha, ganha volta a pedir; a anterior à falha não conta', () => {
+  const aberta = contestacao('needs_response');
+  const perdida = contestacao('lost');
+  const ganha = contestacao('won');
+  for (const falho of [DO_PEDIDO, DO_VOUCHER]) {
+    const linha = linhaDoReembolsoFalho(falho);
+    const ler = (...eventos: string[]) => reembolsosFalhos(linhas(...eventos))[0];
+    const aPedir = { ...falho, devolvido: false };
+    // sem contestação: a equipe devolve por outro meio
+    assert.deepEqual(ler(linha), aPedir);
+    assert.equal(falhaADevolverPorOutroMeio(ler(linha)), true);
+    // a falha e, depois, a contestação aberta: suspensa (não devolver por fora agora)
+    assert.deepEqual(ler(linha, aberta), { ...aPedir, contestacao: 'aberta' });
+    assert.equal(falhaADevolverPorOutroMeio(ler(linha, aberta)), false);
+    // depois, perdida: o banco devolveu ao cliente, nada mais a devolver
+    assert.deepEqual(ler(linha, aberta, perdida), { ...aPedir, contestacao: 'perdida' });
+    assert.equal(falhaADevolverPorOutroMeio(ler(linha, aberta, perdida)), false);
+    // ou ganha: o dinheiro ficou com a empresa, e a falha volta a pedir a devolução por outro meio
+    assert.deepEqual(ler(linha, aberta, ganha), aPedir);
+    assert.equal(falhaADevolverPorOutroMeio(ler(linha, aberta, ganha)), true);
+    // a contestação gravada ANTES da falha não conta, aberta, perdida ou ganha
+    for (const antes of [[aberta], [aberta, perdida], [aberta, ganha]]) assert.deepEqual(ler(...antes, linha), aPedir, antes.join(' | '));
+    // o painel deixa de destacar a linha da falha enquanto não se devolve por fora; ganha, volta a destacar
+    assert.equal(avisoDeReembolsoFechado(linhas(linha, aberta), 0), true);
+    assert.equal(avisoDeReembolsoFechado(linhas(linha, aberta, perdida), 0), true);
+    assert.equal(avisoDeReembolsoFechado(linhas(linha, aberta, ganha), 0), false);
+    assert.equal(avisoDeReembolsoFechado(linhas(aberta, linha), 1), false);
+  }
+});
+
+test('a contestação depois da falha: o pedido de informação, a evitada, o alerta encerrado, outra contestação e a de outro pagamento', async () => {
+  const linha = linhaDoReembolsoFalho(DO_PEDIDO);
+  const estado = (...eventos: string[]) => reembolsosFalhos(linhas(linha, ...eventos))[0].contestacao;
+  // o pedido de informação do banco e a contestação em análise também suspendem
+  assert.equal(estado(contestacao('warning_needs_response')), 'aberta');
+  assert.equal(estado(contestacao('needs_response'), contestacao('under_review')), 'aberta');
+  // evitada e o alerta encerrado sem disputa: o dinheiro ficou com a empresa (como a ganha)
+  assert.equal(estado(contestacao('needs_response'), contestacao('prevented')), undefined);
+  assert.equal(estado(contestacao('warning_needs_response'), contestacao('warning_closed')), undefined);
+  // o fim de OUTRA contestação não termina esta; uma nova depois da ganha suspende de novo
+  assert.equal(estado(contestacao('needs_response', 'du_A'), contestacao('won', 'du_B')), 'aberta');
+  assert.equal(estado(contestacao('needs_response', 'du_A'), contestacao('won', 'du_A'), contestacao('needs_response', 'du_B')), 'aberta');
+  // perdida vale sobre tudo: o banco devolveu ao cliente
+  assert.equal(
+    estado(contestacao('needs_response', 'du_A'), contestacao('lost', 'du_A'), contestacao('needs_response', 'du_B')),
+    'perdida',
+  );
+  // a perdida gravada depois da falha fecha mesmo se a contestação foi aberta antes (o banco devolveu depois da falha)
+  assert.equal(reembolsosFalhos(linhas(contestacao('needs_response'), linha, contestacao('lost')))[0].contestacao, 'perdida');
+  // a contestação de outro pagamento do mesmo pedido não devolve o dinheiro deste: não conta
+  const outraAberta = await contestacaoDeOutroPagamento('needs_response');
+  const outraPerdida = await contestacaoDeOutroPagamento('lost');
+  assert.match(outraAberta, /^Contestação aberta na Stripe \(du_outro\): .+ \(pagamento repetido pi_outro\)$/);
+  assert.match(outraPerdida, /^Contestação du_outro perdida: .+ \(pagamento repetido pi_outro\)$/);
+  assert.equal(estado(outraAberta), undefined);
+  assert.equal(estado(outraAberta, outraPerdida), undefined);
+  // a devolução já registrada pela equipe vale sobre a contestação que veio depois
+  const devolvido = reembolsosFalhos(linhas(linha, linhaDaDevolucaoPorOutroMeio(DO_PEDIDO), contestacao('needs_response')))[0];
+  assert.deepEqual(devolvido, { ...DO_PEDIDO, devolvido: true });
+  // a linha da contestação não é aviso de reembolso, nem é lida como falha
+  assert.equal(avisoDeReembolsoFechado(linhas(contestacao('needs_response')), 0), null);
+  assert.deepEqual(reembolsosFalhos(linhas(contestacao('needs_response'), contestacao('lost'))), []);
+});
+
+test('as partes com a contestação depois da falha: a equipe não devolve por fora; o cliente só deixa de ler pendente quando o banco devolveu', () => {
+  const linha = linhaDoReembolsoFalho(DO_PEDIDO);
+  const aberta = contestacao('needs_response');
+  const partes = (eventos: string[], leitor?: 'equipe' | 'cliente') =>
+    partesDoReembolso(15400, reembolsosFalhos(linhas(linha, ...eventos)), [], leitor);
+  // aberta: para a equipe, nada a devolver por fora agora (como no reembolso parado pela contestação); para o cliente,
+  // continua pendente (ele nunca lê que o dinheiro voltou quando não voltou)
+  assert.deepEqual(partes([aberta]), { originalCentavos: 15400, pendenteCentavos: 0, outroMeioCentavos: 0 });
+  assert.deepEqual(partes([aberta], 'equipe'), partes([aberta]));
+  assert.deepEqual(partes([aberta], 'cliente'), { originalCentavos: 0, pendenteCentavos: 15400, outroMeioCentavos: 0 });
+  // perdida: o banco devolveu ao cliente pela mesma forma de pagamento, para os dois
+  for (const leitor of ['equipe', 'cliente'] as const)
+    assert.deepEqual(partes([aberta, contestacao('lost')], leitor), { originalCentavos: 15400, pendenteCentavos: 0, outroMeioCentavos: 0 });
+  // ganha: pendente para os dois
+  for (const leitor of ['equipe', 'cliente'] as const)
+    assert.deepEqual(partes([aberta, contestacao('won')], leitor), { originalCentavos: 0, pendenteCentavos: 15400, outroMeioCentavos: 0 });
+  // sem contestação, os dois leem igual
+  assert.deepEqual(partes([], 'cliente'), partes([], 'equipe'));
+});
+
+test('falhasDaPagina: no voucher de um pedido com vários itens, o daquele voucher e o do pedido inteiro; no pedido, tudo', () => {
+  const doPedido = { id: 're_P', centavos: 39600, motivo: 'declined' };
+  const deA = { id: 're_A', centavos: 24200, voucher: 'ON-AAA234', motivo: 'declined' };
+  const deB = { id: 're_B', centavos: 15400, voucher: 'ON-BBB234', motivo: 'declined' };
+  const falhos = reembolsosFalhos(linhas(linhaDoReembolsoFalho(deA), linhaDoReembolsoFalho(doPedido), linhaDoReembolsoFalho(deB)));
+  const ids = (lista: { id: string }[]) => lista.map((f) => f.id);
+  // o voucher ON-AAA234 de um pedido com 2 itens: a falha dele e a do pedido inteiro entram; a do outro voucher, não
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: true, codigo: 'ON-AAA234' }, falhos)), ['re_A', 're_P']);
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: true, codigo: 'ON-BBB234' }, falhos)), ['re_P', 're_B']);
+  // a falha do pedido inteiro entra no voucher mesmo sozinha (a página aberta pelo "Ver o voucher" do e-mail)
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: true, codigo: 'ON-AAA234' }, falhos.slice(1, 2))), ['re_P']);
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: true, codigo: 'ON-CCC234' }, falhos)), ['re_P']);
+  // o pedido (ou o pedido de um item só): todas
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: false, codigo: 'ON-PED234' }, falhos)), ['re_A', 're_P', 're_B']);
+  assert.deepEqual(ids(falhasDaPagina({ voucherDePedido: false, codigo: 'ON-AAA234' }, falhos)), ['re_A', 're_P', 're_B']);
+  // os vouchers devolvidos por outro meio seguem a mesma regra (sempre têm voucher)
+  const porFora = [
+    { voucher: 'ON-AAA234', centavos: 24200 },
+    { voucher: 'ON-BBB234', centavos: 15400 },
+  ];
+  assert.deepEqual(falhasDaPagina({ voucherDePedido: true, codigo: 'ON-BBB234' }, porFora), [porFora[1]]);
+  assert.deepEqual(falhasDaPagina({ voucherDePedido: false, codigo: 'ON-PED234' }, porFora), porFora);
+});
+
+test('partesDaPagina: só quando muda o que o cliente lê, com os três valores; o voucher de um pedido com vários itens começa do zero', () => {
+  const voucherA = { voucherDePedido: true, codigo: 'ON-5F4U5U' };
+  const pedido = { voucherDePedido: false, codigo: 'ON-PED234' };
+  const falhou = linhaDoReembolsoFalho(DO_VOUCHER);
+  // sem falha: a página mostra o texto de sempre
+  assert.equal(
+    partesDaPagina(pedido, 15400, linhas('Pago (webhook da Stripe)', `Reembolso total (${cifra(15400)}) confirmado pela Stripe`)),
+    undefined,
+  );
+  // o pedido de R$ 396,00 com o voucher de R$ 242,00 que falhou: R$ 154,00 pela mesma forma e R$ 242,00 pendentes
+  assert.deepEqual(partesDaPagina(pedido, 39600, linhas(falhou)), {
+    originalCentavos: 15400,
+    pendenteCentavos: 24200,
+    outroMeioCentavos: 0,
+  });
+  // a página do voucher: só o dele, sem nada do valor do pedido
+  assert.deepEqual(partesDaPagina(voucherA, 39600, linhas(falhou)), { originalCentavos: 0, pendenteCentavos: 24200, outroMeioCentavos: 0 });
+  assert.equal(partesDaPagina({ voucherDePedido: true, codigo: 'ON-OUTRO1' }, 39600, linhas(falhou)), undefined);
+  // depois que a equipe devolveu por outro meio
+  const devolvido = linhas(falhou, linhaDaDevolucaoPorOutroMeio(DO_VOUCHER));
+  assert.deepEqual(partesDaPagina(voucherA, 24200, devolvido), { originalCentavos: 0, pendenteCentavos: 0, outroMeioCentavos: 24200 });
+  // o outro voucher devolvido por outro meio (depois da falha): na página dele, "de outro jeito"
+  const porFora = linhas(falhou, linhaDaDevolucaoPorOutroMeio(DO_VOUCHER), linhaDoVoucherDevolvidoPorOutroMeio('ON-J7W6WZ', 15400));
+  assert.deepEqual(partesDaPagina({ voucherDePedido: true, codigo: 'ON-J7W6WZ' }, 39600, porFora), {
+    originalCentavos: 0,
+    pendenteCentavos: 0,
+    outroMeioCentavos: 15400,
+  });
+  assert.deepEqual(partesDaPagina(pedido, 39600, porFora), { originalCentavos: 0, pendenteCentavos: 0, outroMeioCentavos: 39600 });
+  // só os três valores: nunca o id do reembolso nem o motivo
+  assert.deepEqual(Object.keys(partesDaPagina(pedido, 39600, linhas(falhou)) ?? {}).sort(), [
+    'originalCentavos',
+    'outroMeioCentavos',
+    'pendenteCentavos',
+  ]);
+});
+
+test('partesDaPagina com a contestação depois da falha: aberta, o cliente continua lendo "pendente"; perdida, o texto de sempre; ganha, pendente', () => {
+  const aberta = contestacao('needs_response');
+  for (const [falho, pagina, registrado] of [
+    [DO_PEDIDO, { voucherDePedido: false, codigo: 'ON-PED234' }, 15400],
+    [DO_VOUCHER, { voucherDePedido: true, codigo: 'ON-5F4U5U' }, 24200],
+  ] as const) {
+    const linha = linhaDoReembolsoFalho(falho);
+    const pendente = { originalCentavos: 0, pendenteCentavos: falho.centavos, outroMeioCentavos: 0 };
+    assert.deepEqual(partesDaPagina(pagina, registrado, linhas(linha)), pendente);
+    assert.deepEqual(partesDaPagina(pagina, registrado, linhas(linha, aberta)), pendente, 'aberta: continua pendente');
+    assert.equal(partesDaPagina(pagina, registrado, linhas(linha, aberta, contestacao('lost'))), undefined, 'perdida: o texto de sempre');
+    assert.deepEqual(partesDaPagina(pagina, registrado, linhas(linha, aberta, contestacao('won'))), pendente, 'ganha: pendente');
+    assert.deepEqual(
+      partesDaPagina(pagina, registrado, linhas(aberta, contestacao('lost'), linha)),
+      pendente,
+      'a anterior à falha não conta',
+    );
+  }
 });

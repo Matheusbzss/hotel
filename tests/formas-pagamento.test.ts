@@ -17,6 +17,7 @@ import {
   isFormaPagamento,
   limiteDoPixCentavos,
   modoPagamentoOnline,
+  mostrarPontoDeEncontro,
   mostrarWhatsApp,
   pagamentoOnlineNoAr,
   pixCabeNoLimite,
@@ -207,6 +208,23 @@ test('o WhatsApp da equipe só aparece depois do pagamento aprovado', () => {
     'contestado',
   ];
   assert.deepEqual(TODOS.filter(mostrarWhatsApp), ['pago']);
+});
+
+test('a linha do ponto de encontro some quando a reserva não vale mais: cancelada, reembolsada, contestada ou recusada', () => {
+  const TODOS: StatusReserva[] = [
+    'pendente',
+    'pago',
+    'recusado',
+    'cancelado',
+    'expirado',
+    'aguardando_whatsapp',
+    'reembolsado',
+    'contestado',
+  ];
+  // em pendente, vencida e finalizar no WhatsApp a reserva ainda pode valer, e a frase só diz como o ponto chega
+  assert.deepEqual(TODOS.filter(mostrarPontoDeEncontro), ['pendente', 'pago', 'expirado', 'aguardando_whatsapp']);
+  // o WhatsApp é mais estrito: onde ele aparece, o ponto de encontro também aparece
+  for (const s of TODOS.filter(mostrarWhatsApp)) assert.equal(mostrarPontoDeEncontro(s), true, s);
 });
 
 /** Um passeio com preço (fictício, só para as contas): o que as formas de pagamento recebem. */

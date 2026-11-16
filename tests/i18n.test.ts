@@ -145,6 +145,9 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
       d.pedido.reembolsoOutroMeio,
       d.status.contestado,
       d.carrinho.continuarPagamento,
+      // Pacote 7 (16/11): o carrinho que virou um pedido já pago leva ao pedido
+      d.carrinho.pedidoPago,
+      d.carrinho.verPedido,
       // Etapa 5: para que serve o e-mail do checkout e o aviso de quando o formulário da Stripe não carrega
       d.checkout.emailAjuda,
       d.checkout.emailPrivacidade,
@@ -182,6 +185,20 @@ test('Pacote 6: a frase da antecedência do transfer nos quatro idiomas, com o {
   }
   // sem verbo em tú nem em vos: o es-ar lê a frase do es (src/i18n/es-ar.ts não muda)
   assert.equal(dicionario('es-ar').transfer.erroAntecedencia, dicionario('es').transfer.erroAntecedencia);
+});
+
+test('Pacote 7: a passagem para o pedido pago nos quatro idiomas, com o {codigo} uma vez e igual no es e no es-ar', () => {
+  for (const idioma of IDIOMAS) {
+    const { pedidoPago, verPedido } = dicionario(idioma).carrinho;
+    // o código do pedido vem do código, uma vez só, nunca escrito à mão
+    assert.equal(pedidoPago.split('{codigo}').length, 2, `${idioma}: ${pedidoPago}`);
+    assert.doesNotMatch(pedidoPago, /ON-|\d/, `${idioma}: ${pedidoPago}`);
+    assert.doesNotMatch(fmt(pedidoPago, { codigo: 'ON-7K3P9Q' }), /[{}]/, idioma);
+    assert.ok(verPedido.trim(), idioma);
+  }
+  // sem verbo em tú nem em vos ("Tu pedido … ya está pagado."): o es-ar lê o es, e src/i18n/es-ar.ts não muda
+  for (const chave of ['pedidoPago', 'verPedido'] as const)
+    assert.equal(dicionario('es-ar').carrinho[chave], dicionario('es').carrinho[chave], chave);
 });
 
 test('o reembolso que falhou vale para cartão e para Pix: o texto do cliente não fala em cartão, nem promete prazo', () => {

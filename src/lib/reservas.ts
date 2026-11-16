@@ -7,7 +7,16 @@ import { supabase, usarBanco } from './banco';
 import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
 import type { Origem } from './origem';
 import { provedorDaReserva, quandoAcontece } from './pedidos-painel';
-import { copiarDoPedido, deLinhas, paraLinhas, type EventoHistorico, type LinhaItem, type LinhaPedido } from './reservas-banco';
+import {
+  codigoDoPedido,
+  copiarDoPedido,
+  deLinhas,
+  paraLinhas,
+  vouchersDoCodigo,
+  type EventoHistorico,
+  type LinhaItem,
+  type LinhaPedido,
+} from './reservas-banco';
 import type { CidadeHospedagem } from './validacao';
 import { mensagemDoErro } from './erros.ts';
 
@@ -184,14 +193,17 @@ interface Armazenamento {
 
 const caminhoBlob = (codigo: string) => `reservas/${codigo}.json`;
 
-/** Sem o banco, cada voucher é um arquivo à parte, e o pedido é o código que eles guardam. */
+/**
+ * Sem o banco, cada voucher é um arquivo à parte, e o pedido é o código que eles guardam: o do pedido do carrinho ou, num
+ * pedido de um item só, o do próprio voucher (vouchersDoCodigo, a mesma busca do banco por pedidos.codigo).
+ */
 const umArquivoPorVoucher = (a: Pick<Armazenamento, 'criar' | 'listar'>): Pick<Armazenamento, 'criarPedido' | 'lerPedido'> => ({
   async criarPedido(reservas) {
     for (const r of reservas) if (!(await a.criar(r))) return null;
-    return reservas[0].pedido?.codigo ?? reservas[0].codigo;
+    return codigoDoPedido(reservas[0]);
   },
   async lerPedido(codigo) {
-    return (await a.listar()).filter((r) => r.pedido?.codigo === codigo);
+    return vouchersDoCodigo(await a.listar(), codigo);
   },
 });
 
@@ -446,7 +458,10 @@ export async function criarPedido(itens: NovaReserva[]): Promise<{ id: string; c
   throw new Error('Não foi possível gerar um código de pedido único.');
 }
 
-/** Os vouchers de um pedido com vários itens, na ordem em que acontecem. Nenhum, se o pedido não existir. */
+/**
+ * Os vouchers de um pedido, na ordem em que acontecem (um só, num pedido de um item: o voucher é o pedido, nos arquivos
+ * como no banco). Nenhum, se o pedido não existir.
+ */
 export async function obterPedido(codigo: string): Promise<Reserva[]> {
   if (!codigoValido(codigo)) return [];
   return (await principal().lerPedido(codigo)).sort((a, b) => quandoAcontece(a).localeCompare(quandoAcontece(b)));

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copiarDoPedido, deLinhas, paraLinhas, type LinhasReserva } from '../src/lib/reservas-banco.ts';
+import { codigoDoPedido, copiarDoPedido, deLinhas, paraLinhas, vouchersDoCodigo, type LinhasReserva } from '../src/lib/reservas-banco.ts';
 import type { Reserva, ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
 
 // reservas fictícias, só para conferir a tradução (nenhuma é de cliente)
@@ -406,4 +406,36 @@ test('sem o banco, a cópia repetida não muda nada e a cópia atrasada não des
     comProprio.historico.map((h) => h.em),
     [CRIADO, '2026-11-03T10:01:00.000Z', proprio.em, '2026-11-03T11:30:00.000Z'],
   );
+});
+
+test('o pedido de um item só é achado pelo próprio código, nos arquivos como no banco', () => {
+  // o pedido de um item: o voucher é o pedido, sem o campo `pedido` (criarPedido só o grava com vários itens)
+  const umItem: ReservaPasseio = { ...PAGO_NA_STRIPE };
+  assert.equal('pedido' in umItem, false);
+  assert.equal(codigoDoPedido(umItem), umItem.codigo);
+  // nos arquivos: a busca pelo código do pedido acha o voucher (antes, "Reserva não encontrada" no /pedido/<código>)
+  assert.deepEqual(vouchersDoCodigo([umItem, TRANSFER], umItem.codigo), [umItem]);
+  // no banco: a linha do pedido é gravada com o mesmo código que a busca usa, e volta sem o campo `pedido` (a página do
+  // pedido leva então à da reserva)
+  const linhas = peloBanco(paraLinhas(umItem));
+  assert.equal(linhas.pedido.codigo, umItem.codigo);
+  assert.equal(linhas.item.voucher_codigo, umItem.codigo);
+  const devolta = deLinhas(linhas.pedido, linhas.item, linhas.historico);
+  assert.equal(devolta.codigo, umItem.codigo);
+  assert.equal('pedido' in devolta, false);
+  assert.deepEqual(devolta, umItem);
+
+  // um pedido do carrinho com dois itens: o código do pedido acha os dois; o código de um voucher não acha nenhum,
+  // como no banco (pedidos.codigo é o do pedido)
+  const pedido = { codigo: 'ON-PEDIDO', totalCentavos: 183100, totalPixCentavos: 164790 };
+  const a: Reserva = { ...PASSEIO, codigo: 'ON-VELA23', pedido };
+  const b: Reserva = { ...TRANSFER, codigo: 'ON-BARC45', pedido };
+  const lista = [a, umItem, b];
+  assert.deepEqual(vouchersDoCodigo(lista, 'ON-PEDIDO'), [a, b]);
+  assert.deepEqual(vouchersDoCodigo(lista, a.codigo), []);
+  assert.deepEqual(vouchersDoCodigo(lista, 'ON-NADA22'), []);
+  for (const r of [a, b]) assert.equal(codigoDoPedido(r), 'ON-PEDIDO');
+
+  // a mesma regra nas duas guardas: para cada voucher, o código com que o banco grava o pedido acha o voucher nos arquivos
+  for (const r of lista) assert.ok(vouchersDoCodigo(lista, paraLinhas(r).pedido.codigo).includes(r), r.codigo);
 });

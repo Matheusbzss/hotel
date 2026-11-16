@@ -54,6 +54,7 @@ export function StatusReserva({
   numeroWhatsApp,
   telefoneExibicao,
   whatsappLiberado,
+  encontroLiberado,
   contato,
   linkNovaReserva,
   urlPagina,
@@ -73,6 +74,11 @@ export function StatusReserva({
   telefoneExibicao: string;
   /** mostrarWhatsApp(status), decidido no servidor: o bloco do WhatsApp da equipe só aparece com ele. */
   whatsappLiberado: boolean;
+  /**
+   * mostrarPontoDeEncontro(status), decidido no servidor (como o WhatsApp): a linha do ponto de encontro só aparece
+   * enquanto a reserva ainda pode valer. Chega pronto: este componente do navegador não importa as regras do pagamento.
+   */
+  encontroLiberado: boolean;
   /** O e-mail da equipe, para os estados sem WhatsApp (cancelado, contestado, recusado…). */
   contato: { href: string; rotulo: string };
   linkNovaReserva: string;
@@ -86,10 +92,21 @@ export function StatusReserva({
   const router = useRouter();
   const online = pagamento !== undefined && (r.status === 'pendente' || r.status === 'expirado');
 
-  // Pagamento pendente fora do checkout embutido (ex.: pedido antigo): acompanha o status; mudou, o servidor redesenha
-  useStatusDoPedido(r.codigo, token, idioma, r.status === 'pendente' && !online, (lido) => {
-    if (lido.status !== r.status) router.refresh();
-  });
+  // Fora da tela de pagar (que acompanha sozinha), a página pergunta o status ao servidor; mudou, o servidor redesenha.
+  // Pendente fora do checkout embutido (ex.: pedido antigo): a cada 4 s e ao voltar para a aba. Nos outros estados (pago,
+  // contestado, reembolsado, cancelado, finalizar no WhatsApp…): só quando o cliente volta para a aba, porque o pedido
+  // pode ter mudado com ela aberta (reembolso, contestação, pago no painel). Redesenha só depois de uma leitura que
+  // mudou: sem rede, a pergunta falha em silêncio e o voucher continua na tela
+  useStatusDoPedido(
+    r.codigo,
+    token,
+    idioma,
+    !online,
+    (lido) => {
+      if (lido.status !== r.status) router.refresh();
+    },
+    r.status === 'pendente' ? 'sempre' : 'ao-voltar',
+  );
 
   // A compra é avisada à Meta e ao Google pelo servidor (src/lib/avisar-compra.ts e o arquivo diário do Google):
   // nesta página, que leva o token do cliente no endereço, as tags de anúncio não rodam (src/lib/pixel.ts).
@@ -256,7 +273,8 @@ export function StatusReserva({
                 {r.hotel} — {r.cidadeHospedagem}
               </dd>
             </div>
-            {r.horario && !r.horario.busca && (
+            {/* só enquanto a reserva ainda pode valer: nunca na cancelada, reembolsada, contestada ou recusada */}
+            {encontroLiberado && r.horario && !r.horario.busca && (
               <div className="col-span-2">
                 <dt className="text-small">{textos.encontro}</dt>
                 <dd className="font-bold">{textos.encontroTexto}</dd>
@@ -318,7 +336,10 @@ export function StatusReserva({
           <div className="mt-8">{Voucher}</div>
         </div>
         <div className="space-y-3 lg:col-span-5 lg:pt-32">
-          <a href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`} className="botao w-full" download>
+          {/* sem o atributo download: com ele, um voucher que deixou de valer com a página aberta viraria um arquivo
+              salvo com a página da reserva; sem ele, o PDF continua baixando (a rota manda attachment) e o voucher que
+              não vale abre a página da reserva no estado de verdade */}
+          <a href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`} className="botao w-full">
             {textos.baixarPdf}
           </a>
           <div className="mt-6 bg-superficie px-5 py-5">

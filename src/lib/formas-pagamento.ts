@@ -212,6 +212,16 @@ export function cartaoDisponivel(itens: ItemAgendado[], agora: Date = new Date()
 export const mostrarWhatsApp = (status: StatusReserva): boolean => status === 'pago';
 
 /**
+ * A linha do ponto de encontro do voucher ("a equipe envia pelo WhatsApp") só aparece enquanto a reserva ainda pode
+ * valer: some na cancelada, na reembolsada, na contestada (o voucher fica suspenso) e na recusada. Em pendente, vencida
+ * e "finalizar no WhatsApp" fica: a reserva ainda pode valer, e a frase só diz como o ponto chega. Decidida no servidor
+ * (a página da reserva, com o status do voucher) e passada pronta ao componente, como o WhatsApp: nenhum componente do
+ * navegador importa este arquivo por causa dela.
+ */
+export const mostrarPontoDeEncontro = (status: StatusReserva): boolean =>
+  status !== 'cancelado' && status !== 'reembolsado' && status !== 'contestado' && status !== 'recusado';
+
+/**
  * Por que o Pix não aparece, para a frase da tela: o prazo (o primeiro serviço começa em menos de 2 horas) ou o limite
  * de valor de um Pix.
  */

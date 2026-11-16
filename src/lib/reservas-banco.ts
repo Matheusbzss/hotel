@@ -28,6 +28,16 @@ export interface LinhasReserva {
 
 const json = (v: unknown) => v as Json;
 
+/** O código do pedido de um voucher: o do pedido do carrinho (vários itens) ou, num pedido de um item só, o do próprio voucher. */
+export const codigoDoPedido = (r: Pick<Reserva, 'codigo' | 'pedido'>): string => r.pedido?.codigo ?? r.codigo;
+
+/**
+ * Os vouchers de um pedido, pelo código do pedido, numa lista de reservas: a mesma busca que o banco faz por
+ * pedidos.codigo (a linha do pedido é gravada com codigoDoPedido). O pedido de um item só é achado pelo próprio código
+ * (o voucher é o pedido); o código de um voucher de um pedido com vários itens não acha nada, como no banco.
+ */
+export const vouchersDoCodigo = (reservas: Reserva[], codigo: string): Reserva[] => reservas.filter((r) => codigoDoPedido(r) === codigo);
+
 /**
  * O voucher acompanha o pedido quando ele é cancelado ou reembolsado; nos outros casos fica ativo. Um item
  * com status próprio (reembolsado sozinho, usado) guarda-o em `statusItem`, que passa por cima deste.
@@ -44,7 +54,7 @@ export function paraLinhas(
   const totalPedido = r.pedido?.totalCentavos ?? r.totalCentavos;
   const pedido: LinhaPedido = {
     id: ids.pedido,
-    codigo: r.pedido?.codigo ?? r.codigo,
+    codigo: codigoDoPedido(r),
     token: r.token,
     status: r.status,
     idioma: r.idioma,

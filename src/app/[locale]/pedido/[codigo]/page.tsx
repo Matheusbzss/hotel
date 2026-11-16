@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
 import { ComDolar, Pedaco, Pedacos } from '@/components/ComDolar';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
+import { AoVoltarParaAAba } from '@/components/pagamento/AoVoltarParaAAba';
 import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
 import { DesistirDaCompra } from '@/components/pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from '@/components/pagamento/EscolhaPagamento';
@@ -232,6 +233,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
             />
           ) : (
             <>
+              {/* fora da tela de pagar, a página confere o status quando o cliente volta para a aba (pelo primeiro
+                  voucher, comparado com o status dele como a consulta o devolve); mudou, o servidor redesenha */}
+              <AoVoltarParaAAba codigo={primeira.codigo} token={token} idioma={locale} status={itens[0].status} />
               <h1 className="display text-head">{titulo}</h1>
               {[texto].flat().map((frase, n) => (
                 <p key={n} className="mt-4 max-w-[44ch] text-lead">
@@ -310,10 +314,11 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                         >
                           {d.pedido.verVoucher}
                         </a>
+                        {/* sem o atributo download: o voucher que deixou de valer com a página aberta leva à página
+                            da reserva, que diz o estado; o pago continua baixando o PDF (a rota manda attachment) */}
                         <a
                           href={`/api/voucher/${r.codigo}?t=${encodeURIComponent(token)}`}
                           className="link inline-flex min-h-11 items-center font-semibold"
-                          download
                         >
                           {d.reserva.baixarPdf}
                         </a>

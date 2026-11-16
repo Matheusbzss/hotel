@@ -164,6 +164,10 @@ const es: Dicionario = {
     sugestaoVer: 'Ver el paseo',
     // o carrinho que já virou um pedido esperando o pagamento: o caminho de volta para ele
     continuarPagamento: 'Continuar con el pago del pedido',
+    // o carrinho que virou um pedido já pago (o Pix pago no app do banco e a aba recarregada): o caminho para o pedido.
+    // Sem verbo em tú nem em vos: o es-ar lê a mesma frase
+    pedidoPago: 'Tu pedido {codigo} ya está pagado.',
+    verPedido: 'Ver el pedido',
   },
   cotacao: {
     mensagem: 'Tu mensaje',

@@ -159,6 +159,9 @@ const en: Dicionario = {
     sugestaoVer: 'See the tour',
     // o carrinho que já virou um pedido esperando o pagamento: o caminho de volta para ele
     continuarPagamento: 'Continue paying for your order',
+    // o carrinho que virou um pedido já pago (o Pix pago no app do banco e a aba recarregada): o caminho para o pedido
+    pedidoPago: 'Your order {codigo} is already paid.',
+    verPedido: 'View your order',
   },
   cotacao: {
     mensagem: 'Your message',

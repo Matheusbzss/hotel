@@ -357,9 +357,11 @@ export function FormularioCarrinho({
       <div className="max-w-[44ch]">
         <p className="text-lead">{K.vazio}</p>
         {pedidoAberto ? (
-          <Link href={pedidoAberto.href} className="botao mt-6">
+          // um botão que carrega a página inteira, nunca um link do site: a página do pedido leva o token no endereço e
+          // nasce sem as tags de anúncio (src/lib/pixel.ts); sem pré-carga e sem o token num href desta página
+          <button type="button" className="botao mt-6" onClick={() => window.location.assign(pedidoAberto.href)}>
             {K.continuarPagamento}
-          </Link>
+          </button>
         ) : (
           <Link href={links.passeios} className="botao mt-6">
             {K.verPasseios}
@@ -536,9 +538,11 @@ export function FormularioCarrinho({
         {/* o carrinho já virou um pedido que espera o pagamento: o caminho de volta para ele, sem refazer nada */}
         {pedidoAberto && (
           <div className="tom-superficie px-5 py-4">
-            <Link href={pedidoAberto.href} className="botao botao-vazado w-full sm:w-auto">
+            {/* o mesmo botão que carrega a página inteira (o motivo está no carrinho vazio, mais acima); type="button"
+                para não enviar o formulário */}
+            <button type="button" className="botao botao-vazado w-full sm:w-auto" onClick={() => window.location.assign(pedidoAberto.href)}>
               {K.continuarPagamento}
-            </Link>
+            </button>
           </div>
         )}
         {/* no celular, o pedido vem antes dos dados; no computador, fica preso na coluna do lado */}

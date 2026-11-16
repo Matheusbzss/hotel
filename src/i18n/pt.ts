@@ -162,6 +162,9 @@ const pt = {
     sugestaoVer: 'Ver o passeio',
     // o carrinho que já virou um pedido esperando o pagamento: o caminho de volta para ele
     continuarPagamento: 'Continuar o pagamento do pedido',
+    // o carrinho que virou um pedido já pago (o Pix pago no app do banco e a aba recarregada): o caminho para o pedido
+    pedidoPago: 'Seu pedido {codigo} já está pago.',
+    verPedido: 'Ver o pedido',
   },
   cotacao: {
     mensagem: 'Sua mensagem',

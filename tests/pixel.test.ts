@@ -157,3 +157,93 @@ test('o carrinho e o checkout embutido abrem o pedido com a página inteira carr
   assert.match(carrinho, /window\.location\.assign\(`\$\{base\}\/\$\{corpo\.codigo\}\?t=/);
   assert.match(checkout, /window\.location\.assign\(urlVolta\)/);
 });
+
+test('"Continuar o pagamento do pedido" é um botão que carrega a página inteira, nunca um link do site', () => {
+  const carrinho = readFileSync(path.join('src', 'components', 'carrinho', 'FormularioCarrinho.tsx'), 'utf8');
+  // o <Link> entrava na página particular pela navegação interna, com pré-carga e com o token num href do checkout
+  assert.doesNotMatch(carrinho, /<Link\s+href=\{pedidoAberto\.href\}/);
+  assert.doesNotMatch(carrinho, /href=\{pedidoAberto/);
+  // os dois lugares: o carrinho vazio com o pedido em aberto e a faixa em cima do formulário
+  assert.equal(carrinho.match(/onClick=\{\(\) => window\.location\.assign\(pedidoAberto\.href\)\}/g)?.length, 2);
+  for (const m of carrinho.matchAll(/onClick=\{\(\) => window\.location\.assign\(pedidoAberto\.href\)\}/g)) {
+    // um <button type="button"> (dentro do formulário, sem o type ele enviaria o formulário)
+    const tag = carrinho.slice(carrinho.lastIndexOf('<', m.index), m.index);
+    assert.match(tag, /^<button\s+type="button"/, tag);
+  }
+});
+
+test('o checkout de um carrinho que virou pedido pago segue para o pedido com a página inteira carregando', () => {
+  const pedidoPago = readFileSync(path.join('src', 'components', 'carrinho', 'PedidoPago.tsx'), 'utf8');
+  const pagina = readFileSync(path.join('src', 'app', '[locale]', 'checkout', 'page.tsx'), 'utf8');
+  // sozinha (replace: o "voltar" não cai de novo na passagem) e pelo botão, por garantia: sempre uma carga inteira
+  assert.match(pedidoPago, /window\.location\.replace\(href\)/);
+  assert.match(pedidoPago, /onClick=\{\(\) => window\.location\.assign\(href\)\}/);
+  assert.doesNotMatch(pedidoPago, /from 'next\/link'|from 'next\/navigation'|<Link\b|useRouter|router\./);
+  assert.doesNotMatch(pedidoPago, /href=\{/);
+  // a tela de passagem tem a cara do "carrinho vazio", já medida de 320 a 1440 px e com a letra grande: a mesma largura,
+  // a mesma letra e o mesmo botão; só o código do pedido não quebra no hífen (é curto: cabe em 320 px com a letra em 150%)
+  const vazio = readFileSync(path.join('src', 'components', 'carrinho', 'FormularioCarrinho.tsx'), 'utf8');
+  assert.match(vazio, /<div className="max-w-\[44ch\]">\s+<p className="text-lead">\{K\.vazio\}<\/p>/);
+  assert.match(pedidoPago, /<div className="max-w-\[44ch\]">\s+<p className="text-lead" role="status">/);
+  assert.match(pedidoPago, /<span className="numeros whitespace-nowrap">\{codigo\}<\/span>/);
+  assert.match(pedidoPago, /<button type="button" className="botao mt-6" onClick=/);
+  assert.equal(pedidoPago.match(/whitespace-nowrap|min-w-|(?<![\w-])w-\[\d/g)?.length, 1);
+  // a página do checkout desenha a passagem no lugar do formulário e nunca redireciona pelo servidor (com o checkout
+  // aberto por um link do site, o redirecionamento viraria navegação interna para dentro da página particular)
+  assert.match(
+    pagina,
+    /\{pedidoPago \? \([\s\S]*?<PedidoPago href=\{pedidoPago\.href\} codigo=\{pedidoPago\.codigo\}[\s\S]*?\) : \(\s+<FormularioCarrinho/,
+  );
+  assert.doesNotMatch(pagina, /\bredirect\(|permanentRedirect\(/);
+});
+
+/**
+ * As aberturas de <Link …> de um arquivo (o elemento pode ocupar várias linhas), até o ">" que fecha a abertura,
+ * pulando o que está entre chaves (um href={…} pode ter "=>" dentro), e o valor do href de cada uma.
+ */
+function linksDoSite(fonte: string): { tag: string; href: string }[] {
+  return [...fonte.matchAll(/<Link(?=[\s>])/g)].map((m) => {
+    let chaves = 0;
+    let fim = fonte.length;
+    for (let i = m.index; i < fonte.length; i++) {
+      if (fonte[i] === '{') chaves++;
+      else if (fonte[i] === '}') chaves--;
+      else if (fonte[i] === '>' && chaves === 0) {
+        fim = i + 1;
+        break;
+      }
+    }
+    const tag = fonte.slice(m.index, fim);
+    const inicio = tag.search(/\shref=/);
+    if (inicio === -1) return { tag, href: '' };
+    const resto = tag.slice(inicio + 6);
+    if (resto[0] !== '{') return { tag, href: resto.slice(0, resto.indexOf(resto[0], 1) + 1) };
+    let nivel = 0;
+    for (let i = 0; i < resto.length; i++) {
+      if (resto[i] === '{') nivel++;
+      else if (resto[i] === '}' && --nivel === 0) return { tag, href: resto.slice(0, i + 1) };
+    }
+    return { tag, href: resto };
+  });
+}
+
+test('nenhum <Link> fora das páginas particulares leva ao pedido, ao voucher ou a um endereço com o token', () => {
+  // o <Link> é a navegação interna do site (com pré-carga): de uma página com as tags de anúncio, ele entraria na página
+  // particular com elas no documento e poria o endereço com o token num href da tela. As páginas do pedido e da reserva
+  // já nasceram sem as tags (o "← Voltar ao pedido" da reserva fica entre elas)
+  const PARTICULAR = /pedidoAberto|pedidoPago|linkDoPedido|urlVolta|urlPagina|token|\?t=/;
+  const fora = (f: string) => !/^src\/app\/\[locale\]\/(pedido|reserva)\//.test(f.split(path.sep).join('/'));
+  const todos = arquivos('src')
+    .filter((f) => f.endsWith('.tsx') && fora(f))
+    .flatMap((f) => linksDoSite(readFileSync(f, 'utf8')).map((l) => ({ onde: f, ...l })));
+  // a leitura acha os links de verdade (o site tem dezenas), com o href inteiro, mesmo com "=>" ou chaves dentro
+  assert.ok(todos.length > 20, String(todos.length));
+  assert.ok(todos.every((l) => l.href.length > 0 && l.tag.endsWith('>')));
+  const culpados = todos.filter((l) => PARTICULAR.test(l.href)).map((l) => `${l.onde}: ${l.tag.replace(/\s+/g, ' ')}`);
+  assert.deepEqual(culpados, []);
+  // a leitura pega o caso que o teste existe para barrar, em várias linhas
+  const exemplo = linksDoSite('<Link\n  href={pedidoAberto.href}\n  className="botao"\n>\n  Continuar\n</Link>');
+  assert.equal(exemplo.length, 1);
+  assert.ok(PARTICULAR.test(exemplo[0].href));
+  assert.equal(linksDoSite('<Link href={rota(locale, `/x/${a.map((b) => b).join()}`)} className="y">').at(0)?.href.endsWith(')}'), true);
+});

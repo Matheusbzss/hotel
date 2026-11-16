@@ -247,7 +247,10 @@ export function textosDaDesistencia(d: Dicionario): TextosDesistencia {
  * online que valem agora para estes itens (o interruptor PAGAMENTO_ONLINE, a Stripe e o prazo de cada forma: o
  * Pix até 2 h antes do primeiro serviço e dentro do limite de valor de um Pix, o cartão até 30 minutos antes; vazio = o
  * caminho do WhatsApp de hoje), o motivo de o Pix ficar de fora e, se o carrinho já virou um pedido que ainda espera
- * o pagamento (pendente ou expirado), o link privado dele para "continuar o pagamento".
+ * o pagamento (pendente ou expirado), o link privado dele para "continuar o pagamento". Se o carrinho virou um pedido
+ * PAGO (o cliente pagou o Pix no app do banco e a aba recarregou), `pedidoPago`: o checkout leva ao pedido, em vez de
+ * dizer que o carrinho está vazio. Só nesta carga: o cookie do carrinho que virou pedido fechado some logo depois
+ * (GET /api/carrinho). Reembolsado, contestado e cancelado continuam como antes.
  */
 export async function pagamentoDoCheckout(
   idioma: Idioma,
@@ -255,7 +258,7 @@ export async function pagamentoDoCheckout(
   pedido: { codigo: string; token: string; status: StatusReserva } | undefined,
   admin: boolean,
   agora: Date = new Date(),
-): Promise<{ pagamentoOnline?: PagamentoOnlineCarrinho; pedidoAberto?: { href: string } }> {
+): Promise<{ pagamentoOnline?: PagamentoOnlineCarrinho; pedidoAberto?: { href: string }; pedidoPago?: { codigo: string; href: string } }> {
   // qualquer falha aqui deixa o checkout no caminho do WhatsApp, que sempre funciona
   const { formas, semPix } = itens.length
     ? await formasDoPagamento(itensPagaveisDoCarrinho(itens), agora, { admin }).catch((e) => {
@@ -264,11 +267,13 @@ export async function pagamentoDoCheckout(
       })
     : { formas: [], semPix: undefined };
   const aberto = pedido !== undefined && (pedido.status === 'pendente' || pedido.status === 'expirado');
+  const pago = pedido !== undefined && pedido.status === 'pago';
   return {
     ...(formas.length
       ? { pagamentoOnline: { formas, ...(semPix ? { semPix } : {}), textos: textosDoPagamentoOnline(dicionario(idioma)) } }
       : {}),
     ...(aberto ? { pedidoAberto: { href: linkDoPedido(idioma, pedido.codigo, pedido.token) } } : {}),
+    ...(pago ? { pedidoPago: { codigo: pedido.codigo, href: linkDoPedido(idioma, pedido.codigo, pedido.token) } } : {}),
   };
 }
 

@@ -11,7 +11,7 @@ import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { estadoDaDesistencia } from '@/lib/desistencia';
 import { linkEmail } from '@/lib/email';
-import { formasDoPagamento, mostrarWhatsApp } from '@/lib/formas-pagamento';
+import { formasDoPagamento, mostrarPontoDeEncontro, mostrarWhatsApp } from '@/lib/formas-pagamento';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import {
   itensPagaveis,
@@ -112,6 +112,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         numeroWhatsApp={EMPRESA.whatsapp}
         telefoneExibicao={EMPRESA.telefoneExibicao}
         whatsappLiberado={mostrarWhatsApp(publica.status)}
+        // a linha do ponto de encontro, decidida aqui no servidor: some na reserva que não vale mais
+        encontroLiberado={mostrarPontoDeEncontro(publica.status)}
         contato={contato}
         linkNovaReserva={rota(locale, publica.tipo === 'transfer' ? '/transfer' : `/passeios/${publica.passeioSlug}`)}
         urlPagina={urlPagina}

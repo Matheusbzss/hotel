@@ -106,6 +106,14 @@ test('a caixa com a peça da Stripe depende só de semStripe, nunca do prazo: o 
   const caixa = caixaAteAPeca();
   // entre a condição da caixa e a peça da Stripe, nenhuma outra condição e nada do prazo
   assert.doesNotMatch(caixa.slice('{!semStripe && ('.length), /&&|\?|\|\||demorou|semFormulario/);
+  // desde a caixa do Pix no celular (Pacote 10, opção B), o que fica entre as duas são o cartão e, dentro dele, a régua e
+  // as duas caixas da escala, nesta ordem e sem condição nenhuma. O caixaRef continua no cartão, o de fora: o vigia do
+  // prazo olha o cartão inteiro e acha o quadro da Stripe dentro da caixa que encolhe
+  assert.equal(caixa.match(/<div\b/g)?.length, 4);
+  assert.deepEqual(
+    [...caixa.matchAll(/<div\b[^>]*?\sref=\{(\w+)\}/g)].map((m) => m[1]),
+    ['caixaRef', 'reguaRef', 'foraRef', 'dentroRef'],
+  );
   // e dentro da peça (a chave dela e o formulário que ela envolve): nada do prazo, nenhuma condição. Uma chave ou um
   // formulário que dependesse do aviso remontaria a peça da Stripe como o desenho reprovado
   const { caixa: caixaToda } = blocos();
@@ -127,6 +135,23 @@ test('a caixa com a peça da Stripe depende só de semStripe, nunca do prazo: o 
   assert.deepEqual(usos, ['const [demorou, setDemorou] = useState(false);', 'const semFormulario = semStripe || demorou;']);
   // a caixa nunca se esconde (nunca display: none): a peça da Stripe precisa dela na tela para o formulário que chega atrasado
   assert.doesNotMatch(caixa, /className="[^"]*(?<![\w-])hidden(?![\w-])[^"]*"|display/);
+});
+
+test('a escala do celular (Pacote 10) não depende do aviso do prazo e nunca tira da tela nem monta de novo a peça da Stripe', () => {
+  const vigia = componente.indexOf('new ResizeObserver(');
+  assert.notEqual(vigia, -1, 'o vigia de tamanho da escala');
+  const inicio = componente.lastIndexOf('useEffect(() => {', vigia);
+  const deps = '}, [formaAtual, semStripe]);';
+  const fim = componente.indexOf(deps, vigia);
+  assert.notEqual(inicio, -1);
+  assert.notEqual(fim, -1);
+  const efeito = componente.slice(inicio, fim + deps.length);
+  // um efeito à parte do prazo: nada do aviso (demorou, semFormulario), nem o cartão que o vigia do prazo olha
+  assert.notEqual(inicio, componente.lastIndexOf('useEffect(() => {', componente.indexOf('new MutationObserver(')));
+  assert.doesNotMatch(efeito, /demorou|semFormulario|caixaRef|MutationObserver/);
+  // nenhum estado do React muda ali (nenhum set…(): só estilo nas duas caixas), então a escala nunca é o motivo de a peça
+  // da Stripe sair da tela ou ser montada de novo
+  assert.doesNotMatch(efeito, /(?<![\w.])set[A-Z]\w*\(/);
 });
 
 test('o primeiro efeito fica como era: o aviso no lugar da caixa só quando o Stripe.js resolve sem a Stripe', () => {

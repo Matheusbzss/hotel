@@ -10,7 +10,7 @@ Primeira versão em 2026-10-31 (Boletim do mar). Ajustada pelo dono em 2026-11-0
 
 **Interação.** Rápido e preciso: toque em 120 ms, estado e números em 200 ms, entrada em 360 ms, tudo em cubic-bezier(0.2, 0, 0, 1). A foto do topo se move de leve com a inclinação do celular, o mouse e a rolagem. Os cartões inclinam até 6 graus seguindo o dedo ou o mouse e sobem um pouco; no celular deslizam para o lado com encaixe. O mapa 3D tem relevo real: arrastar inclina, tocar numa cidade aproxima a câmera, mostra as praias e a foto da cidade. Proibido: elástico, parallax em todas as seções, animação no checkout além da barra de progresso e do sucesso, urgência e contadores falsos. Com "reduzir movimento", nada se move e o mapa fica plano.
 
-**Padrões permitidos:** vidro fosco estilo iPhone (pedido do dono) no menu, na barra de reserva e nas etiquetas sobre fotos; foto em tela cheia no topo com movimento suave; inclinação 3D dos cartões; cor da duração como etiqueta; números grandes tabulares; barra de reserva fixa no celular.
+**Padrões permitidos:** vidro fosco estilo iPhone (pedido do dono) no menu, na barra de reserva e nas etiquetas sobre fotos; foto em tela cheia no topo com movimento suave; inclinação 3D dos cartões; cor da duração como etiqueta; números grandes tabulares; barra de reserva fixa no celular; o quadro do pagamento (o formulário da Stripe) de ponta a ponta no celular, sem a margem da página e sem os cantos, e encolhido só o necessário quando nem assim cabe (escolha do dono em 16/11, opção B; abaixo de 640 px; no computador, o cartão de sempre).
 
 ## Marca
 

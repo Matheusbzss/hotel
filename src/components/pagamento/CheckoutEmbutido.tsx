@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
+import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import type { StatusReserva } from '@/lib/reservas';
@@ -237,6 +238,11 @@ export function CheckoutEmbutido({
   const semStripeRef = useRef<HTMLParagraphElement>(null);
   // a caixa do formulário: é dentro dela que o prazo procura o quadro da Stripe
   const caixaRef = useRef<HTMLDivElement>(null);
+  // dentro da caixa, a régua (mede a largura que o formulário tem) e as duas caixas em volta da peça da Stripe: a de fora
+  // fica no fluxo da página; a de dentro é a que encolhe quando a Stripe não cabe (o efeito da escala, mais abaixo)
+  const reguaRef = useRef<HTMLDivElement>(null);
+  const foraRef = useRef<HTMLDivElement>(null);
+  const dentroRef = useRef<HTMLDivElement>(null);
   // o aviso "o formulário não carregou" aparece pelos dois motivos; a caixa só sai pelo primeiro (semStripe)
   const semFormulario = semStripe || demorou;
 
@@ -281,6 +287,49 @@ export function CheckoutEmbutido({
       olho.disconnect();
     };
   }, [stripe, segredo, semStripe]);
+
+  // A Stripe não deixa o formulário ficar mais estreito que LARGURA_MINIMA_STRIPE (a caixa do Pix antes do QR pede 412 px, e
+  // um celular comum tem 390; o cartão pede até 322): sem isto, a direita do formulário ficava escondida (T1, T2 e pix#3 do
+  // teste de 15/11). Quando a largura que sobra (medida pela régua, um bloco vazio sem altura, com getBoundingClientRect:
+  // há celulares com largura fracionária) é menor, o quadro é desenhado com a largura que a Stripe pede e encolhido até
+  // caber (transform), e a caixa de fora fica com a altura do quadro encolhido. O quadro encolhido sai do fluxo (absolute),
+  // para a largura fixa dele nunca empurrar a coluna da página. O vigia acompanha a largura (girar o celular) e a altura do
+  // formulário (a Stripe muda a altura sozinha). Ele só mexe no estilo destas duas caixas: a margem do celular vem das
+  // classes do cartão, nunca daqui, senão o navegador avisa "ResizeObserver loop". Nenhum estado muda aqui: a escala nunca
+  // monta de novo nem tira da tela a peça da Stripe. A folha do QR do Pix é outro quadro da Stripe, preso à página, e não
+  // encolhe. Recomeça com a forma (o Pix depois do cartão recusado pede outra largura) e com a caixa que volta depois do
+  // script barrado (semStripe)
+  useEffect(() => {
+    const regua = reguaRef.current;
+    const fora = foraRef.current;
+    const dentro = dentroRef.current;
+    if (semStripe || !regua || !fora || !dentro || typeof ResizeObserver === 'undefined') return;
+    const minima = LARGURA_MINIMA_STRIPE[formaAtual];
+    const soltar = () => {
+      for (const p of ['position', 'left', 'top', 'width', 'transform', 'transform-origin']) dentro.style.removeProperty(p);
+      for (const p of ['height', 'overflow']) fora.style.removeProperty(p);
+    };
+    const acertar = () => {
+      const escala = escalaDoQuadro(regua.getBoundingClientRect().width, minima);
+      if (escala === 1) return soltar();
+      dentro.style.position = 'absolute';
+      dentro.style.left = '0';
+      dentro.style.top = '0';
+      dentro.style.width = `${minima}px`;
+      dentro.style.transformOrigin = '0 0';
+      dentro.style.transform = `scale(${escala})`;
+      fora.style.overflow = 'hidden';
+      fora.style.height = `${dentro.offsetHeight * escala}px`;
+    };
+    const vigia = new ResizeObserver(acertar);
+    vigia.observe(regua);
+    vigia.observe(dentro);
+    acertar();
+    return () => {
+      vigia.disconnect();
+      soltar();
+    };
+  }, [formaAtual, semStripe]);
 
   // o aviso (e o erro de pagar com Pix) recebem o foco: o botão que o cliente tocou sumiu ou ficou desligado, e sem
   // isso o próximo Tab recomeçaria do topo da página. O foco também traz o aviso para a vista. O aviso do prazo recebe o
@@ -394,19 +443,31 @@ export function CheckoutEmbutido({
         </div>
       )}
       {!semStripe && (
-        // a Stripe desenha sem margem: o respiro fica aqui; enquanto troca de sessão, o quadro fica esmaecido. A caixa só sai
-        // com o script barrado, nunca pelo prazo: desmontada, a peça da Stripe deixaria um formulário fantasma
+        // a Stripe desenha sem margem: o respiro fica aqui. No celular (abaixo do sm, 40rem: 640 px com a letra padrão do
+        // navegador), o cartão branco vai de ponta a ponta da tela (-mx-(--margem) devolve a margem da página), sem cantos e
+        // sem respiro dos lados: a Stripe já desenha o respiro dela por dentro, e cada pixel conta (a caixa do Pix pede 412).
+        // Do sm para cima, como sempre. Enquanto troca de sessão, o quadro fica esmaecido. A caixa só sai com o script
+        // barrado, nunca pelo prazo: desmontada, a peça da Stripe deixaria um formulário fantasma
         <div
           ref={caixaRef}
-          className="rounded-cartao bg-(--color-papel) p-3 transition-opacity duration-200 aria-busy:opacity-50 sm:p-5"
+          className="-mx-(--margem) bg-(--color-papel) py-3 transition-opacity duration-200 aria-busy:opacity-50 sm:mx-0 sm:rounded-cartao sm:p-5"
           aria-busy={trocando}
         >
-          {/* a chave troca com a sessão: o formulário da Stripe é montado de novo com o client_secret novo. A altura
-              guardada enquanto ele carrega é em px: o que a Stripe desenha não cresce com a letra do celular (em rem, com a
-              letra em 150%, sobrava um vão branco de 147 px embaixo do formulário). Com a letra normal, 448 px = 28rem */}
-          <EmbeddedCheckoutProvider key={segredo} stripe={stripe} options={{ clientSecret: segredo, onComplete: irParaOPedido }}>
-            <EmbeddedCheckout className="min-h-[448px]" />
-          </EmbeddedCheckoutProvider>
+          {/* a régua: um bloco vazio, sem altura, que mede a largura que o formulário tem */}
+          <div ref={reguaRef} aria-hidden="true" />
+          {/* a caixa de fora fica no fluxo; a de dentro é a que encolhe quando a Stripe não cabe (o efeito da escala). As
+              três não têm condição nenhuma: a peça da Stripe continua montada como sempre */}
+          <div ref={foraRef} className="relative">
+            <div ref={dentroRef}>
+              {/* a chave troca com a sessão: o formulário da Stripe é montado de novo com o client_secret novo. A altura
+                  guardada enquanto ele carrega é em px: o que a Stripe desenha não cresce com a letra do celular (em rem, com
+                  a letra em 150%, sobrava um vão branco de 147 px embaixo do formulário). Com a letra normal, 448 px = 28rem.
+                  Dentro da caixa que encolhe, a altura guardada encolhe junto com o formulário */}
+              <EmbeddedCheckoutProvider key={segredo} stripe={stripe} options={{ clientSecret: segredo, onComplete: irParaOPedido }}>
+                <EmbeddedCheckout className="min-h-[448px]" />
+              </EmbeddedCheckoutProvider>
+            </div>
+          </div>
         </div>
       )}
     </div>

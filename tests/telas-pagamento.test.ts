@@ -123,4 +123,83 @@ test('o formulário da Stripe guarda 448 px de altura, em px: com a letra grande
   assert.match(checkout, /<EmbeddedCheckout className="min-h-\[448px\]" \/>/);
   assert.doesNotMatch(checkout, /min-h-\[28rem\]/);
   assert.doesNotMatch(checkout, /min-h-\[[\d.]+rem\]/);
+  // desde a caixa do Pix no celular (Pacote 10, opção B): a altura guardada continua no próprio formulário, dentro da caixa
+  // que encolhe, e encolhe junto com ele no celular pequeno. É a única altura mínima do componente: na caixa de fora (a
+  // altura dela é a do quadro encolhido, escrita pelo efeito da escala) ou no cartão, sobraria branco embaixo do formulário
+  assert.match(checkout, /<div ref=\{dentroRef\}>\s*<EmbeddedCheckoutProvider\b[^>]*>\s*<EmbeddedCheckout className="min-h-\[448px\]" \/>/);
+  assert.equal(checkout.match(/(?<![\w-])min-h-/g)?.length, 1);
+});
+
+/** O efeito da escala do CheckoutEmbutido: do useEffect que cria o vigia de tamanho até as dependências dele. */
+function efeitoDaEscala(): string {
+  const vigia = checkout.indexOf('new ResizeObserver(');
+  assert.notEqual(vigia, -1, 'o vigia de tamanho (ResizeObserver)');
+  const inicio = checkout.lastIndexOf('useEffect(() => {', vigia);
+  const deps = '}, [formaAtual, semStripe]);';
+  const fim = checkout.indexOf(deps, vigia);
+  assert.notEqual(inicio, -1);
+  assert.notEqual(fim, -1, 'a escala recomeça com a forma (o Pix pede outra largura) e com a caixa que volta (semStripe)');
+  return checkout.slice(inicio, fim + deps.length);
+}
+
+test('a caixa do Pix (e do cartão) no celular: de ponta a ponta abaixo do sm e, quando nem assim cabe, encolhida só o necessário', () => {
+  // Pacote 10 (16/11; T1, T2, pix#3 e telas#2 do teste de 15/11; o dono escolheu a opção B). A Stripe não deixa o
+  // formulário mais estreito que 412 px na caixa do Pix antes do QR (322 no cartão), e a margem da página mais o respiro
+  // do cartão deixavam 333 px num celular de 390 (306 com a letra em 150%): a direita do formulário ficava escondida.
+  // O cartão do formulário: no celular, de ponta a ponta (a margem da página devolvida), sem cantos e sem respiro dos lados;
+  // do sm para cima, como era (sem margem negativa, cantos de 8 px e respiro de 20 px)
+  const cartao = classesDe(checkout, /<div\s+ref=\{caixaRef\}\s+className="([^"]*)"/, 'o cartão do formulário');
+  for (const c of ['-mx-(--margem)', 'bg-(--color-papel)', 'py-3', 'sm:mx-0', 'sm:rounded-cartao', 'sm:p-5'])
+    assert.ok(cartao.includes(c), `${c}: ${cartao.join(' ')}`);
+  for (const c of cartao) assert.doesNotMatch(c, /^(rounded|p|px|ps|pe|pl|pr|m|mx|ms|me|ml|mr)-/, `no celular: ${cartao.join(' ')}`);
+
+  // dentro do cartão: a régua (um bloco vazio, sem altura), irmã da caixa de fora; a caixa que encolhe é filha da de fora
+  // e envolve a peça da Stripe. A régua mais rasa que a caixa que encolhe é o que evita o aviso "ResizeObserver loop"
+  // (seção 6.1 do desenho das telas); nenhuma das três tem condição
+  assert.match(
+    checkout,
+    /\sref=\{caixaRef\}[^>]*>\s*<div ref=\{reguaRef\} aria-hidden="true" \/>\s*<div ref=\{foraRef\} className="relative">\s*<div ref=\{dentroRef\}>\s*<EmbeddedCheckoutProvider\b[^>]*>\s*<EmbeddedCheckout\b[^>]*\/>\s*<\/EmbeddedCheckoutProvider>\s*<\/div>\s*<\/div>\s*<\/div>/,
+  );
+  assert.match(checkout, /^import \{ escalaDoQuadro, LARGURA_MINIMA_STRIPE \} from '@\/lib\/quadro-stripe';$/m);
+
+  const efeito = efeitoDaEscala();
+  assert.equal(checkout.match(/new ResizeObserver\(/g)?.length, 1);
+  // sem a caixa (o script barrado), nada; a largura que a Stripe pede é a da forma do momento
+  assert.match(efeito, /if \(semStripe \|\| !regua \|\| !fora \|\| !dentro \|\| typeof ResizeObserver === 'undefined'\) return;/);
+  assert.match(efeito, /const minima = LARGURA_MINIMA_STRIPE\[formaAtual\];/);
+  // a régua medida sem arredondar (há celulares com largura fracionária, como 411,43 px)
+  assert.match(efeito, /const escala = escalaDoQuadro\(regua\.getBoundingClientRect\(\)\.width, minima\);/);
+  assert.doesNotMatch(efeito, /clientWidth|offsetWidth/);
+  // cabendo, nenhum estilo fica; encolhido, o quadro tem a largura que a Stripe pede, sai do fluxo e encolhe a partir do
+  // canto, e a caixa de fora fica com a altura do quadro encolhido
+  assert.match(efeito, /if \(escala === 1\) return soltar\(\);/);
+  assert.match(efeito, /dentro\.style\.position = 'absolute';/);
+  assert.match(efeito, /dentro\.style\.width = `\$\{minima\}px`;/);
+  assert.match(efeito, /dentro\.style\.transformOrigin = '0 0';/);
+  assert.match(efeito, /dentro\.style\.transform = `scale\(\$\{escala\}\)`;/);
+  assert.match(efeito, /fora\.style\.overflow = 'hidden';/);
+  assert.match(efeito, /fora\.style\.height = `\$\{dentro\.offsetHeight \* escala\}px`;/);
+  // o vigia segue a régua (a largura: girar o celular) e a caixa que encolhe (a Stripe muda a altura do formulário)
+  assert.match(
+    efeito,
+    /const vigia = new ResizeObserver\(acertar\);\s*vigia\.observe\(regua\);\s*vigia\.observe\(dentro\);\s*acertar\(\);/,
+  );
+  // ao sair (outra forma, o script barrado, a página fechada): o vigia para e os estilos saem. Recomeça com a forma (o Pix
+  // depois do cartão recusado pede 412) e com semStripe (a caixa que volta depois do "Tentar de novo")
+  assert.match(efeito, /return \(\) => \{\s*vigia\.disconnect\(\);\s*soltar\(\);\s*\};\s*\}, \[formaAtual, semStripe\]\);$/);
+
+  // o vigia só escreve no estilo das duas caixas, e soltar() tira tudo o que acertar() põe (nada sobra ao desligar)
+  const kebab = (nome: string) => nome.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`);
+  assert.deepEqual([...new Set([...efeito.matchAll(/\b(\w+)\.style\b/g)].map((m) => m[1]))].sort(), ['dentro', 'fora']);
+  for (const caixa of ['dentro', 'fora']) {
+    const postos = [...efeito.matchAll(new RegExp(`\\b${caixa}\\.style\\.(\\w+) =`, 'g'))].map((m) => kebab(m[1])).sort();
+    const tirados = efeito.match(new RegExp(`for \\(const p of \\[([^\\]]*)\\]\\) ${caixa}\\.style\\.removeProperty\\(p\\);`));
+    assert.ok(tirados, `soltar(): ${caixa}`);
+    assert.deepEqual([...tirados[1].matchAll(/'([\w-]+)'/g)].map((m) => m[1]).sort(), postos, caixa);
+  }
+  // fora do efeito, nenhum estilo escrito por JavaScript no componente
+  assert.equal(checkout.match(/\.style\b/g)?.length, efeito.match(/\.style\b/g)?.length);
+  // e nenhuma margem ou respiro escrito por JavaScript: a margem do celular vem das classes do cartão. Posta pelo vigia, ela
+  // mudaria a largura da régua dentro do próprio vigia, e o navegador avisaria "ResizeObserver loop"
+  assert.doesNotMatch(checkout, /style\.(margin|padding)|marginInline|paddingInline|setProperty\(\s*['"`](margin|padding)/);
 });

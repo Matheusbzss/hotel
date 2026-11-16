@@ -134,6 +134,24 @@ export function paraLinhas(
 /** O banco devolve as datas como "2026-11-03 10:00:00+00"; o site usa "2026-11-03T10:00:00.000Z". */
 const iso = (t: string) => new Date(t).toISOString();
 
+/**
+ * O histórico relido do banco, sem a linha repetida (a mesma hora em milésimos e o mesmo texto). atualizar_item grava
+ * a linha com a hora do banco, em microssegundos; o site relê em milésimos, e o atualizar_reserva seguinte, sem achar
+ * no banco uma linha com a mesma hora exata, grava a mesma linha outra vez. No banco ficam as duas; aqui, uma.
+ */
+function historicoSemRepetidas(historico: EventoHistorico[]): EventoHistorico[] {
+  const vistas = new Set<string>();
+  return historico
+    .map(({ em, evento }) => ({ em: iso(em), evento }))
+    .filter((h) => {
+      const chave = `${h.em} ${h.evento}`;
+      if (vistas.has(chave)) return false;
+      vistas.add(chave);
+      return true;
+    })
+    .sort((a, b) => a.em.localeCompare(b.em));
+}
+
 /** Linhas do banco → reserva. As reservas de passeio antigas, sem "tipo", voltam com tipo "passeio". */
 export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistorico[]): Reserva {
   // o voucher com código próprio é um dos itens de um pedido do carrinho
@@ -170,7 +188,7 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
     ...(Object.keys(origem).length ? { origem } : {}),
     ...(p.observacoes !== null ? { observacoes: p.observacoes } : {}),
     pagamento,
-    historico: historico.map(({ em, evento }) => ({ em: iso(em), evento })).sort((a, b) => a.em.localeCompare(b.em)),
+    historico: historicoSemRepetidas(historico),
   };
   const cliente = {
     nome: p.cliente_nome,

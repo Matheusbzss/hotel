@@ -251,6 +251,34 @@ test('o voucher acompanha o pedido: cancelado e reembolsado valem para o item; o
   assert.equal(paraLinhas(TRANSFER).item.voucher_codigo, TRANSFER.codigo);
 });
 
+test('a linha que atualizar_item grava (hora do banco, em microssegundos) e a mesma regravada em milésimos aparece uma vez', () => {
+  const l = peloBanco(paraLinhas(PAGO_NA_STRIPE));
+  const item = 'Item ON-TESTE5 reembolsado (R$ 231,00) pela Stripe (re_1)';
+  const historico = [
+    ...l.historico,
+    // gravada por atualizar_item, com now() do banco
+    { em: '2026-11-03 12:00:00.123456+00', evento: item },
+    // a mesma, gravada de novo pelo atualizar_reserva seguinte (o site tinha relido a hora em milésimos)
+    { em: '2026-11-03T12:00:00.123+00:00', evento: item },
+    // outra linha na mesma hora e a mesma linha em outra hora: continuam
+    { em: '2026-11-03 12:00:00.123+00', evento: 'Outra linha na mesma hora' },
+    { em: '2026-11-03 12:00:01.123+00', evento: item },
+  ];
+  const lida = deLinhas(l.pedido, l.item, historico);
+  assert.deepEqual(
+    lida.historico.filter((h) => h.evento === item).map((h) => h.em),
+    ['2026-11-03T12:00:00.123Z', '2026-11-03T12:00:01.123Z'],
+  );
+  assert.ok(lida.historico.some((h) => h.evento === 'Outra linha na mesma hora' && h.em === '2026-11-03T12:00:00.123Z'));
+  assert.equal(lida.historico.length, PAGO_NA_STRIPE.historico.length + 3);
+  // na ordem do tempo, e a ida e volta de sempre continua igual
+  assert.deepEqual(
+    lida.historico.map((h) => h.em),
+    [...lida.historico.map((h) => h.em)].sort(),
+  );
+  assert.deepEqual(deLinhas(l.pedido, l.item, l.historico), PAGO_NA_STRIPE);
+});
+
 // sem o banco (um arquivo por voucher), o que é do pedido passa do voucher gravado para os outros: copiarDoPedido
 
 const PEDIDO = { codigo: 'ON-PEDIDO', totalCentavos: 183100, totalPixCentavos: 164790 };

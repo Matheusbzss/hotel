@@ -6,28 +6,34 @@ import {
   concluirEventoStripe,
   esquecerEventoStripe,
   interpretarSessao,
-  podeMudar,
   registrarEventoStripe,
   registrarRecusa,
   type EntregaDoEvento,
 } from '@/lib/pagamento-stripe';
 import { liberarBloqueiosDaSessao } from '@/lib/pedido-carrinho';
 import { atualizarItem, atualizarReserva, obterReservaDoPedido, registrar, type Reserva } from '@/lib/reservas';
-import { construirEvento, criarReembolso, expirarSessao, obterSessao, stripe } from '@/lib/stripe';
+import { construirEvento, criarReembolso, expirarSessao, obterSessao, sessaoDoPagamento, stripe } from '@/lib/stripe';
 import { vouchersDoPedido } from '../../pedido/pedido-stripe';
 import {
+  REFERENCIA_DEVOLUCAO,
   alvoDoEvento,
+  aplicarContestacao,
+  avisosDeReembolsoSemVoucher,
   codigoDaMetadata,
+  efeitoDoReembolsoDoSite,
   ehTipoTratado,
   eventoDoItemReembolsado,
   eventoDoReembolsoFalho,
   idDe,
+  itensParaMarcar,
   leituraDaContestacao,
+  mudancaDoReembolso,
   pagamentoParaDevolver,
   planoDoReembolso,
   resumoDoEvento,
   sessaoDoPedido,
   type AlvoDoEvento,
+  type EfeitoDoReembolso,
 } from './eventos';
 
 export const runtime = 'nodejs';
@@ -59,12 +65,15 @@ export const maxDuration = 60;
 const cifra = (centavos: number) => formatarCifra(centavos, 'pt-BR');
 const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const PIX_GERADO = 'Pix gerado: aguardando o pagamento';
-/** A referência (e a chave de idempotência) da devolução de um pagamento que o pedido não pode ficar. */
-const REFERENCIA_DEVOLUCAO = 'pagamento-repetido';
 
 interface Resultado {
   codigo: string | null;
   resultado: string;
+}
+
+/** O que sessaoMudou devolve: o resultado e, para a contestação que chega antes do aviso de pago, se a sessão é do pedido e está paga. */
+interface ResultadoDaSessao extends Resultado {
+  pagaDoPedido: boolean;
 }
 
 export async function POST(request: Request) {
@@ -116,8 +125,11 @@ async function processar(evento: Stripe.Event, alvo: AlvoDoEvento): Promise<Resu
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded':
     case 'checkout.session.async_payment_failed':
-    case 'checkout.session.expired':
-      return sessaoMudou(alvo);
+    case 'checkout.session.expired': {
+      // na resposta, só o código e o resultado
+      const { codigo, resultado } = await sessaoMudou(alvo);
+      return { codigo, resultado };
+    }
     case 'payment_intent.payment_failed':
       return pagamentoFalhou(evento.data.object);
     case 'charge.refunded':
@@ -172,24 +184,29 @@ async function devolverPagamento(pedido: Reserva, pi: string, motivo: string): P
  * com o QR na tela até o pagamento) e o vencido como payment_intent.payment_failed (pagamentoFalhou); os dois
  * async_payment_* continuam assinados, mas nunca chegaram no teste de 15/11 (a Stripe dá o Pix como de confirmação
  * imediata). Um pagamento que o pedido não pode ficar (segunda aba, pedido cancelado ou já devolvido) volta ao
- * cliente; pago por uma sessão anterior, a sessão corrente ainda aberta é fechada.
+ * cliente; pago por uma sessão anterior, a sessão corrente ainda aberta é fechada. Também é por aqui que a contestação
+ * que chega antes do aviso de pago põe o pedido em dia (contestacao, logo abaixo): `pagaDoPedido` diz se a sessão é a
+ * que o site criou para o pedido e a Stripe a dá como paga.
  */
-async function sessaoMudou(alvo: AlvoDoEvento): Promise<Resultado> {
+async function sessaoMudou(alvo: AlvoDoEvento): Promise<ResultadoDaSessao> {
   const { codigo } = alvo;
-  if (!codigo) return { codigo, resultado: 'sessão sem o código do pedido' };
+  if (!codigo) return { codigo, resultado: 'sessão sem o código do pedido', pagaDoPedido: false };
   const antes = await obterReservaDoPedido(codigo);
-  if (!antes) return { codigo, resultado: 'pedido não encontrado' };
+  if (!antes) return { codigo, resultado: 'pedido não encontrado', pagaDoPedido: false };
   const sessao = await obterSessao(alvo.id);
   // só a sessão que o site criou para este pedido muda o pedido (S-01): a de um link de pagamento da conta, com o
   // código do pedido posto no endereço por quem pagou, não confirma nada e não é devolvida sozinha
   if (!sessaoDoPedido(sessao, antes.pedido?.codigo ?? antes.codigo)) {
-    return { codigo, resultado: 'sessão que o site não criou: ignorada' };
+    return { codigo, resultado: 'sessão que o site não criou: ignorada', pagaDoPedido: false };
   }
   const { reserva, leitura, virouPago, pagamentoRepetido } = await aplicarSessao(codigo, sessao, 'webhook');
-  if (!reserva) return { codigo, resultado: 'pedido não encontrado' };
+  if (!reserva) return { codigo, resultado: 'pedido não encontrado', pagaDoPedido: false };
+  const pagaDoPedido = leitura.status === 'pago';
 
   const devolver = pagamentoRepetido ?? pagamentoParaDevolver(antes, reserva, leitura);
-  if (devolver) return { codigo, resultado: await devolverPagamento(reserva, devolver, motivoDaDevolucao(reserva.status)) };
+  if (devolver) {
+    return { codigo, resultado: await devolverPagamento(reserva, devolver, motivoDaDevolucao(reserva.status)), pagaDoPedido };
+  }
 
   if (virouPago && antes.pagamentoExternoId && antes.pagamentoExternoId !== sessao.id) {
     // o cliente pagou numa sessão anterior (duas abas, o QR de um Pix já gerado): a corrente, ainda aberta, fecha
@@ -207,7 +224,7 @@ async function sessaoMudou(alvo: AlvoDoEvento): Promise<Resultado> {
       console.error(`[webhook stripe] falha ao liberar as datas de ${codigo}: ${mensagem(e)}`),
     );
   }
-  return { codigo, resultado: `${leitura.status}${virouPago ? ' (virou pago agora)' : ''}` };
+  return { codigo, resultado: `${leitura.status}${virouPago ? ' (virou pago agora)' : ''}`, pagaDoPedido };
 }
 
 /**
@@ -247,7 +264,9 @@ async function pagamentoFalhou(pi: Stripe.PaymentIntent): Promise<Resultado> {
  * Cobrança reembolsada (pelo nosso painel ou pelo da Stripe): relê a cobrança e os reembolsos dela. Total → o
  * pedido vira reembolsado; parcial → cada voucher reembolsado sozinho é marcado (atualizar_item) e o pedido guarda
  * quanto já voltou. O reembolso que a Stripe ainda não concluiu conta desde já (reembolsoEmVigor): ela só avisa de
- * novo se ele falhar (refund.failed). A devolução de um pagamento repetido só entra no histórico.
+ * novo se ele falhar (refund.failed). A devolução de um pagamento repetido só entra no histórico. O reembolso de parte
+ * de um pedido com vários itens feito direto na Stripe (sem a referência de um voucher) não muda voucher nenhum: fica
+ * o aviso para a equipe dizer de qual voucher foi (avisosDeReembolsoSemVoucher), um por reembolso, uma vez.
  */
 async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> {
   const codigo = codigoDaMetadata(cobranca.metadata) ?? (await codigoDoPagamento(cobranca.payment_intent));
@@ -267,27 +286,27 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
     alvo.reembolsoCentavos ?? 0,
   );
   if (plano.evento) {
-    const { evento } = plano;
     await atualizarReserva(alvo.codigo, (r) => {
-      if (!plano.doPedido) return r.historico.some((h) => h.evento === evento) ? null : registrar(r, evento);
-      const jaTinha = r.reembolsoCentavos ?? 0;
-      const viraReembolsado = plano.total && podeMudar(r.status, 'reembolsado');
-      // a mesma leitura chegando de novo (dois eventos para o mesmo reembolso): nada novo
-      if (jaTinha >= plano.reembolsadoCentavos && !viraReembolsado) return null;
-      r.reembolsoCentavos = Math.max(jaTinha, plano.reembolsadoCentavos);
-      if (viraReembolsado) r.status = 'reembolsado';
-      return registrar(r, evento);
+      const m = mudancaDoReembolso(r, plano);
+      if (!m) return null;
+      if (m.reembolsoCentavos !== undefined) r.reembolsoCentavos = m.reembolsoCentavos;
+      if (m.status) r.status = m.status;
+      return registrar(r, m.evento);
     });
   }
   if (!plano.doPedido) return { codigo, resultado: 'devolução de um pagamento repetido registrada' };
-  if (!plano.total) {
-    // reembolso de um item só: o voucher muda; os outros continuam valendo
-    for (const item of plano.itens) {
-      const voucher = vouchers.find((v) => v.codigo === item.voucher);
-      if (voucher && voucher.statusItem !== 'reembolsado') {
-        await atualizarItem(item.voucher, 'reembolsado', eventoDoItemReembolsado(item));
-      }
-    }
+  // reembolso de um item só: o voucher muda; os outros continuam valendo
+  for (const item of itensParaMarcar(plano, vouchers)) {
+    await atualizarItem(item.voucher, 'reembolsado', eventoDoItemReembolsado(item));
+  }
+  // reembolso de parte feito direto na Stripe num pedido com vários itens: o aviso, com a conferência dentro da trava
+  if (avisosDeReembolsoSemVoucher(alvo, plano, vouchers.length).length) {
+    await atualizarReserva(alvo.codigo, (r) => {
+      const faltam = avisosDeReembolsoSemVoucher(r, plano, vouchers.length);
+      if (!faltam.length) return null;
+      for (const linha of faltam) registrar(r, linha);
+      return r;
+    });
   }
   return {
     codigo,
@@ -295,37 +314,72 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
   };
 }
 
-/** O reembolso falhou (cartão cancelado, conta encerrada): aviso no histórico, para a equipe devolver por outro meio. */
+/**
+ * O reembolso falhou (cartão cancelado, conta encerrada): relê o reembolso e grava a linha certa, uma vez
+ * (eventoDoReembolsoFalho): devolver por outro meio; a contestação aberta com o reembolso a caminho (aí o banco devolve
+ * pela contestação, e a linha diz para não devolver por fora); ou a devolução de um pagamento repetido, que não é
+ * dinheiro do pedido. Se o reembolso é um que o site pediu e o aviso dele (charge.refunded) ainda não foi tratado, o
+ * que ele faria com o reembolso ainda valendo entra agora (efeitoDoReembolsoDoSite, com a cobrança relida), na mesma
+ * gravação: o pedido termina igual em qualquer ordem dos dois avisos. O voucher reembolsado não volta a valer; o valor
+ * que falhou continua contado no reembolso do pedido.
+ */
 async function reembolsoFalhou(reembolso: Stripe.Refund): Promise<Resultado> {
   const codigo = codigoDaMetadata(reembolso.metadata) ?? (await codigoDoPagamento(reembolso.payment_intent));
   if (!codigo) return { codigo, resultado: 'reembolso sem o código do pedido' };
   const alvo = await obterReservaDoPedido(codigo);
   if (!alvo) return { codigo, resultado: 'pedido não encontrado' };
-  const evento = eventoDoReembolsoFalho(await stripe().refunds.retrieve(reembolso.id));
+  const [atual, vouchers] = await Promise.all([stripe().refunds.retrieve(reembolso.id), vouchersDoPedido(codigo)]);
+  const evento = eventoDoReembolsoFalho(atual, alvo.paymentIntentId);
   if (!evento) return { codigo, resultado: 'o reembolso não está falho na Stripe: ignorado' };
-  await atualizarReserva(alvo.codigo, (r) => (r.historico.some((h) => h.evento === evento) ? null : registrar(r, evento)));
-  return { codigo, resultado: 'aviso de reembolso falho registrado' };
+  // a cobrança relida uma vez, já sabendo que o reembolso falhou: é dela que o efeito tira o que o charge.refunded
+  // teria aplicado; sem a cobrança, nenhum efeito, só a linha
+  const idDaCobranca = idDe(atual.charge);
+  const cobranca = idDaCobranca ? await stripe().charges.retrieve(idDaCobranca) : null;
+  // num objeto, e não numa variável solta, para o TypeScript não achar que o valor nunca muda (ele muda lá dentro)
+  const lido: { efeito?: EfeitoDoReembolso | null } = {};
+  await atualizarReserva(alvo.codigo, (r) => {
+    // atualizarReserva pode chamar isto mais de uma vez (outra gravação no meio): vale a leitura da vez que gravou
+    const efeito = cobranca ? efeitoDoReembolsoDoSite(r, vouchers, atual, cobranca) : null;
+    lido.efeito = efeito;
+    const anotado = r.historico.some((h) => h.evento === evento);
+    if (!efeito?.pedido && anotado) return null;
+    if (efeito?.pedido) {
+      r.reembolsoCentavos = efeito.pedido.reembolsoCentavos;
+      if (efeito.pedido.status) r.status = efeito.pedido.status;
+      if (efeito.pedido.evento) registrar(r, efeito.pedido.evento);
+    }
+    return anotado ? r : registrar(r, evento);
+  });
+  // o voucher do reembolso, depois do pedido (como no charge.refunded); a repetição completa o que ficou para trás
+  const voucher = lido.efeito?.voucher;
+  if (voucher) await atualizarItem(voucher.codigo, 'reembolsado', voucher.evento);
+  const aplicado = lido.efeito?.pedido ? ' (o aviso do reembolso não tinha chegado: aplicado ao pedido agora)' : '';
+  return { codigo, resultado: `aviso de reembolso falho registrado${aplicado}` };
 }
 
 /**
  * Contestação (chargeback) aberta ou encerrada: relê a contestação na Stripe. Aberta → contestado; ganha → volta a
- * pago (sem avisar a compra de novo: não é um pagamento novo); perdida → reembolsado, com o valor que saiu.
+ * pago (sem avisar a compra de novo: não é um pagamento novo); perdida → reembolsado, com o valor que saiu somado ao
+ * que já tinha voltado. Em qualquer ordem dos avisos (aplicarContestacao, eventos.ts): a contestação que chega antes do
+ * aviso de pago acha a sessão do pagamento contestado (sessaoDoPagamento) e passa pela porta de sempre (sessaoMudou →
+ * aplicarSessao) antes de se aplicar. O e-mail do pagamento aprovado que isso agenda não sai: na hora do envio o
+ * pedido já está contestado (src/lib/email/pedidos.ts só manda com o pedido pago).
  */
 async function contestacao(disputa: Stripe.Dispute): Promise<Resultado> {
   const codigo = await codigoDoPagamento(disputa.payment_intent);
   if (!codigo) return { codigo, resultado: 'contestação sem o código do pedido' };
-  const alvo = await obterReservaDoPedido(codigo);
-  if (!alvo) return { codigo, resultado: 'pedido não encontrado' };
   const atual = await stripe().disputes.retrieve(disputa.id);
-  const pi = idDe(atual.payment_intent);
-  const doPedido = !alvo.paymentIntentId || !pi || pi === alvo.paymentIntentId;
-  const leitura = leituraDaContestacao(atual);
-  const evento = doPedido ? leitura.evento : `${leitura.evento} (pagamento repetido ${pi})`;
-  await atualizarReserva(alvo.codigo, (r) => {
-    if (r.historico.some((h) => h.evento === evento)) return null;
-    if (doPedido && leitura.status && podeMudar(r.status, leitura.status)) r.status = leitura.status;
-    if (doPedido && leitura.reembolsoCentavos) r.reembolsoCentavos = Math.max(r.reembolsoCentavos ?? 0, leitura.reembolsoCentavos);
-    return registrar(r, evento);
+  // na perdida, o valor cobrado limita a soma do que voltou ao cliente: só aí a cobrança é relida
+  const cobranca = leituraDaContestacao(atual).reembolsoCentavos ? idDe(atual.charge) : null;
+  const cobradoCentavos = cobranca ? (await stripe().charges.retrieve(cobranca)).amount : undefined;
+  const resultado = await aplicarContestacao(codigo, atual, cobradoCentavos, {
+    lerPedido: obterReservaDoPedido,
+    acharSessao: sessaoDoPagamento,
+    aplicarPago: async (sessaoId, paymentIntentId) =>
+      (await sessaoMudou({ tipo: 'checkout.session.completed', objeto: 'checkout.session', id: sessaoId, codigo, paymentIntentId }))
+        .pagaDoPedido,
+    gravar: atualizarReserva,
+    registrar,
   });
-  return { codigo, resultado: `contestação ${atual.status}` };
+  return { codigo, resultado };
 }

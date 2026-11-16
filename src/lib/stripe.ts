@@ -222,6 +222,16 @@ export function obterSessao(id: string): Promise<Stripe.Checkout.Session> {
 }
 
 /**
+ * A sessão de pagamento (cs_…) de um pagamento (pi_…), ou null: é por ela que o pedido vira pago. A contestação que
+ * chega antes do aviso de pago acha por aqui a sessão do pagamento contestado (src/app/api/webhooks/stripe/route.ts).
+ * É leitura (GET) em Checkout Sessions, o mesmo recurso que a chave restrita já relê.
+ */
+export async function sessaoDoPagamento(paymentIntentId: string): Promise<string | null> {
+  const lista = await stripe().checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
+  return lista.data[0]?.id ?? null;
+}
+
+/**
  * Devolve o dinheiro pela Stripe: tudo (sem `centavos`) ou uma parte (um item). `referencia` entra na chave
  * de idempotência: no reembolso de um item, passe o código do voucher, para dois itens do mesmo preço não
  * virarem um reembolso só. O status do pedido muda só pelo webhook charge.refunded, nunca aqui.

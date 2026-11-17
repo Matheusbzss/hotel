@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
-import { depoisDaEspera } from '@/lib/espera-do-pagamento';
+import { depoisDaEspera, etapaComAsFormasDeAgora, type EtapaDePagar } from '@/lib/espera-do-pagamento';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
@@ -464,8 +464,6 @@ export interface TextosPagarPedido extends TextosEscolhaPagamento, TextosCheckou
   semPrazo: string;
 }
 
-type Etapa = 'confirmando' | 'escolher' | 'checkout';
-
 /**
  * O pedido pendente ou expirado pela Stripe, na página do pedido ou da reserva: "confirmando o pagamento"
  * enquanto o servidor espera o webhook; "o tempo para pagar terminou" com o botão de pagar de novo; a recusa
@@ -515,7 +513,7 @@ export function PagarPedido({
   const router = useRouter();
   const [recusa, setRecusa] = useState(recusaInicial);
   // vencido, ou com o cartão recusado: já dá para escolher a forma; pendente sem recusa: o pagamento pode estar a caminho
-  const [etapa, setEtapa] = useState<Etapa>(status === 'expirado' || recusaInicial ? 'escolher' : 'confirmando');
+  const [etapa, setEtapa] = useState<EtapaDePagar>(status === 'expirado' || recusaInicial ? 'escolher' : 'confirmando');
   // depois de uma recusa do cartão, o Pix já vem marcado (se ainda der tempo)
   const [forma, setForma] = useState<FormaPagamento | null>(() =>
     formaPadrao(formas, idioma, recusaInicial && formas.includes('pix') ? 'pix' : formaAtual),
@@ -545,6 +543,20 @@ export function PagarPedido({
     const id = window.setTimeout(() => (depois === 'sem-formas' ? setEtapa('escolher') : setEsperou(true)), ESPERA_PARA_PAGAR_MS);
     return () => window.clearTimeout(id);
   }, [etapa, depois]);
+
+  // a escolha da forma que fica sem forma nenhuma com o pedido de Pix pendente (o freio de emergência publicado enquanto o
+  // cliente escolhia: o "Pagar" esbarra no 403 'forma' e a página relida volta sem formas) segue a decisão do relógio e
+  // volta à espera, já passada: a frase do Pix gerado embaixo de "Se você já pagou…", porque o QR já gerado vale até a
+  // sessão acabar (etapaComAsFormasDeAgora, src/lib/espera-do-pagamento.ts). O erro do "Pagar" sai junto (a espera não o
+  // mostra). No cartão, ou sem a forma do pedido, a escolha fica com o aviso de sempre. A troca é feita aqui, na
+  // renderização, com a condição que só vale uma vez: o React desenha de novo na hora, sem mostrar a do meio (o aviso de
+  // que o pedido não pode mais ser pago pelo site); num efeito, ele apareceria por um instante
+  const etapaDeAgora = etapaComAsFormasDeAgora(etapa, depois);
+  if (etapaDeAgora !== etapa) {
+    setErro('');
+    setEsperou(true);
+    setEtapa(etapaDeAgora);
+  }
 
   // enquanto o checkout não está aberto aqui, a página acompanha o pedido: mudou de status, o servidor redesenha.
   // Pausa enquanto a sessão nova é criada: ela mesma tira o pedido de expirado, e redesenhar ali fecharia o checkout

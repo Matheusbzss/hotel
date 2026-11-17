@@ -26,6 +26,7 @@ import {
   contarReembolsosAResolver,
   contestacoesAbertas,
   devolucaoNoPainel,
+  formaEProvedorNoPainel,
   fraseDoErro,
   fraseDoReembolsoSemVoucher,
   frasesDoReembolsoNoPainel,
@@ -77,12 +78,6 @@ const COR: Record<StatusReserva, string> = {
   aguardando_whatsapp: 'bg-turquesa text-mar',
   reembolsado: 'bg-[#e5e9ee] text-mar',
   contestado: 'bg-erro-claro text-[#7a1f12]',
-};
-
-const PROVEDOR: Record<PedidoPainel['provedor'], string> = {
-  stripe: 'Stripe',
-  pagarme: 'Pagar.me (checkout antigo)',
-  whatsapp: 'WhatsApp',
 };
 
 const DICIONARIO_PT = dicionario('pt');
@@ -520,14 +515,9 @@ function ValorDoPedido({ p }: { p: PedidoPainel }) {
   }
   // o que chegou ao cliente (com a parte por outro meio) e o que falta devolver porque o reembolso falhou na Stripe
   const devolucao = devolucaoNoPainel(p);
-  // a Stripe manda a bandeira em minúsculas ("visa", "mastercard")
-  const bandeira = g.cartaoBandeira ? g.cartaoBandeira.charAt(0).toUpperCase() + g.cartaoBandeira.slice(1) : '';
-  const forma =
-    p.metodo === 'pix'
-      ? 'Pix'
-      : p.metodo === 'cartao'
-        ? `Cartão ${bandeira} ${g.cartaoFinal ? `•••• ${g.cartaoFinal}` : ''}`.replace(/\s+/g, ' ').trim()
-        : 'WhatsApp';
+  // a forma e, embaixo, quem cobrou; sem a segunda linha quando ela repetiria a primeira (o pedido do WhatsApp cancelado
+  // antes de pagar: "WhatsApp" uma vez só)
+  const { forma, provedor } = formaEProvedorNoPainel(p);
   return (
     <>
       <p className="text-xl font-bold">{formatarPreco(p.recebidoCentavos)}</p>
@@ -535,7 +525,7 @@ function ValorDoPedido({ p }: { p: PedidoPainel }) {
         {forma}
         {g.cartaoPais ? ` · cartão ${g.cartaoPais}` : ''}
       </p>
-      <p className="text-small text-tinta-suave">{PROVEDOR[p.provedor]}</p>
+      {provedor && <p className="text-small text-tinta-suave">{provedor}</p>}
       {g.apresentado && <p className="text-small text-tinta-suave">Cliente viu {moedaApresentada(g.apresentado)}</p>}
       {devolucao.reembolsado && <p className="mt-1 text-small font-semibold">{devolucao.reembolsado}</p>}
       {devolucao.falta && <p className="mt-1 text-small font-semibold text-[#7a1f12]">{devolucao.falta}</p>}

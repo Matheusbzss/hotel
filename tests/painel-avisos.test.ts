@@ -1074,9 +1074,13 @@ test('a rota do painel: as ações novas não devolvem dinheiro pela Stripe, só
     if (acao === 'reembolso_sem_voucher') assert.equal(confirmo, -1);
     else assert.ok(confirmo !== -1 && gravacoes.every((n) => confirmo < n), acao);
   }
-  // o voucher por fora: soma uma vez por voucher (a conferência dentro da trava) e marca o voucher depois do pedido
+  // o voucher por fora: soma uma vez por voucher (a conferência dentro da trava) e marca o voucher depois do pedido (desde
+  // o Pacote 16, só por quem gravou a linha, ou depois de um minuto: tests/painel-toque-duplo.test.ts)
   const porFora = trechoDaAcao(rota, 'voucher_por_fora');
-  assert.match(porFora, /gravado\.linha = vouchersDevolvidosPorOutroMeio\(r\.historico\)\.some\(\(v\) => v\.voucher === voucher\);/);
+  assert.match(
+    porFora,
+    /gravado\.linhaEm = horaDoVoucherDevolvidoPorOutroMeio\(r\.historico, voucher\);\s+if \(gravado\.linhaEm !== undefined \|\| r\.status !== 'pago'\) return null;/,
+  );
   assert.match(porFora, /const centavos = valorDoVoucherPorFora\(valor, recebido - \(r\.reembolsoCentavos \?\? 0\)\);/);
   assert.ok(porFora.indexOf('await atualizarReserva(') < porFora.indexOf('await atualizarItem('));
   // o registro por fora repetido não grava de novo: a conferência é dentro da trava de versão

@@ -5,16 +5,18 @@ import path from 'node:path';
 import { EVENTO_SESSAO_NOVA, avisarSessaoNova, ouvirSessaoNova } from '../src/components/pagamento/PalavraDoStatus.ts';
 import { leituraMudou, type LeituraDoPedido, type LeituraQueRedesenha } from '../src/components/pagamento/useStatusDoPedido.ts';
 import { dicionario } from '../src/i18n/index.ts';
-import { depoisDaEspera } from '../src/lib/espera-do-pagamento.ts';
+import { depoisDaEspera, etapaComAsFormasDeAgora } from '../src/lib/espera-do-pagamento.ts';
 
 // As páginas do cliente depois do reteste de 16-17/11 (Pacote 13): a faixa que continuava "Expirado" depois de "Pagar de
 // novo" (R2), o checkout que ficava só com "Seu carrinho está vazio." depois do 409 "mudou" (R3), os "Próximos passos" do
 // transfer que vai para o aeroporto (R4, a regra em tests/transfer.test.ts) e a página aberta do pedido que não mudava
 // com o reembolso de um voucher que não é o primeiro, nem com a devolução por outro meio (R5). Depois do reteste de 17/11
 // (Pacote 14): o Pix já gerado durante o freio de emergência (L5d; a regra da faixa em tests/formas-pagamento.test.ts) e o
-// botão preso em "Processando…" na página que o Safari devolve pelo botão de voltar. O aviso da sessão nova, a comparação
-// das leituras e a decisão da espera rodam aqui em node; o resto são componentes do navegador e páginas do Next (o atalho
-// "@/"), então os testes leem o código deles. Só leitura: nada é gravado.
+// botão preso em "Processando…" na página que o Safari devolve pelo botão de voltar. Do Pacote 16 (17/11): o freio
+// publicado com o cliente na escolha da forma, que tocava em "Pagar" e lia que o pedido não podia mais ser pago pelo site,
+// com o QR do Pix valendo. O aviso da sessão nova, a comparação das leituras e as decisões da espera rodam aqui em node; o
+// resto são componentes do navegador e páginas do Next (o atalho "@/"), então os testes leem o código deles. Só leitura:
+// nada é gravado.
 
 /**
  * O código de um arquivo de src/ sem os comentários (os do JSX, os de bloco que começam a linha e as linhas de
@@ -227,7 +229,7 @@ test('a tela de pagar usa a decisão: o relógio dos 15 s só troca para o aviso
   const inicio = checkout.indexOf('export function PagarPedido(');
   assert.notEqual(inicio, -1);
   const pagarPedido = checkout.slice(inicio);
-  assert.match(checkout, /^import \{ depoisDaEspera \} from '@\/lib\/espera-do-pagamento';$/m);
+  assert.match(checkout, /^import \{ depoisDaEspera, etapaComAsFormasDeAgora, type EtapaDePagar \} from '@\/lib\/espera-do-pagamento';$/m);
   assert.match(pagarPedido, /const depois = depoisDaEspera\(status, formas, formaAtual\);/);
   // o relógio: só 'sem-formas' troca a tela para a escolha (o aviso); nos outros dois a espera termina e a tela fica. Até
   // o conserto, sem forma nenhuma a tela trocava sempre (temFormas ? setEsperou(true) : setEtapa('escolher'))
@@ -284,6 +286,85 @@ test('a frase do Pix gerado nos quatro idiomas, como o plano a escreveu; o es-ar
   );
   assert.equal(dicionario('es-ar').pedido.pixGerado, dicionario('es').pedido.pixGerado);
   assert.doesNotMatch(readFileSync(path.join('src', 'i18n', 'es-ar.ts'), 'utf8'), /pixGerado/);
+});
+
+/* ------------------------------------------------------------------ */
+/* O freio publicado com a escolha da forma aberta (Pacote 16, 17/11)   */
+
+// A nota 3 do revisor do Pacote 14: o cliente em "Ainda não pagou? Pagar agora" (as formas valendo), o freio de
+// emergência publicado nesse meio-tempo, e o toque em "Pagar": a rota responde 403 'forma', a tela relê a página
+// (router.refresh) e, com o status igual, ficava na escolha, sem formas: "Este pedido não pode mais ser pago pelo site",
+// mesmo com o QR do Pix gerado antes ainda valendo.
+
+test('a escolha sem formas segue a decisão do relógio: o Pix pendente volta à espera; o cartão e sem a forma, o aviso de sempre', () => {
+  // o freio depois de "Pagar agora", no pedido de Pix pendente: a escolha volta a "Confirmando o pagamento…"
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('pendente', [], 'pix')), 'confirmando');
+  // no cartão, ou sem a forma do pedido: a escolha fica, com o aviso de que não dá mais para pagar pelo site, como antes
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('pendente', [], 'cartao')), 'escolher');
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('pendente', [], undefined)), 'escolher');
+  // o 403 'forma' do Pix depois do prazo dele (o cartão ainda vale): a escolha fica, com o cartão e a frase do Pix
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('pendente', ['cartao'], 'pix')), 'escolher');
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('pendente', ['cartao', 'pix'], 'pix')), 'escolher');
+  // vencido: a sessão acabou e o QR morreu com ela (a página do vencido é desenhada de novo, com key={status})
+  assert.equal(etapaComAsFormasDeAgora('escolher', depoisDaEspera('expirado', [], 'pix')), 'escolher');
+  // as outras etapas nunca mudam por aqui: a espera tem o relógio dela, e o formulário da Stripe aberto fica
+  for (const depois of ['pagar', 'esperar-o-pix', 'sem-formas'] as const) {
+    assert.equal(etapaComAsFormasDeAgora('confirmando', depois), 'confirmando', depois);
+    assert.equal(etapaComAsFormasDeAgora('checkout', depois), 'checkout', depois);
+  }
+  // e é a mesma decisão do relógio dos 15 s: a escolha só volta à espera onde o relógio também esperaria
+  for (const status of ['pendente', 'expirado'] as const)
+    for (const formas of [[], ['cartao'], ['pix'], ['cartao', 'pix']] as const)
+      for (const formaAtual of ['pix', 'cartao', undefined] as const) {
+        const depois = depoisDaEspera(status, formas, formaAtual);
+        assert.equal(
+          etapaComAsFormasDeAgora('escolher', depois) === 'confirmando',
+          depois === 'esperar-o-pix',
+          `${status} ${formas} ${formaAtual}`,
+        );
+      }
+});
+
+test('a tela de pagar troca a escolha pela espera na própria renderização, com a frase do Pix gerado e sem o erro do "Pagar"', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  const inicio = checkout.indexOf('export function PagarPedido(');
+  assert.notEqual(inicio, -1);
+  const pagarPedido = checkout.slice(inicio);
+  // as etapas são as da regra (o tipo dela), e a decisão vem de lá
+  assert.match(
+    pagarPedido,
+    /const \[etapa, setEtapa\] = useState<EtapaDePagar>\(status === 'expirado' \|\| recusaInicial \? 'escolher' : 'confirmando'\);/,
+  );
+  assert.doesNotMatch(checkout, /^type Etapa = /m);
+  // a troca: a etapa com as formas de agora; quando muda, o erro do "Pagar" sai, a espera já passou (a frase do Pix gerado
+  // aparece na hora) e a etapa vira a da regra. Na renderização, depois da decisão, e não num efeito (o aviso sem formas
+  // apareceria por um instante)
+  const troca = pagarPedido.search(
+    /const etapaDeAgora = etapaComAsFormasDeAgora\(etapa, depois\);\s+if \(etapaDeAgora !== etapa\) \{\s+setErro\(''\);\s+setEsperou\(true\);\s+setEtapa\(etapaDeAgora\);\s+\}/,
+  );
+  assert.notEqual(troca, -1);
+  assert.ok(pagarPedido.indexOf('const depois = depoisDaEspera(status, formas, formaAtual);') < troca);
+  const primeiraTela = pagarPedido.indexOf("if (etapa === 'checkout' && formaValida) {");
+  assert.notEqual(primeiraTela, -1);
+  assert.ok(troca < primeiraTela, 'antes de qualquer tela');
+  assert.equal(pagarPedido.match(/etapaComAsFormasDeAgora\(/g)?.length, 1);
+  const efeitos = [...pagarPedido.matchAll(/useEffect\(\(\) => \{[\s\S]*?\n {2}\}, \[[^\]]*\]\);/g)].map((m) => m[0]);
+  assert.ok(efeitos.length >= 2);
+  for (const efeito of efeitos) assert.doesNotMatch(efeito, /etapaComAsFormasDeAgora|etapaDeAgora/);
+  // o "Pagar" que esbarra na forma: o erro e a página relida, como antes (é a página relida que traz as formas de agora)
+  assert.match(
+    pagarPedido,
+    /\} else if \(resposta\.erro === 'forma'\) \{\s+setErro\(escolhida === 'pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);\s+\}/,
+  );
+  // a espera que a troca mostra é a de sempre: a frase do Pix gerado com esperou e 'esperar-o-pix', sem o botão de pagar
+  assert.match(
+    pagarPedido,
+    /\{esperou && depois === 'esperar-o-pix' && <p className="mt-4 max-w-\[44ch\] text-lead">\{T\.pixGerado\}<\/p>\}/,
+  );
+  assert.match(pagarPedido, /\{esperou && depois === 'pagar' && \(/);
+  // e a escolha sem formas continua com o aviso de sempre (o cartão e o pedido sem a forma chegam lá)
+  assert.match(pagarPedido, /\{formas\.length > 0 && formaValida \? \([\s\S]*?\) : \(\s+semFormas\s+\)\}/);
+  assert.equal(pagarPedido.match(/\{T\.semPrazo\}/g)?.length, 1);
 });
 
 test('a faixa das duas páginas passa pela regra única (formasDaFaixa), na faixa e nas linhas dos itens', () => {

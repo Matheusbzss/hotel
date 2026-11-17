@@ -46,7 +46,11 @@ export type MetodoPagamento = 'pix' | 'cartao' | 'whatsapp';
 /** Quem processou o pagamento: a Stripe (online), a equipe pelo WhatsApp, ou a Pagar.me (checkout antigo). */
 export type Provedor = 'pagarme' | 'stripe' | 'whatsapp';
 
-/** O status de um voucher dentro do pedido (itens_pedido.status). Só atualizarItem muda um item sozinho. */
+/**
+ * O status de um voucher dentro do pedido (itens_pedido.status). Um item muda sozinho por atualizarItem (no banco,
+ * atualizar_item) ou, desde o Pacote 16, pela gravação do próprio voucher com statusItem (atualizarReserva com o código
+ * dele; no banco, atualizar_reserva): o 'voucher_da_stripe' do painel.
+ */
 export type StatusItem = 'ativo' | 'cancelado' | 'reembolsado' | 'usado';
 
 /** O que toda reserva tem, de passeio ou de transfer. */

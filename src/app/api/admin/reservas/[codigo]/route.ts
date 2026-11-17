@@ -2,25 +2,30 @@ import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
-import { formatarCifra } from '@/lib/cifra';
 import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { podeMudar } from '@/lib/pagamento-stripe';
 import {
+  acaoManualRepetida,
+  marcaOVoucherPorFora,
   valorDoVoucherPorFora,
   valorRecebido,
   voucherAtivo,
   voucherCabeNoQueResta,
+  voucherDaStripeAindaLiga,
   voucherPago,
   type ErroDoPainel,
 } from '@/lib/pedidos-painel';
 import {
+  horaDoVoucherDevolvidoPorOutroMeio,
   inicioDoReembolsoResolvido,
   linhaDaDevolucaoPorOutroMeio,
   linhaDoReembolsoSemMudarVoucher,
+  linhaDoReembolsoSolicitado,
   linhaDoVoucherDevolvidoPorOutroMeio,
   linhaDoVoucherLigado,
+  reembolsoNoHistorico,
   reembolsosFalhos,
   reembolsosSemVoucher,
   vouchersDevolvidosPorOutroMeio,
@@ -59,7 +64,6 @@ const ACOES_MANUAIS: Record<string, { status: StatusReserva; evento: string; met
   reembolsado: { status: 'reembolsado', evento: 'Marcada como reembolsada no admin (fora da Stripe)' },
 };
 
-const cifra = (centavos: number) => formatarCifra(centavos, 'pt-BR');
 const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** O valor de um voucher na forma em que o pedido foi pago (no Pix, com o desconto; na casa, o sinal). */
@@ -114,6 +118,11 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  *   ou com o resto do pedido seguindo pago depois do reembolso de uma parte: só a linha no histórico, que tira o pedido
  *   da faixa do topo.
  * Os botões do painel mandam o código do voucher no endereço; no 'reembolsar_item', é ele o voucher devolvido.
+ * O botão é um formulário simples: o duplo toque, ou a aba antiga do painel, manda a mesma ação de novo. Cada ação confere
+ * outra vez dentro da trava de versão do pedido, e a repetida não grava nada e volta como a que deu certo (rodada com o
+ * banco de 17/11): a ação manual que já está feita (acaoManualRepetida), o reembolso que a Stripe devolve igual pela chave
+ * de idempotência (reembolsoNoHistorico), o voucher por outro meio (marcaOVoucherPorFora) e o voucher da Stripe
+ * (voucherDaStripeAindaLiga); a desistência e as duas linhas de fecho já conferiam assim.
  * Quem clica é uma pessoa, num formulário: toda ação recusada volta para o painel com ?erro= e um código curto,
  * que a página troca por uma frase fixa na faixa vermelha (ERROS_DO_PAINEL; nunca o texto que veio no endereço,
  * nem uma resposta em JSON, que o navegador abriria como texto cru). O que a Stripe respondeu fica só no registro
@@ -179,8 +188,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       if (stripeDevolveuMenos(reembolsos, alvo.reembolsoCentavos ?? 0)) return voltar('stripe-devolveu-menos');
       if (acao === 'reembolsar') {
         const re = await criarReembolso(alvo.paymentIntentId);
+        // o segundo toque (o duplo clique, a aba antiga do painel) recebe da Stripe o mesmo reembolso, pela chave de
+        // idempotência: com o id dele já no histórico, a linha não é gravada de novo
         await atualizarReserva(alvo.codigo, (r) =>
-          registrar(r, `Reembolso total (${cifra(re.amount)}) solicitado na Stripe (${re.id}): o status muda quando a Stripe confirmar`),
+          reembolsoNoHistorico(r.historico, re.id) ? null : registrar(r, linhaDoReembolsoSolicitado({ id: re.id, centavos: re.amount })),
         );
         return voltar();
       }
@@ -204,11 +215,11 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
         return voltar('reembolso-sem-voucher');
       }
       const re = await criarReembolso(alvo.paymentIntentId, centavos, voucher);
+      // como no "Reembolsar tudo": o segundo toque recebe o mesmo reembolso, e a linha não é gravada de novo
       await atualizarReserva(alvo.codigo, (r) =>
-        registrar(
-          r,
-          `Reembolso do item ${voucher} (${cifra(re.amount)}) solicitado na Stripe (${re.id}): o item muda quando a Stripe confirmar`,
-        ),
+        reembolsoNoHistorico(r.historico, re.id)
+          ? null
+          : registrar(r, linhaDoReembolsoSolicitado({ id: re.id, centavos: re.amount, voucher })),
       );
       return voltar();
     } catch (e) {
@@ -250,8 +261,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
 
   // depois de um reembolso que falhou o site não pede outro à Stripe: um voucher ainda pago que a equipe devolveu por
   // outro meio deixa de valer aqui. Primeiro a gravação com trava, que soma o valor uma vez só (o do voucher, nunca mais
-  // do que resta do pagamento) com a linha e, sem voucher pago sobrando, leva o pedido a reembolsado; depois o voucher.
-  // Se a função for cortada entre as duas, o segundo clique completa sem somar de novo
+  // do que resta do pagamento) com a linha e, sem voucher pago sobrando, leva o pedido a reembolsado; depois o voucher,
+  // só por quem gravou a linha: o duplo toque e a aba antiga acham a linha já gravada e não gravam nada (atualizar_item
+  // sempre grava a linha dele). Se a função for cortada entre as duas, outro clique completa sem somar de novo, quando a
+  // linha já tem mais de um minuto (marcaOVoucherPorFora)
   if (acao === 'voucher_por_fora') {
     if (!daStripe || alvo.status !== 'pago' || !reembolsosFalhos(alvo.historico).length) return voltar('acao-nao-vale');
     const voucher = String(form.get('voucher') ?? '').trim();
@@ -267,24 +280,33 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (!jaGravado && valorDoVoucherPorFora(valor, recebido - (alvo.reembolsoCentavos ?? 0)) <= 0) return voltar('acao-nao-vale');
     if (!confirmou) return voltar('falta-confirmar');
     const ultimo = !vouchers.some((v) => v.codigo !== voucher && voucherPago(v));
-    // num objeto, e não numa variável solta, para o TypeScript não achar que o valor nunca muda (ele muda lá dentro)
-    const gravado: { linha?: boolean } = {};
+    // num objeto, e não numa variável solta, para o TypeScript não achar que o valor nunca muda (ele muda lá dentro). A
+    // cada volta da trava (a gravação que esbarra noutra relê o pedido) a leitura recomeça: `escreveu` só fica na volta
+    // que gravou a linha, e `linhaEm` é a hora da linha que outra requisição já gravou
+    const gravado: { escreveu?: boolean; linhaEm?: string } = {};
     await atualizarReserva(alvo.codigo, (r) => {
-      gravado.linha = vouchersDevolvidosPorOutroMeio(r.historico).some((v) => v.voucher === voucher);
-      if (gravado.linha || r.status !== 'pago') return null;
+      gravado.escreveu = false;
+      gravado.linhaEm = horaDoVoucherDevolvidoPorOutroMeio(r.historico, voucher);
+      if (gravado.linhaEm !== undefined || r.status !== 'pago') return null;
       const centavos = valorDoVoucherPorFora(valor, recebido - (r.reembolsoCentavos ?? 0));
       if (centavos <= 0) return null;
       r.reembolsoCentavos = (r.reembolsoCentavos ?? 0) + centavos;
       if (ultimo && podeMudar(r.status, 'reembolsado')) r.status = 'reembolsado';
-      gravado.linha = true;
+      gravado.escreveu = true;
       return registrar(r, linhaDoVoucherDevolvidoPorOutroMeio(voucher, centavos));
     });
-    if (gravado.linha) await atualizarItem(voucher, 'reembolsado', `Item ${voucher} marcado como devolvido no painel (por outro meio)`);
+    if (marcaOVoucherPorFora(gravado, new Date(), item)) {
+      await atualizarItem(voucher, 'reembolsado', `Item ${voucher} marcado como devolvido no painel (por outro meio)`);
+    }
     return voltar();
   }
 
   // o reembolso de parte feito direto na Stripe, sem dizer de qual voucher: a equipe diz de qual foi. O voucher deixa de
-  // valer, sem novo reembolso e sem mudar o valor devolvido (o dinheiro já foi contado quando o aviso chegou)
+  // valer, sem novo reembolso e sem mudar o valor devolvido (o dinheiro já foi contado quando o aviso chegou). A marca do
+  // voucher e a linha saem numa gravação só, a do próprio voucher, com a trava de versão do pedido e a conferência de
+  // novo lá dentro (voucherDaStripeAindaLiga): o segundo toque, a aba antiga do painel ou o botão de outro voucher para o
+  // mesmo reembolso não gravam nada. Antes era o atualizar_item, sem trava, que sempre grava a linha: dois toques rápidos
+  // passavam pelas conferências daqui antes de o primeiro chegar ao banco
   if (acao === 'voucher_da_stripe') {
     const id = String(form.get('reembolso') ?? '');
     const voucher = String(form.get('voucher') ?? '').trim();
@@ -294,7 +316,11 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // só o voucher ativo, como os botões do painel (o usado já aconteceu: aí é um desconto)
     if (!voucherAtivo(item)) return voltar(voucherPago(item) ? 'acao-nao-vale' : 'item-ja-devolvido');
     if (!confirmou) return voltar('falta-confirmar');
-    await atualizarItem(voucher, 'reembolsado', linhaDoVoucherLigado(id, voucher));
+    await atualizarReserva(voucher, (r) => {
+      if (!voucherDaStripeAindaLiga(r, id)) return null;
+      r.statusItem = 'reembolsado';
+      return registrar(r, linhaDoVoucherLigado(id, voucher));
+    });
     return voltar();
   }
 
@@ -326,6 +352,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   let virouPago = false;
   const atualizada = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = manual.status === 'pago' && r.status !== 'pago';
+    // o duplo toque, ou a aba antiga do painel: o pedido relido dentro da trava já está como a ação o deixaria (o status
+    // e, quando ela diz a forma, a forma). Nada é gravado: nem a linha de novo, nem o aviso de compra, nem o e-mail
+    // (virouPago já é false: o status é o da ação), e a volta é a de sempre
+    if (acaoManualRepetida(r, manual)) return null;
     r.status = manual.status;
     // quem cobrou continua sendo a equipe: sem isto, anotar "Pix" ou "cartão" numa reserva do WhatsApp fazia o
     // painel mostrar o checkout antigo, que é o que uma forma online sem provedor gravado quer dizer

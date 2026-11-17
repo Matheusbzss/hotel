@@ -258,6 +258,34 @@ export function agruparPedidos(reservas: Reserva[]): PedidoPainel[] {
     .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
 }
 
+/** Quem cobrou, como o painel escreve embaixo da forma de pagamento. */
+export const ROTULO_DO_PROVEDOR: Record<Provedor, string> = {
+  stripe: 'Stripe',
+  pagarme: 'Pagar.me (checkout antigo)',
+  whatsapp: 'WhatsApp',
+};
+
+/**
+ * As duas linhas embaixo do valor do pedido fechado (pago, cancelado, reembolsado, contestado): a forma de pagamento
+ * ("Pix", o cartão com a bandeira e o final, ou "WhatsApp", quando a equipe ainda não anotou Pix nem cartão) e quem cobrou
+ * (ROTULO_DO_PROVEDOR). Sem a segunda quando ela repetiria a primeira: no pedido do WhatsApp cancelado antes de pagar, o
+ * cartão escrevia "WhatsApp" duas vezes (rodada com o banco de 17/11, cenário K). Pago pelo WhatsApp, continua "Pix" (ou
+ * "Cartão") e, embaixo, "WhatsApp".
+ */
+export function formaEProvedorNoPainel(p: Pick<PedidoPainel, 'itens' | 'metodo' | 'provedor'>): { forma: string; provedor?: string } {
+  const g = p.itens[0]?.pagamento;
+  // a Stripe manda a bandeira em minúsculas ("visa", "mastercard")
+  const bandeira = g?.cartaoBandeira ? g.cartaoBandeira.charAt(0).toUpperCase() + g.cartaoBandeira.slice(1) : '';
+  const forma =
+    p.metodo === 'pix'
+      ? 'Pix'
+      : p.metodo === 'cartao'
+        ? `Cartão ${bandeira} ${g?.cartaoFinal ? `•••• ${g.cartaoFinal}` : ''}`.replace(/\s+/g, ' ').trim()
+        : 'WhatsApp';
+  const provedor = ROTULO_DO_PROVEDOR[p.provedor];
+  return provedor === forma ? { forma } : { forma, provedor };
+}
+
 /* ------------------------------------------------------------------ */
 /* Os reembolsos no painel (16/11, depois do teste de 15/11)           */
 
@@ -669,3 +697,55 @@ export function avisoDoReembolsoFalho(
     naoDizerOMotivo: false,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* O toque repetido nos botões do painel (rodada com o banco de 17/11)  */
+
+// Os botões do painel são formulários simples: o duplo toque, ou uma aba antiga do painel, manda a mesma ação duas vezes.
+// A rota confere de novo, dentro da trava de versão do pedido, com estas regras, e a segunda vez não grava nada (a volta
+// ao painel é a de sempre). A primeira grava exatamente como antes.
+
+/**
+ * A ação manual do painel ("Pago no Pix", "Pago no cartão", "Marcar como pago", "Cancelar", "Marcar reembolsado") que não
+ * muda nada: o pedido já está no status dela e, quando ela diz a forma, já com essa forma. Nada é gravado: nem a linha de
+ * novo, nem o aviso de compra, nem o e-mail. Na rodada com o banco de 17/11, o "Pago no Pix" mandado duas vezes gravou
+ * "Marcada como paga no Pix, no admin" duas vezes. Trocar a forma ("Pago no Pix" e depois "Corrigir: foi no cartão") ou o
+ * status ("Cancelar" num pedido do WhatsApp já pago) é mudança e grava a linha, como sempre.
+ */
+export const acaoManualRepetida = (
+  r: { status: StatusReserva; pagamento: { metodo: MetodoPagamento } },
+  acao: { status: StatusReserva; metodo?: MetodoPagamento },
+): boolean => r.status === acao.status && (!acao.metodo || r.pagamento.metodo === acao.metodo);
+
+/** A idade mínima da linha do voucher devolvido por outro meio para outro clique completar a marca do voucher. */
+export const ESPERA_PARA_COMPLETAR_O_VOUCHER_MS = 60_000;
+
+/**
+ * "Registrar: voucher ON-… (R$ …) devolvido por outro meio" grava duas vezes: primeiro, com a trava de versão do pedido,
+ * a linha do pedido e o valor (uma vez só); depois, a marca do voucher (atualizar_item, que sempre grava a linha dele). A
+ * marca sai só pela requisição que gravou a linha do pedido (`escreveu`). Quem acha a linha já gravada (o duplo toque, a
+ * aba antiga) não marca de novo, a não ser que ela tenha mais de 60 segundos (`linhaEm`) e o voucher ainda esteja pago
+ * (nem reembolsado nem cancelado): aí a função foi cortada entre as duas gravações, e este clique completa, sem somar o
+ * valor de novo. Na rodada com o banco de 17/11, o duplo clique gravou "Item ON-… marcado como devolvido no painel (por
+ * outro meio)" duas vezes. Uma hora que não dá para ler, ou no futuro, não completa.
+ */
+export function marcaOVoucherPorFora(
+  gravacao: { escreveu?: boolean; linhaEm?: string },
+  agora: Date,
+  voucher: Pick<Reserva, 'statusItem'>,
+): boolean {
+  if (gravacao.escreveu) return true;
+  if (gravacao.linhaEm === undefined || !voucherPago(voucher)) return false;
+  return agora.getTime() - Date.parse(gravacao.linhaEm) > ESPERA_PARA_COMPLETAR_O_VOUCHER_MS;
+}
+
+/**
+ * "Foi o voucher ON-… (R$ …): marcar como devolvido" ainda vale, relido dentro da trava de versão (a rota grava a marca do
+ * voucher e a linha juntas, numa gravação só): o pedido pago, o voucher ativo e o reembolso feito direto na Stripe ainda
+ * sem dono. O segundo toque, a aba antiga do painel, ou o botão de outro voucher para o mesmo reembolso, acham o reembolso
+ * já ligado (a linha linhaDoVoucherLigado começa com inicioDoReembolsoResolvido, src/lib/reembolsos-a-resolver.ts) e não
+ * gravam nada: um reembolso, um voucher. Antes, cada toque chamava atualizar_item, e dois toques rápidos passavam pelas
+ * conferências da rota antes de o primeiro chegar ao banco.
+ */
+export const voucherDaStripeAindaLiga = (r: Pick<Reserva, 'status' | 'statusItem' | 'historico'>, reembolsoId: string): boolean =>
+  r.status === 'pago' && voucherAtivo(r) && reembolsosSemVoucher(r.historico).some((s) => s.id === reembolsoId && !s.resolvido);

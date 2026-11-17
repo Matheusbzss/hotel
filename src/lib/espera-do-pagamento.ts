@@ -3,8 +3,9 @@ import type { StatusReserva } from './reservas';
 
 /**
  * A tela "Confirmando o pagamento…" do pedido pendente, nas páginas do pedido e da reserva (PagarPedido,
- * src/components/pagamento/CheckoutEmbutido.tsx). Este arquivo roda no navegador e nos testes (node puro), por isso só
- * importa tipos: nada de src/lib/formas-pagamento.ts com valor vai para o navegador por causa dele.
+ * src/components/pagamento/CheckoutEmbutido.tsx): o que ela mostra quando a espera termina (depoisDaEspera) e quando as
+ * formas acabam com a escolha aberta (etapaComAsFormasDeAgora). Este arquivo roda no navegador e nos testes (node puro),
+ * por isso só importa tipos: nada de src/lib/formas-pagamento.ts com valor vai para o navegador por causa dele.
  */
 
 /**
@@ -27,4 +28,22 @@ export type DepoisDaEspera = 'pagar' | 'esperar-o-pix' | 'sem-formas';
 export function depoisDaEspera(status: StatusReserva, formas: readonly FormaPagamento[], formaAtual?: FormaPagamento): DepoisDaEspera {
   if (formas.length > 0) return 'pagar';
   return status === 'pendente' && formaAtual === 'pix' ? 'esperar-o-pix' : 'sem-formas';
+}
+
+/** As etapas da tela de pagar um pedido em aberto: a espera ("Confirmando o pagamento…"), a escolha da forma e o formulário. */
+export type EtapaDePagar = 'confirmando' | 'escolher' | 'checkout';
+
+/**
+ * A etapa da tela de pagar com as formas de agora, quando elas mudam com a tela aberta. O caso: o cliente na escolha da
+ * forma ("Ainda não pagou? Pagar agora", com as formas valendo), o freio de emergência publicado nesse meio-tempo
+ * (PAGAMENTO_ONLINE=desligado) e o toque em "Pagar": a rota responde 403 'forma', a tela relê a página (router.refresh)
+ * e as formas voltam vazias, com o pedido ainda pendente. A mesma decisão do relógio dos 15 s (depoisDaEspera): no pedido
+ * de Pix ('esperar-o-pix'), a escolha volta à espera, já passada (a frase do Pix gerado embaixo de "Se você já pagou…"),
+ * porque o QR que o cliente já gerou vale até a sessão acabar. Até o Pacote 16 (17/11; nota 3 do revisor do Pacote 14),
+ * a tela ficava na escolha e dizia "Este pedido não pode mais ser pago pelo site", com o QR valendo. No cartão, ou sem a
+ * forma do pedido ('sem-formas'), e com alguma forma valendo ('pagar'), a escolha fica como sempre; as outras etapas
+ * também.
+ */
+export function etapaComAsFormasDeAgora(etapa: EtapaDePagar, depois: DepoisDaEspera): EtapaDePagar {
+  return etapa === 'escolher' && depois === 'esperar-o-pix' ? 'confirmando' : etapa;
 }

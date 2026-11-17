@@ -11,7 +11,9 @@ import { formatarCifra } from './cifra.ts';
  *   contestação aberta ou perdida depois dela suspende ou fecha a devolução por outro meio (o cliente não recebe duas vezes);
  * - o reembolso de parte de um pedido com vários itens feito direto na Stripe, sem dizer de qual voucher;
  * - as três partes do que voltou ao cliente: pela mesma forma de pagamento, pendente e por outro meio, como a equipe lê
- *   e como o cliente lê (partesDoReembolso), e o que diz respeito a cada página do cliente (partesDaPagina).
+ *   e como o cliente lê (partesDoReembolso), e o que diz respeito a cada página do cliente (partesDaPagina);
+ * - as linhas que o painel grava ao pedir um reembolso à Stripe, e se o histórico já cita aquele reembolso (o segundo
+ *   toque no botão não grava de novo).
  * O motivo da falha (o failure_reason da Stripe) fica só no histórico do painel: nunca vai para o cliente.
  */
 
@@ -161,6 +163,39 @@ export function vouchersDevolvidosPorOutroMeio(historico: readonly { evento: str
   return lista;
 }
 
+/**
+ * A hora da linha do voucher devolvido por outro meio (a primeira, se o banco a trouxer repetida), ou undefined quando
+ * ela ainda não foi gravada. A rota do painel só completa a marca do voucher que ficou para trás quando essa linha já tem
+ * mais de um minuto (marcaOVoucherPorFora, src/lib/pedidos-painel.ts).
+ */
+export function horaDoVoucherDevolvidoPorOutroMeio(
+  historico: readonly { em: string; evento: string }[],
+  voucher: string,
+): string | undefined {
+  return historico.find((h) => VOUCHER_POR_FORA.exec(h.evento)?.[2] === voucher)?.em;
+}
+
+/* ------------------------------------------------------------------ */
+/* O reembolso pedido à Stripe pelo painel                             */
+
+/**
+ * A linha que o painel grava quando pede um reembolso à Stripe ("Reembolsar tudo" e "Reembolsar só o voucher …"): o
+ * status (ou o voucher) muda quando o charge.refunded chegar. O mesmo texto de antes, sem mudar uma letra.
+ */
+export const linhaDoReembolsoSolicitado = (r: { id: string; centavos: number; voucher?: string }): string =>
+  r.voucher
+    ? `Reembolso do item ${r.voucher} (${cifra(r.centavos)}) solicitado na Stripe (${r.id}): o item muda quando a Stripe confirmar`
+    : `Reembolso total (${cifra(r.centavos)}) solicitado na Stripe (${r.id}): o status muda quando a Stripe confirmar`;
+
+/**
+ * Alguma linha do histórico já cita este reembolso, com o id entre parênteses ("(re_…)"): a do próprio pedido ao painel,
+ * ou a do voucher reembolsado que o charge.refunded grava. O segundo toque no botão (o duplo clique, a aba antiga do
+ * painel) recebe da Stripe o MESMO reembolso, pela chave de idempotência, e a rota não grava a linha de novo. Os
+ * parênteses fecham o id: "re_1" não é citado por "(re_12)".
+ */
+export const reembolsoNoHistorico = (historico: readonly { evento: string }[], reembolsoId: string): boolean =>
+  historico.some((h) => h.evento.includes(`(${reembolsoId})`));
+
 /* ------------------------------------------------------------------ */
 /* As partes do que voltou ao cliente                                  */
 
@@ -272,8 +307,9 @@ const SEM_VOUCHER = /^Aviso: (.+?) devolvidos direto na Stripe \(([^()]+)\), sem
 
 /**
  * Os reembolsos sem voucher, um por id. Resolvido quando QUALQUER linha do histórico começa com
- * inicioDoReembolsoResolvido(id), e não só as que vêm depois do aviso (a linha do voucher ligado vem de atualizar_item,
- * com a hora do banco, e o aviso com a hora do servidor), ou quando o pedido tem a linha do reembolso total.
+ * inicioDoReembolsoResolvido(id), e não só as que vêm depois do aviso (a linha do voucher ligado gravada até o Pacote 16
+ * veio de atualizar_item, com a hora do banco; desde o Pacote 16 ela vem de atualizar_reserva, com a hora do servidor,
+ * como o aviso), ou quando o pedido tem a linha do reembolso total.
  */
 export function reembolsosSemVoucher(historico: readonly { evento: string }[]): ReembolsoSemVoucher[] {
   const total = historico.some((h) => h.evento.startsWith(REEMBOLSO_TOTAL));

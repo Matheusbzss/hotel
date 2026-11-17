@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { depoisDaEspera } from '@/lib/espera-do-pagamento';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
@@ -302,6 +303,18 @@ export function CheckoutEmbutido({
     if (lido.recusa) setRecusa(lido.recusa);
   });
 
+  // a página que o navegador guardou inteira e devolveu pelo botão de voltar (a memória de voltar do Safari): a troca para
+  // o Pix que terminou com a página inteira indo para o pedido (o pedido mudou por baixo, em pagarComPix) deixaria o botão
+  // em "Processando…", o quadro esmaecido e a consulta do status parada. A troca é dada por terminada, e a consulta volta
+  // (ela leva de novo à página do pedido, se ele não espera mais o pagamento)
+  useEffect(() => {
+    const aoMostrar = (e: PageTransitionEvent) => {
+      if (e.persisted) setTrocando(false);
+    };
+    window.addEventListener('pageshow', aoMostrar);
+    return () => window.removeEventListener('pageshow', aoMostrar);
+  }, []);
+
   // a recusa chega com o cliente lá embaixo, no botão de pagar da Stripe: a tela sobe até o aviso (e a oferta do
   // Pix) quando ele nasce fora da vista. O jeito de rolar (suave, ou direto para quem pediu menos movimento) vem
   // do CSS da página. O começo da tela fica atrás do menu do topo, preso no alto (4rem no celular, 4,5rem do md para
@@ -432,6 +445,11 @@ export interface TextosPagarPedido extends TextosEscolhaPagamento, TextosCheckou
   seguro: string;
   confirmando: string;
   confirmandoTexto: string;
+  /**
+   * Embaixo de confirmandoTexto, passada a espera, no pedido de Pix sem outra forma que valha (o pagamento online desligado
+   * às pressas, com o QR já gerado): pagar pelo app do banco (pedido.pixGerado).
+   */
+  pixGerado: string;
   /** "Esta página atualiza sozinha": reserva.atualizaSozinho (um voucher) ou pedido.atualizaSozinho (um por item). */
   atualizaSozinho: string;
   /** O botão "Pagar" do pedido pendente cujo pagamento não chegou (o cliente voltou sem pagar). */
@@ -439,7 +457,10 @@ export interface TextosPagarPedido extends TextosEscolhaPagamento, TextosCheckou
   pagarDeNovo: string;
   tempoEsgotado: string;
   tempoEsgotadoTexto: string;
-  /** Quando nenhuma forma vale mais (faltam menos de 30 minutos para o serviço, ou o pagamento online está fechado). */
+  /**
+   * Quando nenhuma forma vale mais (faltam menos de 30 minutos para o serviço, ou o pagamento online está fechado). No
+   * pedido de Pix pendente, só depois que a sessão acaba (o pedido vence): até lá, o QR já gerado vale (pixGerado).
+   */
   semPrazo: string;
 }
 
@@ -514,13 +535,16 @@ export function PagarPedido({
   }, [erro]);
 
   // quem voltou sem pagar vê "confirmando" sem nada chegar: depois de um tempo, aparece o botão de pagar; sem forma
-  // nenhuma (faltam menos de 30 minutos para o serviço), a tela troca para o aviso de que o pedido não pode mais ser pago pelo site
-  const temFormas = formas.length > 0;
+  // nenhuma (faltam menos de 30 minutos para o serviço, ou o pagamento online foi desligado), a tela troca para o aviso de
+  // que o pedido não pode mais ser pago pelo site. Menos no pedido de Pix: o QR que o cliente já gerou vale até a sessão
+  // acabar, e a tela continua esperando, com a frase do Pix gerado (depoisDaEspera, src/lib/espera-do-pagamento.ts; L5d do
+  // reteste de 17/11). A consulta do status continua: pago, a página mostra os vouchers; a sessão acabou, o tempo esgotado
+  const depois = depoisDaEspera(status, formas, formaAtual);
   useEffect(() => {
     if (etapa !== 'confirmando') return;
-    const id = window.setTimeout(() => (temFormas ? setEsperou(true) : setEtapa('escolher')), ESPERA_PARA_PAGAR_MS);
+    const id = window.setTimeout(() => (depois === 'sem-formas' ? setEtapa('escolher') : setEsperou(true)), ESPERA_PARA_PAGAR_MS);
     return () => window.clearTimeout(id);
-  }, [etapa, temFormas]);
+  }, [etapa, depois]);
 
   // enquanto o checkout não está aberto aqui, a página acompanha o pedido: mudou de status, o servidor redesenha.
   // Pausa enquanto a sessão nova é criada: ela mesma tira o pedido de expirado, e redesenhar ali fecharia o checkout
@@ -599,8 +623,10 @@ export function PagarPedido({
       <div>
         <h1 className="display text-head">{T.confirmando}</h1>
         <p className="mt-4 max-w-[44ch] text-lead">{T.confirmandoTexto}</p>
+        {/* o Pix já gerado sem outra forma que valha (o pagamento online desligado às pressas): o QR ainda vale */}
+        {esperou && depois === 'esperar-o-pix' && <p className="mt-4 max-w-[44ch] text-lead">{T.pixGerado}</p>}
         <p className="mt-6 max-w-[52ch] bg-superficie px-5 py-4">{T.atualizaSozinho}</p>
-        {esperou && temFormas && (
+        {esperou && depois === 'pagar' && (
           <div className="mt-6">
             <button type="button" className="botao botao-vazado w-full sm:w-auto" onClick={() => setEtapa('escolher')}>
               {T.pagarAgora}

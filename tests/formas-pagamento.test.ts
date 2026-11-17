@@ -29,14 +29,15 @@ import {
   validadeDoPix,
   valorACobrar,
   valorDoItem,
+  type FormaPagamento,
   type ItemAgendado,
   type ItemCobravel,
   type ItemPagavel,
 } from '../src/lib/formas-pagamento.ts';
 import { ANTECEDENCIA_MINIMA_MINUTOS } from '../src/lib/horarios.ts';
-import { partesDoTotal } from '../src/lib/partes-do-total.ts';
+import { formasDaFaixa, partesDoTotal } from '../src/lib/partes-do-total.ts';
 import type { StatusReserva } from '../src/lib/reservas.ts';
-import { VALIDADE_SESSAO_MINUTOS } from '../src/lib/stripe.ts';
+import { VALIDADE_SESSAO_MINUTOS, parametrosDaSessao, type ItemDaSessao } from '../src/lib/stripe.ts';
 
 // Búzios fica 3 horas atrás de UTC: 17h20 UTC = 14h20 em Búzios, no dia 2 de novembro de 2026
 const AGORA = new Date('2026-11-02T17:20:00Z');
@@ -196,6 +197,84 @@ test('o cartão fecha 30 minutos antes do serviço, e esse prazo nunca fica meno
   assert.ok(ANTECEDENCIA_CARTAO_MINUTOS >= VALIDADE_SESSAO_MINUTOS);
   // e o cartão fecha depois do Pix: sem isso, o "depois disso, só cartão" do FASE-4.md deixaria de existir
   assert.ok(ANTECEDENCIA_CARTAO_MINUTOS < ANTECEDENCIA_MINIMA_MINUTOS);
+});
+
+// Reteste de 17/11 (L13-5b): o corte do cartão contava minutos inteiros (dentroDoPrazo). Com o serviço às 12h, o cartão
+// ainda aparecia às 11h30min59s e só saía às 11h31min00s; o mesmo às 14h30 com o pedido das 15h. Agora conta segundos,
+// como o prazo do Pix (validadeDoPix) e a antecedência do transfer (tests/transfer.test.ts).
+test('o cartão conta os segundos: com os 30 minutos cravados ainda vale; um segundo depois, não', () => {
+  // os instantes vêm com o fuso de Búzios escrito (-03:00), com os segundos
+  const asSeg = (dataHoraSegundos: string) => new Date(`${dataHoraSegundos}-03:00`);
+  const servico = [passeio('2026-11-02', '12:00')];
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:29:59')), true);
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:30:00')), true);
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:30:01')), false);
+  // o que o reteste viu: até o conserto, nesses segundos o cartão ainda era oferecido
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:30:30')), false);
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:30:59')), false);
+  assert.equal(cartaoDisponivel(servico, asSeg('2026-11-02T11:31:00')), false);
+  // o relógio do servidor em UTC: 14h30min00s UTC são 11h30 em Búzios; 14h30min01s, um segundo depois
+  assert.equal(cartaoDisponivel(servico, new Date('2026-11-02T14:30:00Z')), true);
+  assert.equal(cartaoDisponivel(servico, new Date('2026-11-02T14:30:01Z')), false);
+  // os milissegundos do relógio não mudam a conta: o segundo cravado ainda vale até o fim dele
+  assert.equal(cartaoDisponivel(servico, new Date('2026-11-02T14:30:00.999Z')), true);
+  // atravessa a virada do dia: o transfer da 0h de amanhã, às 23h30min00s ainda; às 23h30min01s, não
+  assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], asSeg('2026-11-02T23:30:00')), true);
+  assert.equal(cartaoDisponivel([transfer('2026-11-03', '00:00')], asSeg('2026-11-02T23:30:01')), false);
+  // num pedido com vários itens, o que começa primeiro decide (os outros longe não seguram o cartão)
+  assert.equal(cartaoDisponivel([passeio('2026-11-03', '09:00'), ...servico], asSeg('2026-11-02T11:30:00')), true);
+  assert.equal(cartaoDisponivel([passeio('2026-11-03', '09:00'), ...servico], asSeg('2026-11-02T11:30:01')), false);
+  // a casa entra às 15h: às 14h30min00s ainda; às 14h30min01s, não
+  assert.equal(cartaoDisponivel([casa('2026-11-02')], asSeg('2026-11-02T14:30:00')), true);
+  assert.equal(cartaoDisponivel([casa('2026-11-02')], asSeg('2026-11-02T14:30:01')), false);
+  // uma data que não dá para ler nunca libera o cartão
+  assert.equal(cartaoDisponivel([passeio('amanhã', '12:00')], asSeg('2026-11-02T09:00:00')), false);
+  // escolherFormas, a regra das telas e das rotas (formasDoPagamento: o checkout, as páginas do pedido e da reserva, a
+  // rota que cria o pedido e a de pagar, que responde 403 'forma'), segue a mesma conta, no mesmo segundo
+  const itens: ItemPagavel[] = [{ ...passeio('2026-11-02', '12:00'), totalCentavos: 15400, totalPixCentavos: 13860 }];
+  assert.deepEqual(escolherFormas(itens, asSeg('2026-11-02T11:30:00'), null), { formas: ['cartao'], semPix: 'prazo' });
+  assert.deepEqual(escolherFormas(itens, asSeg('2026-11-02T11:30:01'), null), { formas: [], semPix: 'prazo' });
+  // segundo a segundo perto do corte: o cartão vale exatamente enquanto faltam pelo menos 30 minutos (1.800 segundos)
+  const corte = asSeg('2026-11-02T11:30:00').getTime();
+  for (let s = -90; s <= 90; s++) {
+    const agora = new Date(corte + s * 1000);
+    assert.equal(cartaoDisponivel(servico, agora), s <= 0, `${s} s depois do corte`);
+    assert.equal(cartaoDisponivel(servico, agora), segundosAteOInicio(servico[0], agora) >= ANTECEDENCIA_CARTAO_MINUTOS * 60);
+  }
+});
+
+test('o pior caso do cartão: a sessão aberta no último segundo dele termina 1 minuto depois do horário do serviço', () => {
+  const asSeg = (dataHoraSegundos: string) => new Date(`${dataHoraSegundos}-03:00`);
+  // um item fictício, só para os parâmetros da sessão (nada vai à Stripe)
+  const item: ItemDaSessao = {
+    ...passeio('2026-11-02', '12:00'),
+    totalCentavos: 15400,
+    totalPixCentavos: 13860,
+    voucher: 'ON-TESTE1',
+    nome: 'Passeio de teste',
+  };
+  const servico = asSeg('2026-11-02T12:00:00').getTime() / 1000;
+  const corte = asSeg('2026-11-02T11:30:00').getTime();
+  let pior = -Infinity;
+  // de 2 minutos antes a 2 minutos depois do corte, segundo a segundo: a sessão do cartão de cada instante em que ele vale
+  for (let s = -120; s <= 120; s++) {
+    const agora = new Date(corte + s * 1000);
+    if (!cartaoDisponivel([item], agora)) continue;
+    const sessao = parametrosDaSessao({
+      pedido: { codigo: 'ON-TESTE1', email: 'teste@exemplo.com' },
+      itens: [item],
+      forma: 'cartao',
+      idioma: 'pt',
+      returnUrl: 'https://orlanativa.online/reserva/ON-TESTE1?t=TOKEN',
+      tentativa: 1,
+      agora,
+    });
+    pior = Math.max(pior, (sessao.expires_at ?? 0) - servico);
+  }
+  // a sessão do cartão dura VALIDADE_SESSAO_MINUTOS mais o minuto de folga (src/lib/stripe.ts): aberta com os 30 minutos
+  // cravados, termina 60 segundos depois do horário (com a conta em minutos inteiros, eram 119)
+  assert.equal(pior, 60);
+  assert.equal(pior, VALIDADE_SESSAO_MINUTOS * 60 + 60 - ANTECEDENCIA_CARTAO_MINUTOS * 60);
 });
 
 test('o WhatsApp da equipe só aparece depois do pagamento aprovado', () => {
@@ -478,6 +557,48 @@ test('em aberto, a tela mostra só os valores das formas que ainda valem', () =>
   assert.deepEqual(partesDoTotal(80000), [{ centavos: 80000 }]);
   assert.deepEqual(partesDoTotal(80000, undefined, ['cartao', 'pix']), [{ centavos: 80000 }]);
   assert.deepEqual(partesDoTotal(80000, 0, ['cartao']), [{ centavos: 80000 }]);
+});
+
+// Reteste de 17/11 (L5d): com o pagamento online desligado às pressas (o freio de emergência) e o QR do Pix de R$ 138,60
+// ainda valendo, a faixa dizia "Aguardando pagamento R$ 154,00", o valor do cartão, desde o primeiro segundo; o QR foi
+// pago minutos depois. O mesmo, com o site ligado, entre o fim do prazo do Pix e o fim de um QR gerado pouco antes.
+test('a faixa do pedido pendente mostra também o valor da forma da sessão que ele já tem: o Pix já gerado', () => {
+  const pix = { centavos: 13860, forma: 'pix' };
+  const cartao = { centavos: 15400, forma: 'cartao' };
+  // o freio de emergência: nenhuma forma vale, e o pedido tem o Pix gerado: "R$ 138,60 no Pix"
+  assert.deepEqual(formasDaFaixa('pendente', { formas: [], formaAtual: 'pix' }), ['pix']);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: [], formaAtual: 'pix' })), [pix]);
+  // (até o conserto as páginas mandavam só as formas que valem: o total sozinho, que é o do cartão)
+  assert.deepEqual(partesDoTotal(15400, 13860, []), [{ centavos: 15400 }]);
+  // o site ligado, passado o prazo do Pix com o QR ainda valendo: o do Pix e o do cartão, o do Pix primeiro
+  assert.deepEqual(formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'pix' }), ['cartao', 'pix']);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'pix' })), [pix, cartao]);
+  // o pedido de cartão sem forma que valha: o valor do cartão, agora com o "no cartão"
+  assert.deepEqual(formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' }), ['cartao']);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' })), [cartao]);
+  // a forma do pedido já está entre as que valem: a mesma lista
+  const ambas: FormaPagamento[] = ['cartao', 'pix'];
+  assert.equal(formasDaFaixa('pendente', { formas: ambas, formaAtual: 'pix' }), ambas);
+  const soCartao: FormaPagamento[] = ['cartao'];
+  assert.equal(formasDaFaixa('pendente', { formas: soCartao, formaAtual: 'cartao' }), soCartao);
+  // vencido, pago, cancelado, reembolsado…: só as que valem, como antes (o QR morreu com a sessão)
+  const OUTROS: StatusReserva[] = ['expirado', 'pago', 'recusado', 'cancelado', 'aguardando_whatsapp', 'reembolsado', 'contestado'];
+  for (const status of OUTROS) {
+    assert.deepEqual(formasDaFaixa(status, { formas: [], formaAtual: 'pix' }), [], status);
+    assert.deepEqual(formasDaFaixa(status, { formas: ['cartao'], formaAtual: 'pix' }), ['cartao'], status);
+  }
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: [], formaAtual: 'pix' })), [{ centavos: 15400 }]);
+  // sem a forma do pedido: só as que valem
+  assert.deepEqual(formasDaFaixa('pendente', { formas: [] }), []);
+  assert.deepEqual(formasDaFaixa('pendente', { formas: ['cartao'] }), ['cartao']);
+  // sem o pagamento online (o pedido do WhatsApp, ou fechado): nada, e partesDoTotal mostra os dois valores, como sempre
+  assert.equal(formasDaFaixa('aguardando_whatsapp', undefined), undefined);
+  assert.equal(formasDaFaixa('pendente', null), undefined);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('aguardando_whatsapp', undefined)), [pix, cartao]);
+  // nunca muda a lista que recebe
+  const nenhuma: FormaPagamento[] = [];
+  assert.deepEqual(formasDaFaixa('pendente', { formas: nenhuma, formaAtual: 'pix' }), ['pix']);
+  assert.deepEqual(nenhuma, []);
 });
 
 // Desde o Pacote 6 (16/11), src/data/transfer.ts usa segundosAteOInicio deste arquivo, e o cartão do transfer roda no

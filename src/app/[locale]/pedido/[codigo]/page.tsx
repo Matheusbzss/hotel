@@ -20,7 +20,7 @@ import { linkEmail } from '@/lib/email';
 import { formasDoPagamento, mostrarWhatsApp, type FormaPagamento, type MotivoSemPix } from '@/lib/formas-pagamento';
 import { frasesDoReembolso } from '@/lib/frases-do-reembolso';
 import { ipDaRequisicao } from '@/lib/limite-ip';
-import { partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
+import { formasDaFaixa, partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
 import { partesDaPagina } from '@/lib/reembolsos-a-resolver';
 import {
   itensPagaveis,
@@ -179,8 +179,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const desistencia = estadoDaDesistencia(reservas, new Date());
 
   // os valores na tela: em aberto, só os das formas que ainda valem (no pagamento online, o Pix some 2 horas antes
-  // do serviço); fechado, o que foi pago
-  const formasAbertas = pagamento?.formas;
+  // do serviço) e, no pedido pendente, o da forma da sessão que ele já tem (o Pix já gerado continua valendo com o
+  // pagamento desligado às pressas ou depois do prazo do Pix: formasDaFaixa); fechado, o que foi pago
+  const formasAbertas = formasDaFaixa(status, pagamento);
   const rotulo = { pix: d.preco.noPix, cartao: d.preco.noCartao };
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));
   // a faixa do total: o valor e o rótulo ("R$ 5.148,00" e "no Pix") ficam juntos; só quando nem assim cabem (letra

@@ -92,9 +92,10 @@ const diasEntre = (de: string, ate: string): number =>
   Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
 
 /**
- * Ainda dá tempo de pagar o item: ele começa pelo menos `antecedenciaMinutos` depois de agora, no fuso de
- * Búzios. A conta atravessa a virada do dia: às 23h30, o transfer da 0h30 de amanhã começa em 60 minutos,
- * e o Pix (que pede 120) já não vale para ele. Uma data que não dá para ler conta como fora do prazo.
+ * O item começa pelo menos `antecedenciaMinutos` depois de agora, no fuso de Búzios, contando minutos inteiros. A conta
+ * atravessa a virada do dia: às 23h30, o transfer da 0h30 de amanhã começa em 60 minutos. Uma data que não dá para ler
+ * conta como fora do prazo. Hoje só os lembretes do carrinho a usam (src/lib/lembretes.ts); os prazos de pagar contam
+ * segundos (segundosAteOInicio): o do Pix (validadeDoPix) e, desde o reteste de 17/11, o do cartão (cartaoDisponivel).
  */
 export function dentroDoPrazo(item: ItemAgendado, agora: Date, antecedenciaMinutos: number = ANTECEDENCIA_MINIMA_MINUTOS): boolean {
   const { data, hora } = inicioDoItem(item);
@@ -190,19 +191,28 @@ export function pixCabeNoLimite(itens: ItemCobravel[], cotacao: number | null | 
 /**
  * Quanto antes do serviço o cartão fecha: 30 minutos (decisão do dono de 11/11). É o tempo que a sessão de pagamento
  * dura (VALIDADE_SESSAO_MINUTOS, src/lib/stripe.ts; tests/formas-pagamento.test.ts confere que este número não fica
- * menor que aquele), então quem abre a tela no último minuto ainda paga antes de o serviço começar. No pior caso (o
- * minuto de folga da sessão e os segundos do relógio) o pagamento chega até uns 2 minutos depois do horário: aí o
- * histórico do pedido recebe AVISO_PAGO_DEPOIS_DO_HORARIO (src/lib/pagamento-stripe.ts), para a equipe ver no painel.
+ * menor que aquele), então quem abre a tela no último segundo do prazo ainda tem a sessão inteira para pagar. A conta é
+ * em segundos (cartaoDisponivel): a sessão do cartão aberta com os 30 minutos cravados dura VALIDADE_SESSAO_MINUTOS mais
+ * o minuto de folga dela (FOLGA_SEGUNDOS, src/lib/stripe.ts), então, no pior caso, o pagamento chega 1 minuto depois do
+ * horário (30 min + 60 s - 30 min; um teste confere com os parâmetros da sessão). Até o reteste de 17/11 a conta era em
+ * minutos inteiros: o cartão valia até as 11h30min59s para o serviço das 12h, e o pior caso chegava a uns 2 minutos.
+ * O pagamento que chega depois do horário deixa no histórico do pedido AVISO_PAGO_DEPOIS_DO_HORARIO
+ * (src/lib/pagamento-stripe.ts, que conta minutos inteiros: a partir do minuto seguinte ao do horário), para a equipe ver
+ * no painel.
  */
 export const ANTECEDENCIA_CARTAO_MINUTOS = 30;
 
 /**
  * O cartão pode ser oferecido até 30 minutos antes do primeiro serviço; o prazo de 2 horas é só do Pix (FASE-4.md:
  * "Prazo do Pix: até 2 horas antes do início de qualquer serviço. Depois disso, só cartão."). Só pesa para o pedido
- * feito antes e pago depois: um pedido novo já exige as 2 horas de antecedência (src/lib/horarios.ts).
+ * feito antes e pago depois: um pedido novo já exige as 2 horas de antecedência (src/lib/horarios.ts). A conta é em
+ * segundos, a mesma do prazo do Pix (validadeDoPix) e da antecedência do transfer (src/data/transfer.ts): com os 30
+ * minutos cravados ainda vale; um segundo depois, não. É a regra única do cartão: a página do checkout, as do pedido e
+ * da reserva, a rota que cria o pedido e a de pagar (o 403 'forma') passam todas por aqui (formasDoPagamento), com o
+ * `agora` de cada uma. Uma data ou hora que não dá para ler (NaN) nunca libera o cartão.
  */
 export function cartaoDisponivel(itens: ItemAgendado[], agora: Date = new Date()): boolean {
-  return itens.length > 0 && itens.every((item) => dentroDoPrazo(item, agora, ANTECEDENCIA_CARTAO_MINUTOS));
+  return itens.length > 0 && itens.every((item) => segundosAteOInicio(item, agora) >= ANTECEDENCIA_CARTAO_MINUTOS * 60);
 }
 
 /**

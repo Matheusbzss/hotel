@@ -124,6 +124,8 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
       d.checkout.cartaoAvista,
       d.pedido.confirmando,
       d.pedido.confirmandoTexto,
+      // Pacote 14 (reteste de 17/11): o Pix já gerado durante o freio de emergência
+      d.pedido.pixGerado,
       d.pedido.atualizaSozinho,
       d.pedido.pagar,
       d.pedido.pagarDeNovo,

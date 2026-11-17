@@ -7,7 +7,7 @@ import { textoDolar } from '@/lib/dolar';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { frasesDoReembolso, type TextosDoReembolso } from '@/lib/frases-do-reembolso';
 import { formatarCentavos } from '@/lib/orcamento';
-import { partesDoTotal } from '@/lib/partes-do-total';
+import { formasDaFaixa, partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
 import { IconeWhatsApp } from './IconeWhatsApp';
@@ -132,12 +132,15 @@ export function StatusReserva({
       parte
     );
   };
-  // só os valores das formas que ainda valem: no pagamento online, o Pix some 2 horas antes do serviço
+  // só os valores das formas que ainda valem (no pagamento online, o Pix some 2 horas antes do serviço) e, no pedido
+  // pendente, o da forma da sessão que ele já tem: o Pix já gerado continua valendo com o pagamento desligado às pressas
+  // ou depois do prazo do Pix (formasDaFaixa, src/lib/partes-do-total.ts)
+  const formasNaFaixa = formasDaFaixa(r.status, online ? pagamento : undefined);
   const rotulos = { pix: textos.noPix, cartao: textos.noCartao };
   // cada valor é um bloco, que desce inteiro para a linha de baixo quando os dois não cabem lado a lado. O "·" fica
   // na folga à esquerda de cada valor a partir do segundo (0.626em é a largura de " · " nesta fonte) e só aparece
   // quando os dois couberam na mesma linha: no começo de uma linha ele fica fora do recorte da faixa (mais abaixo)
-  const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, online ? pagamento?.formas : undefined).map((parte, n) => (
+  const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa).map((parte, n) => (
     <span key={parte.forma ?? 'total'} className="relative pl-[0.626em]">
       {n > 0 && (
         <span aria-hidden="true" className="absolute top-0 left-0 w-[0.626em] text-center">

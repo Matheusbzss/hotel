@@ -232,6 +232,20 @@ export function FormularioCarrinho({
     if (erroGeral) erroRef.current?.focus();
   }, [erroGeral]);
 
+  // a página que o navegador guardou inteira e devolveu pelo botão de voltar (a memória de voltar do Safari): o envio que
+  // terminou com a página inteira indo para o pedido ("Registrar e finalizar pelo WhatsApp", ou o 409 "mudou" com o
+  // pedido em aberto) deixaria o botão em "Processando…" e desligado. O botão volta, e o carrinho é relido no servidor (o
+  // que virou pedido sai dele), como na primeira carga
+  useEffect(() => {
+    const aoMostrar = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      setEnviando(false);
+      recarregar();
+    };
+    window.addEventListener('pageshow', aoMostrar);
+    return () => window.removeEventListener('pageshow', aoMostrar);
+  }, [recarregar]);
+
   /** O e-mail digitado fica no carrinho, para lembrar quem não terminou (Fase 5). */
   function guardarEmail() {
     const limpo = email.trim();

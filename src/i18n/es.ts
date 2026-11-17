@@ -220,6 +220,8 @@ const es: Dicionario = {
     // o pagamento online pela Stripe (Etapa 4): a página do pedido em cada estado
     confirmando: 'Confirmando el pago…',
     confirmandoTexto: 'Si ya pagaste, la confirmación suele llegar en unos segundos.',
+    // impessoal, sem tú nem vos: o es-ar usa a mesma (nenhuma entrada em src/i18n/es-ar.ts)
+    pixGerado: 'Si el código Pix ya fue generado, se puede pagar en la app del banco. Esta página se actualiza sola.',
     atualizaSozinho: 'Apenas se confirme el pago, esta página va a mostrar tus vouchers automáticamente.',
     pagar: '¿Todavía no pagaste? Pagar ahora',
     pagarDeNovo: 'Pagar de nuevo',

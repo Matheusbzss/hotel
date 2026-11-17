@@ -208,6 +208,8 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     (d: typeof es) => d.pedido.reembolsoPendenteTitulo,
     (d: typeof es) => d.pedido.reembolsoFalhou,
     (d: typeof es) => d.pedido.reembolsoOutroMeio,
+    // Pacote 14 (reteste de 17/11): o Pix já gerado ("se puede pagar", impessoal)
+    (d: typeof es) => d.pedido.pixGerado,
   ]) {
     assert.equal(t(ar), t(es));
   }

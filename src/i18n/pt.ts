@@ -221,6 +221,9 @@ const pt = {
     // o pagamento online pela Stripe (Etapa 4): a página do pedido em cada estado
     confirmando: 'Confirmando o pagamento…',
     confirmandoTexto: 'Se você já pagou, a confirmação costuma chegar em poucos segundos.',
+    // o pedido de Pix pendente sem outra forma que valha (o pagamento online desligado às pressas): o QR já gerado vale até
+    // a sessão acabar (src/lib/espera-do-pagamento.ts)
+    pixGerado: 'Se você já gerou o código Pix, pode pagar pelo app do seu banco. Esta página se atualiza sozinha.',
     atualizaSozinho: 'Assim que o pagamento for confirmado, esta página mostra os seus vouchers automaticamente.',
     pagar: 'Ainda não pagou? Pagar agora',
     pagarDeNovo: 'Pagar de novo',

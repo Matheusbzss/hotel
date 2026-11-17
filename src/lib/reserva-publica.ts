@@ -192,6 +192,7 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     tentarDeNovo: d.reserva.tentarNovamente,
     confirmando: P.confirmando,
     confirmandoTexto: P.confirmandoTexto,
+    pixGerado: P.pixGerado,
     atualizaSozinho: varios ? P.atualizaSozinho : d.reserva.atualizaSozinho,
     pagarAgora: P.pagar,
     pagarDeNovo: P.pagarDeNovo,

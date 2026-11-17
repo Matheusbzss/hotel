@@ -615,7 +615,9 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
             </li>
           );
         })}
-        {r.observacoes && <li className="py-3 text-small last:pb-0">Obs.: {r.observacoes}</li>}
+        {/* o texto do cliente e o nome da campanha podem vir sem espaço: quebram em qualquer ponto para não alargar o
+            cartão no celular (revisor do Pacote 12) */}
+        {r.observacoes && <li className="py-3 text-small [overflow-wrap:anywhere] last:pb-0">Obs.: {r.observacoes}</li>}
       </ul>
       <div className="lg:col-span-3">
         <p className="font-semibold">{r.cliente.nome}</p>
@@ -638,7 +640,9 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
           Idioma: {r.idioma.toUpperCase()}
           {r.cliente.pais ? ` · País: ${r.cliente.pais}` : ''}
         </p>
-        {textoDaOrigem(r.origem) && <p className="text-small text-tinta-suave">Veio de: {textoDaOrigem(r.origem)}</p>}
+        {textoDaOrigem(r.origem) && (
+          <p className="text-small text-tinta-suave [overflow-wrap:anywhere]">Veio de: {textoDaOrigem(r.origem)}</p>
+        )}
       </div>
       <div className="lg:col-span-2 lg:text-right">
         <ValorDoPedido p={p} />

@@ -480,7 +480,7 @@ test('em aberto, a tela mostra só os valores das formas que ainda valem', () =>
   assert.deepEqual(partesDoTotal(80000, 0, ['cartao']), [{ centavos: 80000 }]);
 });
 
-// Desde o Pacote 6 (16/11), src/data/transfer.ts usa dentroDoPrazo deste arquivo, e o cartão do transfer roda no
+// Desde o Pacote 6 (16/11), src/data/transfer.ts usa segundosAteOInicio deste arquivo, e o cartão do transfer roda no
 // navegador: tudo o que formas-pagamento.ts importa de forma estática vai para o pacote da página /transfer. A Stripe (o
 // SDK do servidor) só pode entrar pelo import() dinâmico de formasDoPagamento, que roda no servidor (Pacote 11).
 

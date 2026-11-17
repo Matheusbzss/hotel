@@ -150,8 +150,10 @@ test('transfer: a antecedência conta os segundos, com o limite cravado ainda va
 });
 
 test('transfer: o que ainda entra no carrinho ainda tem o Pix, segundo a segundo, perto do limite (hoje as duas são 2 horas)', () => {
-  // as duas regras usam números próprios; enquanto forem iguais (a decisão do dono de 16/11), têm de concordar
-  assert.equal(ANTECEDENCIA_TRANSFER_MINUTOS, ANTECEDENCIA_MINIMA_MINUTOS);
+  // as duas regras usam números próprios. A que vale sempre: transfer aceito tem o Pix (a antecedência do transfer nunca
+  // é menor que a do Pix). Se o dono subir o transfer para 6 ou 12 horas, só a parte "no mesmo segundo" deixa de valer.
+  assert.ok(ANTECEDENCIA_TRANSFER_MINUTOS >= ANTECEDENCIA_MINIMA_MINUTOS);
+  const iguais = ANTECEDENCIA_TRANSFER_MINUTOS === ANTECEDENCIA_MINIMA_MINUTOS;
   for (const [data, hora, limite] of [
     ['2026-11-16', '00:00', '2026-11-15T22:00:00'],
     ['2026-11-16', '01:50', '2026-11-15T23:50:00'],
@@ -161,9 +163,12 @@ test('transfer: o que ainda entra no carrinho ainda tem o Pix, segundo a segundo
     const zero = asSeg(limite).getTime();
     for (let s = -90; s <= 90; s++) {
       const agora = new Date(zero + s * 1000);
-      assert.equal(transferComAntecedencia(data, hora, agora), pixDisponivel([item], agora), `${data} ${hora}, ${s} s depois do limite`);
-      // e os dois mudam exatamente no limite
-      assert.equal(transferComAntecedencia(data, hora, agora), s <= 0, `${data} ${hora}, ${s} s depois do limite`);
+      const aceito = transferComAntecedencia(data, hora, agora);
+      if (aceito) assert.ok(pixDisponivel([item], agora), `${data} ${hora}, ${s} s depois do limite: aceito sem o Pix`);
+      if (!iguais) continue;
+      // com as duas iguais (a decisão do dono de 16/11), as duas mudam exatamente no limite
+      assert.equal(aceito, pixDisponivel([item], agora), `${data} ${hora}, ${s} s depois do limite`);
+      assert.equal(aceito, s <= 0, `${data} ${hora}, ${s} s depois do limite`);
     }
   }
 });

@@ -13,8 +13,30 @@ import type { ReservaPublica } from '@/lib/reserva-publica';
 
 const INTERVALO_CONSULTA_MS = 4000;
 
-/** O que a página precisa saber da resposta de GET /api/reservas/[codigo]. */
-export type LeituraDoPedido = Pick<ReservaPublica, 'status' | 'recusa'>;
+/** O que a página precisa saber da resposta de GET /api/reservas/[codigo] (paraPublico do voucher consultado). */
+export type LeituraDoPedido = Pick<ReservaPublica, 'status' | 'recusa' | 'reembolsoCentavos' | 'reembolsoPartes'>;
+
+/** O que, numa leitura, muda a página que não espera pagamento: o status, o valor devolvido e as partes do reembolso. */
+export type LeituraQueRedesenha = Pick<LeituraDoPedido, 'status' | 'reembolsoCentavos' | 'reembolsoPartes'>;
+
+/** As partes de um reembolso que falhou como um texto só, para comparar (sem falha, vazio). */
+const partesDaLeitura = ({ reembolsoPartes: p }: LeituraQueRedesenha): string =>
+  p ? `${p.originalCentavos}|${p.pendenteCentavos}|${p.outroMeioCentavos}` : '';
+
+/**
+ * A leitura mudou o que a página mostra, comparada com o que ela mostrou ao abrir (o mesmo paraPublico dos dois lados):
+ * o status do voucher, o valor devolvido (o do pedido inteiro: num pedido com vários itens, o reembolso de um voucher
+ * só muda o valor de todos) ou as partes de um reembolso que falhou (a equipe registrou a devolução por outro meio: o
+ * status continua "reembolsado" e o pendente vira devolvido de outro jeito). Sem valor devolvido e com zero, é o mesmo.
+ * Até o reteste de 16-17/11 (R5) a comparação era só do status, e essas duas mudanças não redesenhavam a página aberta.
+ */
+export function leituraMudou(lido: LeituraQueRedesenha, antes: LeituraQueRedesenha): boolean {
+  return (
+    lido.status !== antes.status ||
+    (lido.reembolsoCentavos ?? 0) !== (antes.reembolsoCentavos ?? 0) ||
+    partesDaLeitura(lido) !== partesDaLeitura(antes)
+  );
+}
 
 /**
  * O ritmo da pergunta: 'sempre', a cada 4 s e ao voltar para a aba (o pedido espera o pagamento); 'ao-voltar', só quando

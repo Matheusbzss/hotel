@@ -8,6 +8,7 @@ import { AoVoltarParaAAba } from '@/components/pagamento/AoVoltarParaAAba';
 import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
 import { DesistirDaCompra } from '@/components/pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from '@/components/pagamento/EscolhaPagamento';
+import { PalavraDoStatus } from '@/components/pagamento/PalavraDoStatus';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
@@ -110,6 +111,8 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const frasesDoReembolsoDoPedido = (inteiro: boolean) => frasesDoReembolso(partesDoReembolso, inteiro, textosDoReembolso(d), brl);
   // no pedido pago, a caixa do reembolso de parte (sem nada devolvido, nenhuma)
   const frasesDoPago = pago ? frasesDoReembolsoDoPedido(false) : [];
+  // a palavra da faixa escura do resumo: com um reembolso que falhou e ainda não voltou, "Reembolso pendente"
+  const palavraDaFaixa = status === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[status];
   // o voucher reembolsado sozinho cujo dinheiro ainda não voltou: "Reembolso pendente" no lugar de "Reembolsado"
   const statusDoItem = (r: ReservaPublica) =>
     r.status === 'reembolsado' && (r.reembolsoPartes?.pendenteCentavos ?? 0) > 0 ? d.pedido.reembolsoPendenteTitulo : d.status[r.status];
@@ -250,9 +253,19 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
             />
           ) : (
             <>
-              {/* fora da tela de pagar, a página confere o status quando o cliente volta para a aba (pelo primeiro
-                  voucher, comparado com o status dele como a consulta o devolve); mudou, o servidor redesenha */}
-              <AoVoltarParaAAba codigo={primeira.codigo} token={token} idioma={locale} status={itens[0].status} />
+              {/* fora da tela de pagar, a página confere todos os vouchers quando o cliente volta para a aba (cada um
+                  comparado com o que a consulta devolve dele: o status, o valor devolvido e as partes de um reembolso que
+                  falhou); algum mudou, o servidor redesenha. Só esses valores vão ao navegador */}
+              <AoVoltarParaAAba
+                token={token}
+                idioma={locale}
+                vouchers={itens.map(({ codigo, status, reembolsoCentavos, reembolsoPartes }) => ({
+                  codigo,
+                  status,
+                  reembolsoCentavos,
+                  reembolsoPartes,
+                }))}
+              />
               <h1 className="display text-head">{titulo}</h1>
               {[texto].flat().map((frase, n) => (
                 <p key={n} className="mt-4 max-w-[44ch] text-lead">
@@ -351,8 +364,15 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
             </ul>
             {/* @container: a largura da faixa decide quando o valor e o rótulo podem quebrar entre si (valorDaFaixa) */}
             <div className="@container tom-campo px-6 py-5 md:px-8">
+              {/* na tela de pagar, a palavra muda sem redesenhar a página: "Pagar de novo" no pedido vencido abre uma
+                  sessão nova, a tela de pagar avisa e a faixa passa a "Aguardando pagamento" (o redesenho desmontaria o
+                  formulário da Stripe que acabou de abrir). A chave é o status, como a da tela de pagar */}
               <p className="font-semibold">
-                {status === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[status]}
+                {statusOnline ? (
+                  <PalavraDoStatus key={status} codigo={codigo} texto={palavraDaFaixa} textoPendente={d.status.pendente} />
+                ) : (
+                  palavraDaFaixa
+                )}
               </p>
               {/* cada valor fica inteiro com o rótulo e o dólar ao lado; o que não couber desce sem o "·" na frente. Com a
                   letra grande em tela estreita, quando o valor com o rótulo não cabe nem sozinho na linha, o rótulo desce

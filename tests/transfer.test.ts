@@ -1,21 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  IDS_LUGARES,
   LUGARES,
   cabeNaVan,
   cabeNoCarro,
   menorPrecoDaZona,
   precoTrecho,
   primeiroDiaTransfer,
+  primeiroPassoDoTransfer,
   totalTransfer,
   transferComAntecedencia,
+  type IdLugar,
 } from '../src/data/transfer.ts';
+import { IDIOMAS } from '../src/i18n/config.ts';
+import { dicionario } from '../src/i18n/index.ts';
+import { pixDisponivel } from '../src/lib/formas-pagamento.ts';
 import { ANTECEDENCIA_MINIMA_MINUTOS, ANTECEDENCIA_TRANSFER_MINUTOS } from '../src/lib/horarios.ts';
 
 const SEM_MALAS = { grandes: 0, medias: 0, mao: 0 };
 
 /** A hora de Búzios (UTC-3 o ano todo) como um instante: as('2026-11-15T22:00') são as 22h00 de 15/11 em Búzios. */
 const as = (dataHora: string) => new Date(`${dataHora}:00-03:00`);
+/** O mesmo, com os segundos: asSeg('2026-11-15T22:00:01') é um segundo depois das 22h00 de 15/11 em Búzios. */
+const asSeg = (dataHoraSegundos: string) => new Date(`${dataHoraSegundos}-03:00`);
 
 test('preços fixos por trecho e por veículo (tabela da Etapa 6)', () => {
   for (const rio of ['galeao', 'santos-dumont', 'rio-de-janeiro'] as const) {
@@ -119,6 +127,64 @@ test('transfer: data ou hora que não dá para ler, ou que já passou, nunca pas
 test('a antecedência do transfer: em horas inteiras (a frase mostra horas) e nunca menor que a de qualquer serviço', () => {
   assert.equal(ANTECEDENCIA_TRANSFER_MINUTOS % 60, 0);
   assert.ok(ANTECEDENCIA_TRANSFER_MINUTOS >= ANTECEDENCIA_MINIMA_MINUTOS);
+});
+
+// Reteste de 16-17/11 (F2, R11): a antecedência contava minutos inteiros e o Pix, segundos. No último minuto antes do
+// limite (das 22h00min01s às 22h00min59s, para o transfer da 0h) o transfer entrava no carrinho e o Pix já tinha sumido.
+// Agora as duas contas são em segundos e concordam no limite.
+test('transfer: a antecedência conta os segundos, com o limite cravado ainda valendo', () => {
+  // o transfer da 0h de 16/11: às 22h00min00s de 15/11 faltam 2 horas cravadas (entra); um segundo depois, não
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', asSeg('2026-11-15T21:59:59')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', asSeg('2026-11-15T22:00:00')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', asSeg('2026-11-15T22:00:01')), false);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', asSeg('2026-11-15T22:00:30')), false);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', asSeg('2026-11-15T22:00:59')), false);
+  // o relógio do servidor em UTC: 1h00min00s UTC de 16/11 são 22h00 de 15/11 em Búzios; 1h00min01s, um segundo depois
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', new Date('2026-11-16T01:00:00Z')), true);
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', new Date('2026-11-16T01:00:01Z')), false);
+  // os milissegundos do relógio não mudam a conta: o segundo cravado ainda vale até o fim dele
+  assert.equal(transferComAntecedencia('2026-11-16', '00:00', new Date('2026-11-16T01:00:00.999Z')), true);
+  // na virada do ano, o mesmo: 31/12 às 23h30 e o transfer da 1h30 de 01/01
+  assert.equal(transferComAntecedencia('2027-01-01', '01:30', asSeg('2026-12-31T23:30:00')), true);
+  assert.equal(transferComAntecedencia('2027-01-01', '01:30', asSeg('2026-12-31T23:30:01')), false);
+});
+
+test('transfer: o que ainda entra no carrinho ainda tem o Pix, segundo a segundo, perto do limite (hoje as duas são 2 horas)', () => {
+  // as duas regras usam números próprios; enquanto forem iguais (a decisão do dono de 16/11), têm de concordar
+  assert.equal(ANTECEDENCIA_TRANSFER_MINUTOS, ANTECEDENCIA_MINIMA_MINUTOS);
+  for (const [data, hora, limite] of [
+    ['2026-11-16', '00:00', '2026-11-15T22:00:00'],
+    ['2026-11-16', '01:50', '2026-11-15T23:50:00'],
+    ['2027-01-01', '00:30', '2026-12-31T22:30:00'],
+  ] as const) {
+    const item = { tipo: 'transfer' as const, data, transfer: { ida: { hora } } };
+    const zero = asSeg(limite).getTime();
+    for (let s = -90; s <= 90; s++) {
+      const agora = new Date(zero + s * 1000);
+      assert.equal(transferComAntecedencia(data, hora, agora), pixDisponivel([item], agora), `${data} ${hora}, ${s} s depois do limite`);
+      // e os dois mudam exatamente no limite
+      assert.equal(transferComAntecedencia(data, hora, agora), s <= 0, `${data} ${hora}, ${s} s depois do limite`);
+    }
+  }
+});
+
+test('transfer pago: o primeiro passo diz o que acontece na saída da ida (do aeroporto, o desembarque; de um endereço, a busca)', () => {
+  for (const idioma of IDIOMAS) {
+    const textos = dicionario(idioma).transfer;
+    // de Búzios para o aeroporto (reteste de 16-17/11, F3): o texto de quem embarca, nunca o do desembarque
+    assert.equal(primeiroPassoDoTransfer('buzios', textos), textos.proximoSaida, idioma);
+    // do aeroporto para Búzios: o texto de hoje
+    assert.equal(primeiroPassoDoTransfer('galeao', textos), textos.como[0], idioma);
+    // cada lugar da lista: aeroporto ↔ desembarque; cidade ↔ busca no endereço
+    for (const lugar of IDS_LUGARES)
+      assert.equal(
+        primeiroPassoDoTransfer(lugar, textos),
+        LUGARES[lugar].aeroporto ? textos.como[0] : textos.proximoSaida,
+        `${idioma}: ${lugar}`,
+      );
+    // um lugar que não está na lista (um pedido antigo com um dado estranho) não quebra a página: a busca no endereço
+    assert.equal(primeiroPassoDoTransfer('lugar-que-nao-existe' as IdLugar, textos), textos.proximoSaida, idioma);
+  }
 });
 
 test('os aeroportos estão na lista', () => {

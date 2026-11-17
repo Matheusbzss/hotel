@@ -536,6 +536,8 @@ const es: Dicionario = {
     demaisPassageiros: 'Mándanos el nombre de los demás pasajeros por nuestro WhatsApp, que está en el voucher.',
     msgVoucherTransfer: '¡Hola! Mi reserva de traslado está confirmada. Voucher {codigo} — {trajeto}, {data}, {pessoas}.',
     confirmadoTexto: 'Tu voucher está listo. Ese día, solo muéstraselo al chofer en el celular.',
+    // sem verbo em tú nem em vos ("te busca", "espera"): o es-ar lê esta mesma frase
+    proximoSaida: 'El chofer te busca en la dirección de salida, a la hora reservada, y espera hasta 1 hora.',
     checkoutTitulo: 'Finalizar traslado',
     mudarTrajeto: 'Cambiar el trayecto',
     vooChegada: 'Número del vuelo de llegada (opcional)',

@@ -187,6 +187,26 @@ test('Pacote 6: a frase da antecedência do transfer nos quatro idiomas, com o {
   assert.equal(dicionario('es-ar').transfer.erroAntecedencia, dicionario('es').transfer.erroAntecedencia);
 });
 
+test('Reteste de 16-17/11 (R4): o primeiro passo do transfer pago que sai de um endereço, nos quatro idiomas', () => {
+  for (const idioma of IDIOMAS) {
+    const { proximoSaida, como } = dicionario(idioma).transfer;
+    assert.ok(proximoSaida.trim(), idioma);
+    assert.doesNotMatch(proximoSaida, /[{}]/, idioma);
+    // a mesma espera de até 1 hora que a página do transfer promete no endereço de saída (transfer.como[1])
+    assert.match(proximoSaida, /(?<!\d)1 (hora|hour)\b/, `${idioma}: ${proximoSaida}`);
+    assert.match(como[1], /(?<!\d)1 (hora|hour)\b/, `${idioma}: ${como[1]}`);
+    // é o texto de quem embarca: nada do voo, do desembarque nem da placa com o nome (o como[0], de quem chega)
+    assert.notEqual(proximoSaida, como[0], idioma);
+    assert.doesNotMatch(
+      proximoSaida,
+      /voo|flight|vuelo|desembarque|arrivals|llegadas|arribos|placa|sign|cartel/i,
+      `${idioma}: ${proximoSaida}`,
+    );
+  }
+  // sem verbo em tú nem em vos ("te busca", "espera"): o es-ar lê a frase do es, e src/i18n/es-ar.ts não muda
+  assert.equal(dicionario('es-ar').transfer.proximoSaida, dicionario('es').transfer.proximoSaida);
+});
+
 test('Pacote 7: a passagem para o pedido pago nos quatro idiomas, com o {codigo} uma vez e igual no es e no es-ar', () => {
   for (const idioma of IDIOMAS) {
     const { pedidoPago, verPedido } = dicionario(idioma).carrinho;

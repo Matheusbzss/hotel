@@ -289,37 +289,59 @@ test('a página aberta confere o status quando o cliente volta para a aba, e a p
   assert.doesNotMatch(gancho, /ultimaConsulta|ultimaPergunta|emCurso|ocupad/i);
 });
 
-test('a página só se redesenha depois de uma leitura que mudou o status, e a do pedido pago também confere ao voltar', () => {
+test('a página só se redesenha depois de uma leitura que mudou o que ela mostra, e a do pedido confere todos os vouchers ao voltar', () => {
   const status = codigo('components', 'StatusReserva.tsx');
   const aoVoltar = codigo('components', 'pagamento', 'AoVoltarParaAAba.tsx');
   const pedido = codigo('app', '[locale]', 'pedido', '[codigo]', 'page.tsx');
   // sem rede, um refresh cairia na navegação do navegador e tiraria o voucher da tela: só depois de uma leitura que
-  // mudou (a pergunta que falha não chama aoLer)
-  for (const [nome, fonte] of [
-    ['StatusReserva.tsx', status],
-    ['AoVoltarParaAAba.tsx', aoVoltar],
-  ] as const) {
-    const todos = fonte.match(/router\.refresh\(\)/g) ?? [];
-    const guardados = fonte.match(/if \(lido\.status !== [\w.]+\) router\.refresh\(\);/g) ?? [];
-    assert.ok(todos.length > 0, nome);
-    assert.equal(guardados.length, todos.length, nome);
-  }
+  // mudou (a pergunta que falha não chama aoLer). Desde o reteste de 16-17/11 (R5), "mudou" é leituraMudou (o status, o
+  // valor devolvido e as partes de um reembolso que falhou; testada em tests/paginas-do-cliente.test.ts), não só o status
+  const todosNaReserva = status.match(/router\.refresh\(\)/g) ?? [];
+  assert.ok(todosNaReserva.length > 0);
+  assert.equal((status.match(/if \(leituraMudou\(lido, r\)\) router\.refresh\(\);/g) ?? []).length, todosNaReserva.length);
+  // a página do pedido: um router.refresh() só, dentro do redesenho com a trava (vários vouchers mudados na mesma volta,
+  // um redesenho), que só a conferência de um voucher chama, e só depois de uma leitura dele que mudou
+  assert.equal(aoVoltar.match(/router\.refresh\(\)/g)?.length, 1);
+  assert.match(
+    aoVoltar,
+    /const redesenhar = useCallback\(\(\) => \{\s+if \(redesenhando\.current\) return;\s+redesenhando\.current = true;\s+router\.refresh\(\);\s+\}, \[router\]\);/,
+  );
+  // a trava solta quando a página redesenhada chega (a lista nova de vouchers)
+  assert.match(aoVoltar, /useEffect\(\(\) => \{\s+redesenhando\.current = false;\s+\}, \[vouchers\]\);/);
+  assert.equal(aoVoltar.match(/\bredesenhar\b/g)?.length, 2, 'a definição e o aoMudar de cada voucher');
+  assert.equal(aoVoltar.match(/\baoMudar\(\)/g)?.length, 1);
+  assert.match(aoVoltar, /if \(leituraMudou\(lido, voucher\)\) aoMudar\(\);/);
+  // a comparação só do status não volta
+  for (const fonte of [status, aoVoltar]) assert.doesNotMatch(fonte, /lido\.status !==/);
   // a página da reserva: uma chamada só, fora da tela de pagar (que acompanha sozinha), com o ritmo do status
   assert.equal(status.split('useStatusDoPedido(').length, 2);
   assert.match(
     status,
     /useStatusDoPedido\(\s+r\.codigo,\s+token,\s+idioma,\s+!online,[\s\S]+?r\.status === 'pendente' \? 'sempre' : 'ao-voltar',?\s+\);/,
   );
-  // a página do pedido com vários itens, fora da tela de pagar: o primeiro voucher, comparado com o status dele como a
-  // consulta o devolve (paraPublico), só na volta para a aba
-  assert.match(aoVoltar, /useStatusDoPedido\(\s+codigo,\s+token,\s+idioma,\s+true,[\s\S]+?'ao-voltar',?\s+\);/);
+  // a página do pedido com vários itens, fora da tela de pagar: cada voucher perguntado por ele mesmo (o reembolso de um
+  // voucher que não é o primeiro muda o status dele), comparado com o que a consulta devolve dele (paraPublico), só na
+  // volta para a aba. Uma pergunta por voucher, cada uma pelo gancho de sempre: a pergunta sai na hora
+  assert.equal(aoVoltar.split('useStatusDoPedido(').length, 2);
+  assert.match(aoVoltar, /useStatusDoPedido\(\s+voucher\.codigo,\s+token,\s+idioma,\s+true,[\s\S]+?'ao-voltar',?\s+\);/);
+  assert.match(
+    aoVoltar,
+    /\{vouchers\.map\(\(v\) => \(\s+<ConfereOVoucher key=\{v\.codigo\} voucher=\{v\} token=\{token\} idioma=\{idioma\} aoMudar=\{redesenhar\} \/>/,
+  );
   assert.match(aoVoltar, /^'use client';/);
   const ramo = pedido.indexOf('{statusOnline && pagamento ? (');
   const senao = pedido.indexOf(') : (', ramo);
-  const usa = pedido.indexOf('<AoVoltarParaAAba codigo={primeira.codigo} token={token} idioma={locale} status={itens[0].status} />');
+  const usa = pedido.indexOf('<AoVoltarParaAAba');
   assert.notEqual(ramo, -1);
+  assert.equal(pedido.split('<AoVoltarParaAAba').length, 2);
   assert.ok(senao < usa, 'fora da tela de pagar');
   assert.ok(usa < pedido.indexOf('<h1 className="display text-head">{titulo}</h1>'));
+  // todos os vouchers do pedido, com os valores de quando a página abriu; só esses valores vão ao navegador
+  assert.match(
+    pedido.slice(usa),
+    /^<AoVoltarParaAAba\s+token=\{token\}\s+idioma=\{locale\}\s+vouchers=\{itens\.map\(\(\{ codigo, status, reembolsoCentavos, reembolsoPartes \}\) => \(\{\s+codigo,\s+status,\s+reembolsoCentavos,\s+reembolsoPartes,\s+\}\)\)\}\s+\/>/,
+  );
+  assert.doesNotMatch(pedido, /status=\{itens\[0\]\.status\}/);
 });
 
 test('o gancho da consulta mora num arquivo só dele: quem só confere o status não leva o formulário da Stripe', () => {
@@ -340,10 +362,10 @@ test('o gancho da consulta mora num arquivo só dele: quem só confere o status 
   // o CheckoutEmbutido usa o gancho de lá, sem uma segunda cópia
   assert.doesNotMatch(checkout, /function useStatusDoPedido\(|\bRitmoDaConsulta\b|\bLeituraDoPedido\b|INTERVALO_CONSULTA_MS/);
   assert.match(checkout, /^import \{ useStatusDoPedido \} from '\.\/useStatusDoPedido';$/m);
-  // a página da reserva e a do pedido fora da tela de pagar importam o gancho do arquivo dele; a do pedido, nada do
-  // CheckoutEmbutido
-  assert.match(status, /^import \{ useStatusDoPedido \} from '\.\/pagamento\/useStatusDoPedido';$/m);
-  assert.match(aoVoltar, /^import \{ useStatusDoPedido \} from '\.\/useStatusDoPedido';$/m);
+  // a página da reserva e a do pedido fora da tela de pagar importam o gancho do arquivo dele (com a comparação das
+  // leituras, leituraMudou, desde o reteste de 16-17/11); a do pedido, nada do CheckoutEmbutido
+  assert.match(status, /^import \{[^}]*(?<![\w-])useStatusDoPedido(?![\w-])[^}]*\} from '\.\/pagamento\/useStatusDoPedido';$/m);
+  assert.match(aoVoltar, /^import \{[^}]*(?<![\w-])useStatusDoPedido(?![\w-])[^}]*\} from '\.\/useStatusDoPedido';$/m);
   assert.doesNotMatch(aoVoltar, /CheckoutEmbutido|@stripe\//);
   // e nenhum arquivo de src/ importa o gancho (ou os tipos dele) do CheckoutEmbutido
   const culpados = arquivosDe('src')

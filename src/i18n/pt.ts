@@ -563,6 +563,9 @@ const pt = {
     demaisPassageiros: 'Envie o nome dos demais passageiros pelo nosso WhatsApp, que está no voucher.',
     msgVoucherTransfer: 'Olá! Minha reserva de transfer está confirmada. Voucher {codigo} — {trajeto}, {data}, {pessoas}.',
     confirmadoTexto: 'Seu voucher está pronto. No dia, é só mostrar no celular ao motorista.',
+    // o primeiro dos "Próximos passos" do transfer pago que sai de um endereço (o hotel, a pousada): saindo do aeroporto,
+    // vale o como[0] (primeiroPassoDoTransfer, src/data/transfer.ts)
+    proximoSaida: 'O motorista busca você no endereço de saída, no horário marcado, e espera por até 1 hora.',
     checkoutTitulo: 'Finalizar transfer',
     mudarTrajeto: 'Mudar o trajeto',
     vooChegada: 'Número do voo de chegada (opcional)',

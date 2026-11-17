@@ -526,6 +526,7 @@ const en: Dicionario = {
     demaisPassageiros: 'Send us the names of the other passengers on our WhatsApp, which is on the voucher.',
     msgVoucherTransfer: 'Hi! My transfer booking is confirmed. Voucher {codigo} — {trajeto}, {data}, {pessoas}.',
     confirmadoTexto: 'Your voucher is ready. On the day, just show it to the driver on your phone.',
+    proximoSaida: 'The driver picks you up at the pick-up address at the booked time and waits for up to 1 hour.',
     checkoutTitulo: 'Complete your transfer',
     mudarTrajeto: 'Change the route',
     vooChegada: 'Arrival flight number (optional)',

@@ -21,6 +21,7 @@ import {
   type TextosEscolhaPagamento,
   type TotaisDasFormas,
 } from './EscolhaPagamento';
+import { avisarSessaoNova } from './PalavraDoStatus';
 import { useStatusDoPedido } from './useStatusDoPedido';
 
 /**
@@ -303,13 +304,17 @@ export function CheckoutEmbutido({
 
   // a recusa chega com o cliente lá embaixo, no botão de pagar da Stripe: a tela sobe até o aviso (e a oferta do
   // Pix) quando ele nasce fora da vista. O jeito de rolar (suave, ou direto para quem pediu menos movimento) vem
-  // do CSS da página
+  // do CSS da página. O começo da tela fica atrás do menu do topo, preso no alto (4rem no celular, 4,5rem do md para
+  // cima): a folga é a margem de rolagem do próprio aviso (scroll-mt-24, 6rem, a mesma que o scrollIntoView respeita e
+  // que cresce com a letra, como o menu). Até o reteste de 16-17/11 (R6) só rolava com o topo do aviso acima da tela, e em
+  // 390 px o título "O cartão não foi aprovado" nascia atrás do menu
   useEffect(() => {
     if (!recusa || formaAtual !== 'cartao') return;
     const aviso = avisoRef.current;
     if (!aviso) return;
+    const folga = parseFloat(getComputedStyle(aviso).scrollMarginTop) || 0;
     const { top, bottom } = aviso.getBoundingClientRect();
-    if (top < 0 || bottom > window.innerHeight) aviso.scrollIntoView({ block: 'start' });
+    if (top < folga || bottom > window.innerHeight) aviso.scrollIntoView({ block: 'start' });
   }, [recusa, formaAtual]);
 
   async function pagarComPix() {
@@ -539,6 +544,10 @@ export function PagarPedido({
       setForma(escolhida);
       setSegredo(resposta.clientSecret);
       setEtapa('checkout');
+      // a sessão nova tira o pedido vencido de "expirado": a faixa do resumo, desenhada com o status de quando a página
+      // abriu, passa a "Aguardando pagamento" (PalavraDoStatus). Por um evento, sem redesenhar a página: com a chave do
+      // status, o redesenho desmontaria esta tela e o formulário da Stripe que acabou de abrir
+      avisarSessaoNova(codigoPedido);
     } else if (resposta.erro === 'status') {
       // o pedido mudou por baixo (pago em outra aba, cancelado): a página mostra o estado de verdade
       router.refresh();

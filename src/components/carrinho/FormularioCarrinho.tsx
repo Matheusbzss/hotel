@@ -333,6 +333,15 @@ export function FormularioCarrinho({
         return;
       }
       if (corpo.erro === 'mudou') {
+        // o carrinho já é um pedido que esperava o pagamento: o servidor recusou porque ele foi pago nesse meio-tempo (o
+        // Pix confirmado enquanto o cliente voltava do banco) ou porque um item perdeu o prazo. A página do pedido diz o
+        // estado de verdade ("Pedido confirmado!", ou o que ainda dá para pagar), com a página inteira carregando (nunca
+        // router.push: ela leva o token no endereço e nasce sem as tags de anúncio). Recarregar o carrinho aqui deixava
+        // "Seu carrinho está vazio." com o "Continuar o pagamento" de um pedido já pago (reteste de 16-17/11, R3)
+        if (pedidoAberto) {
+          window.location.assign(pedidoAberto.href);
+          return;
+        }
         await recarregar();
         setErroGeral(K.mudou);
       } else if (corpo.erro === 'forma') {
@@ -356,6 +365,14 @@ export function FormularioCarrinho({
     return (
       <div className="max-w-[44ch]">
         <p className="text-lead">{K.vazio}</p>
+        {/* o envio voltou "mudou" e o carrinho relido ficou vazio (o único item perdeu o prazo enquanto o cliente
+            preenchia, como o transfer que passou das 2 horas de antecedência): a frase diz por quê, com o foco. Só ela: um
+            erro de antes, de um carrinho que o cliente esvaziou com as próprias mãos, não fica na tela */}
+        {erroGeral === K.mudou && (
+          <p ref={erroRef} tabIndex={-1} className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
+            {erroGeral}
+          </p>
+        )}
         {pedidoAberto ? (
           // um botão que carrega a página inteira, nunca um link do site: a página do pedido leva o token no endereço e
           // nasce sem as tags de anúncio (src/lib/pixel.ts); sem pré-carga e sem o token num href desta página

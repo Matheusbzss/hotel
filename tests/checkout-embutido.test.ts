@@ -201,3 +201,47 @@ test('o aviso é o mesmo bloco medido em 15/11 (sem rolar de lado de 320 a 1440 
   // nada que segure a largura (largura fixa ou mínima, texto sem quebra); o max-w-[52ch] só limita
   assert.doesNotMatch(aviso, /(?<![\w-])w-\[|min-w-|whitespace-nowrap|style=/);
 });
+
+// Reteste de 16-17/11 (R6): em 390 px o aviso do cartão recusado nascia com o topo a 12 px da tela, e o título "O cartão
+// não foi aprovado" ficava atrás do menu do topo (preso no alto, 4rem no celular): a tela só subia com o topo do aviso
+// ACIMA da tela (top < 0). Agora a folga é a margem de rolagem do próprio aviso (scroll-mt-24), a mesma que o
+// scrollIntoView respeita.
+test('o aviso do cartão recusado sobe para a vista sem ficar atrás do menu do topo: a folga é a margem de rolagem dele', () => {
+  const comeco = componente.indexOf("if (!recusa || formaAtual !== 'cartao') return;");
+  assert.notEqual(comeco, -1, 'o efeito que leva o aviso para a vista');
+  const inicio = componente.lastIndexOf('useEffect(() => {', comeco);
+  const deps = '}, [recusa, formaAtual]);';
+  const fim = componente.indexOf(deps, comeco);
+  assert.notEqual(fim, -1);
+  const efeito = componente.slice(inicio, fim + deps.length);
+  // a folga vem do CSS do aviso (lida na hora: cresce com a letra, como o menu); sem ela, zero, como antes
+  assert.match(efeito, /const folga = parseFloat\(getComputedStyle\(aviso\)\.scrollMarginTop\) \|\| 0;/);
+  assert.match(efeito, /const \{ top, bottom \} = aviso\.getBoundingClientRect\(\);/);
+  assert.match(efeito, /if \(top < folga \|\| bottom > window\.innerHeight\) aviso\.scrollIntoView\(\{ block: 'start' \}\);/);
+  // a conta de antes (só o topo acima da tela) não volta
+  assert.doesNotMatch(efeito, /top < 0/);
+  assert.equal(efeito.match(/scrollIntoView\(/g)?.length, 1);
+  // a margem é a do próprio aviso: scroll-mt-24 (6rem), maior que o menu (4rem no celular, 4,5rem do md para cima)
+  assert.match(componente, /<div ref=\{avisoRef\} role="alert" className="scroll-mt-24 [^"]*">/);
+});
+
+// Reteste de 16-17/11 (R2): depois de "Pagar de novo" num pedido vencido, a faixa escura do resumo continuava "Expirado"
+// com o pedido já pendente. A tela de pagar avisa a página quando a sessão nova abre (src/components/pagamento/
+// PalavraDoStatus.ts), sem redesenhá-la: com a chave do status, o redesenho desmontaria o formulário que acabou de abrir.
+test('"Pagar de novo": quando a sessão nova abre, a tela de pagar avisa a página, sem redesenhar', () => {
+  const inicio = codigo.indexOf('async function abrirCheckout(escolhida: FormaPagamento) {');
+  assert.notEqual(inicio, -1);
+  const funcao = codigo.slice(inicio, codigo.indexOf('\n  }\n', inicio));
+  // o aviso sai só com a sessão nova na mão, depois de abrir a tela do formulário, com o código do pedido
+  const ramo = funcao.slice(
+    funcao.indexOf("if ('clientSecret' in resposta) {"),
+    funcao.indexOf('} else if', funcao.indexOf("if ('clientSecret' in resposta) {")),
+  );
+  assert.match(ramo, /setEtapa\('checkout'\);\s+avisarSessaoNova\(codigoPedido\);\s*$/);
+  assert.equal(codigo.match(/avisarSessaoNova\(/g)?.length, 1);
+  // nesse ramo, nada de redesenhar a página
+  assert.doesNotMatch(ramo, /router\.|location\./);
+  // o aviso vem do arquivo pequeno da palavra (sem nada da Stripe), nunca de uma cópia aqui
+  assert.match(codigo, /^import \{ avisarSessaoNova \} from '\.\/PalavraDoStatus';$/m);
+  assert.doesNotMatch(codigo, /new CustomEvent\(|dispatchEvent\(/);
+});

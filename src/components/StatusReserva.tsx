@@ -14,7 +14,8 @@ import { IconeWhatsApp } from './IconeWhatsApp';
 import { PagarPedido, type TextosPagarPedido } from './pagamento/CheckoutEmbutido';
 import { DesistirDaCompra, type TextosDesistencia } from './pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from './pagamento/EscolhaPagamento';
-import { useStatusDoPedido } from './pagamento/useStatusDoPedido';
+import { PalavraDoStatus } from './pagamento/PalavraDoStatus';
+import { leituraMudou, useStatusDoPedido } from './pagamento/useStatusDoPedido';
 
 type T = Record<string, string>;
 
@@ -97,14 +98,16 @@ export function StatusReserva({
   // Pendente fora do checkout embutido (ex.: pedido antigo): a cada 4 s e ao voltar para a aba. Nos outros estados (pago,
   // contestado, reembolsado, cancelado, finalizar no WhatsApp…): só quando o cliente volta para a aba, porque o pedido
   // pode ter mudado com ela aberta (reembolso, contestação, pago no painel). Redesenha só depois de uma leitura que
-  // mudou: sem rede, a pergunta falha em silêncio e o voucher continua na tela
+  // mudou o que a página mostra (leituraMudou: o status, o valor devolvido ou as partes de um reembolso que falhou, como
+  // a devolução por outro meio registrada pela equipe, que deixa o status em "reembolsado"): sem rede, a pergunta falha
+  // em silêncio e o voucher continua na tela
   useStatusDoPedido(
     r.codigo,
     token,
     idioma,
     !online,
     (lido) => {
-      if (lido.status !== r.status) router.refresh();
+      if (leituraMudou(lido, r)) router.refresh();
     },
     r.status === 'pendente' ? 'sempre' : 'ao-voltar',
   );
@@ -308,7 +311,16 @@ export function StatusReserva({
         </div>
       )}
       <div className="tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">
-        <span className="font-semibold">{reembolsoPendente ? textos.reembolsoPendenteTitulo : statusTextos[r.status]}</span>
+        {/* a palavra do status de quando a página abriu; na tela de pagar, "Pagar de novo" no pedido vencido abre uma
+            sessão nova, a tela de pagar avisa e a palavra passa a "Aguardando pagamento", sem redesenhar a página (o
+            redesenho desmontaria o formulário da Stripe que acabou de abrir) */}
+        <span className="font-semibold">
+          <PalavraDoStatus
+            codigo={r.pedidoCodigo ?? r.codigo}
+            texto={reembolsoPendente ? textos.reembolsoPendenteTitulo : statusTextos[r.status]}
+            textoPendente={statusTextos.pendente}
+          />
+        </span>
         {/* o recorte esconde o "·" que cairia no começo de uma linha; a folga em cima, embaixo e à direita (com a
             margem negativa do mesmo tamanho, para a faixa não mudar de tamanho) evita que ele corte a ponta das
             letras; à esquerda não pode haver folga: é ali que o "·" se esconde */}

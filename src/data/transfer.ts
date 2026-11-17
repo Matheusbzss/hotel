@@ -14,7 +14,7 @@
  */
 
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
-import { dentroDoPrazo } from '../lib/formas-pagamento.ts';
+import { segundosAteOInicio } from '../lib/formas-pagamento.ts';
 import { ANTECEDENCIA_TRANSFER_MINUTOS } from '../lib/horarios.ts';
 import { precoComAjuste } from '../lib/orcamento.ts';
 
@@ -194,14 +194,27 @@ export function primeiroDiaTransfer(hoje: string): string {
 
 /**
  * A ida do transfer ainda pode ser reservada: começa pelo menos ANTECEDENCIA_TRANSFER_MINUTOS (src/lib/horarios.ts)
- * depois de agora, no fuso de Búzios. A conta é a do prazo de pagar (dentroDoPrazo, src/lib/formas-pagamento.ts): ela
- * atravessa a virada do dia, do mês e do ano e aceita o limite cravado (às 22h00 o transfer da 0h de amanhã ainda entra;
- * às 22h01, não). Uma data ou hora que não dá para ler não passa. Vale no servidor (conferirEscolha,
- * src/lib/carrinho-servidor.ts: o carrinho, o checkout e o pedido) e no cartão do transfer (WidgetTransfer), com o
- * relógio do aparelho; com ele errado, o servidor recusa com o código 'antecedencia' e a tela mostra a mesma frase.
+ * depois de agora, no fuso de Búzios. A conta é em segundos, a mesma do prazo do Pix (segundosAteOInicio, que
+ * validadeDoPix usa, src/lib/formas-pagamento.ts): ela atravessa a virada do dia, do mês e do ano e aceita o limite
+ * cravado (às 22h00min00s o transfer da 0h de amanhã ainda entra; um segundo depois, não). Assim, o transfer que ainda
+ * entra ainda tem o Pix: em minutos inteiros (até o reteste de 16-17/11, F2), no último minuto antes do limite o
+ * transfer entrava e o Pix, contado em segundos, já tinha sumido. Uma data ou hora que não dá para ler não passa (dá NaN,
+ * que nenhuma comparação aceita). Vale no servidor (conferirEscolha, src/lib/carrinho-servidor.ts: o carrinho, o checkout
+ * e o pedido) e no cartão do transfer (WidgetTransfer), com o relógio do aparelho; com ele errado, o servidor recusa com o
+ * código 'antecedencia' e a tela mostra a mesma frase.
  */
 export function transferComAntecedencia(data: string, hora: string, agora: Date = new Date()): boolean {
-  return dentroDoPrazo({ tipo: 'transfer', data, transfer: { ida: { hora } } }, agora, ANTECEDENCIA_TRANSFER_MINUTOS);
+  return segundosAteOInicio({ tipo: 'transfer', data, transfer: { ida: { hora } } }, agora) >= ANTECEDENCIA_TRANSFER_MINUTOS * 60;
+}
+
+/**
+ * O primeiro dos "Próximos passos" da reserva paga de um transfer, pela saída da ida (decidido no servidor, na página da
+ * reserva): saindo de um aeroporto, o motorista acompanha o voo e espera no desembarque (transfer.como[0]); saindo de um
+ * endereço (o hotel, a pousada, a cidade), ele busca o cliente lá (transfer.proximoSaida). Até o reteste de 16-17/11
+ * (F3), a ida de Búzios para o aeroporto lia o texto de quem chega.
+ */
+export function primeiroPassoDoTransfer(saida: IdLugar, textos: { como: readonly string[]; proximoSaida: string }): string {
+  return LUGARES[saida]?.aeroporto ? textos.como[0] : textos.proximoSaida;
 }
 
 export function cabeNoVeiculo(veiculo: Veiculo, pessoas: number, m: Malas): boolean {

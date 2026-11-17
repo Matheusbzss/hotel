@@ -5,6 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
 import { StatusReserva, type PagamentoDaReserva } from '@/components/StatusReserva';
 import { EMPRESA } from '@/config/empresa';
+import { primeiroPassoDoTransfer } from '@/data/transfer';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
@@ -23,7 +24,7 @@ import {
   tokenConfere,
   totaisDasFormas,
 } from '@/lib/reserva-publica';
-import { obterReserva, provedorDaReserva } from '@/lib/reservas';
+import { ehTransfer, obterReserva, provedorDaReserva } from '@/lib/reservas';
 
 // o link privado leva o token: a página não conta a ninguém de onde o cliente veio. Na aba, "Sua reserva | Orla Nativa".
 export async function generateMetadata({ params }: PageProps<'/[locale]/reserva/[codigo]'>): Promise<Metadata> {
@@ -135,7 +136,9 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           transferCadeirinhas: d.transfer.cadeirinhas,
           transferDemais: d.transfer.demaisPassageiros,
           transferMsgVoucher: d.transfer.msgVoucherTransfer,
-          transferEspera: d.transfer.como[0],
+          // o primeiro dos "Próximos passos" do transfer pago, pela saída da ida: do aeroporto, o motorista espera no
+          // desembarque; de um endereço (a ida de Búzios para o aeroporto), ele busca o cliente lá
+          transferEspera: ehTransfer(reserva) ? primeiroPassoDoTransfer(reserva.transfer.ida.saida.lugar, d.transfer) : d.transfer.como[0],
           transferConfirmado: d.transfer.confirmadoTexto,
           contestadoTitulo: d.pedido.contestadoTitulo,
           contestadoTexto: d.pedido.contestadoTexto,

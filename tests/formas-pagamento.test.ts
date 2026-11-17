@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { HORA_ENTRADA_CASA, orcamentoCasa, orcamentoCasaCentavos, sinalCentavos, type TabelaDiarias } from '../src/lib/diarias.ts';
 import {
   ANTECEDENCIA_CARTAO_MINUTOS,
@@ -476,4 +478,109 @@ test('em aberto, a tela mostra só os valores das formas que ainda valem', () =>
   assert.deepEqual(partesDoTotal(80000), [{ centavos: 80000 }]);
   assert.deepEqual(partesDoTotal(80000, undefined, ['cartao', 'pix']), [{ centavos: 80000 }]);
   assert.deepEqual(partesDoTotal(80000, 0, ['cartao']), [{ centavos: 80000 }]);
+});
+
+// Desde o Pacote 6 (16/11), src/data/transfer.ts usa dentroDoPrazo deste arquivo, e o cartão do transfer roda no
+// navegador: tudo o que formas-pagamento.ts importa de forma estática vai para o pacote da página /transfer. A Stripe (o
+// SDK do servidor) só pode entrar pelo import() dinâmico de formasDoPagamento, que roda no servidor (Pacote 11).
+
+/**
+ * As importações que entram no pacote do navegador: as estáticas de valor (import … from, export … from e o import de
+ * efeito), sem as de tipo (`import type` e `export type`, que somem na compilação) e sem o import() dinâmico. Lidas do
+ * código sem os comentários.
+ */
+function importacoesEstaticas(fonte: string): string[] {
+  const codigo = fonte
+    .replace(/\r/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const comDe = [...codigo.matchAll(/^\s*(?:import|export)\s+(?!type\s)((?:[\w$*\s,]|\{[^}]*\})+?)\s*from\s*['"]([^'"]+)['"]/gm)];
+  const deEfeito = [...codigo.matchAll(/^\s*import\s*['"]([^'"]+)['"]/gm)];
+  return [...comDe.map((m) => m[2]), ...deEfeito.map((m) => m[1])];
+}
+
+/** O arquivo de src/ que uma importação relativa ou com o atalho "@/" abre; null para um pacote (node_modules). */
+function arquivoDaImportacao(de: string, alvo: string): string | null {
+  const base = alvo.startsWith('@/') ? path.join('src', alvo.slice(2)) : alvo.startsWith('.') ? path.join(path.dirname(de), alvo) : null;
+  if (base === null) return null;
+  const achado = [base, `${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')].find(
+    (c) => existsSync(c) && statSync(c).isFile(),
+  );
+  assert.ok(achado, `${alvo}, importado por ${de}, não existe`);
+  return path.normalize(achado);
+}
+
+/** Tudo o que um arquivo leva junto pelas importações estáticas, em qualquer profundidade: os arquivos de src/ e os pacotes. */
+function levaJunto(inicio: string): { arquivos: Set<string>; pacotes: Set<string> } {
+  const arquivos = new Set<string>();
+  const pacotes = new Set<string>();
+  const fila = [path.normalize(inicio)];
+  while (fila.length) {
+    const atual = fila.pop() as string;
+    if (arquivos.has(atual)) continue;
+    arquivos.add(atual);
+    for (const alvo of importacoesEstaticas(readFileSync(atual, 'utf8'))) {
+      const arquivo = arquivoDaImportacao(atual, alvo);
+      if (arquivo) fila.push(arquivo);
+      else pacotes.add(alvo);
+    }
+  }
+  return { arquivos, pacotes };
+}
+
+/** Uma importação de src/lib/stripe.ts (por qualquer caminho) ou do SDK da Stripe. */
+const DA_STRIPE = /(?:^|\/)stripe(?:\.ts)?$|^@stripe\//;
+
+test('formas-pagamento.ts nunca importa src/lib/stripe.ts de forma estática: a Stripe não vai para a página do transfer', () => {
+  const formas = path.join('src', 'lib', 'formas-pagamento.ts');
+  const fonte = readFileSync(formas, 'utf8');
+  // a única porta para a Stripe é o import() dinâmico dentro de formasDoPagamento, que só roda no servidor
+  assert.equal(fonte.match(/await import\('\.\/stripe\.ts'\)/g)?.length, 1);
+  assert.deepEqual(
+    importacoesEstaticas(fonte).filter((alvo) => DA_STRIPE.test(alvo)),
+    [],
+    'formas-pagamento.ts importa a Stripe de forma estática',
+  );
+  // nem por tabela: o que formas-pagamento.ts e src/data/transfer.ts (o cartão do transfer, no navegador) levam junto,
+  // em qualquer profundidade, nunca chega a src/lib/stripe.ts nem aos pacotes da Stripe
+  const stripe = path.normalize(path.join('src', 'lib', 'stripe.ts'));
+  for (const inicio of [formas, path.join('src', 'data', 'transfer.ts')]) {
+    const { arquivos, pacotes } = levaJunto(inicio);
+    assert.ok(arquivos.has(path.normalize(formas)), inicio);
+    assert.equal(arquivos.has(stripe), false, `${inicio} leva src/lib/stripe.ts ao navegador`);
+    assert.deepEqual(
+      [...pacotes].filter((p) => DA_STRIPE.test(p)),
+      [],
+      `${inicio} leva o SDK da Stripe ao navegador`,
+    );
+  }
+  // o leitor pega a importação estática em todas as formas (por isso a conferência acima vale), e deixa passar só o tipo
+  // e o import() dinâmico
+  for (const exemplo of [
+    "import { stripeConfigurado } from './stripe.ts';",
+    "import { stripeConfigurado } from './stripe';",
+    "import {\n  stripeConfigurado,\n  modoStripe,\n} from '@/lib/stripe';",
+    "import * as stripe from '../lib/stripe.ts';",
+    "export { stripeConfigurado } from './stripe.ts';",
+    "import './stripe.ts';",
+    "import Stripe from 'stripe';",
+    "import { loadStripe } from '@stripe/stripe-js/pure';",
+  ])
+    assert.equal(
+      importacoesEstaticas(exemplo).some((alvo) => DA_STRIPE.test(alvo)),
+      true,
+      exemplo,
+    );
+  for (const exemplo of [
+    "import type { Stripe } from 'stripe';",
+    "export type { ModoStripe } from './stripe.ts';",
+    "const { stripeConfigurado } = await import('./stripe.ts');",
+    "// import { stripeConfigurado } from './stripe.ts';",
+    '/* import Stripe from "stripe"; */',
+  ])
+    assert.equal(
+      importacoesEstaticas(exemplo).some((alvo) => DA_STRIPE.test(alvo)),
+      false,
+      exemplo,
+    );
 });

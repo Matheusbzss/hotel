@@ -293,8 +293,9 @@ function BotaoAcao({
  * de um "abrir" porque não dá para desfazer, e cada botão pede a caixa "Confirmo" marcada. O status do pedido só muda
  * quando a Stripe confirmar (webhook charge.refunded): até lá o painel mostra o pedido como está. Os vouchers vêm de
  * reembolsoNoPainel: nenhum no pedido de um item, nem enquanto um reembolso feito direto na Stripe não disser de qual
- * voucher foi. Cada voucher sai pelo valor dele, nunca mais do que ainda resta do pagamento (botaoReembolsoDoVoucher: o
- * rótulo diz quando é o que resta; sem nada a devolver, o botão não aparece).
+ * voucher foi. Cada voucher sai pelo valor inteiro dele, e só quando cabe no que ainda resta do pagamento
+ * (botaoReembolsoDoVoucher). O que vale mais do que resta fica sem botão: devolver só ele levaria tudo o que resta, a
+ * Stripe trataria como reembolso total e todos os vouchers deixariam de valer; o "Reembolsar tudo (R$ …)" diz esse efeito.
  */
 function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; filtro: string; restante: number; vouchers: Reserva[] }) {
   const r = p.itens[0];

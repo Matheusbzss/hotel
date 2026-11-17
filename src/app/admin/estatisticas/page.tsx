@@ -12,6 +12,7 @@ import {
   calcularEstatisticas,
   escolherPeriodo,
   marcasDoEixo,
+  parteDoFaturamento,
   variacao,
   verPorSemana,
   type CarrinhoNoFunil,
@@ -35,6 +36,11 @@ const contagem = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um
 const decimal = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 const parte = (de: number, total: number) => (total ? (de / total) * 100 : 0);
 const porcento = (de: number, total: number) => `${decimal(parte(de, total))}%`;
+/**
+ * A parte do faturamento (menos reembolsos), de 0 a 100%: o número das sugestões vem na mesma base do faturamento e
+ * a conta nunca passa de 100% (parteDoFaturamento, src/lib/estatisticas.ts).
+ */
+const doFaturamento = (centavos: number, faturamento: number) => `${decimal(parteDoFaturamento(centavos, faturamento))}% do faturamento`;
 
 const SEM_VENDAS = 'Nenhuma venda neste período.';
 /** O ranking mostra estas linhas; as outras ficam em "Ver mais". */
@@ -342,7 +348,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
         <div>
           <h1 className="text-2xl font-bold">Estatísticas</h1>
           <p className="text-small text-tinta-suave">
-            Só pedidos pagos, no dia do pagamento e pelo valor que entrou (no Pix, com o desconto)
+            Só pedidos pagos, no dia do pagamento e pelo valor que entrou (no Pix, com o desconto), menos reembolsos
           </p>
         </div>
         <a href="/admin" className="min-h-10 bg-white px-4 py-2 font-semibold">
@@ -409,7 +415,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
         <Numero
           rotulo="Vendido pelas sugestões"
           valor={formatarPreco(r.sugestoesCentavos)}
-          nota={`${porcento(r.sugestoesCentavos, r.centavos)} do faturamento`}
+          nota={doFaturamento(r.sugestoesCentavos, r.centavos)}
           atual={r.sugestoesCentavos}
           anterior={antes?.sugestoesCentavos}
         />
@@ -525,7 +531,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
           titulo="Vendido pelas sugestões"
           nota={
             e.sugestoes.itens
-              ? `${contagem(e.sugestoes.itens, 'item', 'itens')} em ${textoPedidos(e.sugestoes.pedidos)}, ${porcento(e.sugestoes.centavos, r.centavos)} do faturamento`
+              ? `${contagem(e.sugestoes.itens, 'item', 'itens')} em ${textoPedidos(e.sugestoes.pedidos)}, ${doFaturamento(e.sugestoes.centavos, r.centavos)}`
               : undefined
           }
         >

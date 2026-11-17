@@ -104,6 +104,8 @@ export const ERROS_DO_PAINEL = {
   'falta-confirmar': 'Marque a caixa de confirmação antes de continuar. Nada foi feito.',
   'nada-a-devolver':
     'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
+  'voucher-maior-que-o-resto':
+    'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
 } as const;
 
 export type ErroDoPainel = keyof typeof ERROS_DO_PAINEL;
@@ -287,6 +289,12 @@ export const motivoDoReembolsoFalho = (codigo: string | null | undefined): strin
 const perdidoOuRoubado = (codigo: string | null | undefined): boolean => codigoDoMotivo(codigo) === 'lost_or_stolen_card';
 
 /**
+ * O lembrete do cartão dado como perdido ou roubado, igual ao do e-mail à equipe (emailAvisoDoReembolsoFalho,
+ * src/lib/email/mensagens.ts): o motivo nunca vai para o cliente.
+ */
+export const NAO_DIGA_O_MOTIVO = 'Não diga o motivo ao cliente.';
+
+/**
  * A frase vermelha de um reembolso que falhou e ainda não foi devolvido por outro meio. No cartão dado como perdido ou
  * roubado, mais uma: não dizer o motivo ao cliente e confirmar que quem pede é o titular do cartão.
  */
@@ -294,7 +302,7 @@ export function frasesDoReembolsoFalho(f: Pick<ReembolsoFalho, 'centavos' | 'vou
   const doVoucher = f.voucher ? ` do voucher ${f.voucher}` : '';
   const frase = `O reembolso de ${cifra(f.centavos)}${doVoucher} falhou na Stripe (${motivoDoReembolsoFalho(f.motivo)}): o cliente não recebeu. Devolva por outro meio (um Pix, por exemplo) só para o titular do pedido, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre abaixo.`;
   return perdidoOuRoubado(f.motivo)
-    ? [frase, 'Não diga o motivo ao cliente. Antes de devolver por outro meio, confirme que quem pede é o titular do cartão.']
+    ? [frase, `${NAO_DIGA_O_MOTIVO} Antes de devolver por outro meio, confirme que quem pede é o titular do cartão.`]
     : [frase];
 }
 
@@ -328,6 +336,14 @@ export const fraseDoReembolsoParado = (centavos: number): string =>
  */
 const falhasParadasPelaContestacao = (historico: readonly { evento: string }[]): ReembolsoFalho[] =>
   reembolsosFalhos(historico).filter((f) => f.contestacao === 'aberta');
+
+/**
+ * As frases vermelhas do reembolso que falhou e, depois, teve uma contestação aberta: a do reembolso parado pela
+ * contestação (não devolver por outro meio) e, no cartão dado como perdido ou roubado, "Não diga o motivo ao cliente.",
+ * como o e-mail à equipe diz no mesmo caso (Pacote 11, 16/11).
+ */
+const frasesDaFalhaParadaPelaContestacao = (f: Pick<ReembolsoFalho, 'centavos' | 'motivo'>): string[] =>
+  perdidoOuRoubado(f.motivo) ? [fraseDoReembolsoParado(f.centavos), NAO_DIGA_O_MOTIVO] : [fraseDoReembolsoParado(f.centavos)];
 
 /** A frase vermelha do reembolso de parte feito direto na Stripe, sem dizer de qual voucher. */
 export const fraseDoReembolsoSemVoucher = (centavos: number): string =>
@@ -367,10 +383,10 @@ export const botaoVoucherDaStripe = (voucher: string, centavos: number) => ({
 });
 
 /**
- * Quanto de um voucher ainda dá para devolver: o valor dele, nunca mais do que ainda resta do pagamento (o que entrou
- * menos o que já voltou ou tem de voltar), nem negativo. Assim o pedido nunca registra nem pede mais devolvido do que
- * recebeu, nem depois de um desconto feito direto na Stripe. É a conta do voucher devolvido por outro meio e a do
- * reembolso de um voucher pela Stripe (o botão "Reembolsar só o voucher …" e o valor que a rota pede à Stripe).
+ * Quanto de um voucher ainda dá para devolver por outro meio: o valor dele, nunca mais do que ainda resta do pagamento
+ * (o que entrou menos o que já voltou ou tem de voltar), nem negativo. Assim o pedido nunca registra mais devolvido do
+ * que recebeu, nem depois de um desconto feito direto na Stripe. É a conta do voucher devolvido por outro meio (a rota
+ * e o painel); o reembolso de um voucher pela Stripe nunca é limitado assim (voucherCabeNoQueResta).
  */
 export const valorADevolver = (valorCentavos: number, restanteCentavos: number): number =>
   Math.max(0, Math.min(valorCentavos, restanteCentavos));
@@ -379,24 +395,34 @@ export const valorADevolver = (valorCentavos: number, restanteCentavos: number):
 export const valorDoVoucherPorFora = valorADevolver;
 
 /**
- * O botão "Reembolsar só o voucher …" do pedido pago pela Stripe: o valor do voucher, nunca mais do que ainda resta do
- * pagamento (valorADevolver; a rota pede à Stripe a mesma conta). No ON-4KPC6F do teste de 15/11 (R$ 396,00 pagos e
- * R$ 308,00 já devolvidos), o botão oferecia R$ 242,00 de um voucher e a Stripe recusou com um erro genérico. Com o valor
- * limitado, o rótulo diz que é o que resta do pagamento; a caixa "Confirmo" leva o mesmo valor do botão. Sem nada a
- * devolver, null: o botão não aparece (e a rota recusa antes de chamar a Stripe, nada-a-devolver).
+ * O voucher pode ser reembolsado sozinho pela Stripe: tem valor e cabe no que ainda resta do pagamento. O que vale mais
+ * do que resta nunca sai "limitado ao resto": devolver só ele levaria tudo o que resta, a Stripe trataria como reembolso
+ * total (a cobrança inteira devolvida) e o pedido inteiro, com TODOS os vouchers, passaria a reembolsado
+ * (planoDoReembolso, src/app/api/webhooks/stripe/eventos.ts). Nesse caso só o "Reembolsar tudo (R$ …)" do painel diz o
+ * efeito de verdade. O botão do painel e a rota usam esta mesma regra (a rota recusa com voucher-maior-que-o-resto antes
+ * de qualquer chamada à Stripe).
+ */
+export const voucherCabeNoQueResta = (valorCentavos: number, restanteCentavos: number): boolean =>
+  valorCentavos > 0 && valorCentavos <= restanteCentavos;
+
+/**
+ * O botão "Reembolsar só o voucher …" do pedido pago pela Stripe: o valor inteiro do voucher, e só quando ele cabe no
+ * que ainda resta do pagamento (voucherCabeNoQueResta); a caixa "Confirmo" leva o mesmo valor do botão. Senão, null: o
+ * botão não aparece. No ON-4KPC6F do teste de 15/11 (R$ 396,00 pagos e R$ 308,00 já devolvidos), o botão oferecia os
+ * R$ 242,00 de um voucher e a Stripe recusou com um erro genérico; limitado aos R$ 88,00 que restavam (Pacote 5), ele
+ * devolveria tudo o que restava e invalidaria todos os vouchers, sem dizer isso. Desde o Pacote 11, esse voucher fica
+ * sem botão, e o "Reembolsar tudo (R$ 88,00)" do mesmo pedido diz o efeito real.
  */
 export function botaoReembolsoDoVoucher(
   voucher: string,
   valorCentavos: number,
   restanteCentavos: number,
 ): { centavos: number; rotulo: string; confirmacao: string } | null {
-  const centavos = valorADevolver(valorCentavos, restanteCentavos);
-  if (centavos <= 0) return null;
-  const oQueResta = centavos < valorCentavos ? ', o que resta do pagamento' : '';
+  if (!voucherCabeNoQueResta(valorCentavos, restanteCentavos)) return null;
   return {
-    centavos,
-    rotulo: `Reembolsar só o voucher ${voucher} (${cifra(centavos)}${oQueResta})`,
-    confirmacao: confirmacaoDoReembolsoDoVoucher(centavos, voucher),
+    centavos: valorCentavos,
+    rotulo: `Reembolsar só o voucher ${voucher} (${cifra(valorCentavos)})`,
+    confirmacao: confirmacaoDoReembolsoDoVoucher(valorCentavos, voucher),
   };
 }
 
@@ -410,7 +436,8 @@ export function botaoReembolsoDoVoucher(
  *   por outro meio" por voucher ainda pago (`vouchersPagos`). Só as linhas de reembolsosFalhos contam: a devolução falha
  *   de um pagamento repetido não tira os botões de um pedido saudável;
  * - stripe: os botões de sempre ("Reembolsar tudo" e, no pedido com vários itens, um por voucher ativo, pelo valor do
- *   voucher, nunca mais do que ainda resta do pagamento: botaoReembolsoDoVoucher).
+ *   voucher, só quando ele cabe no que ainda resta do pagamento: botaoReembolsoDoVoucher; o voucher que vale mais do
+ *   que resta fica sem botão, porque devolvê-lo levaria tudo o que resta e invalidaria todos os vouchers).
  * Nos dois últimos, `semVoucher` traz os reembolsos de parte feitos direto na Stripe sem voucher, ainda por resolver (só
  * no pedido pago com vários itens). Enquanto houver algum, nenhum botão por voucher aparece (o reembolso pode ter sido de
  * um deles): primeiro a equipe diz de qual voucher foi.
@@ -500,7 +527,8 @@ export const avisosDeReembolso = ({ falhos, semVoucher, parados }: { falhos: num
 /**
  * As frases vermelhas do pedido sobre reembolso, embaixo do status: os que falharam e ainda não foram devolvidos por
  * outro meio, os feitos direto na Stripe sem voucher e os parados por uma contestação que ainda não terminou (a aberta
- * com o reembolso a caminho, e a aberta depois de o reembolso falhar: a mesma frase, "não devolva por outro meio").
+ * com o reembolso a caminho, e a aberta depois de o reembolso falhar: a mesma frase, "não devolva por outro meio", e,
+ * nesta, no cartão dado como perdido ou roubado, também "Não diga o motivo ao cliente.").
  */
 export function frasesDoReembolsoNoPainel(p: PedidoPainel): string[] {
   const m = reembolsoNoPainel(p);
@@ -511,7 +539,7 @@ export function frasesDoReembolsoNoPainel(p: PedidoPainel): string[] {
     ...reembolsosParadosPelaContestacao(historico)
       .filter((x) => !x.encerrado)
       .map((x) => fraseDoReembolsoParado(x.centavos)),
-    ...falhasParadasPelaContestacao(historico).map((f) => fraseDoReembolsoParado(f.centavos)),
+    ...falhasParadasPelaContestacao(historico).flatMap(frasesDaFalhaParadaPelaContestacao),
   ];
 }
 

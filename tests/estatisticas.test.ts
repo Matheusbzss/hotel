@@ -2,7 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { calcularEstatisticas, escolherPeriodo, marcasDoEixo, paisDoTelefone, variacao, verPorSemana } from '../src/lib/estatisticas.ts';
+import {
+  calcularEstatisticas,
+  escolherPeriodo,
+  marcasDoEixo,
+  paisDoTelefone,
+  parteDoFaturamento,
+  variacao,
+  verPorSemana,
+} from '../src/lib/estatisticas.ts';
 import type { CarrinhoNoFunil } from '../src/lib/estatisticas.ts';
 import { agruparPedidos, valorRecebido } from '../src/lib/pedidos-painel.ts';
 import type { Reserva, ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
@@ -406,4 +414,109 @@ test('a página de pedidos e as estatísticas dão o mesmo número (o período "
   // e a página das estatísticas diz que é o número sem os reembolsos, num rótulo que pode quebrar a linha no celular
   const estatisticas = readFileSync(path.join('src', 'app', 'admin', 'estatisticas', 'page.tsx'), 'utf8');
   assert.match(estatisticas, /<p className="text-small text-tinta-suave">Faturamento \(menos reembolsos\)<\/p>/);
+});
+
+// Pacote 11 (16/11): a parte "do faturamento" das sugestões passava de 100% com um desconto sem voucher (o valor cheio do
+// item sugerido sobre o faturamento já descontado). As sugestões passam a vir na mesma base do faturamento.
+
+test('as sugestões na base do faturamento: com um desconto, a parte delas "do faturamento" nunca passa de 100%', () => {
+  // um pedido de um item sugerido, R$ 100,00 no cartão, com R$ 20,00 de desconto sem voucher
+  const sozinho = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-SUGERIDO',
+        sugestao: true,
+        reembolsoCentavos: 2000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(sozinho.resumo.centavos, 8000);
+  // antes: R$ 100,00 de sugestões sobre R$ 80,00 de faturamento, "125% do faturamento"
+  assert.equal(sozinho.resumo.sugestoesCentavos, 8000);
+  assert.equal(sozinho.sugestoes.centavos, 8000);
+  assert.equal(parteDoFaturamento(sozinho.resumo.sugestoesCentavos, sozinho.resumo.centavos), 100);
+  // o ranking das sugestões, como os outros rankings por item, continua com o valor cheio do item (o limite que fica)
+  assert.deepEqual(
+    sozinho.sugestoes.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['escuna-arraial', 10000, 1]],
+  );
+
+  // dois pedidos: o do item sugerido com R$ 50,00 de desconto e outro sem sugestão; o desconto é só do pedido dele
+  const dois = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-COMDESCONTO',
+        sugestao: true,
+        reembolsoCentavos: 5000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+      passeio({ codigo: 'ON-OUTRO', pagamento: { metodo: 'cartao', pagoEm: '2026-11-04T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(dois.resumo.centavos, 15000);
+  assert.equal(dois.resumo.sugestoesCentavos, 5000);
+  assert.equal(Math.round(parteDoFaturamento(dois.resumo.sugestoesCentavos, dois.resumo.centavos) * 10) / 10, 33.3);
+
+  // um pedido de dois itens no Pix, o passeio sugerido (R$ 90,00) e o transfer (R$ 270,00), com R$ 36,00 de desconto: o
+  // desconto desce na proporção de cada item
+  const dados = { pedido: { codigo: 'ON-PEDIDO', totalCentavos: 40000, totalPixCentavos: 36000 }, reembolsoCentavos: 3600 };
+  const misto = calcularEstatisticas(
+    [
+      passeio({ codigo: 'ON-ITEM1', ...dados, sugestao: true }),
+      transfer({ codigo: 'ON-ITEM2', ...dados, pagamento: { metodo: 'pix', pagoEm: '2026-11-02T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(misto.resumo.centavos, 32400);
+  assert.equal(misto.resumo.sugestoesCentavos, 8100);
+  assert.equal(parteDoFaturamento(misto.resumo.sugestoesCentavos, misto.resumo.centavos), 25);
+
+  // um dado fora do comum (mais devolvido do que entrou) não leva a parte além de 100%
+  const estranho = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-ESTRANHO',
+        sugestao: true,
+        reembolsoCentavos: 12000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+      passeio({ codigo: 'ON-NORMAL', sugestao: true, pagamento: { metodo: 'cartao', pagoEm: '2026-11-04T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(estranho.resumo.centavos, 8000);
+  assert.equal(estranho.resumo.sugestoesCentavos, 10000);
+  assert.equal(parteDoFaturamento(estranho.resumo.sugestoesCentavos, estranho.resumo.centavos), 100);
+
+  // a conta: de 0 a 100, e 0 sem faturamento
+  assert.equal(parteDoFaturamento(5000, 10000), 50);
+  assert.equal(parteDoFaturamento(10000, 10000), 100);
+  assert.equal(parteDoFaturamento(15000, 10000), 100);
+  assert.equal(parteDoFaturamento(0, 10000), 0);
+  assert.equal(parteDoFaturamento(-5000, 10000), 0);
+  assert.equal(parteDoFaturamento(5000, 0), 0);
+  assert.equal(parteDoFaturamento(5000, -100), 0);
+  assert.equal(parteDoFaturamento(Number.NaN, 10000), 0);
+});
+
+test('a página das estatísticas: as duas partes "do faturamento" não passam de 100%, e o subtítulo diz "menos reembolsos"', () => {
+  const pagina = readFileSync(path.join('src', 'app', 'admin', 'estatisticas', 'page.tsx'), 'utf8').replace(/\r/g, '');
+  assert.match(pagina, /Só pedidos pagos, no dia do pagamento e pelo valor que entrou \(no Pix, com o desconto\), menos reembolsos/);
+  // o número das sugestões e o cartão delas, com a conta que não passa de 100%, sobre o mesmo faturamento
+  assert.match(
+    pagina,
+    /const doFaturamento = \(centavos: number, faturamento: number\) =>\s+`\$\{decimal\(parteDoFaturamento\(centavos, faturamento\)\)\}% do faturamento`;/,
+  );
+  assert.equal(pagina.match(/doFaturamento\(r\.sugestoesCentavos, r\.centavos\)/g)?.length, 1);
+  assert.equal(pagina.match(/doFaturamento\(e\.sugestoes\.centavos, r\.centavos\)/g)?.length, 1);
+  // nenhuma outra conta escreve "do faturamento"
+  assert.equal(pagina.match(/do faturamento`/g)?.length, 1);
+  assert.doesNotMatch(pagina, /porcento\([^)]*\)\} do faturamento/);
 });

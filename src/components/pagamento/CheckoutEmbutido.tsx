@@ -12,7 +12,6 @@ import { formatarCifra } from '@/lib/cifra';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
-import type { ReservaPublica } from '@/lib/reserva-publica';
 import type { StatusReserva } from '@/lib/reservas';
 import {
   EscolhaPagamento,
@@ -22,16 +21,17 @@ import {
   type TextosEscolhaPagamento,
   type TotaisDasFormas,
 } from './EscolhaPagamento';
+import { useStatusDoPedido } from './useStatusDoPedido';
 
 /**
  * O checkout embutido da Stripe: o formulário dela (cartão, carteiras ou o QR do Pix) dentro da nossa página.
  * O navegador nunca decide o status do pedido: enquanto o checkout está aberto, a página pergunta ao servidor
- * (GET /api/reservas/[codigo]) a cada 4 segundos e, quando o pedido vira pago, expira ou é cancelado, vai para a
- * página do pedido, que mostra o estado de verdade. Uma sessão nova (Pix depois do cartão recusado, "pagar de
- * novo") é pedida ao servidor em POST /api/pedido/[codigo]/pagar, que é quem cria a sessão e grava o pedido.
+ * (GET /api/reservas/[codigo], pelo gancho useStatusDoPedido, ./useStatusDoPedido.ts) a cada 4 segundos e, quando o
+ * pedido vira pago, expira ou é cancelado, vai para a página do pedido, que mostra o estado de verdade. Uma sessão
+ * nova (Pix depois do cartão recusado, "pagar de novo") é pedida ao servidor em POST /api/pedido/[codigo]/pagar, que
+ * é quem cria a sessão e grava o pedido.
  */
 
-const INTERVALO_CONSULTA_MS = 4000;
 /** Em "confirmando o pagamento", quanto esperar antes de oferecer o botão "Pagar" para quem voltou sem pagar. */
 const ESPERA_PARA_PAGAR_MS = 15_000;
 /**
@@ -88,65 +88,6 @@ export async function pedirNovaSessao(codigoPedido: string, token: string, forma
   } catch {
     return { erro: 'rede' };
   }
-}
-
-/** O que a página precisa saber da resposta de GET /api/reservas/[codigo]. */
-export type LeituraDoPedido = Pick<ReservaPublica, 'status' | 'recusa'>;
-
-/**
- * O ritmo da pergunta: 'sempre', a cada 4 s e ao voltar para a aba (o pedido espera o pagamento); 'ao-voltar', só quando
- * o cliente volta para a aba (o pedido já não espera pagamento: pago, contestado, reembolsado, cancelado…).
- */
-export type RitmoDaConsulta = 'sempre' | 'ao-voltar';
-
-/**
- * Pergunta ao servidor o status do pedido enquanto `ativo`: no ritmo 'sempre', a cada 4 segundos; nos dois ritmos, na
- * hora em que o cliente volta para a aba (a aba que reaparece, ou a página que o navegador guardou inteira e devolveu
- * pelo botão de voltar). Na volta, a pergunta sai na hora, sem espera nem freio do lado do navegador: é ela que leva o
- * servidor a reler a sessão e a fazer o corte dos 30 minutos do Pix que ninguém gerou (os freios da consulta à Stripe
- * são só os do servidor, conferirNaStripe). Quem decide é o servidor; o navegador só pergunta e mostra.
- */
-export function useStatusDoPedido(
-  codigo: string,
-  token: string,
-  idioma: Idioma,
-  ativo: boolean,
-  aoLer: (lido: LeituraDoPedido) => void,
-  ritmo: RitmoDaConsulta = 'sempre',
-) {
-  const aoLerRef = useRef(aoLer);
-  useEffect(() => {
-    aoLerRef.current = aoLer;
-  }, [aoLer]);
-
-  useEffect(() => {
-    if (!ativo) return;
-    let vivo = true;
-    const consultar = async () => {
-      try {
-        const res = await fetch(`/api/reservas/${encodeURIComponent(codigo)}?t=${encodeURIComponent(token)}&idioma=${idioma}`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) return;
-        const corpo = (await res.json()) as { reserva?: LeituraDoPedido };
-        if (vivo && corpo.reserva) aoLerRef.current(corpo.reserva);
-      } catch {}
-    };
-    // o relógio só no pedido que espera o pagamento; parada, a página de um pedido pago não pergunta nada
-    const id = ritmo === 'sempre' ? window.setInterval(consultar, INTERVALO_CONSULTA_MS) : undefined;
-    // a volta para a aba: a pergunta sai na hora
-    const aoVoltar = () => document.visibilityState === 'visible' && consultar();
-    // a página que o navegador guardou inteira e devolveu pelo botão de voltar (ou de avançar): a pergunta sai na hora
-    const aoMostrar = (e: PageTransitionEvent) => e.persisted && consultar();
-    document.addEventListener('visibilitychange', aoVoltar);
-    window.addEventListener('pageshow', aoMostrar);
-    return () => {
-      vivo = false;
-      if (id !== undefined) window.clearInterval(id);
-      document.removeEventListener('visibilitychange', aoVoltar);
-      window.removeEventListener('pageshow', aoMostrar);
-    };
-  }, [codigo, token, idioma, ativo, ritmo]);
 }
 
 /** Os estados em que o checkout embutido fecha e a página do pedido mostra o resultado. */

@@ -398,3 +398,42 @@ test('partesDaPagina com a contestação depois da falha: aberta, o cliente cont
     );
   }
 });
+
+test('partesDaPagina na página de um voucher de um pedido com vários itens, quando falhou o reembolso do pedido inteiro', () => {
+  // um pedido de R$ 396,00 com dois vouchers (ON-AAA234 e ON-BBB234): "Reembolsar tudo" e, depois, o refund.failed do
+  // reembolso do pedido inteiro (sem voucher na linha). Cada página de voucher é a aberta pelo "Ver o voucher" do e-mail
+  const inteiro = { id: 're_tudo', centavos: 39600, motivo: 'expired_or_canceled_card' };
+  const historico = linhas(
+    'Pago (webhook da Stripe)',
+    `Reembolso total (${cifra(39600)}) confirmado pela Stripe`,
+    linhaDoReembolsoFalho(inteiro),
+  );
+  const voucherA = { voucherDePedido: true, codigo: 'ON-AAA234' };
+  const voucherB = { voucherDePedido: true, codigo: 'ON-BBB234' };
+  // a falha do pedido inteiro diz respeito a cada voucher: "Reembolso pendente", com o valor que falhou, e nada do valor
+  // devolvido do pedido contado como deste voucher (nunca "foi devolvido", o dinheiro não voltou)
+  const pendente = { originalCentavos: 0, pendenteCentavos: 39600, outroMeioCentavos: 0 };
+  assert.deepEqual(partesDaPagina(voucherA, 39600, historico), pendente);
+  assert.deepEqual(partesDaPagina(voucherB, 39600, historico), pendente);
+  // a página do pedido lê o mesmo, a partir do valor do pedido
+  assert.deepEqual(partesDaPagina({ voucherDePedido: false, codigo: 'ON-PED234' }, 39600, historico), pendente);
+  // a equipe devolveu por outro meio: cada voucher passa a "devolvido de outro jeito"
+  const devolvido = linhas(...historico.map((h) => h.evento), linhaDaDevolucaoPorOutroMeio(inteiro));
+  const porOutroMeio = { originalCentavos: 0, pendenteCentavos: 0, outroMeioCentavos: 39600 };
+  assert.deepEqual(partesDaPagina(voucherA, 39600, devolvido), porOutroMeio);
+  assert.deepEqual(partesDaPagina(voucherB, 39600, devolvido), porOutroMeio);
+  // a contestação aberta depois da falha: o cliente continua lendo "pendente"; perdida, o texto de sempre
+  const aberta = contestacao('needs_response', 'du_depois', 39600);
+  assert.deepEqual(partesDaPagina(voucherA, 39600, linhas(...historico.map((h) => h.evento), aberta)), pendente);
+  assert.equal(
+    partesDaPagina(voucherA, 39600, linhas(...historico.map((h) => h.evento), aberta, contestacao('lost', 'du_depois', 39600))),
+    undefined,
+  );
+  // a falha de OUTRO voucher (com voucher na linha) continua fora da página deste
+  const deB = linhas(
+    'Pago (webhook da Stripe)',
+    linhaDoReembolsoFalho({ id: 're_B', centavos: 15400, voucher: 'ON-BBB234', motivo: 'declined' }),
+  );
+  assert.equal(partesDaPagina(voucherA, 15400, deB), undefined);
+  assert.deepEqual(partesDaPagina(voucherB, 15400, deB), { originalCentavos: 0, pendenteCentavos: 15400, outroMeioCentavos: 0 });
+});

@@ -12,7 +12,8 @@ import { DDIS, hojeEmBuzios, somarDias } from './validacao.ts';
  * Limite que fica: os rankings por item (por passeio, por cidade, as sugestões) só sabem tirar o voucher MARCADO como
  * devolvido. Um reembolso sem voucher (um desconto num pedido de um item, ou o feito direto na Stripe antes de a equipe
  * dizer de qual voucher foi) desce o dinheiro do pedido e continua inteiro no item; cada ranking calcula a porcentagem
- * sobre a própria soma.
+ * sobre a própria soma. O "Vendido pelas sugestões" e a parte dele no faturamento usam a mesma base do faturamento
+ * (sugestoesDoPedido), para a porcentagem nunca passar de 100%.
  */
 
 /** O que ficou do pedido: o que entrou, menos o que já voltou para o cliente (a conta da página de pedidos). */
@@ -21,6 +22,8 @@ const liquido = (p: PedidoPainel) => p.recebidoCentavos - p.reembolsoCentavos;
 const itemVendido = (i: Reserva) => voucherPago(i);
 /** Os itens vendidos de um pedido. */
 const itensVendidos = (p: PedidoPainel) => p.itens.filter(itemVendido);
+/** O que entrou por estes itens. */
+const valorDosItens = (itens: readonly Reserva[]) => itens.reduce((soma, i) => soma + valorRecebido(i), 0);
 
 /** Um intervalo de dias (AAAA-MM-DD), com o primeiro e o último incluídos. */
 export interface Periodo {
@@ -90,10 +93,12 @@ export const verPorSemana = (p: Periodo) => diasEntre(p) > 45;
 
 export interface Resumo {
   pedidos: number;
+  /** O faturamento: o que ficou dos pedidos pagos, menos reembolsos. */
   centavos: number;
   ticketCentavos: number;
   itens: number;
   itensPorPedido: number;
+  /** O que as sugestões venderam, na mesma base do faturamento (sugestoesDoPedido): nunca passa de `centavos`. */
   sugestoesCentavos: number;
 }
 
@@ -198,6 +203,10 @@ export interface Estatisticas {
   /** Só os pedidos que vieram de uma campanha. */
   porCampanha: Fatia[];
   itensPorPedido: { rotulo: string; pedidos: number }[];
+  /**
+   * `centavos` é o mesmo de resumo.sugestoesCentavos (na base do faturamento); o ranking `porPasseio`, como os outros
+   * rankings por item, soma o valor cheio de cada item sugerido ainda vendido.
+   */
   sugestoes: { centavos: number; itens: number; pedidos: number; porPasseio: Fatia[] };
   funil: Funil;
   funilAnterior?: Funil;
@@ -268,6 +277,33 @@ const produtoDoItem = (i: Reserva) =>
 
 const veioDaSugestao = (i: Reserva) => i.tipo !== 'transfer' && i.sugestao === true;
 
+/**
+ * O que as sugestões venderam num pedido, na base do faturamento (o que ficou do pedido, menos reembolsos): o valor dos
+ * itens sugeridos ainda vendidos, na proporção do que ficou do pedido sobre o valor dos itens ainda vendidos. Sem
+ * reembolso, ou só com o voucher devolvido inteiro, é o valor cheio dos itens sugeridos que sobraram; com um reembolso
+ * sem voucher (um desconto), ele desce na mesma proporção. Nunca passa do que ficou do pedido nem fica negativo: a soma
+ * nunca passa do faturamento, e "do faturamento" nunca passa de 100% (antes, um desconto num pedido com um item sugerido
+ * dava mais de 100%: o valor cheio do item sobre o faturamento já descontado).
+ */
+function sugestoesDoPedido(p: PedidoPainel): number {
+  const itens = itensVendidos(p);
+  const sugerido = valorDosItens(itens.filter(veioDaSugestao));
+  const vendido = valorDosItens(itens);
+  if (sugerido <= 0 || vendido <= 0) return 0;
+  const base = Math.min(Math.max(0, liquido(p)), vendido);
+  return Math.round((sugerido * base) / vendido);
+}
+
+/**
+ * Quanto `centavos` é do faturamento, em %, de 0 a 100: a conta das porcentagens "do faturamento" da página. As
+ * sugestões já vêm na base do faturamento (sugestoesDoPedido), então a conta fica entre 0 e 100; o limite segura um
+ * dado fora do comum (um pedido com mais devolvido do que entrou). Sem faturamento, 0.
+ */
+export function parteDoFaturamento(centavos: number, faturamentoCentavos: number): number {
+  if (!(centavos > 0) || !(faturamentoCentavos > 0)) return 0;
+  return Math.min(100, (centavos / faturamentoCentavos) * 100);
+}
+
 function resumir(pedidos: PedidoPainel[]): Resumo {
   const itens = pedidos.flatMap(itensVendidos);
   const centavos = pedidos.reduce((soma, p) => soma + liquido(p), 0);
@@ -277,7 +313,7 @@ function resumir(pedidos: PedidoPainel[]): Resumo {
     ticketCentavos: pedidos.length ? Math.round(centavos / pedidos.length) : 0,
     itens: itens.length,
     itensPorPedido: pedidos.length ? itens.length / pedidos.length : 0,
-    sugestoesCentavos: itens.filter(veioDaSugestao).reduce((soma, i) => soma + valorRecebido(i), 0),
+    sugestoesCentavos: pedidos.reduce((soma, p) => soma + sugestoesDoPedido(p), 0),
   };
 }
 
@@ -358,9 +394,10 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
       return ouMais ? quantos >= n : quantos === n;
     }).length;
   const sugeridos = itens.filter(veioDaSugestao);
+  const resumo = resumir(vendidos);
 
   return {
-    resumo: resumir(vendidos),
+    resumo,
     ...(anterior
       ? {
           resumoAnterior: resumir(doPeriodo(anterior)),
@@ -394,7 +431,8 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
       { rotulo: '4 ou mais', pedidos: quantosItens(4, true) },
     ],
     sugestoes: {
-      centavos: sugeridos.reduce((soma, i) => soma + valorRecebido(i), 0),
+      // na base do faturamento, como no resumo: a parte "do faturamento" do cartão das sugestões nunca passa de 100%
+      centavos: resumo.sugestoesCentavos,
       itens: sugeridos.length,
       pedidos: vendidos.filter((p) => itensVendidos(p).some(veioDaSugestao)).length,
       porPasseio: juntar(sugeridos.map(produtoDoItem)),

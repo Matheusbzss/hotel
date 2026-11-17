@@ -258,12 +258,15 @@ test('o checkout com pedido pendente confere a Stripe pela porta de sempre, espe
 });
 
 test('a página aberta confere o status quando o cliente volta para a aba, e a pergunta sai na hora', () => {
-  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
-  const inicio = checkout.indexOf('export function useStatusDoPedido(');
+  // o gancho mora num arquivo só dele desde 16/11 (Pacote 11): CheckoutEmbutido.tsx, StatusReserva.tsx e
+  // AoVoltarParaAAba.tsx o importam de lá
+  const arquivo = codigo('components', 'pagamento', 'useStatusDoPedido.ts');
+  const inicio = arquivo.indexOf('export function useStatusDoPedido(');
   assert.notEqual(inicio, -1);
-  const gancho = checkout.slice(inicio, checkout.indexOf('\n}\n', inicio) + 2);
+  const gancho = arquivo.slice(inicio, arquivo.indexOf('\n}\n', inicio) + 2);
   // o ritmo: 'sempre' é o padrão (os usos de antes não mudam) e 'ao-voltar' só pergunta na volta para a aba
-  assert.match(checkout, /export type RitmoDaConsulta = 'sempre' \| 'ao-voltar';/);
+  assert.match(arquivo, /export type RitmoDaConsulta = 'sempre' \| 'ao-voltar';/);
+  assert.match(arquivo, /^const INTERVALO_CONSULTA_MS = 4000;$/m);
   assert.match(gancho, /ritmo: RitmoDaConsulta = 'sempre',?\s*\)/);
   // o relógio de 4 s só nasce no ritmo 'sempre': parada, a página de um pedido pago não pergunta nada
   assert.match(gancho, /const id = ritmo === 'sempre' \? window\.setInterval\(consultar, INTERVALO_CONSULTA_MS\) : undefined;/);
@@ -317,6 +320,40 @@ test('a página só se redesenha depois de uma leitura que mudou o status, e a d
   assert.notEqual(ramo, -1);
   assert.ok(senao < usa, 'fora da tela de pagar');
   assert.ok(usa < pedido.indexOf('<h1 className="display text-head">{titulo}</h1>'));
+});
+
+test('o gancho da consulta mora num arquivo só dele: quem só confere o status não leva o formulário da Stripe', () => {
+  // Pacote 11 (16/11): AoVoltarParaAAba importava o gancho do CheckoutEmbutido.tsx, e a página do pedido pago baixava
+  // junto o pedaço do formulário da Stripe (@stripe/react-stripe-js) só para perguntar o status. Nada muda no que ele faz.
+  const gancho = codigo('components', 'pagamento', 'useStatusDoPedido.ts');
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  const status = codigo('components', 'StatusReserva.tsx');
+  const aoVoltar = codigo('components', 'pagamento', 'AoVoltarParaAAba.tsx');
+  // o arquivo do gancho é do navegador e só importa o React e dois tipos: nada da Stripe, nada do CheckoutEmbutido
+  assert.match(gancho, /^'use client';/);
+  assert.match(gancho, /^export function useStatusDoPedido\(/m);
+  const importacoes = [...gancho.matchAll(/^import\s[^;]*?\sfrom\s+'([^']+)';$/gm)].map((m) => m[1]);
+  assert.deepEqual(importacoes.toSorted(), ['@/i18n/config', '@/lib/reserva-publica', 'react']);
+  assert.match(gancho, /^import type \{ Idioma \} from '@\/i18n\/config';$/m);
+  assert.match(gancho, /^import type \{ ReservaPublica \} from '@\/lib\/reserva-publica';$/m);
+  assert.doesNotMatch(gancho, /@stripe\/|CheckoutEmbutido|import\(/);
+  // o CheckoutEmbutido usa o gancho de lá, sem uma segunda cópia
+  assert.doesNotMatch(checkout, /function useStatusDoPedido\(|\bRitmoDaConsulta\b|\bLeituraDoPedido\b|INTERVALO_CONSULTA_MS/);
+  assert.match(checkout, /^import \{ useStatusDoPedido \} from '\.\/useStatusDoPedido';$/m);
+  // a página da reserva e a do pedido fora da tela de pagar importam o gancho do arquivo dele; a do pedido, nada do
+  // CheckoutEmbutido
+  assert.match(status, /^import \{ useStatusDoPedido \} from '\.\/pagamento\/useStatusDoPedido';$/m);
+  assert.match(aoVoltar, /^import \{ useStatusDoPedido \} from '\.\/useStatusDoPedido';$/m);
+  assert.doesNotMatch(aoVoltar, /CheckoutEmbutido|@stripe\//);
+  // e nenhum arquivo de src/ importa o gancho (ou os tipos dele) do CheckoutEmbutido
+  const culpados = arquivosDe('src')
+    .filter((f) => /\.tsx?$/.test(f))
+    .filter((f) =>
+      /^import\s[^;]*\b(?:useStatusDoPedido|RitmoDaConsulta|LeituraDoPedido)\b[^;]*\sfrom\s+'[^']*CheckoutEmbutido';/m.test(
+        readFileSync(f, 'utf8'),
+      ),
+    );
+  assert.deepEqual(culpados, []);
 });
 
 test('o ponto de encontro é decidido no servidor e chega pronto: nenhum componente do navegador traz as regras do pagamento', () => {

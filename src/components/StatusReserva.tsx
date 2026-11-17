@@ -11,9 +11,10 @@ import { partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
 import { IconeWhatsApp } from './IconeWhatsApp';
-import { PagarPedido, useStatusDoPedido, type TextosPagarPedido } from './pagamento/CheckoutEmbutido';
+import { PagarPedido, type TextosPagarPedido } from './pagamento/CheckoutEmbutido';
 import { DesistirDaCompra, type TextosDesistencia } from './pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from './pagamento/EscolhaPagamento';
+import { useStatusDoPedido } from './pagamento/useStatusDoPedido';
 
 type T = Record<string, string>;
 

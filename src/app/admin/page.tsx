@@ -597,7 +597,8 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       </div>
       <ul className="divide-y divide-borda lg:col-span-4">
         {p.itens.map((i) => {
-          // o status de verdade do voucher, como a página do cliente: o próprio ou o do pedido reembolsado ou cancelado inteiro
+          // o status de verdade do voucher, como a página do cliente: o próprio ou o do pedido reembolsado ou cancelado inteiro,
+          // e "Reembolso pendente" no reembolsado cujo reembolso falhou na Stripe e ainda não voltou ao cliente
           const statusDoVoucher = statusDoVoucherNoPainel(i);
           return (
             <li key={i.codigo} className="py-3 first:pt-0 last:pb-0">

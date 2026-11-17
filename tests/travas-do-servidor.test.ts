@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 // As rotas do Next e o arquivo das reservas não rodam em node puro (usam o atalho "@/" e módulos só do servidor).
@@ -376,6 +376,141 @@ test('o gancho da consulta mora num arquivo só dele: quem só confere o status 
       ),
     );
   assert.deepEqual(culpados, []);
+});
+
+/**
+ * Os módulos que um arquivo importa com valor, de forma estática: `import … from`, `export … from` e o `import '…'` só
+ * pelo efeito. Ficam de fora `import type`, `export type` e a importação só de tipos (`import { type A } from`), que somem
+ * na compilação, e o `import()` de dentro do código (o do dynamic), que é o que separa o pedaço.
+ */
+function importacoesComValor(fonte: string): string[] {
+  const sem = fonte
+    .replace(/\r/g, '')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/^\s*\/\*[\s\S]*?\*\//gm, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const alvos: string[] = [];
+  for (const [, tipo, clausula, alvo] of sem.matchAll(/^\s*(?:import|export)\s+(type\s+)?([^;'"]*?)\s*from\s*['"]([^'"]+)['"]/gm)) {
+    if (tipo) continue;
+    const chaves = clausula.match(/\{([^}]*)\}/);
+    const fora = clausula
+      .replace(/\{[^}]*\}/, '')
+      .replace(/,/g, '')
+      .trim();
+    const nomes = chaves
+      ? chaves[1]
+          .split(',')
+          .map((n) => n.trim())
+          .filter(Boolean)
+      : [];
+    if (chaves && !fora && nomes.length > 0 && nomes.every((n) => /^type\s/.test(n))) continue;
+    alvos.push(alvo);
+  }
+  for (const [, alvo] of sem.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm)) alvos.push(alvo);
+  return alvos;
+}
+
+/** O arquivo de src/ que um `from '…'` aponta (o atalho "@/" ou o caminho relativo), ou null quando é um pacote. */
+function arquivoDaImportacao(de: string, alvo: string): string | null {
+  const base = alvo.startsWith('@/') ? path.join('src', alvo.slice(2)) : alvo.startsWith('.') ? path.join(path.dirname(de), alvo) : null;
+  if (!base) return null;
+  const achado = [base, `${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx')].find(
+    (c) => existsSync(c) && statSync(c).isFile(),
+  );
+  assert.ok(achado, `${alvo}, importado por ${de}`);
+  return achado;
+}
+
+/**
+ * Tudo o que as importações estáticas com valor trazem a partir de um arquivo, de arquivo em arquivo: os arquivos de src/
+ * (com "/" no caminho) e os pacotes. É o que o Next junta para a página: um componente do navegador ('use client')
+ * importado assim por qualquer caminho, até por um arquivo do servidor, entra no JavaScript dela.
+ */
+function trazidosPor(inicio: string): { arquivos: string[]; pacotes: string[] } {
+  const arquivos = new Set<string>();
+  const pacotes = new Set<string>();
+  const fila = [path.join(...inicio.split('/'))];
+  while (fila.length) {
+    const arquivo = fila.shift()!;
+    if (arquivos.has(arquivo)) continue;
+    arquivos.add(arquivo);
+    // o CSS e o JSON não importam nada
+    if (!/\.tsx?$/.test(arquivo)) continue;
+    for (const alvo of importacoesComValor(readFileSync(arquivo, 'utf8'))) {
+      const achado = arquivoDaImportacao(arquivo, alvo);
+      if (achado) fila.push(achado);
+      else pacotes.add(alvo);
+    }
+  }
+  return { arquivos: [...arquivos].map((a) => a.split(path.sep).join('/')), pacotes: [...pacotes] };
+}
+
+test('a página do pedido e a da reserva não trazem o formulário da Stripe: a tela de pagar vem só pelo import() do dynamic', () => {
+  // E11 do reteste de 17/11: /pedido/<pago> e /reserva/<pago> ainda baixavam o pedaço do formulário da Stripe (10 KB com
+  // gzip: @stripe/react-stripe-js, o carregador do Stripe.js e o código do site que a página paga usa), porque a página do
+  // pedido (um componente do servidor) e StatusReserva.tsx importavam PagarPedido de CheckoutEmbutido.tsx de forma
+  // estática. Agora a tela de pagar é carregada só quando aparece (next/dynamic, dentro de um arquivo do navegador)
+  const checkoutEmbutido = 'src/components/pagamento/CheckoutEmbutido.tsx';
+  const stripe = (pacotes: string[]) => pacotes.filter((p) => p.startsWith('@stripe/'));
+  // a conferência acha o pedaço por qualquer caminho: a página do checkout, que paga ali mesmo, traz os dois
+  const checkout = trazidosPor('src/app/[locale]/checkout/page.tsx');
+  assert.ok(checkout.arquivos.includes(checkoutEmbutido));
+  assert.deepEqual(stripe(checkout.pacotes).sort(), ['@stripe/react-stripe-js', '@stripe/stripe-js/pure']);
+  // a página do pedido, a da reserva (também a do pedido pago de um item e a de cada voucher) e o layout delas: por
+  // nenhum caminho estático, nem por outro componente, nem pelos tipos
+  for (const pagina of [
+    'src/app/[locale]/pedido/[codigo]/page.tsx',
+    'src/app/[locale]/reserva/[codigo]/page.tsx',
+    'src/app/[locale]/layout.tsx',
+  ]) {
+    const { arquivos, pacotes } = trazidosPor(pagina);
+    assert.ok(arquivos.length > 30, `${pagina}: a conferência passou pelos arquivos da página (${arquivos.length})`);
+    assert.ok(!arquivos.includes(checkoutEmbutido), `${pagina} traz ${checkoutEmbutido}`);
+    assert.deepEqual(stripe(pacotes), [], pagina);
+  }
+  assert.ok(trazidosPor('src/app/[locale]/reserva/[codigo]/page.tsx').arquivos.includes('src/components/StatusReserva.tsx'));
+
+  // os três arquivos (sem os comentários): o CheckoutEmbutido só como tipo (os textos da tela de pagar) ou pelo import()
+  // do dynamic
+  const sobDemanda = codigo('components', 'pagamento', 'PagarPedidoSobDemanda.tsx').replace(/\r/g, '');
+  const status = codigo('components', 'StatusReserva.tsx').replace(/\r/g, '');
+  const pedido = codigo('app', '[locale]', 'pedido', '[codigo]', 'page.tsx').replace(/\r/g, '');
+  for (const [nome, fonte] of [
+    ['PagarPedidoSobDemanda.tsx', sobDemanda],
+    ['StatusReserva.tsx', status],
+    ['pedido/[codigo]/page.tsx', pedido],
+  ] as const)
+    assert.deepEqual(
+      importacoesComValor(fonte).filter((alvo) => /CheckoutEmbutido/.test(alvo)),
+      [],
+      `${nome}: o CheckoutEmbutido só como tipo ou pelo import()`,
+    );
+  // a página do pedido (servidor) importa a tela de pagar do arquivo do navegador que faz o dynamic: chamado por um
+  // componente do servidor, o dynamic não separaria o pedaço (node_modules/next/dist/docs/01-app/02-guides/lazy-loading.md)
+  assert.match(sobDemanda, /^'use client';$/m);
+  assert.match(sobDemanda, /^import dynamic from 'next\/dynamic';$/m);
+  assert.match(
+    sobDemanda,
+    /^export const PagarPedido = dynamic\(\(\) => import\('\.\/CheckoutEmbutido'\)\.then\(\(m\) => m\.PagarPedido\)\);$/m,
+  );
+  assert.match(pedido, /^import \{ PagarPedido \} from '@\/components\/pagamento\/PagarPedidoSobDemanda';$/m);
+  assert.doesNotMatch(pedido, /CheckoutEmbutido'|next\/dynamic|\bdynamic\(|import\(/);
+  // StatusReserva (já é do navegador) faz o próprio dynamic; do CheckoutEmbutido, só o tipo dos textos
+  assert.match(status, /^import dynamic from 'next\/dynamic';$/m);
+  assert.match(
+    status,
+    /^const PagarPedido = dynamic\(\(\) => import\('\.\/pagamento\/CheckoutEmbutido'\)\.then\(\(m\) => m\.PagarPedido\)\);$/m,
+  );
+  assert.match(status, /^import type \{ TextosPagarPedido \} from '\.\/pagamento\/CheckoutEmbutido';$/m);
+  // um import() só em cada arquivo do navegador. Desenhada no servidor como antes (o ssr do dynamic, sem `loading`, que
+  // poria uma caixa de espera no lugar da tela): o HTML do pedido em aberto é o mesmo de antes
+  for (const fonte of [sobDemanda, status]) {
+    assert.equal(fonte.match(/import\(/g)?.length, 1);
+    assert.doesNotMatch(fonte, /\bssr\s*:|\bloading\s*:/);
+  }
+  // e o nome é o mesmo: as duas páginas desenham <PagarPedido …> como antes
+  assert.match(pedido, /<PagarPedido\s+key=\{status\}\s+codigoPedido=\{codigo\}/);
+  assert.match(status, /<PagarPedido\s+codigoPedido=\{r\.pedidoCodigo \?\? r\.codigo\}/);
 });
 
 test('o ponto de encontro é decidido no servidor e chega pronto: nenhum componente do navegador traz as regras do pagamento', () => {

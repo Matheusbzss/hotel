@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { fmt, type Idioma } from '@/i18n/config';
 import type { EstadoDesistencia } from '@/lib/desistencia';
@@ -11,13 +12,43 @@ import { formasDaFaixa, partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
 import { IconeWhatsApp } from './IconeWhatsApp';
-import { PagarPedido, type TextosPagarPedido } from './pagamento/CheckoutEmbutido';
+import type { TextosPagarPedido } from './pagamento/CheckoutEmbutido';
 import { DesistirDaCompra, type TextosDesistencia } from './pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from './pagamento/EscolhaPagamento';
 import { PalavraDoStatus } from './pagamento/PalavraDoStatus';
 import { leituraMudou, useStatusDoPedido } from './pagamento/useStatusDoPedido';
 
 type T = Record<string, string>;
+
+/**
+ * A tela de pagar (PagarPedido, ./pagamento/CheckoutEmbutido.tsx) carregada só quando aparece: no pagamento online em
+ * aberto (pendente ou expirado pela Stripe). Importada direto, ela levava o pedaço do formulário da Stripe
+ * (@stripe/react-stripe-js e o carregador do Stripe.js, uns 10 KB com gzip) a toda página da reserva, também à paga, à
+ * cancelada e à reembolsada (E11 do reteste de 17/11). Desenhada no servidor como antes (o ssr do dynamic, sem `loading`):
+ * o HTML do pedido em aberto não muda, e no navegador a tela se liga quando o pedaço chega. Daqui só vem o tipo dos textos.
+ */
+const PagarPedido = dynamic(() => import('./pagamento/CheckoutEmbutido').then((m) => m.PagarPedido));
+
+/**
+ * A grade dos dados do voucher (a do passeio e a do transfer) e os rótulos dela. Abaixo do sm, a data e o horário do
+ * passeio ficam lado a lado, cada um em meia grade: em 320 px com a letra em 150%, cada coluna tinha 76 px, e "Departure
+ * time" passava 22 px da dele (2 px em 360; reteste de 17/11), como passariam "hospedagem" e "alojamiento" no rótulo da
+ * busca na hospedagem. O vão menor abaixo do sm (1rem em vez de 2rem) dá 88 px a cada coluna em 320 e 108 em 360 (com a
+ * letra em 150%). Do sm para cima, o vão de sempre.
+ *
+ * O hífen (pelo lang da página: pt-BR, en, es, es-AR) só liga com a grade abaixo de 11,6rem (na grade o @container, no
+ * rótulo o @max-[11.6rem]), porque o navegador hifeniza de forma gulosa: qualquer palavra que cruza o fim da linha leva
+ * hífen, mesmo quando caberia inteira na linha de baixo ("Busca na hospeda- / gem" com a letra normal, em vez de "Busca na /
+ * hospedagem"). Com a grade de 11,6rem ou mais, a meia coluna ((grade − 1rem) / 2) tem 5,3rem ou mais e comporta
+ * "hospedagem" (5,602 × 0,9375 = 5,25rem), a palavra mais longa dos rótulos de meia grade: nenhuma palavra precisa quebrar.
+ * Abaixo disso é a letra grande em tela estreita (320 px com 125%, de 320 a 390 px com 150%), onde "hospedagem" já não
+ * cabe e uma palavra precisa mesmo quebrar. Com a letra normal, e com 125% a partir de 360 px, os rótulos quebram só entre
+ * palavras, como antes. A última rede é o [overflow-wrap:anywhere]: sem o dicionário do idioma no navegador, a palavra
+ * quebra em qualquer letra, sem passar da coluna. Os rótulos que ocupam a linha inteira cabem numa linha só em 320 px com
+ * a letra em 150%.
+ */
+const GRADE_DO_VOUCHER = 'mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-8 @container';
+const ROTULO_DA_GRADE = 'text-small [overflow-wrap:anywhere] @max-[11.6rem]:hyphens-auto';
 
 /** O pagamento online em aberto (pendente ou expirado pela Stripe): o que a tela de pagar precisa. */
 export interface PagamentoDaReserva {
@@ -206,9 +237,9 @@ export function StatusReserva({
             largo alargaria a coluna e a página voltaria a rolar de lado) */}
         <p className="display numeros mt-1 whitespace-nowrap text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{r.codigo}</p>
         {t ? (
-          <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+          <dl className={GRADE_DO_VOUCHER}>
             <div className="col-span-2">
-              <dt className="text-small">{r.passeioNome}</dt>
+              <dt className={ROTULO_DA_GRADE}>{r.passeioNome}</dt>
               <dd className="text-lead font-semibold leading-tight">{t.veiculo}</dd>
             </div>
             {(
@@ -220,7 +251,7 @@ export function StatusReserva({
               ([rotulo, tr]) =>
                 tr && (
                   <div key={rotulo} className="col-span-2">
-                    <dt className="text-small">{rotulo}</dt>
+                    <dt className={ROTULO_DA_GRADE}>{rotulo}</dt>
                     <dd className="font-bold">{dataHoraTrecho(tr)}</dd>
                     <dd>
                       {tr.saida} → {tr.destino}
@@ -234,50 +265,50 @@ export function StatusReserva({
                 ),
             )}
             <div className="col-span-2 sm:col-span-1">
-              <dt className="text-small">{textos.transferPassageiros}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.transferPassageiros}</dt>
               <dd className="font-bold">{pessoas}</dd>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <dt className="text-small">{textos.nome}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.nome}</dt>
               <dd className="font-bold">{r.nome}</dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-small">{textos.transferMalas}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.transferMalas}</dt>
               <dd className="font-bold">{t.malas}</dd>
             </div>
             {t.cadeirinhas && (
               <div className="col-span-2">
-                <dt className="text-small">{textos.transferCadeirinhas}</dt>
+                <dt className={ROTULO_DA_GRADE}>{textos.transferCadeirinhas}</dt>
                 <dd className="font-bold">{t.cadeirinhas}</dd>
               </div>
             )}
           </dl>
         ) : (
-          <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4">
+          <dl className={GRADE_DO_VOUCHER}>
             <div className="col-span-2">
-              <dt className="text-small">{textos.passeio}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.passeio}</dt>
               <dd className="text-lead font-semibold leading-tight">{nomePasseio}</dd>
             </div>
             <div>
-              <dt className="text-small">{textos.data}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.data}</dt>
               <dd className="font-bold">{dataTexto}</dd>
             </div>
             {r.horario && (
               <div>
-                <dt className="text-small">{r.horario.busca ? textos.horarioBusca : textos.horarioSaida}</dt>
+                <dt className={ROTULO_DA_GRADE}>{r.horario.busca ? textos.horarioBusca : textos.horarioSaida}</dt>
                 <dd className="numeros text-lead font-bold leading-tight">{r.horario.texto}</dd>
               </div>
             )}
             <div className="col-span-2 sm:col-span-1">
-              <dt className="text-small">{textos.pessoas}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.pessoas}</dt>
               <dd className="font-bold">{pessoas}</dd>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <dt className="text-small">{textos.nome}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.nome}</dt>
               <dd className="font-bold">{r.nome}</dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-small">{textos.hotel}</dt>
+              <dt className={ROTULO_DA_GRADE}>{textos.hotel}</dt>
               <dd className="font-bold">
                 {r.hotel} — {r.cidadeHospedagem}
               </dd>
@@ -285,7 +316,7 @@ export function StatusReserva({
             {/* só enquanto a reserva ainda pode valer: nunca na cancelada, reembolsada, contestada ou recusada */}
             {encontroLiberado && r.horario && !r.horario.busca && (
               <div className="col-span-2">
-                <dt className="text-small">{textos.encontro}</dt>
+                <dt className={ROTULO_DA_GRADE}>{textos.encontro}</dt>
                 <dd className="font-bold">{textos.encontroTexto}</dd>
               </div>
             )}

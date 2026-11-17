@@ -5,9 +5,10 @@ import { conferirNaStripe } from '@/app/api/pedido/pedido-stripe';
 import { ComDolar, Inteiro, Pedaco, Pedacos } from '@/components/ComDolar';
 import { IconeWhatsApp } from '@/components/IconeWhatsApp';
 import { AoVoltarParaAAba } from '@/components/pagamento/AoVoltarParaAAba';
-import { PagarPedido } from '@/components/pagamento/CheckoutEmbutido';
 import { DesistirDaCompra } from '@/components/pagamento/DesistirDaCompra';
 import type { TotaisDasFormas } from '@/components/pagamento/EscolhaPagamento';
+// a tela de pagar só quando aparece (o pedido em aberto): o pedido pago não baixa o pedaço do formulário da Stripe
+import { PagarPedido } from '@/components/pagamento/PagarPedidoSobDemanda';
 import { PalavraDoStatus } from '@/components/pagamento/PalavraDoStatus';
 import { dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';

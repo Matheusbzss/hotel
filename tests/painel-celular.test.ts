@@ -170,3 +170,96 @@ test('o mínimo da letra dos números: igual a antes com a letra normal, em 390 
   }
   for (const largura of [320, 360]) assert.ok(direita(largura, 24, letraAntes(largura, 24, grande), 6.07) > largura, `antes, ${largura}`);
 });
+
+/* ------------------------------------------------------------------ */
+/* As estatísticas com a letra grande (Pacote 15, reteste de 17/11)     */
+
+const grafico = codigo('components', 'admin', 'GraficoColunas.tsx');
+
+test('as estatísticas com a letra grande: abaixo do sm, só a primeira e a última data do eixo; a nota do número quebra dentro do cartão', () => {
+  // Defeito 4 do reteste de 17/11: com a letra em 125 e 150%, as datas do eixo ficavam umas sobre as outras em 320 a 390 px
+  // ("05/11" sobre "09/11"), e a nota "0% do faturamento" saía 19,8 px do cartão branco em 320 px com 150%
+  assert.match(grafico, /^const DATA_DO_EIXO = 'absolute text-\[0\.75rem\] tabular-nums text-tinta-suave';$/m);
+  assert.match(grafico, /const primeira = i === 0;\s*const ultima = i === colunas\.length - 1;/);
+  // as duas pontas sempre; as do meio escondidas abaixo do sm e de volta do sm para cima (inline: absoluta, vira bloco)
+  assert.match(
+    grafico,
+    /<span key=\{i\} className=\{primeira \|\| ultima \? DATA_DO_EIXO : `\$\{DATA_DO_EIXO\} hidden sm:inline`\} style=\{lugar\}>\s*\{c\.eixo\}\s*<\/span>/,
+  );
+  assert.equal(grafico.match(/\{c\.eixo\}/g)?.length, 1);
+  // cada data no lugar de sempre: a primeira à esquerda, a última à direita, as do meio no centro da coluna delas
+  assert.match(
+    grafico,
+    /const lugar = primeira\s*\? \{ left: 0 \}\s*: ultima\s*\? \{ right: 0 \}\s*: \{ left: `\$\{\(\(i \+ 0\.5\) \/ colunas\.length\) \* 100\}%`, transform: 'translateX\(-50%\)' \};/,
+  );
+  // o texto para o leitor de tela continua com todos os dados: o eixo já era escondido dele (aria-hidden); as setas e o
+  // toque passam por todas as colunas, e o balão diz o valor, a outra medida e a data de cada uma
+  assert.match(grafico, /<div className="relative mt-1 h-5" aria-hidden>/);
+  assert.match(grafico, /aria-label=\{`\$\{nome\}\. Use as setas para ver cada coluna\.`\}/);
+  assert.match(
+    grafico,
+    /<div\s+role="status"[\s\S]*?<p className="font-bold tabular-nums">\{coluna\.texto\}<\/p>\s*<p className="text-tinta-suave">\{coluna\.detalhe\}<\/p>\s*<p className="text-tinta-suave">\{coluna\.rotulo\}<\/p>/,
+  );
+  // a página dá as datas às mesmas colunas de antes (todas aparecem do sm para cima), e a tabela tem todo dia com venda
+  assert.match(estatisticas, /\.\.\.\(comTexto\.has\(i\) \? \{ eixo: dataCurta\(p\.de\) \} : \{\}\),/);
+  assert.match(estatisticas, /\{pontos\s*\.filter\(\(p\) => p\.pedidos\)/);
+
+  // a nota embaixo do número quebra dentro da palavra que não cabe sozinha na linha
+  const nota = classesDe(estatisticas, /\{nota && <p className="([^"]*)">\{nota\}<\/p>\}/, 'a nota do número');
+  temTodas(nota, ['text-small', 'text-tinta-suave', '[overflow-wrap:anywhere]'], 'a nota do número');
+  // o cartão do número não alarga com o texto (as colunas de grid-cols-2 são minmax(0, 1fr)): nada de min-w-0 a mais
+  assert.match(estatisticas, /<section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Resumo">/);
+  assert.match(
+    estatisticas,
+    /return \(\s*<div className="bg-white px-4 py-4 sm:px-5">\s*<p className="text-small text-tinta-suave">\{rotulo\}<\/p>/,
+  );
+});
+
+test('a conta do eixo: o modelo dá as sobreposições do reteste, e abaixo do sm a primeira e a última data nunca se encostam', () => {
+  // tudo em px, com o html em `raiz` px. A área do gráfico: a tela menos a margem da página (px-4), o respiro do cartão (p-5)
+  // e a coluna dos valores (w-[4.25rem]) com a margem dela (mr-2)
+  assert.match(estatisticas, /<main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">/);
+  assert.match(estatisticas, /<section className="min-w-0 bg-white p-5">/);
+  assert.match(grafico, /<div className="relative mr-2 h-44 w-\[4\.25rem\] shrink-0" aria-hidden>/);
+  const area = (largura: number, raiz: number) => largura - 2 * raiz - 2 * 1.25 * raiz - (4.25 + 0.5) * raiz;
+  // uma data ("05/11", em 0.75rem, com os algarismos de largura fixa): 2,547 vezes a letra, tirado da primeira sobreposição
+  // do reteste (13 colunas em 98 px, em 320 px com 150%); as outras cinco medidas conferem com a mesma conta
+  const data = (raiz: number) => 2.547 * 0.75 * raiz;
+  // os 13 dias do reteste (05/11 a 17/11), com data nas colunas 0, 4, 8 e 12 (colunasComTexto); o trilho tem pelo menos 7
+  // px por coluna
+  const n = 13;
+  const caixa = (i: number, largura: number, raiz: number): [number, number] => {
+    const trilho = Math.max(area(largura, raiz), n * 7);
+    const w = data(raiz);
+    if (i === 0) return [0, w];
+    if (i === n - 1) return [trilho - w, trilho];
+    const centro = ((i + 0.5) / n) * trilho;
+    return [centro - w / 2, centro + w / 2];
+  };
+  const sobre = (i: number, j: number, largura: number, raiz: number) => caixa(i, largura, raiz)[1] - caixa(j, largura, raiz)[0];
+  const perto = (a: number, b: number, onde: string) => assert.ok(Math.abs(a - b) < 0.3, `${onde}: ${a} e ${b}`);
+  perto(sobre(0, 4, 320, 24), 34.8, '05/11 sobre 09/11, 320/150');
+  perto(sobre(4, 8, 320, 24), 15.7, '09/11 sobre 13/11, 320/150');
+  perto(sobre(0, 4, 360, 24), 21, '05/11 sobre 09/11, 360/150');
+  perto(sobre(4, 8, 360, 24), 3.4, '09/11 sobre 13/11, 360/150');
+  perto(sobre(0, 4, 320, 20), 10.6, '05/11 sobre 09/11, 320/125');
+  perto(sobre(0, 4, 390, 24), 10.6, '05/11 sobre 09/11, 390/150');
+  // e nenhuma onde o reteste não viu nenhuma
+  for (const [largura, raiz] of [
+    [360, 20],
+    [390, 20],
+    [320, 16],
+    [390, 16],
+  ])
+    assert.ok(sobre(0, 4, largura, raiz) < 0, `${largura}/${raiz}`);
+  // agora, abaixo do sm, só a primeira (à esquerda) e a última (à direita): o trilho nunca é mais estreito que a área, e as
+  // duas cabem lado a lado em 320, 360 e 390 px com a letra em 100, 125 e 150% (a folga menor, 6,3 px, em 320 com 150%)
+  for (const largura of [320, 360, 390])
+    for (const raiz of [16, 20, 24]) assert.ok(2 * data(raiz) < area(largura, raiz), `${largura}/${raiz}`);
+  assert.ok(Math.abs(area(320, 24) - 2 * data(24) - 6.3) < 0.1);
+
+  // a nota: em 320 com 150%, o cartão de meia tela (com o vão gap-3 entre os dois) deixa 79 px ao texto; a palavra saía 43,8
+  // px do parágrafo e 19,8 do cartão (no meio, o respiro do cartão, px-4)
+  assert.equal((320 - 2 * 24 - 0.75 * 24) / 2 - 2 * 24, 79);
+  assert.ok(Math.abs(43.8 - 24 - 19.8) < 0.01);
+});

@@ -24,6 +24,9 @@ interface Ativa {
 /** Com muitas colunas, o gráfico rola para o lado em vez de afinar demais. */
 const LARGURA_MINIMA = 7;
 
+/** As datas embaixo das colunas (o eixo, que os leitores de tela pulam: aria-hidden). */
+const DATA_DO_EIXO = 'absolute text-[0.75rem] tabular-nums text-tinta-suave';
+
 /** O balão fica sobre a coluna, sem passar da borda do gráfico. */
 const lugarDoBalao = ({ x, largura }: Ativa) =>
   x < largura * 0.3 ? { left: x } : x > largura * 0.7 ? { right: largura - x } : { left: x, transform: 'translateX(-50%)' };
@@ -111,14 +114,18 @@ export function GraficoColunas({ nome, colunas, marcas }: { nome: string; coluna
             <div className="relative mt-1 h-5" aria-hidden>
               {colunas.map((c, i) => {
                 if (!c.eixo) return null;
-                const lugar =
-                  i === 0
-                    ? { left: 0 }
-                    : i === colunas.length - 1
-                      ? { right: 0 }
-                      : { left: `${((i + 0.5) / colunas.length) * 100}%`, transform: 'translateX(-50%)' };
+                const primeira = i === 0;
+                const ultima = i === colunas.length - 1;
+                const lugar = primeira
+                  ? { left: 0 }
+                  : ultima
+                    ? { right: 0 }
+                    : { left: `${((i + 0.5) / colunas.length) * 100}%`, transform: 'translateX(-50%)' };
+                // abaixo do sm, só a primeira e a última data: com a letra do celular em 125 ou 150%, as do meio ficavam
+                // umas sobre as outras em 320 a 390 px (até 35 px; reteste de 17/11). Do sm para cima, todas. Os números de
+                // cada coluna continuam no balão (as setas e o toque) e na tabela "Ver em tabela"
                 return (
-                  <span key={i} className="absolute text-[0.75rem] tabular-nums text-tinta-suave" style={lugar}>
+                  <span key={i} className={primeira || ultima ? DATA_DO_EIXO : `${DATA_DO_EIXO} hidden sm:inline`} style={lugar}>
                     {c.eixo}
                   </span>
                 );

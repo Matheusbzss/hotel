@@ -5,6 +5,7 @@ import { PIX_EXPIRADO, chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import {
   avisoDeReembolsoFechado,
   falhaADevolverPorOutroMeio,
+  partesDaPagina,
   partesDoReembolso,
   reembolsosFalhos,
   reembolsosSemVoucher,
@@ -272,8 +273,34 @@ export const voucherPago = (v: Pick<Reserva, 'statusItem'>): boolean => v.status
  */
 export const voucherAtivo = (v: Pick<Reserva, 'statusItem'>): boolean => (v.statusItem ?? 'ativo') === 'ativo';
 
-/** Os status de um voucher que o painel escreve ao lado dele. */
-const ROTULO_DO_VOUCHER = { reembolsado: 'Reembolsado', cancelado: 'Cancelado', usado: 'Usado' } as const;
+/**
+ * Os status de um voucher que o painel escreve ao lado dele. "Reembolso pendente" é a mesma palavra que o cliente lê
+ * (pedido.reembolsoPendenteTitulo, em português: o painel é só em português).
+ */
+const ROTULO_DO_VOUCHER = {
+  reembolsado: 'Reembolsado',
+  reembolsoPendente: 'Reembolso pendente',
+  cancelado: 'Cancelado',
+  usado: 'Usado',
+} as const;
+
+/**
+ * O voucher como o painel lê para escrever o status dele: o status do pedido e o do item e, para o reembolso que falhou,
+ * o que a página do cliente usa (o código, o pedido, o valor devolvido e o histórico; sem eles, nenhum reembolso falhou).
+ */
+export type VoucherNoPainel = Pick<Reserva, 'status' | 'statusItem'> &
+  Partial<Pick<Reserva, 'codigo' | 'pedido' | 'reembolsoCentavos' | 'historico'>>;
+
+/**
+ * O dinheiro deste voucher ainda não voltou ao cliente: um reembolso que falhou na Stripe e diz respeito a ele (o do
+ * próprio voucher ou o do pedido inteiro) ainda está pendente, pela conta da página do cliente (partesDaPagina, a mesma
+ * que paraPublico faz para a página do voucher, src/lib/reserva-publica.ts, lida como o cliente lê). A falha deixa de
+ * estar pendente quando a equipe registra a devolução por outro meio ou quando a contestação aberta depois dela é perdida
+ * (o banco devolveu ao cliente); com a contestação ainda aberta, continua pendente, como o cliente lê.
+ */
+const reembolsoPendente = (v: VoucherNoPainel): boolean =>
+  (partesDaPagina({ voucherDePedido: Boolean(v.pedido), codigo: v.codigo ?? '' }, v.reembolsoCentavos ?? 0, v.historico ?? [])
+    ?.pendenteCentavos ?? 0) > 0;
 
 /**
  * O que o painel escreve ao lado de cada voucher de um pedido com vários itens ("Voucher ON-… · R$ … · Reembolsado"): o
@@ -282,12 +309,21 @@ const ROTULO_DO_VOUCHER = { reembolsado: 'Reembolsado', cancelado: 'Cancelado', 
  * não mudou), o voucher acompanha o pedido, e o pedido reembolsado ou cancelado inteiro vale para ele também. Antes o
  * painel só lia o status do item: num pedido de dois itens com um voucher devolvido sozinho e o resto depois ("Reembolsar
  * tudo" ou a contestação perdida), o outro voucher aparecia sem "Reembolsado", embora o PDF dele já levasse à página da
- * reserva (reteste de 16-17/11, R7). O voucher usado num pedido que continua valendo mostra "Usado". Nos outros casos, nada: o status do
- * pedido, no alto do cartão, já diz.
+ * reserva (reteste de 16-17/11, R7). O voucher reembolsado cujo reembolso falhou na Stripe e ainda não voltou ao cliente
+ * mostra "Reembolso pendente", como a página do cliente (reembolsoPendente): antes o painel escrevia "Reembolsado" ao
+ * lado do "Falta devolver R$ …: o reembolso falhou na Stripe" do mesmo cartão (o ON-A8RVZN do reteste de 17/11). O voucher
+ * usado num pedido que continua valendo mostra "Usado". Nos outros casos, nada: o status do pedido, no alto do cartão, já
+ * diz.
  */
-export function statusDoVoucherNoPainel(v: Pick<Reserva, 'status' | 'statusItem'>): string | undefined {
-  if (v.statusItem === 'reembolsado' || v.statusItem === 'cancelado') return ROTULO_DO_VOUCHER[v.statusItem];
-  if (v.status === 'reembolsado' || v.status === 'cancelado') return ROTULO_DO_VOUCHER[v.status];
+export function statusDoVoucherNoPainel(v: VoucherNoPainel): string | undefined {
+  const status =
+    v.statusItem === 'reembolsado' || v.statusItem === 'cancelado'
+      ? v.statusItem
+      : v.status === 'reembolsado' || v.status === 'cancelado'
+        ? v.status
+        : undefined;
+  if (status === 'reembolsado' && reembolsoPendente(v)) return ROTULO_DO_VOUCHER.reembolsoPendente;
+  if (status) return ROTULO_DO_VOUCHER[status];
   return v.statusItem === 'usado' ? ROTULO_DO_VOUCHER.usado : undefined;
 }
 

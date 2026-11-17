@@ -55,7 +55,10 @@ function eixoEmReais(centavos: number, topoCentavos: number) {
   return `R$ ${reais.toLocaleString('pt-BR')}`;
 }
 
-/** Quais colunas ganham texto embaixo: todas, se couberem; senão, umas quatro, com a primeira e a última. */
+/**
+ * Quais colunas ganham texto embaixo: todas, se couberem; senão, umas quatro, com a primeira e a última. Aqui no servidor
+ * não se sabe a largura da tela: abaixo do sm, o gráfico só mostra a primeira e a última (GraficoColunas).
+ */
 function colunasComTexto(total: number): Set<number> {
   const passo = total <= 6 ? 1 : Math.ceil((total - 1) / 3);
   const marcadas = new Set<number>();
@@ -92,12 +95,15 @@ function Numero({
 }) {
   // o mínimo da letra também segue a tela (min com 5.8vw): com a letra do celular em 125 ou 150%, o 1.125rem crescia e o
   // valor sem quebra passava do cartão de meia tela (e da tela, num valor alto) em 320 e 360 px (reteste de 16-17/11, R1);
-  // com a letra normal (a partir de 320 px), em 390 px com 125% e no computador, nada muda
+  // com a letra normal (a partir de 320 px), em 390 px com 125% e no computador, nada muda.
+  // A nota quebra dentro da palavra quando ela não cabe sozinha na linha: em 320 px com a letra em 150%, o cartão de meia
+  // tela deixa 79 px ao texto, e "faturamento" (de "0% do faturamento") saía 19,8 px do cartão branco (reteste de 17/11).
+  // O cartão não alarga com o texto (as colunas da grade são minmax(0, 1fr)): era só a palavra
   return (
     <div className="bg-white px-4 py-4 sm:px-5">
       <p className="text-small text-tinta-suave">{rotulo}</p>
       <p className="mt-1 whitespace-nowrap text-[clamp(min(1.125rem,5.8vw),5.2vw,1.5rem)] font-bold">{valor}</p>
-      {nota && <p className="text-small text-tinta-suave">{nota}</p>}
+      {nota && <p className="text-small text-tinta-suave [overflow-wrap:anywhere]">{nota}</p>}
       <Comparacao atual={atual} anterior={anterior} />
     </div>
   );

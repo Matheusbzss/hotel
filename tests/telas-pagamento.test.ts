@@ -203,3 +203,138 @@ test('a caixa do Pix (e do cartão) no celular: de ponta a ponta abaixo do sm e,
   // mudaria a largura da régua dentro do próprio vigia, e o navegador avisaria "ResizeObserver loop"
   assert.doesNotMatch(checkout, /style\.(margin|padding)|marginInline|paddingInline|setProperty\(\s*['"`](margin|padding)/);
 });
+
+/* ------------------------------------------------------------------ */
+/* A grade do voucher com a letra grande (Pacote 15, reteste de 17/11)  */
+
+test('a grade do voucher: no celular, o vão menor e os rótulos sem passar da coluna, com o hífen só na grade estreita (Departure time)', () => {
+  // Na reserva de 1 item em inglês, "Departure time" passava 22 px da coluna dele em 320 px com a letra em 150% e 2 px em
+  // 360 (defeito 6 do reteste de 17/11). A grade do passeio e a do transfer usam as mesmas duas listas de classes
+  const grade = classesDe(reserva, /^const GRADE_DO_VOUCHER = '([^']*)';$/m, 'a grade do voucher');
+  for (const c of ['mt-6', 'grid', 'grid-cols-2', 'gap-x-4', 'gap-y-4', 'sm:gap-x-8', '@container'])
+    assert.ok(grade.includes(c), `${c}: ${grade.join(' ')}`);
+  // o vão de 2rem só do sm para cima
+  assert.ok(!grade.includes('gap-x-8') && !grade.some((c) => /^gap-\d/.test(c)), grade.join(' '));
+  // a consulta dos rótulos mede a própria grade: nenhum outro @container no componente, entre a grade e os rótulos
+  assert.equal(reserva.match(/@container/g)?.length, 1);
+  const rotulo = classesDe(reserva, /^const ROTULO_DA_GRADE = '([^']*)';$/m, 'os rótulos da grade');
+  for (const c of ['text-small', '[overflow-wrap:anywhere]', '@max-[11.6rem]:hyphens-auto'])
+    assert.ok(rotulo.includes(c), `${c}: ${rotulo.join(' ')}`);
+  // O hífen só com a grade abaixo de 11,6rem (a letra grande em tela estreita). O navegador hifeniza de forma gulosa:
+  // um hyphens-auto solto, sem a variante, valeria em toda largura e quebraria com a letra normal palavras que cabem
+  // inteiras na linha de baixo ("Busca na hospeda- / gem", "Recogida en el aloja- / miento")
+  assert.ok(!rotulo.includes('hyphens-auto'), rotulo.join(' '));
+  assert.deepEqual(
+    rotulo.filter((c) => c.includes('hyphens')),
+    ['@max-[11.6rem]:hyphens-auto'],
+  );
+  // nada que impeça o rótulo de quebrar ou que segure a largura
+  for (const c of rotulo)
+    assert.doesNotMatch(c, /nowrap|truncate|break-normal|break-keep|hyphens-(none|manual)|^(min-)?w-/, rotulo.join(' '));
+  // as duas grades e todos os rótulos delas (os 13: 6 do transfer, 7 do passeio) com as duas listas
+  assert.equal(reserva.match(/<dl\b/g)?.length, 2);
+  assert.equal(reserva.match(/<dl className=\{GRADE_DO_VOUCHER\}>/g)?.length, 2);
+  const rotulos = reserva.match(/<dt\b[^>]*>/g) ?? [];
+  assert.equal(rotulos.length, 13);
+  for (const dt of rotulos) assert.equal(dt, '<dt className={ROTULO_DA_GRADE}>');
+  // a data e o horário do passeio continuam lado a lado no celular, meia grade cada um, como antes
+  assert.match(reserva, /<div>\s*<dt className=\{ROTULO_DA_GRADE\}>\{textos\.data\}<\/dt>/);
+  assert.match(
+    reserva,
+    /<div>\s*<dt className=\{ROTULO_DA_GRADE\}>\{r\.horario\.busca \? textos\.horarioBusca : textos\.horarioSaida\}<\/dt>/,
+  );
+  // o hífen segue o idioma da página: o html leva o lang do idioma do endereço
+  assert.match(codigo('app', '[locale]', 'layout.tsx'), /<html lang=\{HREFLANG\[locale\]\}/);
+  assert.match(codigo('i18n', 'config.ts'), /HREFLANG: Record<Idioma, string> = \{ pt: 'pt-BR', en: 'en', es: 'es', 'es-ar': 'es-AR' \}/);
+});
+
+/** A margem da página (--margem: clamp(1rem, 0.6rem + 1.8vw, 2rem)), em px, com o html em `raiz` px. */
+const margemDaPagina = (largura: number, raiz: number) => Math.min(2 * raiz, Math.max(raiz, 0.6 * raiz + (1.8 * largura) / 100));
+/** A grade do voucher abaixo do md: a tela menos a margem da página e o respiro do cartão (px-6), dos dois lados. */
+const larguraDaGrade = (largura: number, raiz: number) => largura - 2 * margemDaPagina(largura, raiz) - 2 * 1.5 * raiz;
+/** Cada uma das duas colunas da grade, com o vão em rem. */
+const colunaDaGrade = (largura: number, raiz: number, vaoRem: number) => (larguraDaGrade(largura, raiz) - vaoRem * raiz) / 2;
+/** Um texto de `ems` vezes a letra, no tamanho dos rótulos (text-small, 0.9375rem). */
+const noTextoPequeno = (ems: number, raiz: number) => ems * 0.9375 * raiz;
+
+test('a conta da grade do voucher: o modelo dá os 22 e os 2 px do reteste; o hífen só liga onde "hospedagem" não cabe na meia coluna', () => {
+  // as medidas do código: a margem da página, o tamanho dos rótulos e o respiro do cartão do voucher
+  const tokens = readFileSync(path.join('src', 'app', 'tokens.css'), 'utf8');
+  assert.match(tokens, /--margem: clamp\(1rem, 0\.6rem \+ 1\.8vw, 2rem\);/);
+  assert.match(tokens, /--text-small: 0\.9375rem;/);
+  assert.match(reserva, /<div className="tom-papel">\s*<div className="px-6 pb-6 pt-6 md:px-8">/);
+  // o html em 24 px (a letra em 150%) e em 20 (125%), como o reteste mede. "Departure", em Barlow (a letra do site), mede
+  // 4,375 vezes a letra (pela largura de cada letra no arquivo da fonte que o site carrega): 98,4 px com 150% (o reteste: 99)
+  const departure = noTextoPequeno(4.375, 24);
+  // antes (gap-x-8): 76 px em 320 e 96 em 360, e "Departure" passava 22,4 e 2,4 px (o reteste: 22 e 2)
+  assert.equal(colunaDaGrade(320, 24, 2), 76);
+  assert.equal(colunaDaGrade(360, 24, 2), 96);
+  assert.equal(Math.round((departure - colunaDaGrade(320, 24, 2)) * 10) / 10, 22.4);
+  assert.equal(Math.round((departure - colunaDaGrade(360, 24, 2)) * 10) / 10, 2.4);
+  // agora, o vão abaixo do sm lido do código (gap-x-4: 1rem): 88 e 100 px em 320 (150 e 125%), 108 e 120 em 360
+  const vaoDoCodigo = classesDe(reserva, /^const GRADE_DO_VOUCHER = '([^']*)';$/m, 'a grade do voucher').find((c) => /^gap-x-\d+$/.test(c));
+  assert.ok(vaoDoCodigo, 'o vão abaixo do sm');
+  const vao = Number(vaoDoCodigo.slice('gap-x-'.length)) * 0.25;
+  assert.equal(vao, 1);
+  assert.deepEqual(
+    [320, 360].flatMap((largura) => [24, 20].map((raiz) => colunaDaGrade(largura, raiz, vao))),
+    [88, 100, 108, 120],
+  );
+  // "Departure" cabe inteira em 360 com 150% e nas duas telas com 125%; só em 320 com 150% (98,4 px para 88) ela quebra,
+  // com o hífen: "Depar-" (2,972 vezes a letra) e "ture" (1,797) cabem na coluna
+  assert.ok(departure <= colunaDaGrade(360, 24, vao));
+  for (const largura of [320, 360]) assert.ok(noTextoPequeno(4.375, 20) <= colunaDaGrade(largura, 20, vao), `${largura}/125`);
+  assert.ok(departure > colunaDaGrade(320, 24, vao));
+  for (const pedaco of [2.972, 1.797]) assert.ok(noTextoPequeno(pedaco, 24) <= colunaDaGrade(320, 24, vao), String(pedaco));
+  // o rótulo da busca na hospedagem (fora do reteste) também precisa do hífen: "hospedagem" (5,602) e "alojamiento" (5,105)
+  // não cabem inteiras em 320 e 360 com 150%, nem "hospedagem" em 320 com 125%
+  for (const [ems, largura, raiz] of [
+    [5.602, 320, 24],
+    [5.602, 360, 24],
+    [5.105, 320, 24],
+    [5.105, 360, 24],
+    [5.602, 320, 20],
+  ])
+    assert.ok(noTextoPequeno(ems, raiz) > colunaDaGrade(largura, raiz, vao), `${ems} ${largura}/${raiz}`);
+  // os rótulos de linha inteira ficam numa linha só em 320 com 150%: o mais largo, "Punto de encuentro", 8,528 vezes a letra
+  assert.ok(noTextoPequeno(8.528, 24) <= larguraDaGrade(320, 24));
+
+  // O hífen só com a grade estreita: o limite lido do código (@max-[11.6rem]: a grade com menos de 11,6rem)
+  const limiteDoCodigo = classesDe(reserva, /^const ROTULO_DA_GRADE = '([^']*)';$/m, 'os rótulos da grade')
+    .map((c) => c.match(/^@max-\[(\d+(?:\.\d+)?)rem\]:hyphens-auto$/)?.[1])
+    .find(Boolean);
+  assert.ok(limiteDoCodigo, 'o limite do hífen');
+  const limite = Number(limiteDoCodigo);
+  assert.equal(limite, 11.6);
+  // "hospedagem" (5,602 vezes a letra, 5,25rem no tamanho dos rótulos) é a palavra mais longa dos rótulos de meia grade:
+  // com a grade de 11,6rem ou mais, a meia coluna ((11,6 − 1) / 2 = 5,3rem) a comporta, em qualquer tela e letra
+  assert.ok((limite - vao) / 2 >= 5.602 * 0.9375);
+  // (1) as combinações de tela e letra (o html em 16, 20 e 24 px: a letra em 100, 125 e 150%) com o hífen ligado e desligado
+  const ligadas = [
+    [320, 20],
+    [320, 24],
+    [360, 24],
+    [375, 24],
+    [390, 24],
+  ];
+  const desligadas = [
+    [320, 16],
+    [360, 16],
+    [375, 16],
+    [390, 16],
+    [412, 16],
+    [360, 20],
+    [375, 20],
+    [390, 20],
+    [412, 24],
+  ];
+  for (const [largura, raiz] of ligadas) assert.ok(larguraDaGrade(largura, raiz) / raiz < limite, `ligado em ${largura}/${raiz}`);
+  for (const [largura, raiz] of desligadas) assert.ok(larguraDaGrade(largura, raiz) / raiz >= limite, `desligado em ${largura}/${raiz}`);
+  // (2) desligado, "hospedagem" cabe inteira na meia coluna: nenhuma palavra dos rótulos de meia grade quebra, e o rótulo
+  // quebra só entre palavras, como antes (com a letra normal e com 125% a partir de 360 px)
+  for (const [largura, raiz] of desligadas)
+    assert.ok(colunaDaGrade(largura, raiz, vao) >= noTextoPequeno(5.602, raiz), `cabe em ${largura}/${raiz}`);
+  // (3) ligado, "hospedagem" não cabe: o hífen é o último recurso, só onde uma palavra precisa mesmo quebrar
+  for (const [largura, raiz] of ligadas)
+    assert.ok(noTextoPequeno(5.602, raiz) > colunaDaGrade(largura, raiz, vao), `não cabe em ${largura}/${raiz}`);
+});

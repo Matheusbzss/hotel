@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { eventoDoReembolsoFalho, leituraDaContestacao } from '../src/app/api/webhooks/stripe/eventos.ts';
+import { eventoDoItemReembolsado, eventoDoReembolsoFalho, leituraDaContestacao } from '../src/app/api/webhooks/stripe/eventos.ts';
+import { dicionario } from '../src/i18n/index.ts';
 import { formatarCifra } from '../src/lib/cifra.ts';
 import { AVISO_PAGO_DEPOIS_DO_HORARIO, avisoDeValorDiferente } from '../src/lib/pagamento-stripe.ts';
 import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho } from '../src/lib/email/marcas.ts';
@@ -49,6 +50,7 @@ import {
   linhaDoReembolsoSemVoucher,
   linhaDoVoucherDevolvidoPorOutroMeio,
   linhaDoVoucherLigado,
+  partesDaPagina,
 } from '../src/lib/reembolsos-a-resolver.ts';
 import type { Reserva, ReservaPasseio, StatusItem, StatusReserva } from '../src/lib/reservas.ts';
 
@@ -1161,6 +1163,96 @@ test('o voucher no painel mostra o status de verdade: num pedido todo reembolsad
     /Voucher \{i\.codigo\} · \{formatarPreco\(valorRecebido\(i\)\)\}[\s\S]{0,200}?\{statusDoVoucher \? ` · \$\{statusDoVoucher\}` : ''\}/,
   );
   assert.doesNotMatch(pagina, /ROTULO_ITEM|i\.statusItem/);
+});
+
+test('o voucher cujo reembolso falhou na Stripe: "Reembolso pendente" no painel, pela conta da página do cliente, até a falha ser resolvida', () => {
+  // ON-A8RVZN do reteste de 17/11 (defeito 5): o painel escrevia "Voucher ON-5F4U5U · R$ 242,00 · Reembolsado" no mesmo
+  // cartão que dizia "Falta devolver R$ 242,00: o reembolso falhou na Stripe", e o cliente lia "Reembolso pendente".
+  // Aqui, o pedido de dois itens ON-AAA234 (R$ 242,00) e ON-BBB234 (R$ 154,00), com as linhas que o webhook grava
+  const rotulos = (p: ReturnType<typeof doisItens>) => p.itens.map((i) => statusDoVoucherNoPainel(i));
+  const itemReembolsado = (voucher: string, centavos: number, reembolsoId: string) =>
+    eventoDoItemReembolsado({ voucher, centavos, reembolsoId, pendente: false });
+  const falhou = linhaDoReembolsoFalho(FALHO_DO_VOUCHER);
+  const doVoucher = (...depois: string[]) =>
+    doisItens(
+      {
+        reembolsoCentavos: 24200,
+        historico: historico('Pago (webhook da Stripe)', itemReembolsado('ON-AAA234', 24200, 're_voucher'), falhou, ...depois),
+      },
+      ['reembolsado', undefined],
+    );
+
+  // o reembolso do voucher falhou: o voucher fica "Reembolso pendente", o outro continua sem nada (o pedido vale)
+  const pendente = doVoucher();
+  assert.deepEqual(rotulos(pendente), ['Reembolso pendente', undefined]);
+  // a mesma palavra que o cliente lê, e a mesma conta da página do voucher dele (partesDaPagina)
+  assert.equal(dicionario('pt').pedido.reembolsoPendenteTitulo, 'Reembolso pendente');
+  assert.equal(partesDaPagina({ voucherDePedido: true, codigo: 'ON-AAA234' }, 24200, pendente.itens[0].historico)?.pendenteCentavos, 24200);
+  // e o mesmo cartão diz quanto falta devolver
+  assert.deepEqual(devolucaoNoPainel(pendente), { falta: `Falta devolver ${cifra(24200)}: o reembolso falhou na Stripe` });
+
+  // resolvida: a equipe registrou a devolução por outro meio
+  assert.deepEqual(rotulos(doVoucher(linhaDaDevolucaoPorOutroMeio(FALHO_DO_VOUCHER))), ['Reembolsado', undefined]);
+  // a contestação depois da falha, como o cliente lê: aberta, o dinheiro ainda não voltou; perdida, o banco devolveu;
+  // ganha, a falha volta a pedir a devolução
+  const disputa = (status: 'needs_response' | 'lost' | 'won') =>
+    leituraDaContestacao({ id: 'du_depois', amount: 39600, status, reason: 'fraudulent' }).evento;
+  assert.deepEqual(rotulos(doVoucher(disputa('needs_response'))), ['Reembolso pendente', undefined]);
+  assert.deepEqual(rotulos(doVoucher(disputa('needs_response'), disputa('lost'))), ['Reembolsado', undefined]);
+  assert.deepEqual(rotulos(doVoucher(disputa('needs_response'), disputa('won'))), ['Reembolso pendente', undefined]);
+
+  // a falha de um voucher não muda o outro: ON-BBB234 devolvido pela Stripe sem falha continua "Reembolsado", e devolvido
+  // por outro meio (o "Registrar" do voucher depois de uma falha), também
+  const osDois = (...depois: string[]) =>
+    doisItens(
+      {
+        reembolsoCentavos: 39600,
+        historico: historico('Pago (webhook da Stripe)', itemReembolsado('ON-AAA234', 24200, 're_voucher'), falhou, ...depois),
+      },
+      ['reembolsado', 'reembolsado'],
+    );
+  assert.deepEqual(rotulos(osDois(itemReembolsado('ON-BBB234', 15400, 're_outro'))), ['Reembolso pendente', 'Reembolsado']);
+  assert.deepEqual(rotulos(osDois(linhaDoVoucherDevolvidoPorOutroMeio('ON-BBB234', 15400))), ['Reembolso pendente', 'Reembolsado']);
+
+  // o reembolso do pedido inteiro falhou: os dois vouchers ficam pendentes (a página de cada um diz o mesmo), até a
+  // devolução por outro meio; o voucher cancelado continua "Cancelado", como na página do cliente
+  const falhoDoPedido = { id: 're_tudo', centavos: 39600, motivo: 'expired_or_canceled_card' };
+  const inteiro = (statusItens: [Reserva['statusItem'], Reserva['statusItem']], ...depois: string[]) =>
+    doisItens(
+      {
+        status: 'reembolsado',
+        reembolsoCentavos: 39600,
+        historico: historico(
+          'Pago (webhook da Stripe)',
+          `Reembolso total (${cifra(39600)}) confirmado pela Stripe`,
+          linhaDoReembolsoFalho(falhoDoPedido),
+          ...depois,
+        ),
+      },
+      statusItens,
+    );
+  assert.deepEqual(rotulos(inteiro([undefined, undefined])), ['Reembolso pendente', 'Reembolso pendente']);
+  assert.deepEqual(rotulos(inteiro([undefined, 'ativo'])), ['Reembolso pendente', 'Reembolso pendente']);
+  assert.deepEqual(rotulos(inteiro([undefined, undefined], linhaDaDevolucaoPorOutroMeio(falhoDoPedido))), ['Reembolsado', 'Reembolsado']);
+  assert.deepEqual(rotulos(inteiro([undefined, 'cancelado'])), ['Reembolso pendente', 'Cancelado']);
+
+  // sem falha, como antes: o pago sem nada, o cancelado, o reembolsado e o usado
+  const semFalha = (status: Reserva['status'], statusItens: [Reserva['statusItem'], Reserva['statusItem']]) =>
+    doisItens({ status, historico: historico('Pago (webhook da Stripe)') }, statusItens);
+  assert.deepEqual(rotulos(semFalha('pago', [undefined, undefined])), [undefined, undefined]);
+  assert.deepEqual(rotulos(semFalha('pago', ['reembolsado', 'usado'])), ['Reembolsado', 'Usado']);
+  assert.deepEqual(rotulos(semFalha('reembolsado', [undefined, 'ativo'])), ['Reembolsado', 'Reembolsado']);
+  assert.deepEqual(rotulos(semFalha('cancelado', [undefined, undefined])), ['Cancelado', 'Cancelado']);
+  assert.deepEqual(rotulos(semFalha('pago', ['cancelado', undefined])), ['Cancelado', undefined]);
+
+  // o painel passa o voucher inteiro (com o histórico): a regra é a da página do cliente, sem conta própria
+  const regra = readFileSync(path.join('src', 'lib', 'pedidos-painel.ts'), 'utf8').replace(/\r/g, '');
+  assert.match(
+    regra,
+    /partesDaPagina\(\{ voucherDePedido: Boolean\(v\.pedido\), codigo: v\.codigo \?\? '' \}, v\.reembolsoCentavos \?\? 0, v\.historico \?\? \[\]\)/,
+  );
+  assert.match(regra, /if \(status === 'reembolsado' && reembolsoPendente\(v\)\) return ROTULO_DO_VOUCHER\.reembolsoPendente;/);
+  assert.match(codigo('app', 'admin', 'page.tsx'), /const statusDoVoucher = statusDoVoucherNoPainel\(i\);/);
 });
 
 test('a contestação no cartão: a frase do painel vale também para o pedido de informação do banco', () => {

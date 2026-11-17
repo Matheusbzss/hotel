@@ -573,12 +573,16 @@ export const proximaTentativa = (r: Reserva): number => r.historico.filter((h) =
 
 /**
  * O que a sessão recém-criada muda no pedido: ela passa a ser a corrente, a forma escolhida vira a forma do
- * pedido e um pedido expirado volta a pendente. Devolve a linha do histórico. A trava: num pedido que já não
- * abre sessão (pago em outra aba, cancelado no painel, reembolsado ou contestado enquanto a sessão nascia)
- * não mexe em nada e devolve null. Sem o banco, para ser testada em node (tests/stripe.test.ts).
+ * pedido e um pedido expirado volta a pendente. Devolve a linha do histórico. Devolve null, sem mexer em nada, em dois
+ * casos. A trava: num pedido que já não abre sessão (pago em outra aba, cancelado no painel, reembolsado ou contestado
+ * enquanto a sessão nascia). E a sessão que já é a corrente do pedido: dois "Pagar" no mesmo segundo levam a mesma chave
+ * de idempotência, e a Stripe devolve aos dois a MESMA sessão (criarSessaoPagamento, src/lib/stripe.ts); a primeira
+ * gravação já fez tudo, e a segunda só repetia a linha "Sessão de pagamento criada" no histórico (e pulava um número da
+ * tentativa; reteste de 16-17/11, R10). Sem o banco, para ser testada em node (tests/stripe.test.ts).
  */
 export function sessaoNovaNoPedido(r: Reserva, sessaoId: string, forma: FormaPagamento): string | null {
   if (!podeAbrirSessao(r.status)) return null;
+  if (r.pagamentoExternoId === sessaoId) return null;
   r.provedor = 'stripe';
   r.pagamentoExternoId = sessaoId;
   r.pagamento.metodo = forma;
@@ -600,6 +604,10 @@ export interface SessaoRegistrada {
  * sessão anterior, se ainda estava aberta, só é expirada depois (abrirSessaoDoPedido explica a ordem).
  * Só grava num pedido pendente ou expirado. Em qualquer outro status nada muda e o pedido volta COMO ESTÁ, com
  * a sessão que já tinha: quem chama confere se a sessão gravada é a nova e, se não for, expira a recém-criada.
+ * Se a sessão gravada já é esta (o outro de dois "Pagar" no mesmo segundo recebeu da Stripe a mesma sessão e gravou
+ * primeiro), também nada é gravado: o pedido volta como está, sem a linha repetida no histórico (atualizarReserva não
+ * grava quando a mudança devolve null, nos arquivos, no Blob e no banco). Para quem chama, a sessão ficou gravada
+ * (sessaoFicouGravada, com o pedido pendente) e não há outra a fechar por causa dela.
  * Devolve também a sessão que a nova tirou do lugar, lida na MESMA gravação: com dois "Pagar" quase juntos ela é
  * a sessão do outro clique, que quem chama não conhecia e precisa fechar. Devolve null se o pedido não existir.
  */
@@ -616,7 +624,8 @@ export async function registrarSessaoCriada(
   const reserva = await atualizarReserva(alvo.codigo, (r) => {
     // atualizarReserva pode chamar isto mais de uma vez (outra gravação no meio): vale a leitura da vez que gravou
     const corrente = r.pagamentoExternoId;
-    // a trava de status fica no começo de sessaoNovaNoPedido: sem a linha do histórico, nada é gravado
+    // a trava de status e a sessão que já é a corrente ficam no começo de sessaoNovaNoPedido: sem a linha do histórico,
+    // nada é gravado e o pedido volta como está
     const evento = sessaoNovaNoPedido(r, sessao.id, forma);
     delete lido.substituida;
     if (evento && corrente && corrente !== sessao.id) lido.substituida = corrente;

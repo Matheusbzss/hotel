@@ -35,6 +35,7 @@ import {
   reembolsoNoPainel,
   reembolsoParaResolver,
   reembolsosParadosPelaContestacao,
+  statusDoVoucherNoPainel,
   valorADevolver,
   valorDoVoucherPorFora,
   valorRecebido,
@@ -49,7 +50,7 @@ import {
   linhaDoVoucherDevolvidoPorOutroMeio,
   linhaDoVoucherLigado,
 } from '../src/lib/reembolsos-a-resolver.ts';
-import type { Reserva, ReservaPasseio } from '../src/lib/reservas.ts';
+import type { Reserva, ReservaPasseio, StatusItem, StatusReserva } from '../src/lib/reservas.ts';
 
 // O painel destaca as linhas do histórico que pedem uma ação da equipe: as que começam com "Aviso:".
 // Só a regra, sem tela nem banco.
@@ -1118,4 +1119,70 @@ test('a página do painel: a caixa "Confirmo" nos botões de devolver, nenhuma c
   assert.match(pagina, /\{ valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: \(p\) => reembolsoParaResolver\(p\) \}/);
   assert.match(pagina, /const reembolsos = avisosDeReembolso\(contarReembolsosAResolver\(pedidos\)\);/);
   assert.match(pagina, /reembolsos\.map\(\(aviso\) => \(\s*<a key=\{aviso\} href="\/admin\?status=reembolsos"/);
+});
+
+test('o voucher no painel mostra o status de verdade: num pedido todo reembolsado, também o que não foi devolvido sozinho', () => {
+  const voucher = (status: StatusReserva, statusItem?: StatusItem): Pick<Reserva, 'status' | 'statusItem'> => ({
+    status,
+    ...(statusItem ? { statusItem } : {}),
+  });
+  // ON-QNQFJS, ON-NL5V9Y e ON-Z67JD2 do reteste de 16-17/11 (R7): um voucher devolvido sozinho e o resto depois
+  // ("Reembolsar tudo" ou a contestação perdida). O pedido fica reembolsado; o primeiro voucher tem o status próprio, o
+  // outro acompanha o pedido, e os dois aparecem como reembolsados (o PDF do segundo já levava à página da reserva)
+  assert.equal(statusDoVoucherNoPainel(voucher('reembolsado', 'reembolsado')), 'Reembolsado');
+  assert.equal(statusDoVoucherNoPainel(voucher('reembolsado')), 'Reembolsado');
+  // o banco relê como "ativo" o item que não mudou num pedido que já é outro (deLinhas): vale o status do pedido
+  assert.equal(statusDoVoucherNoPainel(voucher('reembolsado', 'ativo')), 'Reembolsado');
+  assert.equal(statusDoVoucherNoPainel(voucher('cancelado')), 'Cancelado');
+  assert.equal(statusDoVoucherNoPainel(voucher('cancelado', 'ativo')), 'Cancelado');
+  // o status próprio do item vem primeiro, como na página do cliente
+  assert.equal(statusDoVoucherNoPainel(voucher('pago', 'reembolsado')), 'Reembolsado');
+  assert.equal(statusDoVoucherNoPainel(voucher('pago', 'cancelado')), 'Cancelado');
+  assert.equal(statusDoVoucherNoPainel(voucher('contestado', 'reembolsado')), 'Reembolsado');
+  assert.equal(statusDoVoucherNoPainel(voucher('cancelado', 'reembolsado')), 'Reembolsado');
+  // usado: aparece enquanto o pedido vale; no pedido reembolsado inteiro, o dinheiro voltou (como a página do cliente diz)
+  assert.equal(statusDoVoucherNoPainel(voucher('pago', 'usado')), 'Usado');
+  assert.equal(statusDoVoucherNoPainel(voucher('reembolsado', 'usado')), 'Reembolsado');
+  // nos outros, nada ao lado do voucher: o status do pedido, no alto do cartão, já diz
+  for (const status of ['pago', 'pendente', 'expirado', 'contestado', 'aguardando_whatsapp', 'recusado'] as StatusReserva[]) {
+    assert.equal(statusDoVoucherNoPainel(voucher(status)), undefined, status);
+    assert.equal(statusDoVoucherNoPainel(voucher(status, 'ativo')), undefined, status);
+  }
+  // a mesma regra da página do cliente (statusDoVoucher): se ela mudar, o painel tem de ser revisto junto
+  assert.match(
+    codigo('lib', 'reserva-publica.ts'),
+    /export function statusDoVoucher\(r: Pick<Reserva, 'status' \| 'statusItem'>\): StatusReserva \{\s*return r\.statusItem === 'cancelado' \|\| r\.statusItem === 'reembolsado' \? r\.statusItem : r\.status;\s*\}/,
+  );
+  // e a página do painel escreve o status de cada voucher por esta função, nunca mais só o status do item
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  assert.match(pagina, /const statusDoVoucher = statusDoVoucherNoPainel\(i\);/);
+  assert.match(
+    pagina,
+    /Voucher \{i\.codigo\} · \{formatarPreco\(valorRecebido\(i\)\)\}[\s\S]{0,200}?\{statusDoVoucher \? ` · \$\{statusDoVoucher\}` : ''\}/,
+  );
+  assert.doesNotMatch(pagina, /ROTULO_ITEM|i\.statusItem/);
+});
+
+test('a contestação no cartão: a frase do painel vale também para o pedido de informação do banco', () => {
+  // reteste de 16-17/11 (R9): o pedido de informação do banco (cartão 4000 0000 0000 1976) também deixa o pedido contestado
+  // e mostra esta frase; sem resposta, ele pode virar contestação, então "a contestação é perdida" não era exato
+  assert.equal(
+    leituraDaContestacao({ id: 'du_teste', amount: 15400, status: 'warning_needs_response', reason: 'general' }).status,
+    'contestado',
+  );
+  assert.equal(
+    oQueFazerNaContestacao('cartao'),
+    'Responda no painel da Stripe dentro do prazo que ela mostra. Sem resposta, o banco pode decidir a favor do cliente.',
+  );
+  assert.doesNotMatch(oQueFazerNaContestacao('cartao'), /perdida/);
+  // o Pix continua com a frase dele: lá não há resposta
+  assert.equal(
+    oQueFazerNaContestacao('pix'),
+    'No Pix não dá para responder nem recorrer. O banco decide; se aceitar, a Stripe tira o valor da conta.',
+  );
+  // a frase vermelha do pedido contestado é esta, no alto do cartão
+  assert.match(
+    codigo('app', 'admin', 'page.tsx'),
+    /\{p\.status === 'contestado' && <p className="[^"]*">\{oQueFazerNaContestacao\(p\.metodo\)\}<\/p>\}/,
+  );
 });

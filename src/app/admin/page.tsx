@@ -33,6 +33,7 @@ import {
   oQueFazerNaContestacao,
   reembolsoNoPainel,
   reembolsoParaResolver,
+  statusDoVoucherNoPainel,
   valorDoVoucherPorFora,
   valorRecebido,
   voucherAtivo,
@@ -49,7 +50,6 @@ import {
   type Reserva,
   type ReservaPasseio,
   type ReservaTransfer,
-  type StatusItem,
   type StatusReserva,
 } from '@/lib/reservas';
 import { transferVisivel } from '@/lib/transfer-view';
@@ -78,9 +78,6 @@ const COR: Record<StatusReserva, string> = {
   reembolsado: 'bg-[#e5e9ee] text-mar',
   contestado: 'bg-erro-claro text-[#7a1f12]',
 };
-
-/** O status de um voucher dentro do pedido, quando difere do pedido (um item reembolsado ou cancelado sozinho). */
-const ROTULO_ITEM: Record<StatusItem, string> = { ativo: 'Ativo', cancelado: 'Cancelado', reembolsado: 'Reembolsado', usado: 'Usado' };
 
 const PROVEDOR: Record<PedidoPainel['provedor'], string> = {
   stripe: 'Stripe',
@@ -565,14 +562,19 @@ function MotivoDoPagamento({ codigo, metodo }: { codigo: string; metodo: PedidoP
   );
 }
 
-/** Um pedido: o cliente uma vez só, um bloco para cada voucher, o total e as ações. */
+/**
+ * Um pedido: o cliente uma vez só, um bloco para cada voucher, o total e as ações. No celular, uma coluna que encolhe com a
+ * tela (grid-cols-1, como as páginas do cliente desde o Pacote 9): sem ela, a coluna "auto" crescia até a linha mais larga
+ * (os códigos da Stripe do histórico), e o cartão, com a caixa "Confirmo" do reembolso, passava da tela (reteste de
+ * 16-17/11, R1). Do lg para cima, as 12 colunas de sempre.
+ */
 function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   const r = p.itens[0];
   const varios = p.itens.length > 1;
   const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
   const documento = p.itens.find((i) => !ehTransfer(i) && i.cliente.documento) as ReservaPasseio | undefined;
   return (
-    <li className="grid gap-4 bg-white p-5 lg:grid-cols-12">
+    <li className="grid grid-cols-1 gap-4 bg-white p-5 lg:grid-cols-12">
       <div className="lg:col-span-3">
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
         <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
@@ -594,21 +596,25 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
         {p.pagoEm && <p className="text-small text-tinta-suave">Pago {dataHora(p.pagoEm)}</p>}
       </div>
       <ul className="divide-y divide-borda lg:col-span-4">
-        {p.itens.map((i) => (
-          <li key={i.codigo} className="py-3 first:pt-0 last:pb-0">
-            {varios && (
-              <p className="mb-1 text-small font-semibold">
-                Voucher {i.codigo} · {formatarPreco(valorRecebido(i))}
-                {p.metodo === 'whatsapp' && i.totalPixCentavos !== undefined ? ` (${formatarPreco(i.totalPixCentavos)} no Pix)` : ''}
-                {i.statusItem && i.statusItem !== 'ativo' ? ` · ${ROTULO_ITEM[i.statusItem]}` : ''}
-              </p>
-            )}
-            {ehTransfer(i) ? <DetalhesTransfer r={i} /> : <DetalhesPasseio r={i} />}
-            {!ehTransfer(i) && i.sugestao && (
-              <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>
-            )}
-          </li>
-        ))}
+        {p.itens.map((i) => {
+          // o status de verdade do voucher, como a página do cliente: o próprio ou o do pedido reembolsado ou cancelado inteiro
+          const statusDoVoucher = statusDoVoucherNoPainel(i);
+          return (
+            <li key={i.codigo} className="py-3 first:pt-0 last:pb-0">
+              {varios && (
+                <p className="mb-1 text-small font-semibold">
+                  Voucher {i.codigo} · {formatarPreco(valorRecebido(i))}
+                  {p.metodo === 'whatsapp' && i.totalPixCentavos !== undefined ? ` (${formatarPreco(i.totalPixCentavos)} no Pix)` : ''}
+                  {statusDoVoucher ? ` · ${statusDoVoucher}` : ''}
+                </p>
+              )}
+              {ehTransfer(i) ? <DetalhesTransfer r={i} /> : <DetalhesPasseio r={i} />}
+              {!ehTransfer(i) && i.sugestao && (
+                <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>
+              )}
+            </li>
+          );
+        })}
         {r.observacoes && <li className="py-3 text-small last:pb-0">Obs.: {r.observacoes}</li>}
       </ul>
       <div className="lg:col-span-3">
@@ -640,10 +646,11 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">
         <Acoes p={p} filtro={filtro} />
         {/* com algum aviso aberto (a Stripe não devolveu, valor diferente, pago depois do horário, o e-mail com os
-            vouchers que não saiu, o pedido de desistência), o histórico já vem aberto */}
+            vouchers que não saiu, o pedido de desistência), o histórico já vem aberto. Os códigos da Stripe das linhas
+            (cs_test_…, pi_…, re_…) não têm onde quebrar: no celular, quebram em qualquer ponto em vez de alargar o cartão */}
         <details className="text-small" open={r.historico.some((_, n) => avisoAberto(r.historico, n))}>
           <summary className="cursor-pointer font-semibold">Histórico</summary>
-          <ul className="mt-2 space-y-1">
+          <ul className="mt-2 space-y-1 [overflow-wrap:anywhere]">
             {r.historico.map((h, n) => (
               // o aviso leva as cores do rótulo "Contestado": a equipe precisa agir
               <li key={n} className={avisoAberto(r.historico, n) ? 'bg-erro-claro px-2 py-1 font-semibold text-[#7a1f12]' : undefined}>
@@ -773,6 +780,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
         </div>
       </section>
 
+      {/* No celular (reteste de 16-17/11, R1): o filtro mais comprido ("Recusados / cancelados") quebra dentro dele só
+          quando sozinho não cabe na linha (em 320 px com a letra em 150%), e a busca ocupa a linha dela, com a caixa
+          encolhendo ao lado do botão. Do sm para cima, como sempre: a busca à direita, com 16rem */}
       <form method="get" className="mt-6 flex flex-wrap items-end gap-3">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por status">
           {FILTROS.map((f) => (
@@ -780,13 +790,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
               key={f.valor}
               href={f.valor ? `/admin?status=${f.valor}` : '/admin'}
               aria-current={f.valor === filtro.valor ? 'page' : undefined}
-              className={`filtro ${f.valor === filtro.valor ? '!bg-mar !text-sol' : '!bg-white'}`}
+              className={`filtro whitespace-normal ${f.valor === filtro.valor ? '!bg-mar !text-sol' : '!bg-white'}`}
             >
               {f.rotulo}
             </a>
           ))}
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
           {filtro.valor && <input type="hidden" name="status" value={filtro.valor} />}
           <label htmlFor="q" className="sr-only">
             Buscar
@@ -796,7 +806,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
             name="q"
             defaultValue={busca}
             placeholder="Buscar pedido, voucher, nome, hotel…"
-            className="campo min-h-11 w-64 py-2"
+            className="campo min-h-11 min-w-0 flex-1 py-2 sm:w-64 sm:flex-none"
           />
           <button type="submit" className="min-h-11 bg-mar px-5 font-semibold text-white">
             Buscar

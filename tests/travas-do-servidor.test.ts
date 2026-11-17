@@ -380,3 +380,30 @@ test('o ponto de encontro é decidido no servidor e chega pronto: nenhum compone
   );
   assert.deepEqual(culpados, []);
 });
+
+test('a sessão que já é a corrente do pedido: nada é gravado e o pedido volta como está, nos arquivos, no Blob e no banco', () => {
+  // Reteste de 16-17/11 (R10): com dois "Pagar" no mesmo segundo a Stripe devolve a mesma sessão aos dois, e a segunda
+  // gravação repetia a linha "Sessão de pagamento criada". A sessão que já é a corrente fica, como a trava de status, no
+  // começo de sessaoNovaNoPedido (as duas devolvem null antes de mexer no pedido; testadas em tests/stripe.test.ts)
+  const pagamento = codigo('lib', 'pagamento-stripe.ts');
+  assert.match(
+    pagamento,
+    /export function sessaoNovaNoPedido\(r: Reserva, sessaoId: string, forma: FormaPagamento\): string \| null \{\s+if \(!podeAbrirSessao\(r\.status\)\) return null;\s+if \(r\.pagamentoExternoId === sessaoId\) return null;\s+r\.provedor = 'stripe';/,
+  );
+  // registrarSessaoCriada: sem a linha (null), a mudança devolve null
+  const inicio = pagamento.indexOf('export async function registrarSessaoCriada(');
+  assert.notEqual(inicio, -1);
+  const registrarSessao = pagamento.slice(inicio);
+  assert.match(registrarSessao, /const evento = sessaoNovaNoPedido\(r, sessao\.id, forma\);/);
+  assert.match(registrarSessao, /return evento \? registrar\(r, evento\) : null;/);
+  // e atualizarReserva, com a mudança que devolve null, devolve o pedido como foi lido: antes da hora de atualização e da
+  // gravação, que é a mesma para os três armazenamentos (principal(): os arquivos, o Blob ou o banco)
+  const reservas = codigo('lib', 'reservas.ts');
+  assert.match(
+    reservas,
+    /const nova = alterar\(structuredClone\(atual\.reserva\)\);\s+if \(!nova\) return atual\.reserva;\s+nova\.atualizadaEm = new Date\(\)\.toISOString\(\);\s+if \(await principal\(\)\.gravar\(nova, atual\.versao\)\) \{/,
+  );
+  // quem chama segue: a sessão gravada é a dela e o pedido continua pendente (sessaoFicouGravada), nada a fechar por isso
+  const pedidoStripe = codigo('app', 'api', 'pedido', 'pedido-stripe.ts');
+  assert.match(pedidoStripe, /return gravada\.pagamentoExternoId === sessaoId && gravada\.status === 'pendente';/);
+});

@@ -116,7 +116,8 @@ export const fraseDoErro = (codigo: string | undefined): string =>
 
 /**
  * A contestação muda com a forma de pagamento. No cartão, a loja responde no painel da Stripe dentro do prazo que
- * ela mostra; sem resposta, perde. No Pix não há resposta nem recurso: o banco decide e, se aceitar, a Stripe tira
+ * ela mostra; sem resposta, o banco pode decidir a favor do cliente (a contestação é perdida; o pedido de informação do
+ * banco pode virar contestação). No Pix não há resposta nem recurso: o banco decide e, se aceitar, a Stripe tira
  * o valor da conta (docs.stripe.com/payments/pix). O painel não manda "responder" o que não tem resposta.
  */
 export const contestacoesAbertas = (pedidos: { status: StatusReserva; metodo: MetodoPagamento }[]) => {
@@ -135,11 +136,16 @@ export const avisosDeContestacao = ({ cartao, pix }: { cartao: number; pix: numb
   return avisos;
 };
 
-/** O que a equipe faz com um pedido contestado, dito no próprio pedido. */
+/**
+ * O que a equipe faz com um pedido contestado, dito no próprio pedido. No cartão, o status contestado vem tanto da
+ * contestação quanto do pedido de informação do banco (inquiry; cartão de teste 4000 0000 0000 1976), e a frase vale
+ * para os dois: sem resposta, a contestação é perdida e o pedido de informação pode virar contestação, então "a
+ * contestação é perdida" não era exato no segundo (reteste de 16-17/11, R9).
+ */
 export const oQueFazerNaContestacao = (metodo: MetodoPagamento): string =>
   metodo === 'pix'
     ? 'No Pix não dá para responder nem recorrer. O banco decide; se aceitar, a Stripe tira o valor da conta.'
-    : 'Responda no painel da Stripe dentro do prazo que ela mostra. Sem resposta, a contestação é perdida.';
+    : 'Responda no painel da Stripe dentro do prazo que ela mostra. Sem resposta, o banco pode decidir a favor do cliente.';
 
 /**
  * O motivo guardado no pedido (pagamento.motivoCodigo), dito à equipe em português. Só o painel lê isto: para o
@@ -265,6 +271,25 @@ export const voucherPago = (v: Pick<Reserva, 'statusItem'>): boolean => v.status
  * a um reembolso feito direto na Stripe.
  */
 export const voucherAtivo = (v: Pick<Reserva, 'statusItem'>): boolean => (v.statusItem ?? 'ativo') === 'ativo';
+
+/** Os status de um voucher que o painel escreve ao lado dele. */
+const ROTULO_DO_VOUCHER = { reembolsado: 'Reembolsado', cancelado: 'Cancelado', usado: 'Usado' } as const;
+
+/**
+ * O que o painel escreve ao lado de cada voucher de um pedido com vários itens ("Voucher ON-… · R$ … · Reembolsado"): o
+ * status de verdade do voucher, pela regra da página do cliente (statusDoVoucher, src/lib/reserva-publica.ts). O item
+ * reembolsado ou cancelado sozinho mostra o próprio status; sem status próprio (ou "ativo", como o banco relê o item que
+ * não mudou), o voucher acompanha o pedido, e o pedido reembolsado ou cancelado inteiro vale para ele também. Antes o
+ * painel só lia o status do item: num pedido de dois itens com um voucher devolvido sozinho e o resto depois ("Reembolsar
+ * tudo" ou a contestação perdida), o outro voucher aparecia sem "Reembolsado", embora o PDF dele já levasse à página da
+ * reserva (reteste de 16-17/11, R7). O voucher usado num pedido que continua valendo mostra "Usado". Nos outros casos, nada: o status do
+ * pedido, no alto do cartão, já diz.
+ */
+export function statusDoVoucherNoPainel(v: Pick<Reserva, 'status' | 'statusItem'>): string | undefined {
+  if (v.statusItem === 'reembolsado' || v.statusItem === 'cancelado') return ROTULO_DO_VOUCHER[v.statusItem];
+  if (v.status === 'reembolsado' || v.status === 'cancelado') return ROTULO_DO_VOUCHER[v.status];
+  return v.statusItem === 'usado' ? ROTULO_DO_VOUCHER.usado : undefined;
+}
 
 /**
  * O motivo da falha de um reembolso (o failure_reason da Stripe: docs.stripe.com/refunds, "Handle failed refunds") em

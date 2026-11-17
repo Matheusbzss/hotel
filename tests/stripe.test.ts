@@ -1000,6 +1000,55 @@ test('a sessão nova só entra num pedido pendente ou expirado: pago, cancelado,
   }
 });
 
+test('dois "Pagar" no mesmo segundo recebem a mesma sessão: a segunda gravação não repete a linha nem mexe no pedido', () => {
+  // Reteste de 16-17/11 (R10; ON-PT657C e ON-NDNJS5). Os dois cliques leem o pedido antes de qualquer gravação: a mesma
+  // tentativa, a mesma chave de idempotência e, no mesmo segundo, os mesmos parâmetros. A Stripe devolve aos dois a MESMA
+  // sessão, e o histórico mostrava "Sessão de pagamento criada" duas vezes para ela
+  const pedido = {
+    status: 'pendente',
+    provedor: 'stripe',
+    pagamentoExternoId: 'cs_test_antiga',
+    paymentIntentId: 'pi_3Antigo',
+    pagamento: { metodo: 'pix' },
+    historico: [
+      { em: '2026-11-17T03:00:00.000Z', evento: 'Pedido criado com 2 itens' },
+      { em: '2026-11-17T03:00:01.000Z', evento: 'Sessão de pagamento criada: Pix (cs_test_antiga)' },
+    ],
+  } as unknown as Reserva;
+  assert.equal(proximaTentativa(pedido), 2);
+
+  // o primeiro a gravar: a sessão vira a corrente e a linha entra (quem grava a linha é registrarSessaoCriada)
+  const gravado = structuredClone(pedido);
+  const linha = sessaoNovaNoPedido(gravado, 'cs_test_mesma', 'cartao');
+  assert.equal(linha, 'Sessão de pagamento criada: cartão (cs_test_mesma)');
+  gravado.historico.push({ em: '2026-11-17T04:00:00.000Z', evento: String(linha) });
+
+  // o segundo, com a MESMA sessão, sobre o pedido já gravado: nada a gravar (null) e o pedido intacto
+  const antes = structuredClone(gravado);
+  assert.equal(sessaoNovaNoPedido(gravado, 'cs_test_mesma', 'cartao'), null);
+  assert.deepEqual(gravado, antes);
+  // uma linha só para a sessão, e a tentativa seguinte é a 3 (antes do conserto: duas linhas e a 4)
+  assert.equal(gravado.historico.filter((h) => h.evento.includes('(cs_test_mesma)')).length, 1);
+  assert.equal(proximaTentativa(gravado), 3);
+
+  // a recusa que a própria sessão já teve fica (antes, a segunda gravação a apagava como se fosse de outra tentativa)
+  const recusado = structuredClone(gravado);
+  recusado.pagamento.motivoCodigo = 'insufficient_funds';
+  const antesDaRecusa = structuredClone(recusado);
+  assert.equal(sessaoNovaNoPedido(recusado, 'cs_test_mesma', 'cartao'), null);
+  assert.deepEqual(recusado, antesDaRecusa);
+  // o pedido expirado com ela não volta a pendente com a sessão que já venceu: quem chama vê que não ficou gravada e fecha
+  const expirado = { ...structuredClone(gravado), status: 'expirado' } as Reserva;
+  const antesDoExpirado = structuredClone(expirado);
+  assert.equal(sessaoNovaNoPedido(expirado, 'cs_test_mesma', 'cartao'), null);
+  assert.deepEqual(expirado, antesDoExpirado);
+
+  // outra sessão continua entrando como sempre, por cima da corrente
+  const outra = structuredClone(gravado);
+  assert.equal(sessaoNovaNoPedido(outra, 'cs_test_outra', 'pix'), 'Sessão de pagamento criada: Pix (cs_test_outra)');
+  assert.equal(outra.pagamentoExternoId, 'cs_test_outra');
+});
+
 test('pagamento a mais: a sessão paga por OUTRO pagamento, num pedido que já não espera pagamento, volta ao cliente', () => {
   const paga = { status: 'pago', paymentIntentId: 'pi_B' } as const;
   for (const status of ['pago', 'contestado', 'cancelado', 'reembolsado', 'recusado', 'aguardando_whatsapp'] as StatusReserva[]) {

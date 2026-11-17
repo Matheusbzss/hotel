@@ -90,10 +90,13 @@ function Numero({
   atual: number;
   anterior?: number;
 }) {
+  // o mínimo da letra também segue a tela (min com 5.8vw): com a letra do celular em 125 ou 150%, o 1.125rem crescia e o
+  // valor sem quebra passava do cartão de meia tela (e da tela, num valor alto) em 320 e 360 px (reteste de 16-17/11, R1);
+  // com a letra normal (a partir de 320 px), em 390 px com 125% e no computador, nada muda
   return (
     <div className="bg-white px-4 py-4 sm:px-5">
       <p className="text-small text-tinta-suave">{rotulo}</p>
-      <p className="mt-1 whitespace-nowrap text-[clamp(1.125rem,5.2vw,1.5rem)] font-bold">{valor}</p>
+      <p className="mt-1 whitespace-nowrap text-[clamp(min(1.125rem,5.8vw),5.2vw,1.5rem)] font-bold">{valor}</p>
       {nota && <p className="text-small text-tinta-suave">{nota}</p>}
       <Comparacao atual={atual} anterior={anterior} />
     </div>
@@ -205,6 +208,15 @@ function BlocoLembretes({ l, anterior }: { l: Lembretes; anterior?: Lembretes })
   );
 }
 
+/**
+ * A linha "nome · ● Ligado/○ Desligado" das listas de Emails e Medicao. O status desce para baixo do nome só quando os
+ * dois não cabem juntos (o nome guarda pelo menos 5rem e nunca menos que a palavra mais longa): com a letra em 150%, o
+ * "○ Desligado" passava 9 px da tela em 320 px e ficava espremido na borda do cartão em 360 (reteste de 16-17/11, R1).
+ * Cabendo, como sempre: o nome à esquerda, quebrando dentro da linha, e o status à direita.
+ */
+const LINHA_DE_STATUS = 'flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2';
+const NOME_DA_LINHA = 'grow basis-20';
+
 /** Os e-mails automáticos (Etapa 6): ligados só com a chave do Resend na Vercel. */
 function Emails() {
   const ligado = emailLigado();
@@ -216,8 +228,8 @@ function Emails() {
     <>
       <ul className="divide-y divide-superficie">
         {itens.map(([nome, ok]) => (
-          <li key={nome} className="flex items-center justify-between gap-3 py-2">
-            <span>{nome}</span>
+          <li key={nome} className={LINHA_DE_STATUS}>
+            <span className={NOME_DA_LINHA}>{nome}</span>
             <span className={`shrink-0 text-small font-semibold ${ok ? 'text-sucesso' : 'text-tinta-suave'}`}>
               {ok ? '● Ligado' : '○ Desligado'}
             </span>
@@ -250,8 +262,8 @@ function Medicao() {
     <>
       <ul className="divide-y divide-superficie">
         {itens.map(([nome, ligado]) => (
-          <li key={nome} className="flex items-center justify-between gap-3 py-2">
-            <span>{nome}</span>
+          <li key={nome} className={LINHA_DE_STATUS}>
+            <span className={NOME_DA_LINHA}>{nome}</span>
             <span className={`shrink-0 text-small font-semibold ${ligado ? 'text-sucesso' : 'text-tinta-suave'}`}>
               {ligado ? '● Ligado' : '○ Desligado'}
             </span>
@@ -398,9 +410,14 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
 
       <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Resumo">
         <div className="col-span-2 flex flex-col justify-center bg-white px-5 py-5 lg:col-span-1 lg:row-span-2">
-          {/* o mesmo número de "Vendido (pagos, menos reembolsos)" da página de pedidos */}
+          {/* o mesmo número de "Vendido (pagos, menos reembolsos)" da página de pedidos. O mínimo da letra também segue a
+              tela (min com 12vw): com a letra do celular em 150%, o 2.25rem ia a 54 px e o valor sem quebra passava 22 a 62
+              px da tela em 320 e 360 px (reteste de 16-17/11, R1); com a letra normal (a partir de 300 px), em 390 px com
+              125% e no computador, nada muda */}
           <p className="text-small text-tinta-suave">Faturamento (menos reembolsos)</p>
-          <p className="mt-1 whitespace-nowrap text-[clamp(2.25rem,11vw,3.25rem)] font-bold leading-none">{formatarPreco(r.centavos)}</p>
+          <p className="mt-1 whitespace-nowrap text-[clamp(min(2.25rem,12vw),11vw,3.25rem)] font-bold leading-none">
+            {formatarPreco(r.centavos)}
+          </p>
           <Comparacao atual={r.centavos} anterior={antes?.centavos} />
         </div>
         <Numero rotulo="Pedidos pagos" valor={String(r.pedidos)} atual={r.pedidos} anterior={antes?.pedidos} />
@@ -465,28 +482,32 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
       {r.pedidos > 0 && (
         <details className="mt-3 bg-white px-5 py-3">
           <summary className="cursor-pointer text-small font-semibold">Ver em tabela</summary>
-          <table className="mt-3 w-full text-small tabular-nums">
-            <caption className="sr-only">Pedidos pagos e faturamento {quando}, só com o que teve venda</caption>
-            <thead>
-              <tr className="border-b border-borda text-left">
-                <th className="py-1 font-semibold">{porSemana ? 'Semana' : 'Dia'}</th>
-                <th className="py-1 text-right font-semibold">Pedidos</th>
-                <th className="py-1 text-right font-semibold">Faturamento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pontos
-                .filter((p) => p.pedidos)
-                .toReversed()
-                .map((p) => (
-                  <tr key={p.de} className="border-b border-superficie">
-                    <td className="py-1">{porSemana ? `${dataCurta(p.de)} a ${dataCurta(p.ate)}` : dataLonga(p.de)}</td>
-                    <td className="py-1 text-right">{p.pedidos}</td>
-                    <td className="py-1 text-right">{formatarPreco(p.centavos)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          {/* no celular com a letra grande, a tabela passa da largura do cartão: ela rola de lado dentro da caixa dela, e a
+              página não (reteste de 16-17/11, R1) */}
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-small tabular-nums">
+              <caption className="sr-only">Pedidos pagos e faturamento {quando}, só com o que teve venda</caption>
+              <thead>
+                <tr className="border-b border-borda text-left">
+                  <th className="py-1 font-semibold">{porSemana ? 'Semana' : 'Dia'}</th>
+                  <th className="py-1 text-right font-semibold">Pedidos</th>
+                  <th className="py-1 text-right font-semibold">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pontos
+                  .filter((p) => p.pedidos)
+                  .toReversed()
+                  .map((p) => (
+                    <tr key={p.de} className="border-b border-superficie">
+                      <td className="py-1">{porSemana ? `${dataCurta(p.de)} a ${dataCurta(p.ate)}` : dataLonga(p.de)}</td>
+                      <td className="py-1 text-right">{p.pedidos}</td>
+                      <td className="py-1 text-right">{formatarPreco(p.centavos)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </details>
       )}
 

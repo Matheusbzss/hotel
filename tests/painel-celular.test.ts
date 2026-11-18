@@ -263,3 +263,98 @@ test('a conta do eixo: o modelo dá as sobreposições do reteste, e abaixo do s
   assert.equal((320 - 2 * 24 - 0.75 * 24) / 2 - 2 * 24, 79);
   assert.ok(Math.abs(43.8 - 24 - 19.8) < 0.01);
 });
+
+/* ------------------------------------------------------------------ */
+/* O número grande do faturamento no computador (Pacote 18, T2b)        */
+
+test('o número grande do faturamento: do lg para cima a letra segue o cartão (@container e cqi); no celular, a de antes', () => {
+  // T2b do reteste de 17-18/11: do lg para cima o cartão tem 1/3 da grade, mas a letra seguia a tela (11vw, e por isso
+  // sempre os 3.25rem no computador), e R$ 58.517,68 passava 23,8 px do cartão em 1024 px já com a letra normal
+  const cartao = classesDe(
+    estatisticas,
+    /<div className="([^"]*)">\s*<p className="text-small text-tinta-suave">Faturamento \(menos reembolsos\)<\/p>/,
+    'o cartão do faturamento',
+  );
+  temTodas(
+    cartao,
+    ['@container', 'col-span-2', 'flex', 'flex-col', 'bg-white', 'px-5', 'py-5', 'lg:col-span-1', 'lg:row-span-2'],
+    'o cartão',
+  );
+  const grande = classesDe(estatisticas, /Faturamento \(menos reembolsos\)<\/p>\s*<p className="([^"]*)">/, 'o faturamento');
+  // no celular (abaixo do lg), a letra de antes (Pacotes 12 e 15); do lg para cima, 12cqi, nunca mais que os 3.25rem de antes
+  temTodas(grande, ['whitespace-nowrap', 'text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]', 'lg:text-[min(12cqi,3.25rem)]'], 'o faturamento');
+  assert.deepEqual(
+    grande.filter((c) => c.includes('text-[')),
+    ['text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]', 'lg:text-[min(12cqi,3.25rem)]'],
+  );
+  // a grade e a página que a conta abaixo usa: max-w-7xl com px-4 e md:px-8; 2 colunas, 3 do lg para cima, com gap-3
+  assert.match(estatisticas, /<main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">/);
+  assert.match(estatisticas, /<section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Resumo">/);
+  // o @container mais perto do número é o do cartão (nenhum outro na página)
+  assert.equal(estatisticas.match(/@container/g)?.length, 1);
+});
+
+test('a conta do número grande no computador: o modelo dá as sobras do reteste; com 12cqi, R$ 60.405,28 e R$ 1.234.567,89 cabem', () => {
+  // o cartão do lg para cima, com o html em `raiz` px: a página (max-w-7xl = 80rem, menos md:px-8 dos dois lados), 1/3 da
+  // grade (menos os dois gap-3 de 0.75rem); dentro dele, o respiro px-5 (1.25rem) dos dois lados
+  const cartao = (largura: number, raiz: number) => (Math.min(largura, 80 * raiz) - 2 * 2 * raiz - 2 * 0.75 * raiz) / 3;
+  const dentro = (largura: number, raiz: number) => cartao(largura, raiz) - 2 * 1.25 * raiz;
+  // a letra de antes (clamp(min(2.25rem,12vw),11vw,3.25rem): no computador, sempre os 3.25rem) e a de agora, lida da classe
+  // do lg para cima (12cqi, 12% de dentro do cartão, nunca mais que 3.25rem)
+  const antes = (largura: number, raiz: number) => Math.max(Math.min(2.25 * raiz, 0.12 * largura), Math.min(0.11 * largura, 3.25 * raiz));
+  const doLg = estatisticas.match(/ lg:text-\[min\((\d+(?:\.\d+)?)cqi,(\d+(?:\.\d+)?)rem\)\]/);
+  assert.ok(doLg, 'a letra do número do lg para cima');
+  const [porCento, teto] = [Number(doLg[1]), Number(doLg[2])];
+  assert.deepEqual([porCento, teto], [12, 3.25]);
+  const agora = (largura: number, raiz: number) => Math.min((porCento / 100) * dentro(largura, raiz), teto * raiz);
+  // A letra do painel é a do sistema (o layout do painel não carrega o Barlow): no Windows da bancada, o Segoe UI em negrito.
+  // R$ 58.517,68 e R$ 60.405,28 medem 6,0723 vezes a letra (a bancada: 315,8 px com 52 px de letra), e R$ 1.234.567,89, 7,4937
+  const numeros: [string, number][] = [
+    ['R$ 60.405,28', 6.0723],
+    ['R$ 1.234.567,89', 7.4937],
+  ];
+  // as medidas do reteste (telas/saida/057-t2-numero-grande-no-computador/resultado.json): a largura do cartão e quanto o
+  // número passava dele, com a letra em 100, 125 e 150%
+  const RETESTE: Record<number, [number, number][]> = {
+    1024: [
+      [312, 23.8],
+      [304.7, 115],
+      [297.3, 206.3],
+    ],
+    1280: [
+      [397.3, 0],
+      [390, 29.7],
+      [382.7, 121],
+    ],
+    1366: [
+      [397.3, 0],
+      [418.7, 1],
+      [411.3, 92.3],
+    ],
+    1440: [
+      [397.3, 0],
+      [443.3, 0],
+      [436, 67.6],
+    ],
+  };
+  const raizes = [16, 20, 24];
+  for (const [largura, medidas] of Object.entries(RETESTE)) {
+    raizes.forEach((raiz, n) => {
+      const l = Number(largura);
+      const onde = `${largura}/${raiz}`;
+      const [larguraDoCartao, passava] = medidas[n];
+      // (1) o modelo dá o cartão e a sobra que o reteste mediu com a letra de antes (a sobra conta da borda do cartão)
+      assert.ok(Math.abs(cartao(l, raiz) - larguraDoCartao) < 0.1, onde);
+      const sobra = Math.max(0, 1.25 * raiz + 6.0723 * antes(l, raiz) - cartao(l, raiz));
+      assert.ok(Math.abs(sobra - passava) < 0.2, `${onde}: ${sobra}`);
+      // (2) agora os dois números cabem dentro do cartão, sem chegar nem no respiro dele
+      for (const [numero, vezes] of numeros) assert.ok(vezes * agora(l, raiz) <= dentro(l, raiz), `${numero} em ${onde}`);
+    });
+  }
+  // com 12cqi, a largura do número é 12% de dentro do cartão vezes a medida dele: cabe qualquer número de até 8,33 vezes a
+  // letra, em qualquer tela e letra (R$ 1.234.567,89 no Segoe UI mede 7,49; uma letra do sistema 10% mais larga ainda cabe)
+  assert.ok((7.4937 * porCento) / 100 < 1 && (7.4937 * 1.1 * porCento) / 100 < 1);
+  // a letra continua grande: no mínimo 28,5 px (1024 px com a letra em 150%) e 32,6 com a letra normal
+  assert.equal(Math.round(agora(1024, 24) * 10) / 10, 28.5);
+  assert.equal(Math.round(agora(1024, 16) * 10) / 10, 32.6);
+});

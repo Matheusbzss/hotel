@@ -136,9 +136,10 @@ test('a ação manual repetida não muda nada: o mesmo status e, quando a ação
   // o cancelado de novo, o reembolsado de novo: nada
   assert.equal(acaoManualRepetida(pedido('cancelado', 'whatsapp'), ACOES.cancelar), true);
   assert.equal(acaoManualRepetida(pedido('reembolsado', 'pix'), ACOES.reembolsado), true);
-  // "Marcar reembolsado" num pago ou num cancelado (os dois têm o botão) muda
+  // "Marcar reembolsado" num pago, ou num cancelado depois de pago (os dois têm o botão), muda. O do WhatsApp cancelado
+  // antes de pagar não tem o botão desde o Pacote 18, e a rota o recusa antes desta regra (tests/painel-avisos.test.ts)
   assert.equal(acaoManualRepetida(pedido('pago', 'pix'), ACOES.reembolsado), false);
-  assert.equal(acaoManualRepetida(pedido('cancelado', 'whatsapp'), ACOES.reembolsado), false);
+  assert.equal(acaoManualRepetida(pedido('cancelado', 'pix'), ACOES.reembolsado), false);
   // "Marcar como pago" (o checkout antigo) não diz a forma: repetida em qualquer forma, mudança fora do pago
   for (const metodo of ['pix', 'cartao', 'whatsapp'] as const) {
     assert.equal(acaoManualRepetida(pedido('pago', metodo), ACOES.marcar_pago), true, metodo);

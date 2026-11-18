@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import nextConfig from '../next.config.ts';
 import {
   TAMANHO_MAXIMO_AVISO,
   caminhoDoAviso,
@@ -132,4 +133,36 @@ test('lerCorpoAte: lê o aviso pequeno; o grande é recusado pelo Content-Length
   assert.equal(await lerCorpoAte(semTamanho), null);
   assert.ok(pedacosLidos < 20, `leu ${pedacosLidos} pedaços`);
   assert.equal(TAMANHO_MAXIMO_AVISO, 20_000);
+});
+
+test('o Permissions-Policy de todas as páginas: o pagamento pelo navegador (Google Pay, Apple Pay) só para o site e para a Stripe', async () => {
+  // A documentação da Stripe (docs.stripe.com/google-pay?platform=web) pede, nas páginas que mostram o botão do Google Pay,
+  // `Permissions-Policy: payment=(self "https://js.stripe.com" "https://checkout.stripe.com")`: alguns navegadores, entre
+  // eles o Chrome do Android, exigem o próprio site (self) na lista do payment (Pacote 18, 18/11). O formulário embutido
+  // aparece no checkout, no pedido e na reserva: o cabeçalho vale para todas as páginas, com o que já fechava câmera,
+  // microfone e localização
+  assert.ok(nextConfig.headers, 'os cabeçalhos do next.config.ts');
+  const regras = await nextConfig.headers();
+  const todas = regras.find((r) => r.source === '/(.*)');
+  assert.ok(todas, 'a regra de todas as páginas');
+  const permissoes = todas.headers.filter((h) => h.key === 'Permissions-Policy');
+  assert.equal(permissoes.length, 1);
+  assert.equal(
+    permissoes[0].value,
+    'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com" "https://checkout.stripe.com")',
+  );
+  // nenhuma outra regra muda o Permissions-Policy (no Next, a última que bate vence)
+  assert.equal(regras.flatMap((r) => r.headers).filter((h) => h.key === 'Permissions-Policy').length, 1);
+  // cada recurso numa diretiva só, e o pagamento só para o próprio site e para os dois endereços dos quadros da Stripe
+  const diretivas = Object.fromEntries(permissoes[0].value.split(/,\s*/).map((d) => d.split(/=(.*)/s).slice(0, 2)));
+  assert.deepEqual(diretivas, {
+    camera: '()',
+    microphone: '()',
+    geolocation: '()',
+    payment: '(self "https://js.stripe.com" "https://checkout.stripe.com")',
+  });
+  // os dois endereços são quadros que a política de segurança (em aviso) já deixa abrir
+  const csp = todas.headers.find((h) => h.key === 'Content-Security-Policy-Report-Only')?.value ?? '';
+  const quadros = csp.split('; ').find((d) => d.startsWith('frame-src ')) ?? '';
+  for (const origem of ['https://js.stripe.com', 'https://checkout.stripe.com']) assert.ok(quadros.split(' ').includes(origem), origem);
 });

@@ -10,7 +10,9 @@ import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_AVISO_A_EQUIPE, MARCA_DO_EMAIL, marca
 import {
   ERROS_DO_PAINEL,
   NAO_DIGA_O_MOTIVO,
+  NAO_PAGO,
   NENHUM_VOUCHER,
+  ROTULO_DO_STATUS,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
   agruparPedidos,
@@ -32,10 +34,13 @@ import {
   frasesDoReembolsoNoPainel,
   motivoDoReembolsoFalho,
   motivoNoPainel,
+  naoPagoNoPainel,
   oQueFazerNaContestacao,
+  pedidoNuncaPago,
   reembolsoNoPainel,
   reembolsoParaResolver,
   reembolsosParadosPelaContestacao,
+  seloDoPedidoNoPainel,
   statusDoVoucherNoPainel,
   valorADevolver,
   valorDoVoucherPorFora,
@@ -1281,4 +1286,205 @@ test('a contestação no cartão: a frase do painel vale também para o pedido d
     codigo('app', 'admin', 'page.tsx'),
     /\{p\.status === 'contestado' && <p className="[^"]*">\{oQueFazerNaContestacao\(p\.metodo\)\}<\/p>\}/,
   );
+});
+
+/* ------------------------------------------------------------------ */
+/* O selo do pedido e o pedido que nunca foi pago (Pacote 18, reteste de 17-18/11) */
+
+test('o selo do pedido reembolsado cujo reembolso falhou: "Reembolso pendente", no pedido de 1 item e no de 2, até a falha ser resolvida', () => {
+  // o ON-SZA5W6 do reteste de 17-18/11 (defeito 6): o pedido de 1 item, reembolsado inteiro, cujo reembolso falhou na
+  // Stripe. O selo, que no pedido de 1 item é o único rótulo, dizia "Reembolsado" ao lado de "Falta devolver R$ 154,00"
+  const disputa = (status: 'needs_response' | 'lost' | 'won') =>
+    leituraDaContestacao({ id: 'du_depois', amount: 15400, status, reason: 'fraudulent' }).evento;
+  const totalConfirmado = (centavos: number) => `Reembolso total (${cifra(centavos)}) confirmado pela Stripe`;
+  const umQueFalhou = (...depois: string[]) =>
+    umItem({
+      status: 'reembolsado',
+      reembolsoCentavos: 15400,
+      historico: historico('Pago (webhook da Stripe)', totalConfirmado(15400), linhaDoReembolsoFalho(FALHO_TOTAL), ...depois),
+    });
+  const pendente = umQueFalhou();
+  assert.equal(seloDoPedidoNoPainel(pendente), 'Reembolso pendente');
+  // a mesma conta e a mesma palavra da linha do voucher e da página do cliente, e o mesmo cartão diz quanto falta devolver
+  assert.equal(statusDoVoucherNoPainel(pendente.itens[0]), 'Reembolso pendente');
+  assert.equal(dicionario('pt').pedido.reembolsoPendenteTitulo, 'Reembolso pendente');
+  assert.deepEqual(devolucaoNoPainel(pendente), { falta: `Falta devolver ${cifra(15400)}: o reembolso falhou na Stripe` });
+  // resolvida: a equipe registrou a devolução por outro meio; e a contestação depois da falha, como o cliente lê (aberta,
+  // o dinheiro ainda não voltou; perdida, o banco devolveu; ganha, a falha volta a pedir a devolução)
+  assert.equal(seloDoPedidoNoPainel(umQueFalhou(linhaDaDevolucaoPorOutroMeio(FALHO_TOTAL))), 'Reembolsado');
+  assert.equal(seloDoPedidoNoPainel(umQueFalhou(disputa('needs_response'))), 'Reembolso pendente');
+  assert.equal(seloDoPedidoNoPainel(umQueFalhou(disputa('needs_response'), disputa('lost'))), 'Reembolsado');
+  assert.equal(seloDoPedidoNoPainel(umQueFalhou(disputa('needs_response'), disputa('won'))), 'Reembolso pendente');
+  // sem falha, como antes
+  const semFalha = umItem({
+    status: 'reembolsado',
+    reembolsoCentavos: 15400,
+    historico: historico('Pago (webhook da Stripe)', totalConfirmado(15400)),
+  });
+  assert.equal(seloDoPedidoNoPainel(semFalha), 'Reembolsado');
+
+  // o pedido de 2 itens reembolsado inteiro cujo reembolso falhou: os dois vouchers e o selo em "Reembolso pendente"
+  const falhoDoPedido = { id: 're_tudo', centavos: 39600, motivo: 'expired_or_canceled_card' };
+  const doisQueFalharam = (...depois: string[]) =>
+    doisItens({
+      status: 'reembolsado',
+      reembolsoCentavos: 39600,
+      historico: historico('Pago (webhook da Stripe)', totalConfirmado(39600), linhaDoReembolsoFalho(falhoDoPedido), ...depois),
+    });
+  assert.deepEqual(doisQueFalharam().itens.map(statusDoVoucherNoPainel), ['Reembolso pendente', 'Reembolso pendente']);
+  assert.equal(seloDoPedidoNoPainel(doisQueFalharam()), 'Reembolso pendente');
+  assert.equal(seloDoPedidoNoPainel(doisQueFalharam(linhaDaDevolucaoPorOutroMeio(falhoDoPedido))), 'Reembolsado');
+  // um voucher devolvido sozinho, com a devolução que falhou, e o outro devolvido depois sem falha (o pedido reembolsado
+  // inteiro): basta um voucher pendente
+  const itemReembolsado = (voucher: string, centavos: number, reembolsoId: string) =>
+    eventoDoItemReembolsado({ voucher, centavos, reembolsoId, pendente: false });
+  const comUmPendente = doisItens(
+    {
+      status: 'reembolsado',
+      reembolsoCentavos: 39600,
+      historico: historico(
+        'Pago (webhook da Stripe)',
+        itemReembolsado('ON-AAA234', 24200, 're_voucher'),
+        linhaDoReembolsoFalho(FALHO_DO_VOUCHER),
+        itemReembolsado('ON-BBB234', 15400, 're_outro'),
+      ),
+    },
+    ['reembolsado', 'reembolsado'],
+  );
+  assert.deepEqual(comUmPendente.itens.map(statusDoVoucherNoPainel), ['Reembolso pendente', 'Reembolsado']);
+  assert.equal(seloDoPedidoNoPainel(comUmPendente), 'Reembolso pendente');
+  // o pedido ainda pago, com o voucher cujo reembolso falhou: o selo continua "Pago" (a linha do voucher diz o pendente)
+  const aindaPago = doisItens(
+    {
+      reembolsoCentavos: 24200,
+      historico: historico(
+        'Pago (webhook da Stripe)',
+        itemReembolsado('ON-AAA234', 24200, 're_voucher'),
+        linhaDoReembolsoFalho(FALHO_DO_VOUCHER),
+      ),
+    },
+    ['reembolsado', undefined],
+  );
+  assert.deepEqual(aindaPago.itens.map(statusDoVoucherNoPainel), ['Reembolso pendente', undefined]);
+  assert.equal(seloDoPedidoNoPainel(aindaPago), 'Pago');
+
+  // os outros status, como sempre (as mesmas palavras de antes, que moravam na página do painel)
+  assert.deepEqual(ROTULO_DO_STATUS, {
+    pendente: 'Aguardando pagamento',
+    pago: 'Pago',
+    recusado: 'Recusado',
+    cancelado: 'Cancelado',
+    expirado: 'Tempo esgotado',
+    aguardando_whatsapp: 'Finalizar no WhatsApp',
+    reembolsado: 'Reembolsado',
+    contestado: 'Contestado',
+  });
+  for (const status of Object.keys(ROTULO_DO_STATUS) as StatusReserva[]) {
+    assert.equal(seloDoPedidoNoPainel(umItem({ status })), ROTULO_DO_STATUS[status], status);
+    assert.equal(seloDoPedidoNoPainel(doisItens({ status })), ROTULO_DO_STATUS[status], status);
+  }
+
+  // a página do painel escreve o selo por esta regra, com a cor do status de sempre; a tabela de antes saiu da página
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  assert.match(
+    pagina,
+    /<span className=\{`mt-1 inline-block px-3 py-1 text-small font-semibold \$\{COR\[p\.status\]\}`\}>\{seloDoPedidoNoPainel\(p\)\}<\/span>/,
+  );
+  assert.doesNotMatch(pagina, /ROTULO\[|const ROTULO\b/);
+});
+
+test('o pedido do WhatsApp que nunca foi pago: "não pago" junto do valor e sem "Marcar reembolsado"; a rota recusa a aba antiga', () => {
+  // o ON-5NHDBL (1 item) e o ON-SCT487 (2 itens) do reteste de 17-18/11 (T4, pergunta 11, a resposta recomendada):
+  // cancelados no painel antes de a equipe marcar o pagamento. O cartão mostrava o valor inteiro em letra grande (parecia
+  // dinheiro recebido) e o único botão era "Marcar reembolsado"
+  const whatsapp = { provedor: 'whatsapp', paymentIntentId: undefined, pagamento: { metodo: 'whatsapp' } } as const;
+  const cancelado1 = umItem({ ...whatsapp, status: 'cancelado', historico: historico('Reserva criada', 'Cancelada no admin') });
+  const cancelado2 = doisItens({
+    ...whatsapp,
+    status: 'cancelado',
+    historico: historico('Pedido criado com 2 itens', 'Cancelada no admin'),
+  });
+  for (const p of [cancelado1, cancelado2]) {
+    assert.equal(pedidoNuncaPago(p.itens[0]), true, p.codigo);
+    assert.equal(naoPagoNoPainel(p), true, p.codigo);
+  }
+  // ainda aguardando o WhatsApp: também nunca foi pago (o valor dele aparece com as duas formas, sem o "não pago")
+  assert.equal(naoPagoNoPainel(umItem({ ...whatsapp, status: 'aguardando_whatsapp', historico: historico('Reserva criada') })), true);
+  // pago pelo WhatsApp (no Pix ou no cartão) e depois cancelado, como o ON-TGG5E9 e o ON-M4P87E: fica como sempre
+  for (const [metodo, forma] of [
+    ['pix', 'Pix'],
+    ['cartao', 'cartão'],
+  ] as const) {
+    const pagoECancelado = umItem({
+      provedor: 'whatsapp',
+      paymentIntentId: undefined,
+      status: 'cancelado',
+      pagamento: { metodo, pagoEm: '2026-11-17T20:00:00Z' },
+      historico: historico('Reserva criada', `Marcada como paga no ${forma}, no admin`, 'Cancelada no admin'),
+    });
+    assert.equal(pedidoNuncaPago(pagoECancelado.itens[0]), false, metodo);
+    assert.equal(naoPagoNoPainel(pagoECancelado), false, metodo);
+  }
+  // pago agora, pelo WhatsApp: nunca "não pago"
+  assert.equal(
+    naoPagoNoPainel(
+      umItem({ provedor: 'whatsapp', paymentIntentId: undefined, pagamento: { metodo: 'pix', pagoEm: '2026-11-17T20:00:00Z' } }),
+    ),
+    false,
+  );
+  // qualquer sinal de pagamento basta para não escrever "não pago": a hora do pagamento sem a linha, ou a linha (do painel,
+  // da Stripe ou do checkout antigo) sem a hora
+  const sem = { ...whatsapp, status: 'cancelado' as const };
+  assert.equal(
+    naoPagoNoPainel(
+      umItem({ ...sem, pagamento: { metodo: 'whatsapp', pagoEm: '2026-11-17T20:00:00Z' }, historico: historico('Reserva criada') }),
+    ),
+    false,
+  );
+  for (const linha of [
+    'Marcada como paga no admin',
+    'Marcada como paga no Pix, no admin',
+    'Pago (webhook da Stripe)',
+    'Status pago (webhook Pagar.me)',
+  ])
+    assert.equal(naoPagoNoPainel(umItem({ ...sem, historico: historico('Reserva criada', linha, 'Cancelada no admin') })), false, linha);
+  // o pedido da Stripe fica de fora (o painel nunca oferece "Marcar reembolsado" nele, e o pagamento que chega depois do
+  // cancelamento não grava a hora do pagamento): nada muda nele
+  const daStripeCancelado = umItem({
+    status: 'cancelado',
+    pagamento: { metodo: 'cartao' },
+    historico: historico('Reserva criada', 'Cancelado no admin'),
+  });
+  assert.equal(pedidoNuncaPago(daStripeCancelado.itens[0]), true);
+  assert.equal(naoPagoNoPainel(daStripeCancelado), false);
+  assert.equal(NAO_PAGO, 'não pago');
+
+  // a página do painel: "Marcar reembolsado" só no pedido que chegou a ser pago (um botão só, com a regra)
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  assert.match(
+    pagina,
+    /if \(!stripe && \(p\.status === 'pago' \|\| p\.status === 'cancelado'\) && !naoPagoNoPainel\(p\)\) \{\s*acoes\.push\(\{ acao: 'reembolsado', rotulo: 'Marcar reembolsado' \}\);\s*\}/,
+  );
+  assert.equal(pagina.match(/acao: 'reembolsado'/g)?.length, 1);
+  // e "não pago" junto do valor do pedido fechado, num pedaço que não se parte; o pedido em aberto (os dois preços) fica igual
+  const inicio = pagina.indexOf('function ValorDoPedido(');
+  assert.notEqual(inicio, -1);
+  const valor = pagina.slice(inicio, pagina.indexOf('\nfunction ', inicio + 1));
+  const fechado = valor.slice(valor.indexOf('const devolucao = devolucaoNoPainel(p);'));
+  assert.match(fechado, /const naoPago = naoPagoNoPainel\(p\);/);
+  assert.match(
+    fechado,
+    /<p className="text-xl font-bold">\s*\{formatarPreco\(p\.recebidoCentavos\)\}\s*\{naoPago && \(\s*<>\s*\{' '\}\s*<span className="whitespace-nowrap text-small font-semibold">\{NAO_PAGO\}<\/span>\s*<\/>\s*\)\}\s*<\/p>/,
+  );
+  assert.doesNotMatch(valor.slice(0, valor.indexOf('const devolucao = devolucaoNoPainel(p);')), /naoPago|NAO_PAGO/);
+
+  // a rota: "Marcar reembolsado" num pedido fora da Stripe que nunca foi pago volta com acao-nao-vale, antes de qualquer
+  // gravação (a aba antiga do painel, que ainda mostra o botão)
+  const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  const manual = rota.indexOf('const manual = ACOES_MANUAIS[acao];');
+  const recusa = rota.indexOf("if (!daStripe && manual.status === 'reembolsado' && pedidoNuncaPago(alvo)) return voltar('acao-nao-vale');");
+  const grava = rota.indexOf('const atualizada = await atualizarReserva(alvo.codigo, (r) => {');
+  assert.ok(manual !== -1 && recusa > manual && grava > recusa, `${manual} ${recusa} ${grava}`);
+  assert.equal(rota.match(/pedidoNuncaPago\(/g)?.length, 1);
+  assert.equal(ERROS_DO_PAINEL['acao-nao-vale'], 'Esta ação não vale para este pedido no status em que ele está.');
 });

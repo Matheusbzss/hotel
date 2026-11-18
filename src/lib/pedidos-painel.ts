@@ -355,6 +355,66 @@ export function statusDoVoucherNoPainel(v: VoucherNoPainel): string | undefined 
   return v.statusItem === 'usado' ? ROTULO_DO_VOUCHER.usado : undefined;
 }
 
+/** O status do pedido inteiro como o selo do cartão do painel escreve (o painel é só em português). */
+export const ROTULO_DO_STATUS: Record<StatusReserva, string> = {
+  pendente: 'Aguardando pagamento',
+  pago: 'Pago',
+  recusado: 'Recusado',
+  cancelado: 'Cancelado',
+  expirado: 'Tempo esgotado',
+  aguardando_whatsapp: 'Finalizar no WhatsApp',
+  reembolsado: 'Reembolsado',
+  contestado: 'Contestado',
+};
+
+/**
+ * O selo do pedido, no alto do cartão do painel (no pedido de um item, é o único rótulo dele): o status do pedido
+ * inteiro. O pedido reembolsado com algum voucher em "Reembolso pendente" (statusDoVoucherNoPainel, a mesma conta: um
+ * reembolso que falhou na Stripe e o dinheiro ainda não voltou ao cliente, como a página do cliente lê) mostra "Reembolso
+ * pendente". Antes o selo dizia "Reembolsado" ao lado de "Falta devolver R$ …: o reembolso falhou na Stripe", e o cliente
+ * lia "Reembolso pendente" (o ON-SZA5W6 do reteste de 17-18/11, defeito 6: o Pacote 15 tinha consertado só as linhas dos
+ * vouchers). Quando a falha deixa de estar pendente (a devolução por outro meio registrada, ou a contestação aberta depois
+ * dela perdida), o selo volta a "Reembolsado". A cor do selo continua a do status do pedido.
+ */
+export function seloDoPedidoNoPainel(p: Pick<PedidoPainel, 'status' | 'itens'>): string {
+  if (p.status === 'reembolsado' && p.itens.some((i) => statusDoVoucherNoPainel(i) === ROTULO_DO_VOUCHER.reembolsoPendente)) {
+    return ROTULO_DO_VOUCHER.reembolsoPendente;
+  }
+  return ROTULO_DO_STATUS[p.status];
+}
+
+/**
+ * As linhas do histórico que dizem que o dinheiro do pedido entrou: as das ações manuais do painel ("Marcada como paga no
+ * admin", "… no Pix, no admin", "… no cartão, no admin": ACOES_MANUAIS, src/app/api/admin/reservas/[codigo]/route.ts),
+ * a da Stripe ("Pago (webhook da Stripe)", "Pago (consulta à Stripe)": aplicarSessao, src/lib/pagamento-stripe.ts) e a
+ * do checkout antigo ("Status pago (webhook Pagar.me)").
+ */
+const LINHA_DE_PAGO = /^(?:Marcada como paga\b|Pago \(|Status pago \()/;
+
+/**
+ * O pedido nunca foi pago: não está pago, não tem a hora do pagamento (pagamento.pagoEm, que o site grava sempre que um
+ * pedido vira pago: à mão no painel, pela Stripe e, antes, pelo checkout antigo) e nenhuma linha do histórico diz que ele
+ * chegou a ser pago. O pedido pago e depois cancelado tem as duas coisas.
+ */
+export const pedidoNuncaPago = (r: Pick<Reserva, 'status' | 'pagamento' | 'historico'>): boolean =>
+  r.status !== 'pago' && !r.pagamento.pagoEm && !r.historico.some((h) => LINHA_DE_PAGO.test(h.evento));
+
+/**
+ * O pedido fora da Stripe (o do WhatsApp, ou um do checkout antigo) que nunca foi pago, como o do WhatsApp cancelado
+ * antes de a equipe marcar "Pago no Pix" ou "Pago no cartão" (o ON-5NHDBL do reteste de 17-18/11, pergunta 11, com a
+ * resposta recomendada): o painel escreve "não pago" junto do valor, que em letra grande parecia dinheiro recebido, e não
+ * oferece "Marcar reembolsado" (não há o que devolver); a rota do painel recusa essa ação feita por uma aba antiga
+ * (acao-nao-vale). O pedido pago pelo WhatsApp, mesmo cancelado depois, fica como sempre. O pedido da Stripe fica de fora:
+ * nele o painel nunca oferece "Marcar reembolsado", e o pagamento que chega depois do cancelamento fica só numa linha do
+ * histórico ("Pagamento na Stripe de um pedido cancelado (…): devolver ao cliente"), sem a hora do pagamento: ali "não
+ * pago" seria falso.
+ */
+export const naoPagoNoPainel = (p: Pick<PedidoPainel, 'provedor' | 'itens'>): boolean =>
+  p.provedor !== 'stripe' && p.itens[0] !== undefined && pedidoNuncaPago(p.itens[0]);
+
+/** O que o painel escreve junto do valor do pedido que nunca foi pago (naoPagoNoPainel). */
+export const NAO_PAGO = 'não pago';
+
 /**
  * O motivo da falha de um reembolso (o failure_reason da Stripe: docs.stripe.com/refunds, "Handle failed refunds") em
  * português, para a equipe. A linha do histórico continua com o código cru: é ela que a leitura usa.

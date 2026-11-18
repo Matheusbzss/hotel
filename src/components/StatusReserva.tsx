@@ -11,6 +11,7 @@ import { formatarCentavos } from '@/lib/orcamento';
 import { formasDaFaixa, partesDoTotal } from '@/lib/partes-do-total';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
+import { Inteiro } from './ComDolar';
 import { IconeWhatsApp } from './IconeWhatsApp';
 import type { TextosPagarPedido } from './pagamento/CheckoutEmbutido';
 import { DesistirDaCompra, type TextosDesistencia } from './pagamento/DesistirDaCompra';
@@ -151,16 +152,30 @@ export function StatusReserva({
     ? `${formatarCentavos(r.totalPixCentavos, locale)} ${textos.noPix} · ${formatarCentavos(r.totalCentavos, locale)} ${textos.noCartao}`
     : formatarCentavos(r.totalCentavos, locale);
   // na tela, cada valor ganha o aproximado em dólar (espanhol e inglês), que nunca quebra no meio da linha;
-  // as mensagens vão só em real
+  // as mensagens vão só em real. O valor e o rótulo ("R$ 138,60" e "no Pix") ficam juntos, como na faixa da página do
+  // pedido; só quando nem assim cabem (letra grande em tela estreita: a faixa com menos de 14rem, o @container dela), o
+  // rótulo desce inteiro para a linha de baixo (Inteiro). Antes o rótulo se partia: "R$ 138,60 no" numa linha e "Pix" na
+  // outra, em 320 px com a letra em 150% (reteste de 17-18/11, defeito 5). O valor nunca se parte: entre "R$" e o número,
+  // a formatação põe um espaço que não quebra (no inglês, nenhum)
   const valorTela = (centavos: number, rotulo?: string) => {
-    const parte = rotulo ? `${formatarCentavos(centavos, locale)} ${rotulo}` : formatarCentavos(centavos, locale);
+    const valor = (
+      <Inteiro>
+        {formatarCentavos(centavos, locale)}
+        {rotulo && (
+          <>
+            {' '}
+            <span className="whitespace-nowrap">{rotulo}</span>
+          </>
+        )}
+      </Inteiro>
+    );
     const u = textoDolar(centavos, dolar, textos.dolar ?? '', locale);
     return u ? (
       <>
-        {parte} <span className="whitespace-nowrap">({u})</span>
+        {valor} <span className="whitespace-nowrap">({u})</span>
       </>
     ) : (
-      parte
+      valor
     );
   };
   // só os valores das formas que ainda valem (no pagamento online, o Pix some 2 horas antes do serviço) e, no pedido de
@@ -170,9 +185,11 @@ export function StatusReserva({
   const rotulos = { pix: textos.noPix, cartao: textos.noCartao };
   // cada valor é um bloco, que desce inteiro para a linha de baixo quando os dois não cabem lado a lado. O "·" fica
   // na folga à esquerda de cada valor a partir do segundo (0.626em é a largura de " · " nesta fonte) e só aparece
-  // quando os dois couberam na mesma linha: no começo de uma linha ele fica fora do recorte da faixa (mais abaixo)
+  // quando os dois couberam na mesma linha: no começo de uma linha ele fica fora do recorte da faixa (mais abaixo). O
+  // bloco nunca passa da largura da faixa (max-w-full): sem isso, o Inteiro de dentro, que pede a largura dele inteiro,
+  // não chegaria a quebrar e o recorte cortaria o rótulo
   const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa).map((parte, n) => (
-    <span key={parte.forma ?? 'total'} className="relative pl-[0.626em]">
+    <span key={parte.forma ?? 'total'} className="relative max-w-full pl-[0.626em]">
       {n > 0 && (
         <span aria-hidden="true" className="absolute top-0 left-0 w-[0.626em] text-center">
           ·
@@ -344,7 +361,9 @@ export function StatusReserva({
           {t && <p className="mt-3 text-small">{textos.transferDemais}</p>}
         </div>
       )}
-      <div className="tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">
+      {/* @container: a largura da faixa decide quando o valor e o rótulo podem quebrar entre si (valorTela), como na
+          faixa da página do pedido */}
+      <div className="@container tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">
         {/* a palavra do status de quando a página abriu; na tela de pagar, "Pagar de novo" no pedido vencido abre uma
             sessão nova, a tela de pagar avisa e a palavra passa a "Aguardando pagamento", sem redesenhar a página (o
             redesenho desmontaria o formulário da Stripe que acabou de abrir) */}

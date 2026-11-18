@@ -9,6 +9,7 @@ import { podeMudar } from '@/lib/pagamento-stripe';
 import {
   acaoManualRepetida,
   marcaOVoucherPorFora,
+  pedidoNuncaPago,
   valorDoVoucherPorFora,
   valorRecebido,
   voucherAtivo,
@@ -113,7 +114,8 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  *   expirada) e "marcar reembolsado" continua sem botão no painel e só vale depois de pago. Ela NÃO é o caminho do
  *   reembolso que falhou: invalida todos os vouchers e não soma o valor devolvido (como no ON-A8RVZN); esse caminho é
  *   'devolvido_por_fora' e 'voucher_por_fora'. As ações manuais continuam valendo para os pedidos do WhatsApp e os
- *   antigos;
+ *   antigos, menos "marcar reembolsado" num pedido que nunca foi pago (pedidoNuncaPago: o do WhatsApp cancelado antes de
+ *   pagar), recusado com acao-nao-vale;
  * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido (src/lib/desistencia.ts), sem reembolso
  *   ou com o resto do pedido seguindo pago depois do reembolso de uma parte: só a linha no histórico, que tira o pedido
  *   da faixa do topo.
@@ -348,6 +350,11 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // (como no ON-A8RVZN); esse caminho é 'devolvido_por_fora' e 'voucher_por_fora'
     if (!podeMudar(alvo.status, manual.status)) return voltar('acao-nao-vale');
   }
+  // "Marcar reembolsado" num pedido fora da Stripe que nunca foi pago (o do WhatsApp cancelado antes de pagar): não há o
+  // que devolver. O painel não mostra mais o botão nesse pedido (naoPagoNoPainel, a mesma regra); a aba antiga do painel,
+  // que ainda o mostra, volta com acao-nao-vale e nada é gravado (reteste de 17-18/11, pergunta 11). O pedido pago, mesmo
+  // cancelado depois, continua podendo ser marcado
+  if (!daStripe && manual.status === 'reembolsado' && pedidoNuncaPago(alvo)) return voltar('acao-nao-vale');
 
   let virouPago = false;
   const atualizada = await atualizarReserva(alvo.codigo, (r) => {

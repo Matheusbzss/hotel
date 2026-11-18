@@ -28,6 +28,17 @@ const CSP_EM_AVISO = [
   'report-uri /api/csp',
 ].join('; ');
 
+/**
+ * O que o navegador deixa as páginas e os quadros de dentro delas usarem. Câmera, microfone e localização: nada. O
+ * pagamento pelo navegador (`payment`, o que o Google Pay e o Apple Pay do formulário da Stripe usam): o próprio site e
+ * os dois endereços dos quadros da Stripe, exatamente como a documentação dela pede nas páginas que mostram o botão do
+ * Google Pay: alguns navegadores, entre eles o Chrome do Android, exigem o próprio site (self) na lista do `payment`
+ * (docs.stripe.com/google-pay?platform=web). Sem a palavra `payment` valia o padrão do navegador (o próprio site, e o
+ * quadro da Stripe recebia pelo allow="payment" dele), que pela regra não bloqueava nada; com ela, nenhum outro quadro
+ * (anúncios) pede pagamento. Vale para todas as páginas: o formulário aparece no checkout, no pedido e na reserva.
+ */
+const PERMISSOES = 'camera=(), microphone=(), geolocation=(), payment=(self "https://js.stripe.com" "https://checkout.stripe.com")';
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // quase todo cliente chega pelo anúncio e abre o site uma vez: vale mais desenhar antes do que guardar o CSS
@@ -53,7 +64,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Permissions-Policy', value: PERMISSOES },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
           { key: 'Content-Security-Policy', value: CSP_QUE_VALE },
           { key: 'Content-Security-Policy-Report-Only', value: CSP_EM_AVISO },

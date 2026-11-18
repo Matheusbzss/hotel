@@ -215,8 +215,11 @@ test('a grade do voucher: no celular, o vão menor e os rótulos sem passar da c
     assert.ok(grade.includes(c), `${c}: ${grade.join(' ')}`);
   // o vão de 2rem só do sm para cima
   assert.ok(!grade.includes('gap-x-8') && !grade.some((c) => /^gap-\d/.test(c)), grade.join(' '));
-  // a consulta dos rótulos mede a própria grade: nenhum outro @container no componente, entre a grade e os rótulos
-  assert.equal(reserva.match(/@container/g)?.length, 1);
+  // a consulta dos rótulos mede a própria grade: nenhum outro @container entre a grade e os rótulos. O outro @container
+  // do componente é o da faixa escura do total (Pacote 18), que fica fora da grade, embaixo dela
+  assert.equal(reserva.match(/@container/g)?.length, 2);
+  assert.equal(reserva.match(/className="@container tom-campo /g)?.length, 1);
+  assert.ok(reserva.indexOf('className="@container tom-campo ') > reserva.lastIndexOf('</dl>'), 'a faixa vem depois das duas grades');
   const rotulo = classesDe(reserva, /^const ROTULO_DA_GRADE = '([^']*)';$/m, 'os rótulos da grade');
   for (const c of ['text-small', '[overflow-wrap:anywhere]', '@max-[11.6rem]:hyphens-auto'])
     assert.ok(rotulo.includes(c), `${c}: ${rotulo.join(' ')}`);
@@ -337,4 +340,200 @@ test('a conta da grade do voucher: o modelo dá os 22 e os 2 px do reteste; o h�
   // (3) ligado, "hospedagem" não cabe: o hífen é o último recurso, só onde uma palavra precisa mesmo quebrar
   for (const [largura, raiz] of ligadas)
     assert.ok(noTextoPequeno(5.602, raiz) > colunaDaGrade(largura, raiz, vao), `não cabe em ${largura}/${raiz}`);
+});
+
+/* ------------------------------------------------------------------ */
+/* A faixa da reserva e o ícone do WhatsApp (Pacote 18, reteste de 17-18/11) */
+
+/**
+ * As larguras que a bancada mediu no reteste de 17-18/11 (X1, telas/saida/090-icone-whatsapp/medidas.txt): o botão do
+ * WhatsApp do voucher pago, que ocupa a largura do bloco dele (w-full dentro do respiro px-6 do voucher), em 320, 360 e
+ * 390 px com a letra em 100, 125 e 150%. É a mesma largura da faixa escura do total, que fica no mesmo voucher, com o
+ * mesmo respiro.
+ */
+const BOTAO_MEDIDO: Record<number, number[]> = { 320: [240, 220, 200], 360: [280, 260, 240], 390: [309, 290, 270] };
+const RAIZES = [16, 20, 24];
+
+test('a faixa da reserva: o valor e o rótulo juntos (Inteiro e @container), e o rótulo nunca se parte ("R$ 138,60 no / Pix")', () => {
+  // defeito 5 do reteste de 17-18/11: em 320 px com a letra em 150%, a faixa mostrava "R$ 138,60 no" numa linha e "Pix"
+  // na outra (o valor e o rótulo eram um texto só, que quebrava em qualquer espaço). Agora como a faixa da página do pedido
+  const faixa = classesDe(
+    reserva,
+    /<div className="([^"]*(?<![\w-])tom-campo(?![\w-])[^"]*)">\s*<span className="font-semibold">\s*<PalavraDoStatus/,
+    'a faixa da reserva',
+  );
+  for (const c of ['@container', 'tom-campo', 'flex', 'flex-wrap', 'justify-between', 'px-6', 'py-5', 'md:px-8'])
+    assert.ok(faixa.includes(c), `${c}: ${faixa.join(' ')}`);
+  // o valor com o rótulo num Inteiro; o rótulo ("no Pix", "con tarjeta") num whitespace-nowrap, depois de um espaço comum
+  assert.match(
+    reserva,
+    /const valorTela = \(centavos: number, rotulo\?: string\) => \{\s*const valor = \(\s*<Inteiro>\s*\{formatarCentavos\(centavos, locale\)\}\s*\{rotulo && \(\s*<>\s*\{' '\}\s*<span className="whitespace-nowrap">\{rotulo\}<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
+  );
+  // o texto de antes (o valor e o rótulo colados numa frase só) não volta; o dólar continua um pedaço à parte, que desce
+  // inteiro para a linha de baixo
+  assert.doesNotMatch(reserva, /`\$\{formatarCentavos\(centavos, locale\)\} \$\{rotulo\}`/);
+  assert.match(reserva, /\{valor\} <span className="whitespace-nowrap">\(\{u\}\)<\/span>/);
+  assert.match(reserva, /^import \{ Inteiro \} from '\.\/ComDolar';$/m);
+  // cada valor da faixa pode encolher até a largura dela (max-w-full): sem isso o Inteiro, que pede a largura dele
+  // inteiro, não chega a quebrar, e o recorte da caixa dos valores (overflow-hidden) cortaria o rótulo
+  const valor = classesDe(reserva, /<span key=\{parte\.forma \?\? 'total'\} className="([^"]*)">/, 'cada valor da faixa');
+  for (const c of ['relative', 'max-w-full', 'pl-[0.626em]']) assert.ok(valor.includes(c), `${c}: ${valor.join(' ')}`);
+  const caixa = classesDe(
+    reserva,
+    /<span className="([^"]*)">\s*<span className="-ml-\[0\.626em\] flex flex-wrap gap-y-1">\{brlTela\}<\/span>/,
+    'a caixa dos valores',
+  );
+  for (const c of ['numeros', 'overflow-hidden', 'text-lead', 'font-semibold']) assert.ok(caixa.includes(c), `${c}: ${caixa.join(' ')}`);
+  // os valores da faixa saem todos do valorTela
+  assert.equal(reserva.match(/valorTela\(/g)?.length, 1);
+  // o Inteiro só quebra abaixo de 14rem da caixa com @container (a faixa); acima disso, fica numa linha só
+  assert.match(
+    codigo('components', 'ComDolar.tsx'),
+    /export function Inteiro\b[\s\S]*?className="whitespace-nowrap @max-\[14rem\]:inline-block @max-\[14rem\]:w-max @max-\[14rem\]:max-w-full @max-\[14rem\]:whitespace-normal"/,
+  );
+});
+
+/** O text-lead (clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem)), em px, numa tela de `largura` px com o html em `raiz` px. */
+const letraLead = (largura: number, raiz: number) => Math.min(1.375 * raiz, Math.max(1.1875 * raiz, 1.1 * raiz + (0.4 * largura) / 100));
+
+test('a conta da faixa da reserva: em 320, 360 e 390 px, letra 100/125/150%, em pt, en e es, o valor e o rótulo cabem e só se separam juntos', () => {
+  // as medidas do código: a letra dos valores, o limite do Inteiro e a faixa que ele mede (o @container dela, com o
+  // respiro px-6 de sempre): é o que a conta abaixo supõe
+  assert.match(
+    readFileSync(path.join('src', 'app', 'tokens.css'), 'utf8'),
+    /--text-lead: clamp\(1\.1875rem, 1\.1rem \+ 0\.4vw, 1\.375rem\);/,
+  );
+  const limite = Number(codigo('components', 'ComDolar.tsx').match(/@max-\[(\d+(?:\.\d+)?)rem\]:whitespace-normal/)?.[1]);
+  assert.equal(limite, 14);
+  assert.match(
+    reserva,
+    /<div className="@container tom-campo flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-6 py-5 md:px-8">/,
+  );
+  assert.match(reserva, /<div className="tom-papel">\s*<div className="px-6 pb-6 pt-6 md:px-8">/);
+  // a largura de dentro da faixa é a da grade do voucher (o mesmo voucher, o mesmo respiro px-6), conferida com a do botão
+  // do WhatsApp que a bancada mediu no mesmo voucher
+  for (const [largura, medidas] of Object.entries(BOTAO_MEDIDO))
+    RAIZES.forEach((raiz, n) => assert.equal(Math.round(larguraDaGrade(Number(largura), raiz)), medidas[n], `${largura}/${raiz}`));
+  // Os valores e os rótulos, em vezes a letra, no Barlow SemiBold (a letra da faixa: o body em Barlow com font-semibold),
+  // com os algarismos tabulares do .numeros e o kerning, pelo arquivo da fonte que o site carrega. Por idioma: o valor, o
+  // rótulo e os dois juntos (com o espaço). O maior é o de um pedido de R$ 5.500,00 no cartão, em espanhol
+  const TEXTOS: Record<string, [string, number, number, number][]> = {
+    pt: [
+      ['R$ 138,60 no Pix', 4.335, 2.662, 7.197],
+      ['R$ 154,00 no cartão', 4.335, 4.182, 8.717],
+      ['R$ 5.500,00 no cartão', 5.146, 4.182, 9.528],
+    ],
+    en: [
+      ['R$138.60 with Pix', 4.143, 3.5, 7.843],
+      ['R$154.00 by card', 4.143, 3.208, 7.551],
+      ['R$5,500.00 by card', 4.946, 3.208, 8.354],
+    ],
+    es: [
+      ['R$ 138,60 con Pix', 4.335, 3.192, 7.727],
+      ['R$ 154,00 con tarjeta', 4.335, 4.776, 9.311],
+      ['R$ 5.500,00 con tarjeta', 5.146, 4.776, 10.122],
+    ],
+  };
+  for (const largura of [320, 360, 390]) {
+    for (const raiz of RAIZES) {
+      const faixa = larguraDaGrade(largura, raiz);
+      const letra = letraLead(largura, raiz);
+      const quebra = faixa < limite * raiz;
+      for (const [idioma, lista] of Object.entries(TEXTOS)) {
+        for (const [texto, valor, rotulo, juntos] of lista) {
+          const onde = `${idioma} "${texto}" em ${largura}/${raiz}`;
+          // o valor e o rótulo, cada um, sempre cabem na faixa: quando os dois juntos não cabem, o rótulo desce inteiro
+          assert.ok(valor * letra <= faixa && rotulo * letra <= faixa, onde);
+          // acima de 14rem o Inteiro não quebra: os dois juntos cabem (nada fica escondido no recorte da faixa)
+          if (!quebra) assert.ok(juntos * letra <= faixa, onde);
+        }
+      }
+    }
+  }
+  // com a letra normal, a faixa tem 14rem ou mais em 320, 360 e 390 px: o Inteiro fica numa linha só e, como tudo cabe, a
+  // faixa fica igual à de antes. Com 125%, só em 390 px; com 150%, em nenhuma
+  assert.deepEqual(
+    [320, 360, 390].map((largura) => RAIZES.map((raiz) => larguraDaGrade(largura, raiz) >= limite * raiz)),
+    [
+      [true, false, false],
+      [true, false, false],
+      [true, true, false],
+    ],
+  );
+  // o defeito: em 320 px com 150% a faixa tem 200 px e "R$ 138,60 no Pix" pede 205 (28,5 px de letra): ele precisa quebrar,
+  // e agora quebra entre o valor e o rótulo ("R$ 138,60" / "no Pix"), nunca dentro do rótulo
+  assert.equal(larguraDaGrade(320, 24), 200);
+  assert.equal(letraLead(320, 24), 28.5);
+  assert.ok(7.197 * letraLead(320, 24) > larguraDaGrade(320, 24));
+  // onde a bancada viu o rótulo inteiro (360 px com 125% e 390 px com 150%), os dois juntos continuam numa linha só
+  assert.ok(7.197 * letraLead(360, 20) <= larguraDaGrade(360, 20));
+  assert.ok(7.197 * letraLead(390, 24) <= larguraDaGrade(390, 24));
+});
+
+test('o ícone do WhatsApp não encolhe dentro do botão com a letra grande: shrink-0 no próprio componente, nos cinco botões', () => {
+  // X1 do reteste de 17-18/11: o svg sem shrink-0 dentro do .botao (inline-flex) encolhia até 8,6 px em vez de 30 em 320 px
+  // com a letra em 150%, quando o texto do botão quebrava em várias linhas
+  const icone = codigo('components', 'IconeWhatsApp.tsx');
+  assert.equal(icone.match(/<svg\b/g)?.length, 1);
+  assert.match(icone, /<svg viewBox="0 0 32 32" className=\{className \? `shrink-0 \$\{className\}` : 'shrink-0'\}/);
+  // o .botao é inline-flex: o motivo de o ícone encolher sem o shrink-0
+  const css = readFileSync(path.join('src', 'app', 'globals.css'), 'utf8').replace(/\r\n/g, '\n');
+  const regra = css.slice(css.indexOf('\n  .botao {'), css.indexOf('}', css.indexOf('\n  .botao {')));
+  assert.match(regra, /display: inline-flex;/);
+  // os cinco lugares: dois na página da reserva (o voucher pago e o "finalizar pelo WhatsApp"), dois na página do pedido e o
+  // botão do carrinho que registra o pedido pelo WhatsApp (o que está no ar); todos com size-5, dentro de um .botao-whats
+  const lugares: [string[], number][] = [
+    [['components', 'StatusReserva.tsx'], 2],
+    [['app', '[locale]', 'pedido', '[codigo]', 'page.tsx'], 2],
+    [['components', 'carrinho', 'FormularioCarrinho.tsx'], 1],
+  ];
+  for (const [partes, quantos] of lugares) {
+    const fonte = codigo(...partes);
+    const usos = [...fonte.matchAll(/<IconeWhatsApp\b[^>]*\/>/g)];
+    assert.equal(usos.length, quantos, partes.join('/'));
+    for (const uso of usos) {
+      assert.equal(uso[0], '<IconeWhatsApp className="size-5" />', partes.join('/'));
+      const antes = fonte.slice(0, uso.index);
+      const abre = Math.max(antes.lastIndexOf('<a'), antes.lastIndexOf('<button'));
+      assert.match(antes.slice(abre), /className="botao botao-whats[^"]*"/, partes.join('/'));
+    }
+  }
+});
+
+test('a conta do botão do WhatsApp do voucher pago: com o ícone inteiro, a palavra mais longa continua dentro do botão', () => {
+  // o .botao: respiro de 1.4rem dos lados, vão de 0.6rem entre o ícone e o texto e letra de 1.125rem; o ícone, size-5
+  // (1.25rem), que agora nunca encolhe: a conta abaixo é a do ícone inteiro
+  assert.match(codigo('components', 'IconeWhatsApp.tsx'), /className=\{className \? `shrink-0 \$\{className\}` : 'shrink-0'\}/);
+  const css = readFileSync(path.join('src', 'app', 'globals.css'), 'utf8').replace(/\r\n/g, '\n');
+  const regra = css.slice(css.indexOf('\n  .botao {'), css.indexOf('}', css.indexOf('\n  .botao {')));
+  for (const linha of ['gap: 0.6rem;', 'padding: 0.75rem 1.4rem;', 'font-size: 1.125rem;']) assert.ok(regra.includes(linha), linha);
+  // A palavra mais longa do texto do botão é "WhatsApp" nos três idiomas: com o ícone encolhido, os três ficaram com os
+  // mesmos 8,64 px em 320 px com 150%, o que sobrava ao lado dela no botão de 200 px. Daí, a largura dela em vezes a letra
+  // do botão (o Barlow Semi Condensed): (200 − 2 × 1,4 × 24 − 0,6 × 24 − 8,64) / (1,125 × 24) = 4,065
+  const palavra = (200 - 2 * 1.4 * 24 - 0.6 * 24 - 8.64) / (1.125 * 24);
+  assert.equal(Math.round(palavra * 1000) / 1000, 4.065);
+  for (const largura of [320, 360, 390]) {
+    for (const raiz of RAIZES) {
+      const botao = larguraDaGrade(largura, raiz);
+      const espaco = botao - 2 * 1.4 * raiz;
+      // o ícone com o tamanho dele, o vão e a palavra
+      const ocupa = 1.25 * raiz + 0.6 * raiz + palavra * 1.125 * raiz;
+      const onde = `${largura}/${raiz}`;
+      // sempre dentro do botão verde
+      assert.ok(ocupa <= botao, onde);
+      // e dentro do espaço do texto, menos em 320 px com 150%: lá o conjunto avança 10,7 px em cada respiro de 33,6
+      // (o .botao centraliza), e o texto ainda termina a 22,9 px da borda
+      if (largura === 320 && raiz === 24) {
+        assert.equal(Math.round(((ocupa - espaco) / 2) * 10) / 10, 10.7);
+        assert.ok((ocupa - espaco) / 2 < 1.4 * raiz);
+      } else assert.ok(ocupa <= espaco, onde);
+    }
+  }
+  // os outros quatro botões (o "finalizar pelo WhatsApp" da reserva, os dois da página do pedido e o do carrinho) ocupam a
+  // largura da página, sem o respiro do voucher: sobra mais espaço ao lado do ícone em todas as combinações
+  for (const largura of [320, 360, 390])
+    for (const raiz of RAIZES) {
+      const pagina = largura - 2 * margemDaPagina(largura, raiz);
+      assert.ok(1.25 * raiz + 0.6 * raiz + palavra * 1.125 * raiz <= pagina - 2 * 1.4 * raiz, `página ${largura}/${raiz}`);
+    }
 });

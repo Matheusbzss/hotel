@@ -11,6 +11,7 @@ import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import {
+  NAO_PAGO,
   NENHUM_VOUCHER,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
@@ -31,9 +32,11 @@ import {
   fraseDoReembolsoSemVoucher,
   frasesDoReembolsoNoPainel,
   motivoNoPainel,
+  naoPagoNoPainel,
   oQueFazerNaContestacao,
   reembolsoNoPainel,
   reembolsoParaResolver,
+  seloDoPedidoNoPainel,
   statusDoVoucherNoPainel,
   valorDoVoucherPorFora,
   valorRecebido,
@@ -58,17 +61,7 @@ import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
 
-const ROTULO: Record<StatusReserva, string> = {
-  pendente: 'Aguardando pagamento',
-  pago: 'Pago',
-  recusado: 'Recusado',
-  cancelado: 'Cancelado',
-  expirado: 'Tempo esgotado',
-  aguardando_whatsapp: 'Finalizar no WhatsApp',
-  reembolsado: 'Reembolsado',
-  contestado: 'Contestado',
-};
-
+/** A cor do selo do pedido, pelo status do pedido inteiro (o texto do selo: seloDoPedidoNoPainel). */
 const COR: Record<StatusReserva, string> = {
   pendente: 'bg-sol text-mar',
   pago: 'bg-[#d8f5e4] text-[#0f5132]',
@@ -449,7 +442,11 @@ function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
   // um pedido pago pela Stripe se desfaz com o reembolso, não com o cancelamento
   const pagoNaStripe = stripe && (p.status === 'pago' || p.status === 'contestado');
   if (p.status !== 'cancelado' && p.status !== 'reembolsado' && !pagoNaStripe) acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
-  if (!stripe && (p.status === 'pago' || p.status === 'cancelado')) acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
+  // "Marcar reembolsado" só no pedido que chegou a ser pago: no do WhatsApp cancelado antes de pagar não há o que devolver
+  // (naoPagoNoPainel; reteste de 17-18/11, pergunta 11). A rota do painel recusa o mesmo pedido vindo de uma aba antiga
+  if (!stripe && (p.status === 'pago' || p.status === 'cancelado') && !naoPagoNoPainel(p)) {
+    acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
+  }
   // o pedido de desistência respondido pela equipe, sem reembolso (a política não devolve) ou com o resto do pedido
   // seguindo pago depois do reembolso de uma parte: sai da faixa do topo. Só o reembolso do pedido inteiro tira o pedido
   // de lá sozinho (o status deixa de ser pago)
@@ -518,9 +515,21 @@ function ValorDoPedido({ p }: { p: PedidoPainel }) {
   // a forma e, embaixo, quem cobrou; sem a segunda linha quando ela repetiria a primeira (o pedido do WhatsApp cancelado
   // antes de pagar: "WhatsApp" uma vez só)
   const { forma, provedor } = formaEProvedorNoPainel(p);
+  // o pedido fora da Stripe que nunca foi pago (o do WhatsApp cancelado antes de pagar): "não pago" junto do valor, que em
+  // letra grande parecia dinheiro recebido (reteste de 17-18/11, pergunta 11). Num pedaço que não se parte: na coluna
+  // estreita do computador, desce para a linha de baixo quando não cabe ao lado do valor
+  const naoPago = naoPagoNoPainel(p);
   return (
     <>
-      <p className="text-xl font-bold">{formatarPreco(p.recebidoCentavos)}</p>
+      <p className="text-xl font-bold">
+        {formatarPreco(p.recebidoCentavos)}
+        {naoPago && (
+          <>
+            {' '}
+            <span className="whitespace-nowrap text-small font-semibold">{NAO_PAGO}</span>
+          </>
+        )}
+      </p>
       <p className="text-small text-tinta-suave">
         {forma}
         {g.cartaoPais ? ` · cartão ${g.cartaoPais}` : ''}
@@ -567,7 +576,9 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
     <li className="grid grid-cols-1 gap-4 bg-white p-5 lg:grid-cols-12">
       <div className="lg:col-span-3">
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
-        <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{ROTULO[p.status]}</span>
+        {/* o status do pedido inteiro; no reembolsado cujo reembolso falhou na Stripe e ainda não voltou ao cliente,
+            "Reembolso pendente", como as linhas dos vouchers e a página do cliente (seloDoPedidoNoPainel) */}
+        <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{seloDoPedidoNoPainel(p)}</span>
         {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
         {desistenciaParaResponder(p.itens) && (
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">

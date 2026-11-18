@@ -415,13 +415,17 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
       {erroBanco && <p className="mt-6 bg-erro-claro px-4 py-3 font-semibold">Erro ao ler o banco: {erroBanco}</p>}
 
       <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3" aria-label="Resumo">
-        <div className="col-span-2 flex flex-col justify-center bg-white px-5 py-5 lg:col-span-1 lg:row-span-2">
+        <div className="@container col-span-2 flex flex-col justify-center bg-white px-5 py-5 lg:col-span-1 lg:row-span-2">
           {/* o mesmo número de "Vendido (pagos, menos reembolsos)" da página de pedidos. O mínimo da letra também segue a
               tela (min com 12vw): com a letra do celular em 150%, o 2.25rem ia a 54 px e o valor sem quebra passava 22 a 62
-              px da tela em 320 e 360 px (reteste de 16-17/11, R1); com a letra normal (a partir de 300 px), em 390 px com
-              125% e no computador, nada muda */}
+              px da tela em 320 e 360 px (reteste de 16-17/11, R1); com a letra normal (a partir de 300 px) e em 390 px com
+              125%, nada muda. Do lg para cima o cartão tem 1/3 da grade e a letra segue o cartão, não a tela: 12cqi (12% da
+              largura de dentro do cartão, o @container dele), nunca mais que 3.25rem. Com 11vw ela ficava nos 3.25rem, e
+              R$ 58.517,68 passava 23,8 px do cartão em 1024 px já com a letra normal (reteste de 17-18/11, T2b). Com 12cqi,
+              cabe qualquer número de até 8,3 vezes a letra, em qualquer largura e letra (R$ 1.234.567,89 mede 7,5 vezes a
+              letra no Segoe UI em negrito, a letra do painel no Windows: o layout do painel não carrega o Barlow) */}
           <p className="text-small text-tinta-suave">Faturamento (menos reembolsos)</p>
-          <p className="mt-1 whitespace-nowrap text-[clamp(min(2.25rem,12vw),11vw,3.25rem)] font-bold leading-none">
+          <p className="mt-1 whitespace-nowrap text-[clamp(min(2.25rem,12vw),11vw,3.25rem)] font-bold leading-none lg:text-[min(12cqi,3.25rem)]">
             {formatarPreco(r.centavos)}
           </p>
           <Comparacao atual={r.centavos} anterior={antes?.centavos} />

@@ -196,9 +196,10 @@ export function pixCabeNoLimite(itens: ItemCobravel[], cotacao: number | null | 
  * o minuto de folga dela (FOLGA_SEGUNDOS, src/lib/stripe.ts), então, no pior caso, o pagamento chega 1 minuto depois do
  * horário (30 min + 60 s - 30 min; um teste confere com os parâmetros da sessão). Até o reteste de 17/11 a conta era em
  * minutos inteiros: o cartão valia até as 11h30min59s para o serviço das 12h, e o pior caso chegava a uns 2 minutos.
- * O pagamento que chega depois do horário deixa no histórico do pedido AVISO_PAGO_DEPOIS_DO_HORARIO
- * (src/lib/pagamento-stripe.ts, que conta minutos inteiros: a partir do minuto seguinte ao do horário), para a equipe ver
- * no painel.
+ * O pagamento que chega depois do horário deixa no histórico do pedido AVISO_PAGO_DEPOIS_DO_HORARIO, para a equipe ver
+ * no painel (horarioJaPassou, src/lib/pagamento-stripe.ts). Essa conta também é em segundos, a mesma deste corte: a partir
+ * de 1 segundo depois do horário, então o pior caso (até 60 s depois) deixa o aviso. Até o reteste de 17-18/11 (Pacote
+ * 17) ela contava minutos inteiros, só a partir do minuto seguinte ao do horário, e esse minuto passava sem aviso.
  */
 export const ANTECEDENCIA_CARTAO_MINUTOS = 30;
 

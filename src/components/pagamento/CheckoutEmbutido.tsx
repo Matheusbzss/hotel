@@ -9,7 +9,14 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
-import { depoisDaEspera, etapaComAsFormasDeAgora, type EtapaDePagar } from '@/lib/espera-do-pagamento';
+import {
+  depoisDaEspera,
+  erroDaFormaRecusada,
+  etapaComAsFormasDeAgora,
+  formasDaResposta,
+  pixGeradoNaEscolha,
+  type EtapaDePagar,
+} from '@/lib/espera-do-pagamento';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
@@ -66,11 +73,11 @@ function stripeDoNavegador(): Promise<Stripe | null> {
 /**
  * O que a rota de pagar devolve: a sessão nova (client_secret) ou o motivo de não ter aberto uma. Os erros do
  * servidor: 'forma' (a forma não vale mais para estes itens: o prazo dela passou, o valor passa do limite do Pix, ou o
- * interruptor fechou; sem o Pix, `semPix` diz o motivo), 'status' (o pedido não está pendente nem expirado: pago em
- * outra aba, cancelado), 'limite' (muitas tentativas), 'nao-encontrado', 'stripe'; 'rede' é daqui, quando a chamada
- * nem chegou.
+ * interruptor fechou; `formas` diz as que ainda valem, vazia com o interruptor fechado, e, sem o Pix, `semPix` diz o
+ * motivo), 'status' (o pedido não está pendente nem expirado: pago em outra aba, cancelado), 'limite' (muitas
+ * tentativas), 'nao-encontrado', 'stripe'; 'rede' é daqui, quando a chamada nem chegou.
  */
-type RespostaPagar = { clientSecret: string } | { erro: string; semPix?: MotivoSemPix };
+type RespostaPagar = { clientSecret: string } | { erro: string; semPix?: MotivoSemPix; formas?: FormaPagamento[] };
 
 /** O motivo de o Pix ter ficado de fora, como o servidor manda no erro 'forma' (qualquer outra coisa vira nada). */
 export const motivoSemPix = (valor: unknown): MotivoSemPix | undefined => (valor === 'prazo' || valor === 'limite' ? valor : undefined);
@@ -83,10 +90,19 @@ export async function pedirNovaSessao(codigoPedido: string, token: string, forma
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ t: token, forma }),
     });
-    const corpo = (await res.json().catch(() => ({}))) as { ok?: boolean; clientSecret?: string; erro?: string; semPix?: unknown };
+    const corpo = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      clientSecret?: string;
+      erro?: string;
+      semPix?: unknown;
+      formas?: unknown;
+    };
     if (res.ok && corpo.ok && corpo.clientSecret) return { clientSecret: corpo.clientSecret };
     const semPix = motivoSemPix(corpo.semPix);
-    return { erro: corpo.erro ?? 'generico', ...(semPix ? { semPix } : {}) };
+    // as formas que ainda valem, que o 403 'forma' traz (vazias com o freio de emergência): é com elas que a escolha decide
+    // o erro (erroDaFormaRecusada). Até o reteste de 17-18/11 (F7) elas ficavam pelo caminho
+    const formas = formasDaResposta(corpo.formas);
+    return { erro: corpo.erro ?? 'generico', ...(semPix ? { semPix } : {}), ...(formas ? { formas } : {}) };
   } catch {
     return { erro: 'rede' };
   }
@@ -447,7 +463,8 @@ export interface TextosPagarPedido extends TextosEscolhaPagamento, TextosCheckou
   confirmandoTexto: string;
   /**
    * Embaixo de confirmandoTexto, passada a espera, no pedido de Pix sem outra forma que valha (o pagamento online desligado
-   * às pressas, com o QR já gerado): pagar pelo app do banco (pedido.pixGerado).
+   * às pressas, com o QR já gerado): pagar pelo app do banco (pedido.pixGerado). Também na escolha da forma do pedido de
+   * Pix pendente depois do prazo do Pix, embaixo da frase do prazo (pixGeradoNaEscolha).
    */
   pixGerado: string;
   /** "Esta página atualiza sozinha": reserva.atualizaSozinho (um voucher) ou pedido.atualizaSozinho (um por item). */
@@ -588,8 +605,12 @@ export function PagarPedido({
       // o pedido mudou por baixo (pago em outra aba, cancelado): a página mostra o estado de verdade
       router.refresh();
     } else if (resposta.erro === 'forma') {
-      // a forma deixou de valer enquanto o cliente escolhia (passou o prazo do Pix, ou o do cartão): a página relê as formas
-      setErro(escolhida === 'pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo);
+      // a forma deixou de valer enquanto o cliente escolhia (passou o prazo do Pix, ou o do cartão, ou o pagamento online
+      // foi desligado às pressas): a página relê as formas. O erro, pelas formas que o 403 trouxe (erroDaFormaRecusada):
+      // sem nenhuma, nunca a frase do prazo do Pix; no pedido de Pix pendente, nenhum, porque a página relida volta à
+      // espera com a frase do Pix gerado (o QR já gerado vale até a sessão acabar)
+      const qual = erroDaFormaRecusada(escolhida, resposta.formas, status, formaAtual);
+      if (qual !== 'nenhum') setErro(qual === 'sem-pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo);
       router.refresh();
     } else setErro(T.erroGenerico);
     setCriando(false);
@@ -671,6 +692,8 @@ export function PagarPedido({
                 {formas.includes('pix') ? T.recusadoPix : T.tentarOutroCartao}
               </p>
             )}
+            {/* no pedido de Pix pendente, passado o prazo do Pix (só o cartão vale): embaixo da frase do prazo, a do Pix já
+                gerado, porque o QR que o cliente tem na mão vale até vencer (pixGeradoNaEscolha) */}
             <EscolhaPagamento
               formas={formas}
               semPix={semPix}
@@ -680,6 +703,7 @@ export function PagarPedido({
               locale={locale}
               dolar={dolar}
               textos={T}
+              pixGerado={pixGeradoNaEscolha(status, formas, formaAtual) ? T.pixGerado : undefined}
             />
             <button
               type="button"

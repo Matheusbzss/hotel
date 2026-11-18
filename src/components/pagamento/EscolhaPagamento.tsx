@@ -70,12 +70,19 @@ export function EscolhaPagamento({
   locale,
   dolar = null,
   textos: T,
+  pixGerado,
   className = '',
 }: {
   /** As formas que o servidor liberou agora. */
   formas: FormaPagamento[];
   /** Por que o Pix ficou de fora, quando ficou (o servidor decide). */
   semPix?: MotivoSemPix;
+  /**
+   * A frase do Pix já gerado (pedido.pixGerado), embaixo da frase de por que o Pix ficou de fora: só a tela de pagar um
+   * pedido de Pix pendente cujo Pix saiu das formas passa (pixGeradoNaEscolha, src/lib/espera-do-pagamento.ts); o
+   * checkout do carrinho, não.
+   */
+  pixGerado?: string;
   escolhida: FormaPagamento | null;
   aoEscolher: (forma: FormaPagamento) => void;
   totais: TotaisDasFormas;
@@ -170,8 +177,21 @@ export function EscolhaPagamento({
           {T.pixRecebedor}
         </p>
       )}
-      {/* sem o Pix, o motivo num quadro: em letra miúda e cinza, a frase passava despercebida perto dos valores */}
-      {!formas.includes('pix') && <p className="mt-3 bg-superficie px-4 py-3 text-small">{fraseSemPix(T, semPix)}</p>}
+      {/* sem o Pix, o motivo num quadro: em letra miúda e cinza, a frase passava despercebida perto dos valores. No pedido
+          de Pix que já tem o QR, embaixo dela, no mesmo quadro, a frase do Pix já gerado (o QR vale até vencer): um bloco
+          na linha de baixo, com um espaço antes só para as duas frases não saírem coladas no texto lido em voz alta ou
+          copiado. Sem ela, o quadro é o mesmo elemento de antes */}
+      {!formas.includes('pix') && (
+        <p className="mt-3 bg-superficie px-4 py-3 text-small">
+          {fraseSemPix(T, semPix)}
+          {pixGerado && (
+            <>
+              {' '}
+              <span className="mt-2 block">{pixGerado}</span>
+            </>
+          )}
+        </p>
+      )}
     </fieldset>
   );
 }

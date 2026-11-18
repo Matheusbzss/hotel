@@ -163,9 +163,9 @@ export function StatusReserva({
       parte
     );
   };
-  // só os valores das formas que ainda valem (no pagamento online, o Pix some 2 horas antes do serviço) e, no pedido
-  // pendente, o da forma da sessão que ele já tem: o Pix já gerado continua valendo com o pagamento desligado às pressas
-  // ou depois do prazo do Pix (formasDaFaixa, src/lib/partes-do-total.ts)
+  // só os valores das formas que ainda valem (no pagamento online, o Pix some 2 horas antes do serviço) e, no pedido de
+  // Pix, o do Pix: o já gerado continua valendo com o pagamento desligado às pressas ou depois do prazo do Pix (pendente),
+  // e o vencido sem forma que valha mostra o valor que o cliente escolheu (formasDaFaixa, src/lib/partes-do-total.ts)
   const formasNaFaixa = formasDaFaixa(r.status, online ? pagamento : undefined);
   const rotulos = { pix: textos.noPix, cartao: textos.noCartao };
   // cada valor é um bloco, que desce inteiro para a linha de baixo quando os dois não cabem lado a lado. O "·" fica

@@ -44,6 +44,7 @@ import {
 } from '../src/lib/email/mensagens.ts';
 import { escaparHtml } from '../src/lib/email/modelo.ts';
 import { marcaDoAvisoDeReembolsoFalho } from '../src/lib/email/marcas.ts';
+import { enviarSeAlgumaFormaVale } from '../src/lib/email/pix-vencido.ts';
 import { zerarLimitesEmMemoria } from '../src/lib/limite-ip.ts';
 import { TEXTOS_EMAIL } from '../src/lib/email/textos.ts';
 import { avisoDoReembolsoFalho } from '../src/lib/pedidos-painel.ts';
@@ -879,4 +880,104 @@ test('o envio do aviso do reembolso que falhou: desligado sem a chave, para a eq
   const linha = String(log.mock.calls[0].arguments[0]);
   assert.match(linha, /reembolso-falho-equipe ON-7K3P9Q/);
   assert.ok(!linha.includes('financeiro@exemplo.com'));
+});
+
+// Reteste de 17-18/11 (o que não foi coberto, item 12; Pacote 17): com o freio de emergência (PAGAMENTO_ONLINE=desligado),
+// o e-mail do Pix vencido não pode sair (não há como pagar de novo pelo site). Até aqui só conferido no código; a bancada
+// tem os e-mails desligados. src/lib/email/pedidos.ts é só do servidor (com o atalho "@/"), então a decisão mora em
+// src/lib/email/pix-vencido.ts, com o envio passado de fora: aqui, o envio de verdade (enviarEmail) com o fetch de mentira.
+test('o e-mail do Pix vencido não sai com o pagamento online desligado (o freio) e sai no ar, só com as formas que valem', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  const vars = ['PAGAMENTO_ONLINE', 'STRIPE_SECRET_KEY', 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', 'RESEND_API_KEY'] as const;
+  const antes = Object.fromEntries(vars.map((nome) => [nome, process.env[nome]]));
+  /** Roda com estas variáveis (as chaves são inventadas) e devolve as formas com que o e-mail saiu e as chamadas ao Resend. */
+  const pixVencido = async (modo: string | undefined, agora: Date, comChaves = true) => {
+    const valores: Record<string, string | undefined> = {
+      PAGAMENTO_ONLINE: modo,
+      STRIPE_SECRET_KEY: comChaves ? 'rk_test_chave_de_exemplo' : undefined,
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: comChaves ? 'pk_test_exemplo' : undefined,
+      RESEND_API_KEY: 're_teste_123',
+    };
+    for (const [nome, valor] of Object.entries(valores)) {
+      if (valor === undefined) delete process.env[nome];
+      else process.env[nome] = valor;
+    }
+    const falso = fetchFalso([{ status: 200, corpo: { id: 'email_pix' } }]);
+    const saiuCom: string[][] = [];
+    // o passeio de amanhã às 9h (só contas, nenhum cliente): o que pedidos.ts manda para a regra
+    const itens = [
+      { tipo: 'passeio' as const, data: '2026-11-19', horario: { hora: '09:00' }, totalCentavos: 15400, totalPixCentavos: 13860 },
+    ];
+    const enviado = await enviarSeAlgumaFormaVale(itens, agora, async (formas) => {
+      saiuCom.push(formas);
+      const totais = { ...(formas.includes('pix') ? { pix: VALOR } : {}), ...(formas.includes('cartao') ? { cartao: VALOR } : {}) };
+      const mensagem = emailPixVencido({ ...pedido('pt'), totais });
+      await enviarEmail(
+        {
+          ...EMAIL,
+          tipo: 'pix-vencido',
+          assunto: mensagem.assunto,
+          html: mensagem.html,
+          texto: mensagem.texto,
+          chave: 'pix-vencido/cs_test_A',
+        },
+        { fetch: falso.fetch, esperar: semEspera, cota: async () => true },
+      );
+    });
+    return { enviado, saiuCom, chamadas: falso.chamadas.length };
+  };
+  const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
+  const longe = as('2026-11-18T12:00:00');
+  try {
+    // o freio: nenhuma forma vale, e nada vai ao Resend (nem com o pedido longe dos prazos, nem com as chaves da Stripe)
+    assert.deepEqual(await pixVencido('desligado', longe), { enviado: false, saiuCom: [], chamadas: 0 });
+    // sem a variável, o mesmo (o padrão é desligado)
+    assert.deepEqual(await pixVencido(undefined, longe), { enviado: false, saiuCom: [], chamadas: 0 });
+    // no ar: sai uma vez, com o Pix e o cartão
+    assert.deepEqual(await pixVencido('publico', longe), { enviado: true, saiuCom: [['cartao', 'pix']], chamadas: 1 });
+    // no modo 'admin' também (o e-mail conta como o admin: é o dono testando)
+    assert.deepEqual(await pixVencido('admin', longe), { enviado: true, saiuCom: [['cartao', 'pix']], chamadas: 1 });
+    // no ar, a 1 hora do passeio: o Pix já não vale, e o e-mail leva só o cartão
+    assert.deepEqual(await pixVencido('publico', as('2026-11-19T08:00:00')), { enviado: true, saiuCom: [['cartao']], chamadas: 1 });
+    // no ar, a 20 minutos do passeio (passado o prazo de todas), ou sem as chaves da Stripe: nada sai
+    assert.deepEqual(await pixVencido('publico', as('2026-11-19T08:40:00')), { enviado: false, saiuCom: [], chamadas: 0 });
+    assert.deepEqual(await pixVencido('publico', longe, false), { enviado: false, saiuCom: [], chamadas: 0 });
+  } finally {
+    for (const nome of vars) {
+      if (antes[nome] === undefined) delete process.env[nome];
+      else process.env[nome] = antes[nome];
+    }
+  }
+
+  // e é por essa regra que o e-mail do Pix vencido sai em pedidos.ts: a decisão e o envio (despachar, o mesmo de todos os
+  // e-mails do pedido) só dentro dela, e o caso termina ali, sem passar pelo envio do fim da função
+  const codigo = readFileSync(path.join('src', 'lib', 'email', 'pedidos.ts'), 'utf8').replace(/\r/g, '');
+  assert.match(codigo, /^import \{ enviarSeAlgumaFormaVale \} from '\.\/pix-vencido';$/m);
+  const inicio = codigo.indexOf("case 'pix-vencido': {");
+  assert.notEqual(inicio, -1);
+  const caso = codigo.slice(inicio, codigo.indexOf("case 'link-do-pedido':", inicio));
+  assert.match(
+    caso,
+    /const enviado = await enviarSeAlgumaFormaVale\(itensPagaveis\(lista\), new Date\(\), \(formas\) =>\s+despachar\(emailPixVencido\(\{ \.\.\.base, totais: totaisQueValem\(formas, ambos\) \}\), `pix-vencido\/\$\{sessao \|\| pedido\}`\),\s+\);/,
+  );
+  assert.match(
+    caso,
+    /if \(!enviado\) console\.log\(`\[email\] \$\{tipo\} \$\{pedido\}: não enviado \(nenhuma forma de pagamento vale mais para o pedido\)`\);\s+return;\s+\}/,
+  );
+  assert.doesNotMatch(caso, /formasDoPagamento\(|enviarEmail\(|mensagem =|chave =/);
+  // o envio da função inteira é um só (despachar), e a regra pede as formas como o admin
+  const envio = codigo.slice(
+    codigo.indexOf('export async function enviarEmailDoPedido('),
+    codigo.indexOf('export function agendarEmailDoPedido('),
+  );
+  assert.equal(envio.match(/enviarEmail\(/g)?.length, 1);
+  assert.match(
+    envio,
+    /const despachar = async \(email: MensagemEmail, chaveDoEnvio: string, arquivos: Anexo\[\] = \[\]\): Promise<void> => \{/,
+  );
+  assert.match(envio, /\n {2}await despachar\(mensagem, chave, anexos\);\n\}/);
+  assert.match(
+    readFileSync(path.join('src', 'lib', 'email', 'pix-vencido.ts'), 'utf8'),
+    /await formasDoPagamento\(itens, agora, \{ admin: true \}\)/,
+  );
 });

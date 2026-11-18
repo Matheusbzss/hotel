@@ -3,8 +3,7 @@ import type { Json } from './banco-tipos';
 import { mensagemDoErro } from './erros.ts';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
-import { inicioDoItem, type FormaPagamento } from './formas-pagamento.ts';
-import { agoraEmBuzios, paraMinutos } from './horarios.ts';
+import { segundosAteOInicio, type FormaPagamento, type ItemAgendado } from './formas-pagamento.ts';
 import { provedorDaReserva } from './pedidos-painel.ts';
 import { PIX_EXPIRADO } from './recusas.ts';
 import type { Reserva, StatusReserva } from './reservas';
@@ -64,6 +63,10 @@ export interface LeituraSessao {
   cartao?: { bandeira: string; final: string; pais?: string };
   /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade da moeda. */
   apresentado?: { moeda: string; valorCentavos: number };
+  /**
+   * Só no pago: a hora da cobrança (latest_charge.created). Sem a cobrança na leitura, nada: aplicarSessao grava a hora
+   * em que o site viu o pagamento, nunca a da criação do pagamento ou da sessão.
+   */
   pagoEm?: string;
   paymentIntentId?: string;
   /** O país do endereço informado na Stripe (ISO de 2 letras). */
@@ -117,7 +120,11 @@ export function interpretarSessao(sessao: Stripe.Checkout.Session, agora: Date =
     return {
       ...comum,
       status: 'pago',
-      pagoEm: iso(cobranca?.created ?? pi?.created ?? sessao.created),
+      // a hora do pagamento é só a da cobrança. Logo depois de um Pix a leitura ainda pode vir sem ela (a consulta da página
+      // chega antes): aí fica sem hora, e aplicarSessao grava a hora em que o site viu o pagamento. A criação do pagamento
+      // e a da sessão são de quando o cliente abriu o formulário ou gerou o QR, até 30 minutos antes (reteste de 17-18/11:
+      // ON-KEG69N gravou 20:50:24 para a cobrança das 20:53:27)
+      ...(cobranca?.created ? { pagoEm: iso(cobranca.created) } : {}),
       ...(cartao
         ? { cartao: { bandeira: cartao.brand ?? '', final: cartao.last4 ?? '', ...(cartao.country ? { pais: cartao.country } : {}) } }
         : {}),
@@ -329,11 +336,16 @@ function valorEsperado(r: Reserva): number {
   return r.pagamento.metodo === 'pix' ? (totalPix ?? total) : total;
 }
 
-/** O serviço já começou (o pagamento chegou tarde demais para o parceiro). */
-function horarioJaPassou(r: Reserva, agora: Date): boolean {
-  const { data, hora } = inicioDoItem(r);
-  const { data: hoje, minutos } = agoraEmBuzios(agora);
-  return data < hoje || (data === hoje && paraMinutos(hora) < minutos);
+/**
+ * O serviço já começou (o pagamento chegou tarde demais para o parceiro): a partir de 1 segundo depois do horário, na
+ * mesma conta em segundos do corte do cartão (segundosAteOInicio, src/lib/formas-pagamento.ts, negativo quando o item já
+ * começou; cartaoDisponivel). No horário cravado ainda não. Até o reteste de 17-18/11 (Pacote 17) a conta era em minutos
+ * inteiros e só acusava a partir do minuto seguinte ao do horário: o pagamento que chegava entre o horário e 59 s depois,
+ * que é o pior caso do cartão desde que o corte conta segundos, não deixava o aviso. Uma data ou hora que não dá para
+ * ler (NaN) não acusa. Sem o banco, para ser testada em node (tests/stripe.test.ts).
+ */
+export function horarioJaPassou(r: ItemAgendado, agora: Date): boolean {
+  return segundosAteOInicio(r, agora) < 0;
 }
 
 /**

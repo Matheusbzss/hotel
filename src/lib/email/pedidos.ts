@@ -23,6 +23,7 @@ import { formatarDataIso } from '../validacao';
 import { linkWhatsApp } from '../whatsapp';
 import { enderecoCabeNoDia } from './cota';
 import { depoisDaResposta } from './depois';
+import { enviarSeAlgumaFormaVale } from './pix-vencido';
 import { emailLigado, enviarEmail, responderPara, saiu, type Anexo } from './enviar';
 import {
   AVISO_EMAIL_PAGO_SAINDO,
@@ -249,6 +250,26 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
   };
   const ambos = { pix: valorNoIdioma(totalPix, idioma, taxa), cartao: valorNoIdioma(totalCartao, idioma, taxa) };
 
+  /** O envio pelo Resend e, quando sai, a linha no histórico; o pagamento aprovado que não sai fica como aviso no painel. */
+  const despachar = async (email: MensagemEmail, chaveDoEnvio: string, arquivos: Anexo[] = []): Promise<void> => {
+    const resultado = await enviarEmail({
+      tipo,
+      referencia: pedido,
+      para: r.cliente.email,
+      assunto: email.assunto,
+      html: email.html,
+      texto: email.texto,
+      anexos: arquivos,
+      chave: chaveDoEnvio,
+    });
+    if (saiu(resultado)) {
+      await anotar(r.codigo, marca, tipo === 'link-do-pedido');
+    } else if (!resultado.enviado && tipo === 'pagamento-aprovado' && resultado.motivo !== 'desligado') {
+      // o e-mail com os vouchers é o que mais importa: a equipe vê no painel e manda o link por outro caminho
+      await anotar(r.codigo, `Aviso: o e-mail do pagamento aprovado não saiu (${resultado.motivo}): mandar ao cliente o link do pedido`);
+    }
+  };
+
   let mensagem: MensagemEmail;
   let anexos: Anexo[] = [];
   let chave: string;
@@ -280,15 +301,14 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
     }
     case 'pix-vencido': {
       // os totais só das formas que ainda valem para o pedido (a mesma regra da página do pedido: o Pix até 2 horas
-      // antes do primeiro serviço e dentro do limite; o cartão até 30 minutos antes); sem nenhuma, não há o que pagar
-      const { formas } = await formasDoPagamento(itensPagaveis(lista), new Date(), { admin: true });
-      if (!formas.length) {
-        console.log(`[email] ${tipo} ${pedido}: não enviado (nenhuma forma de pagamento vale mais para o pedido)`);
-        return;
-      }
-      mensagem = emailPixVencido({ ...base, totais: totaisQueValem(formas, ambos) });
-      chave = `pix-vencido/${sessao || pedido}`;
-      break;
+      // antes do primeiro serviço e dentro do limite; o cartão até 30 minutos antes); sem nenhuma, não há o que pagar e
+      // nada sai, também com o pagamento online desligado às pressas (enviarSeAlgumaFormaVale, ./pix-vencido.ts, que roda
+      // em node nos testes com um envio de mentira)
+      const enviado = await enviarSeAlgumaFormaVale(itensPagaveis(lista), new Date(), (formas) =>
+        despachar(emailPixVencido({ ...base, totais: totaisQueValem(formas, ambos) }), `pix-vencido/${sessao || pedido}`),
+      );
+      if (!enviado) console.log(`[email] ${tipo} ${pedido}: não enviado (nenhuma forma de pagamento vale mais para o pedido)`);
+      return;
     }
     case 'link-do-pedido':
       mensagem = emailLinkDoPedido(base);
@@ -304,22 +324,7 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
     }
   }
 
-  const resultado = await enviarEmail({
-    tipo,
-    referencia: pedido,
-    para: r.cliente.email,
-    assunto: mensagem.assunto,
-    html: mensagem.html,
-    texto: mensagem.texto,
-    anexos,
-    chave,
-  });
-  if (saiu(resultado)) {
-    await anotar(r.codigo, marca, tipo === 'link-do-pedido');
-  } else if (!resultado.enviado && tipo === 'pagamento-aprovado' && resultado.motivo !== 'desligado') {
-    // o e-mail com os vouchers é o que mais importa: a equipe vê no painel e manda o link por outro caminho
-    await anotar(r.codigo, `Aviso: o e-mail do pagamento aprovado não saiu (${resultado.motivo}): mandar ao cliente o link do pedido`);
-  }
+  await despachar(mensagem, chave, anexos);
 }
 
 /** Agenda o e-mail para depois da resposta (o webhook e as rotas respondem na hora). */

@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type Stripe from 'stripe';
 import {
   PIX_EXPIRA_SEGUNDOS,
@@ -14,12 +16,13 @@ import {
   stripeConfigurado,
   type DadosDaSessao,
 } from '../src/lib/stripe.ts';
-import { validadeDoPix } from '../src/lib/formas-pagamento.ts';
+import { ANTECEDENCIA_CARTAO_MINUTOS, cartaoDisponivel, segundosAteOInicio, validadeDoPix } from '../src/lib/formas-pagamento.ts';
 import {
   EVENTO_EM_ANDAMENTO_MS,
   concluirEventoStripe,
   entregaRepetida,
   esquecerEventoStripe,
+  horarioJaPassou,
   interpretarSessao,
   pagamentoAMais,
   podeAbrirSessao,
@@ -394,9 +397,11 @@ test('cartão pago em pesos chilenos: a moeda apresentada guarda o que o cliente
   );
   assert.equal(l.status, 'pago');
   assert.deepEqual(l.apresentado, { moeda: 'CLP', valorCentavos: 170000 });
-  // sem a cobrança expandida não há dados do cartão, e a hora do pagamento vem do PaymentIntent
+  // sem a cobrança expandida não há dados do cartão nem a hora do pagamento: quem grava (aplicarSessao) usa a hora em que
+  // o site viu o pagamento. Até o Pacote 17 a hora vinha da criação do PaymentIntent (1794700100), que é de antes de pagar
   assert.equal(l.cartao, undefined);
-  assert.equal(l.pagoEm, new Date(1794700100 * 1000).toISOString());
+  assert.equal(l.pagoEm, undefined);
+  assert.equal('pagoEm' in l, false);
 });
 
 test('Pix gerado e ainda não pago: a sessão está completa, mas o pedido continua pendente', () => {
@@ -776,6 +781,123 @@ test('para todo QR de 10 a 30 minutos, o gerado no limite do toque (mais o minut
     assert.equal(lida.status, 'pendente', caso);
     assert.equal(lida.fecharSessao, undefined, caso);
   }
+});
+
+/** O código de um arquivo de src/, sem as linhas de comentário (e sem o \r dos arquivos gravados com CRLF). */
+const fonte = (...partes: string[]) =>
+  readFileSync(path.join('src', ...partes), 'utf8')
+    .replace(/\r/g, '')
+    .split('\n')
+    .filter((l) => !/^\s*(\/\/|\/?\*)/.test(l))
+    .join('\n');
+
+/** O corpo de uma função exportada de um arquivo já lido, até a próxima exportação. */
+function corpoDe(codigoDoArquivo: string, inicio: string): string {
+  const de = codigoDoArquivo.indexOf(inicio);
+  assert.notEqual(de, -1, inicio);
+  const ate = codigoDoArquivo.indexOf('\nexport ', de + 1);
+  return codigoDoArquivo.slice(de, ate === -1 ? undefined : ate);
+}
+
+// Reteste de 17-18/11 (defeito 1; Pacote 17): quando a consulta da página, e não o aviso da Stripe, confirmava o Pix, a
+// leitura ainda vinha sem a cobrança, e a hora do pagamento caía na criação do pagamento (o toque em "Continuar", até 30
+// minutos antes): ON-KEG69N gravou 20:50:24 para a cobrança das 20:53:27, ON-3RRHEG 18:33:09 para 18:36:11. Pelo aviso da
+// Stripe, com a cobrança, a hora saía certa (ON-RFA4GT e ON-ELEMCV).
+test('a hora do pagamento é só a da cobrança: o Pix confirmado pela consulta antes dela grava a hora em que o site viu o pagamento', () => {
+  const piPixPago = { ...PI_PIX_NA_TELA, status: 'succeeded', next_action: null };
+  // com a cobrança na leitura (o aviso da Stripe, ou a consulta um pouco depois): a hora dela, 3 minutos depois do toque
+  const COBRANCA = TOQUE + 183;
+  const cobrancaPix = {
+    ...PI_CARTAO_PAGO.latest_charge,
+    id: 'ch_3Pix1',
+    created: COBRANCA,
+    payment_method_details: { type: 'pix', pix: {} },
+  };
+  const comCobranca = interpretarSessao(
+    sessaoPix({ status: 'complete', payment_status: 'paid', payment_intent: { ...piPixPago, latest_charge: cobrancaPix } }),
+    aos(400),
+  );
+  assert.equal(comCobranca.status, 'pago');
+  assert.equal(comCobranca.pagoEm, new Date(COBRANCA * 1000).toISOString());
+  // logo depois do pagamento, a consulta da página relê a sessão paga ainda sem a cobrança (nenhuma, ou só o id): a leitura
+  // vem sem hora. Nem a criação do pagamento (o toque, 3 minutos antes) nem a da sessão (5 minutos antes) entram
+  for (const latest_charge of [null, 'ch_3Pix1']) {
+    const semCobranca = interpretarSessao(
+      sessaoPix({ status: 'complete', payment_status: 'paid', payment_intent: { ...piPixPago, latest_charge } }),
+      aos(COBRANCA - CRIADA + 2),
+    );
+    const caso = String(latest_charge);
+    assert.equal(semCobranca.status, 'pago', caso);
+    assert.equal(semCobranca.forma, 'pix', caso);
+    assert.equal(semCobranca.pagoEm, undefined, caso);
+    assert.equal('pagoEm' in semCobranca, false, caso);
+  }
+  // quem grava é aplicarSessao: sem a hora na leitura, a hora em que o site viu o pagamento, o `agora` da própria leitura
+  // (na consulta, o de sincronizarComStripe); uma gravação só, na transição para pago (o aviso que chega depois com a
+  // cobrança encontra o pedido já pago e não muda nada)
+  const pagamento = fonte('lib', 'pagamento-stripe.ts');
+  const aplicar = corpoDe(pagamento, 'export async function aplicarSessao(');
+  assert.match(aplicar, /const leitura = interpretarSessao\(sessao, agora\);/);
+  assert.match(aplicar, /const agoraIso = agora\.toISOString\(\);/);
+  assert.match(aplicar, /r\.pagamento\.pagoEm = leitura\.pagoEm \?\? agoraIso;/);
+  assert.equal(aplicar.match(/\.pagoEm =/g)?.length, 1);
+  assert.match(aplicar, /if \(r\.status === 'pago'\) return origem === 'consulta' \? r : null;/);
+  assert.match(corpoDe(pagamento, 'export async function sincronizarComStripe('), /aplicarSessao\(codigo, sessao, 'consulta', agora\)/);
+  // e a leitura não tira a hora de mais nada: nem da criação do pagamento, nem da sessão
+  const interpretar = corpoDe(pagamento, 'export function interpretarSessao(');
+  assert.match(interpretar, /\.\.\.\(cobranca\?\.created \? \{ pagoEm: iso\(cobranca\.created\) \} : \{\}\),/);
+  assert.doesNotMatch(interpretar, /pi\?\.created|sessao\.created/);
+});
+
+// Reteste de 17-18/11 (o que não foi coberto, item 2, e a pergunta 10 ao dono, com a resposta recomendada; Pacote 17): o
+// aviso "o pagamento chegou depois do horário do serviço" contava minutos inteiros e só acusava a partir do minuto seguinte
+// ao do horário. Desde o Pacote 14 o corte do cartão conta segundos, e a sessão aberta no último segundo dele vai até 1
+// minuto depois do horário: o pagamento desse minuto não deixava o aviso.
+test('o aviso do pagamento depois do horário conta segundos, como o corte do cartão: no horário cravado não; 1 s depois, sim', () => {
+  // os instantes com o fuso de Búzios escrito (-03:00), para a conta não depender do relógio da máquina
+  const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
+  const passeio = { tipo: 'passeio' as const, data: '2026-11-02', horario: { hora: '12:00' } };
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T11:59:59')), false);
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T12:00:00')), false);
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T12:00:01')), true);
+  // o minuto que a conta em minutos inteiros deixava sem aviso (ela só acusava a partir das 12h01min00s)
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T12:00:30')), true);
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T12:00:59')), true);
+  assert.equal(horarioJaPassou(passeio, as('2026-11-02T12:01:00')), true);
+  // os milissegundos não contam: o segundo cravado inteiro ainda é o horário
+  assert.equal(horarioJaPassou(passeio, new Date('2026-11-02T15:00:00.999Z')), false);
+  assert.equal(horarioJaPassou(passeio, new Date('2026-11-02T15:00:01.000Z')), true);
+  // o dia seguinte; o transfer pela saída da ida, atravessando a virada do dia; a casa pela entrada, às 15h
+  assert.equal(horarioJaPassou(passeio, as('2026-11-03T09:00:00')), true);
+  const transfer = { tipo: 'transfer' as const, data: '2026-11-03', transfer: { ida: { hora: '00:00' } } };
+  assert.equal(horarioJaPassou(transfer, as('2026-11-02T23:59:59')), false);
+  assert.equal(horarioJaPassou(transfer, as('2026-11-03T00:00:00')), false);
+  assert.equal(horarioJaPassou(transfer, as('2026-11-03T00:00:01')), true);
+  const casa = { tipo: 'casa' as const, data: '2026-11-02' };
+  assert.equal(horarioJaPassou(casa, as('2026-11-02T15:00:00')), false);
+  assert.equal(horarioJaPassou(casa, as('2026-11-02T15:00:01')), true);
+  // uma data que não dá para ler não acusa
+  assert.equal(horarioJaPassou({ tipo: 'passeio', data: 'amanhã', horario: { hora: '12:00' } }, as('2026-11-02T12:00:30')), false);
+  // a mesma conta do corte do cartão (segundosAteOInicio), segundo a segundo, 3 minutos em volta do horário
+  const horario = as('2026-11-02T12:00:00').getTime();
+  for (let s = -90; s <= 90; s++) {
+    const agora = new Date(horario + s * 1000);
+    assert.equal(horarioJaPassou(passeio, agora), s > 0, `${s} s`);
+    assert.equal(horarioJaPassou(passeio, agora), segundosAteOInicio(passeio, agora) < 0, `${s} s`);
+  }
+  // o pior caso do cartão: a sessão aberta no último segundo dele (os 30 minutos cravados) termina 60 s depois do horário,
+  // e todo pagamento processado depois do horário, até o fim dela, deixa o aviso
+  const corte = new Date(horario - ANTECEDENCIA_CARTAO_MINUTOS * 60_000);
+  const item = { ...DADOS.itens[0], data: '2026-11-02', horario: { hora: '12:00' } };
+  assert.equal(cartaoDisponivel([item], corte), true);
+  const fim = parametrosDaSessao({ ...DADOS, itens: [item], forma: 'cartao', agora: corte }).expires_at ?? 0;
+  assert.equal(fim - horario / 1000, 60);
+  for (let s = 1; s <= fim - horario / 1000; s++) assert.equal(horarioJaPassou(item, new Date(horario + s * 1000)), true, `${s} s`);
+  // e é ela que decide o aviso na transição para pago, com o mesmo `agora` da leitura
+  assert.match(
+    corpoDe(fonte('lib', 'pagamento-stripe.ts'), 'export async function aplicarSessao('),
+    /if \(horarioJaPassou\(r, agora\)\) registrar\(r, AVISO_PAGO_DEPOIS_DO_HORARIO\);/,
+  );
 });
 
 test('o webhook processa cada evento uma vez só: a entrega repetida espera a primeira terminar e depois não muda nada', async () => {

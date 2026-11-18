@@ -573,21 +573,17 @@ test('a faixa do pedido pendente mostra também o valor da forma da sessão que 
   // o site ligado, passado o prazo do Pix com o QR ainda valendo: o do Pix e o do cartão, o do Pix primeiro
   assert.deepEqual(formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'pix' }), ['cartao', 'pix']);
   assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'pix' })), [pix, cartao]);
-  // o pedido de cartão sem forma que valha: o valor do cartão, agora com o "no cartão"
-  assert.deepEqual(formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' }), ['cartao']);
-  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' })), [cartao]);
   // a forma do pedido já está entre as que valem: a mesma lista
   const ambas: FormaPagamento[] = ['cartao', 'pix'];
   assert.equal(formasDaFaixa('pendente', { formas: ambas, formaAtual: 'pix' }), ambas);
   const soCartao: FormaPagamento[] = ['cartao'];
   assert.equal(formasDaFaixa('pendente', { formas: soCartao, formaAtual: 'cartao' }), soCartao);
-  // vencido, pago, cancelado, reembolsado…: só as que valem, como antes (o QR morreu com a sessão)
-  const OUTROS: StatusReserva[] = ['expirado', 'pago', 'recusado', 'cancelado', 'aguardando_whatsapp', 'reembolsado', 'contestado'];
+  // pago, cancelado, reembolsado…: só as que valem, como antes (o pedido de cartão e o vencido têm os testes deles, abaixo)
+  const OUTROS: StatusReserva[] = ['pago', 'recusado', 'cancelado', 'aguardando_whatsapp', 'reembolsado', 'contestado'];
   for (const status of OUTROS) {
     assert.deepEqual(formasDaFaixa(status, { formas: [], formaAtual: 'pix' }), [], status);
     assert.deepEqual(formasDaFaixa(status, { formas: ['cartao'], formaAtual: 'pix' }), ['cartao'], status);
   }
-  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: [], formaAtual: 'pix' })), [{ centavos: 15400 }]);
   // sem a forma do pedido: só as que valem
   assert.deepEqual(formasDaFaixa('pendente', { formas: [] }), []);
   assert.deepEqual(formasDaFaixa('pendente', { formas: ['cartao'] }), ['cartao']);
@@ -599,6 +595,68 @@ test('a faixa do pedido pendente mostra também o valor da forma da sessão que 
   const nenhuma: FormaPagamento[] = [];
   assert.deepEqual(formasDaFaixa('pendente', { formas: nenhuma, formaAtual: 'pix' }), ['pix']);
   assert.deepEqual(nenhuma, []);
+});
+
+// Reteste de 17-18/11 (defeito 3 e a pergunta 4 ao dono, com a resposta recomendada; Pacote 17): o pedido de cartão
+// pendente que não dá mais para pagar pelo site (a menos de 30 minutos do serviço, ou com o freio) mostrava "Aguardando
+// pagamento R$ 154,00 no cartão" ao lado de "Este pedido não pode mais ser pago pelo site" (ON-VPHJM5, ON-YZWVDU,
+// ON-MHQNLV): o "no cartão", que veio com o Pacote 14, convidava a tentar pagar onde não dá.
+test('o pedido de cartão sem forma que valha: o total sozinho, sem o "no cartão", como antes do Pacote 14', () => {
+  const pix = { centavos: 13860, forma: 'pix' };
+  const cartao = { centavos: 15400, forma: 'cartao' };
+  // pendente no cartão, sem nenhuma forma valendo: "R$ 154,00", sem rótulo (até o conserto, ['cartao'] e "no cartão")
+  assert.deepEqual(formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' }), []);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: [], formaAtual: 'cartao' })), [{ centavos: 15400 }]);
+  // vencido no cartão, sem nenhuma forma valendo: o mesmo
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: [], formaAtual: 'cartao' })), [{ centavos: 15400 }]);
+  // o cartão nunca é somado à faixa: com o Pix valendo e o cartão não (não acontece hoje: o cartão vale até mais tarde), só o Pix
+  assert.deepEqual(formasDaFaixa('pendente', { formas: ['pix'], formaAtual: 'cartao' }), ['pix']);
+  // com o cartão valendo, como sempre: "R$ 154,00 no cartão" (passado o prazo do Pix) e os dois (antes dele)
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'cartao' })), [cartao]);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: ['cartao', 'pix'], formaAtual: 'cartao' })), [
+    pix,
+    cartao,
+  ]);
+  // e o pedido de Pix continua com o Pix já gerado (Pacote 14): só o Pix (o freio) ou os dois (depois do prazo do Pix)
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: [], formaAtual: 'pix' })), [pix]);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('pendente', { formas: ['cartao'], formaAtual: 'pix' })), [pix, cartao]);
+});
+
+// Reteste de 17-18/11 (a pergunta 5 ao dono, com a resposta recomendada; Pacote 17): o pedido de Pix de R$ 138,60 que
+// venceu com o freio puxado mostrava "Expirado R$ 154,00", o total do cartão, sem rótulo (print freio-pix-vencido-390).
+test('o pedido de Pix vencido sem forma que valha: o valor da forma escolhida, com o rótulo ("Expirado R$ 138,60 no Pix")', () => {
+  const pix = { centavos: 13860, forma: 'pix' };
+  const cartao = { centavos: 15400, forma: 'cartao' };
+  // nenhuma forma vale (o freio, ou passado o prazo de todas): o valor do Pix com o "no Pix"
+  assert.deepEqual(formasDaFaixa('expirado', { formas: [], formaAtual: 'pix' }), ['pix']);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: [], formaAtual: 'pix' })), [pix]);
+  // (até o conserto, a lista vazia: o total sozinho, que é o do cartão)
+  assert.deepEqual(partesDoTotal(15400, 13860, []), [{ centavos: 15400 }]);
+  // com alguma forma valendo, a faixa de hoje: as que valem, com os rótulos (o QR morreu com a sessão)
+  assert.deepEqual(formasDaFaixa('expirado', { formas: ['cartao'], formaAtual: 'pix' }), ['cartao']);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: ['cartao'], formaAtual: 'pix' })), [cartao]);
+  const ambas: FormaPagamento[] = ['cartao', 'pix'];
+  assert.equal(formasDaFaixa('expirado', { formas: ambas, formaAtual: 'pix' }), ambas);
+  assert.deepEqual(partesDoTotal(15400, 13860, formasDaFaixa('expirado', { formas: ambas, formaAtual: 'pix' })), [pix, cartao]);
+  // sem a forma do pedido, como antes: o total sozinho
+  assert.deepEqual(formasDaFaixa('expirado', { formas: [] }), []);
+  // o pedido sem valor no Pix: o total sozinho, com ou sem o Pix na lista
+  assert.deepEqual(partesDoTotal(15400, undefined, formasDaFaixa('expirado', { formas: [], formaAtual: 'pix' })), [{ centavos: 15400 }]);
+  // nunca muda a lista que recebe
+  const nenhuma: FormaPagamento[] = [];
+  assert.deepEqual(formasDaFaixa('expirado', { formas: nenhuma, formaAtual: 'pix' }), ['pix']);
+  assert.deepEqual(nenhuma, []);
+  // as duas páginas que desenham a faixa passam por esta regra (tests/paginas-do-cliente.test.ts), e o pedido vencido chega
+  // a ela com o pagamento online em aberto: na da reserva, `online`; na do pedido, `statusOnline` (sem ele, pagamento null)
+  const reserva = readFileSync(path.join('src', 'components', 'StatusReserva.tsx'), 'utf8');
+  assert.match(reserva, /const online = pagamento !== undefined && \(r\.status === 'pendente' \|\| r\.status === 'expirado'\);/);
+  assert.match(reserva, /const formasNaFaixa = formasDaFaixa\(r\.status, online \? pagamento : undefined\);/);
+  const pedido = readFileSync(path.join('src', 'app', '[locale]', 'pedido', '[codigo]', 'page.tsx'), 'utf8');
+  assert.match(
+    pedido,
+    /const statusOnline = provedor === 'stripe' && \(status === 'pendente' \|\| status === 'expirado'\) \? status : null;/,
+  );
+  assert.match(pedido, /const formasAbertas = formasDaFaixa\(status, pagamento\);/);
 });
 
 // Desde o Pacote 6 (16/11), src/data/transfer.ts usa segundosAteOInicio deste arquivo, e o cartão do transfer roda no

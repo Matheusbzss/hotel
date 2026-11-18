@@ -180,8 +180,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const desistencia = estadoDaDesistencia(reservas, new Date());
 
   // os valores na tela: em aberto, só os das formas que ainda valem (no pagamento online, o Pix some 2 horas antes
-  // do serviço) e, no pedido pendente, o da forma da sessão que ele já tem (o Pix já gerado continua valendo com o
-  // pagamento desligado às pressas ou depois do prazo do Pix: formasDaFaixa); fechado, o que foi pago
+  // do serviço) e, no pedido de Pix, o do Pix (o já gerado continua valendo com o pagamento desligado às pressas ou depois
+  // do prazo do Pix; o vencido sem forma que valha mostra o valor que o cliente escolheu: formasDaFaixa); fechado, o que
+  // foi pago
   const formasAbertas = formasDaFaixa(status, pagamento);
   const rotulo = { pix: d.preco.noPix, cartao: d.preco.noCartao };
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));

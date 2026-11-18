@@ -5,7 +5,13 @@ import path from 'node:path';
 import { EVENTO_SESSAO_NOVA, avisarSessaoNova, ouvirSessaoNova } from '../src/components/pagamento/PalavraDoStatus.ts';
 import { leituraMudou, type LeituraDoPedido, type LeituraQueRedesenha } from '../src/components/pagamento/useStatusDoPedido.ts';
 import { dicionario } from '../src/i18n/index.ts';
-import { depoisDaEspera, etapaComAsFormasDeAgora } from '../src/lib/espera-do-pagamento.ts';
+import {
+  depoisDaEspera,
+  erroDaFormaRecusada,
+  etapaComAsFormasDeAgora,
+  formasDaResposta,
+  pixGeradoNaEscolha,
+} from '../src/lib/espera-do-pagamento.ts';
 
 // As páginas do cliente depois do reteste de 16-17/11 (Pacote 13): a faixa que continuava "Expirado" depois de "Pagar de
 // novo" (R2), o checkout que ficava só com "Seu carrinho está vazio." depois do 409 "mudou" (R3), os "Próximos passos" do
@@ -28,6 +34,16 @@ const codigo = (...partes: string[]) =>
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
     .replace(/^\s*\/\*[\s\S]*?\*\//gm, '')
     .replace(/^\s*\/\/.*$/gm, '');
+
+/** Os nomes que um arquivo importa de '@/lib/espera-do-pagamento', numa linha ou em várias (como o prettier deixar). */
+function importadoDaEspera(fonte: string): string[] {
+  const lista = fonte.match(/^import \{([^}]*)\} from '@\/lib\/espera-do-pagamento';$/m);
+  assert.ok(lista, 'a importação de @/lib/espera-do-pagamento');
+  return lista[1]
+    .split(',')
+    .map((nome) => nome.trim())
+    .filter(Boolean);
+}
 
 /* ------------------------------------------------------------------ */
 /* R2: a palavra da faixa depois de "Pagar de novo"                    */
@@ -229,7 +245,9 @@ test('a tela de pagar usa a decisão: o relógio dos 15 s só troca para o aviso
   const inicio = checkout.indexOf('export function PagarPedido(');
   assert.notEqual(inicio, -1);
   const pagarPedido = checkout.slice(inicio);
-  assert.match(checkout, /^import \{ depoisDaEspera, etapaComAsFormasDeAgora, type EtapaDePagar \} from '@\/lib\/espera-do-pagamento';$/m);
+  // as regras vêm de src/lib/espera-do-pagamento.ts (desde o Pacote 17, a importação traz também as da escolha da forma)
+  for (const nome of ['depoisDaEspera', 'etapaComAsFormasDeAgora', 'type EtapaDePagar'])
+    assert.ok(importadoDaEspera(checkout).includes(nome), nome);
   assert.match(pagarPedido, /const depois = depoisDaEspera\(status, formas, formaAtual\);/);
   // o relógio: só 'sem-formas' troca a tela para a escolha (o aviso); nos outros dois a espera termina e a tela fica. Até
   // o conserto, sem forma nenhuma a tela trocava sempre (temFormas ? setEsperou(true) : setEtapa('escolher'))
@@ -351,10 +369,11 @@ test('a tela de pagar troca a escolha pela espera na própria renderização, co
   const efeitos = [...pagarPedido.matchAll(/useEffect\(\(\) => \{[\s\S]*?\n {2}\}, \[[^\]]*\]\);/g)].map((m) => m[0]);
   assert.ok(efeitos.length >= 2);
   for (const efeito of efeitos) assert.doesNotMatch(efeito, /etapaComAsFormasDeAgora|etapaDeAgora/);
-  // o "Pagar" que esbarra na forma: o erro e a página relida, como antes (é a página relida que traz as formas de agora)
+  // o "Pagar" que esbarra na forma: o erro (desde o Pacote 17, pela regra com as formas do 403: erroDaFormaRecusada, nos
+  // testes logo abaixo) e a página relida, como antes (é a página relida que traz as formas de agora)
   assert.match(
     pagarPedido,
-    /\} else if \(resposta\.erro === 'forma'\) \{\s+setErro\(escolhida === 'pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);\s+\}/,
+    /\} else if \(resposta\.erro === 'forma'\) \{\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);\s+\}/,
   );
   // a espera que a troca mostra é a de sempre: a frase do Pix gerado com esperou e 'esperar-o-pix', sem o botão de pagar
   assert.match(
@@ -365,6 +384,185 @@ test('a tela de pagar troca a escolha pela espera na própria renderização, co
   // e a escolha sem formas continua com o aviso de sempre (o cartão e o pedido sem a forma chegam lá)
   assert.match(pagarPedido, /\{formas\.length > 0 && formaValida \? \([\s\S]*?\) : \(\s+semFormas\s+\)\}/);
   assert.equal(pagarPedido.match(/\{T\.semPrazo\}/g)?.length, 1);
+});
+
+/* ------------------------------------------------------------------ */
+/* O segundo de frase falsa do freio no meio do "Pagar" (reteste de 17-18/11, F7; Pacote 17) */
+
+// O cliente na escolha da forma quando o freio entra, e o toque em "Pagar" com o Pix: a rota responde 403
+// { erro: 'forma', formas: [] }. Por 0,4 a 1,3 s aparecia em vermelho "O Pix só vale até 2 horas antes do primeiro serviço
+// do pedido. Agora, só dá para pagar com cartão.", falso (ON-9LK8Z4 e ON-KEG69N: o passeio era em dezembro, e o cartão
+// também estava desligado), até a página relida chegar: sem motivo, fraseSemPix cai na frase do prazo, e pedirNovaSessao
+// jogava fora as formas do 403.
+
+test('as formas do 403: só as conhecidas; sem a lista, não se sabe quais valem', () => {
+  assert.deepEqual(formasDaResposta([]), []);
+  assert.deepEqual(formasDaResposta(['cartao']), ['cartao']);
+  assert.deepEqual(formasDaResposta(['cartao', 'pix']), ['cartao', 'pix']);
+  assert.deepEqual(formasDaResposta(['boleto', 'pix', 3, null]), ['pix']);
+  // o 403 do prazo do Pix que passou no meio da criação da sessão não traz a lista
+  assert.equal(formasDaResposta(undefined), undefined);
+  assert.equal(formasDaResposta(null), undefined);
+  assert.equal(formasDaResposta('cartao'), undefined);
+  assert.equal(formasDaResposta({ 0: 'pix', length: 1 }), undefined);
+});
+
+test('o erro do "Pagar" que esbarra na forma: com as formas vazias, nunca a frase do prazo do Pix', () => {
+  // o F7: o freio com o pedido de Pix pendente (o QR gerado), qualquer que seja a forma tocada: nenhum erro, e a página
+  // relida volta à espera com a frase do Pix gerado (até o conserto, a frase do prazo do Pix no toque do Pix)
+  assert.equal(erroDaFormaRecusada('pix', [], 'pendente', 'pix'), 'nenhum');
+  assert.equal(erroDaFormaRecusada('cartao', [], 'pendente', 'pix'), 'nenhum');
+  // nenhuma forma, nos outros pedidos: "Este pedido não pode mais ser pago pelo site" (até o conserto, a frase do prazo do
+  // Pix no toque do Pix)
+  assert.equal(erroDaFormaRecusada('pix', [], 'pendente', 'cartao'), 'sem-prazo');
+  assert.equal(erroDaFormaRecusada('pix', [], 'pendente', undefined), 'sem-prazo');
+  assert.equal(erroDaFormaRecusada('pix', [], 'expirado', 'pix'), 'sem-prazo');
+  assert.equal(erroDaFormaRecusada('cartao', [], 'pendente', 'cartao'), 'sem-prazo');
+  assert.equal(erroDaFormaRecusada('cartao', [], 'expirado', 'cartao'), 'sem-prazo');
+  // o Pix que saiu com o cartão ainda valendo: a frase do motivo, como sempre (o prazo do Pix ou o limite de valor)
+  assert.equal(erroDaFormaRecusada('pix', ['cartao'], 'pendente', 'pix'), 'sem-pix');
+  assert.equal(erroDaFormaRecusada('pix', ['cartao'], 'expirado', 'cartao'), 'sem-pix');
+  // o 403 sem a lista (o prazo do Pix que passou no meio da criação da sessão): a frase do motivo, que é o prazo
+  assert.equal(erroDaFormaRecusada('pix', undefined, 'pendente', 'pix'), 'sem-pix');
+  // o cartão que deixou de valer: "Este pedido não pode mais ser pago pelo site", como sempre
+  assert.equal(erroDaFormaRecusada('cartao', ['pix'], 'pendente', 'cartao'), 'sem-prazo');
+  assert.equal(erroDaFormaRecusada('cartao', undefined, 'pendente', 'cartao'), 'sem-prazo');
+  // em todas as combinações: com as formas vazias, nunca a frase do Pix, e nenhum erro só onde a página relida volta à
+  // espera (a mesma decisão do relógio); com alguma forma valendo, sempre um erro, e a escolha fica
+  for (const status of ['pendente', 'expirado'] as const)
+    for (const escolhida of ['pix', 'cartao'] as const)
+      for (const formaAtual of ['pix', 'cartao', undefined] as const) {
+        const caso = `${status} ${escolhida} ${formaAtual}`;
+        const erro = erroDaFormaRecusada(escolhida, [], status, formaAtual);
+        assert.notEqual(erro, 'sem-pix', caso);
+        assert.equal(
+          erro === 'nenhum',
+          etapaComAsFormasDeAgora('escolher', depoisDaEspera(status, [], formaAtual)) === 'confirmando',
+          caso,
+        );
+        for (const formas of [['cartao'], ['pix'], ['cartao', 'pix']] as const)
+          assert.notEqual(erroDaFormaRecusada(escolhida, formas, status, formaAtual), 'nenhum', `${caso} ${formas}`);
+      }
+});
+
+test('a tela de pagar guarda as formas do 403 e decide o erro pela regra, e a página é relida como antes', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  for (const nome of ['erroDaFormaRecusada', 'formasDaResposta']) assert.ok(importadoDaEspera(checkout).includes(nome), nome);
+  // pedirNovaSessao: as formas do 403 ficam na resposta (até o conserto, só o motivo do Pix)
+  assert.match(
+    checkout,
+    /type RespostaPagar = \{ clientSecret: string \} \| \{ erro: string; semPix\?: MotivoSemPix; formas\?: FormaPagamento\[\] \};/,
+  );
+  const inicioPedir = checkout.indexOf('export async function pedirNovaSessao(');
+  assert.notEqual(inicioPedir, -1);
+  const pedir = checkout.slice(inicioPedir, checkout.indexOf('const FECHA_O_CHECKOUT', inicioPedir));
+  assert.match(pedir, /const formas = formasDaResposta\(corpo\.formas\);/);
+  assert.match(
+    pedir,
+    /return \{ erro: corpo\.erro \?\? 'generico', \.\.\.\(semPix \? \{ semPix \} : \{\}\), \.\.\.\(formas \? \{ formas \} : \{\}\) \};/,
+  );
+  // abrirCheckout: o erro pela regra, com as formas do 403, o status e a forma do pedido; sem erro nenhum, nada escrito; a
+  // página relida em todos os casos. A frase do prazo do Pix só pelo 'sem-pix'
+  const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
+  const inicioAbrir = pagarPedido.indexOf('async function abrirCheckout(');
+  assert.notEqual(inicioAbrir, -1);
+  const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
+  assert.match(
+    abrir,
+    /const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);/,
+  );
+  assert.equal(abrir.match(/fraseSemPix\(/g)?.length, 1);
+  assert.doesNotMatch(abrir, /escolhida === 'pix' \? fraseSemPix/);
+  // a rota de pagar manda as formas no 403 'forma' (vazias com o freio), como a tela espera
+  const rota = codigo('app', 'api', 'pedido', '[codigo]', 'pagar', 'route.ts');
+  assert.match(
+    rota,
+    /if \(!formas\.includes\(r\.data\.forma\)\) return erro\('forma', 403, \{ formas, \.\.\.\(semPix \? \{ semPix \} : \{\}\) \}\);/,
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* O QR do Pix que ainda vale depois do prazo de 2 horas (reteste de 17-18/11, C2; Pacote 17) */
+
+// ON-CGGYY5, o transfer da 0h: o QR gerado às 21:57:04 valia até 22:17. Às 22:00:16, depois do prazo do Pix, a tela "Pagar
+// agora" mostrava só o cartão e "O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com
+// cartão.", sem dizer que o QR já gerado continuava valendo (e pagar no cartão ali troca a sessão e mata o QR).
+
+test('a frase do Pix gerado na escolha: só no pedido de Pix pendente, com o Pix fora das formas e outra valendo', () => {
+  // o C2: passou o prazo do Pix e só o cartão vale
+  assert.equal(pixGeradoNaEscolha('pendente', ['cartao'], 'pix'), true);
+  // o Pix ainda vale: a escolha mostra o Pix, sem a frase do prazo
+  assert.equal(pixGeradoNaEscolha('pendente', ['cartao', 'pix'], 'pix'), false);
+  // nenhuma forma: a escolha nem mostra as formas (com o freio, a volta à espera, que já tem a mesma frase)
+  assert.equal(pixGeradoNaEscolha('pendente', [], 'pix'), false);
+  // o pedido de cartão, ou sem a forma: não há QR
+  assert.equal(pixGeradoNaEscolha('pendente', ['cartao'], 'cartao'), false);
+  assert.equal(pixGeradoNaEscolha('pendente', ['cartao'], undefined), false);
+  // vencido: o QR morreu com a sessão
+  assert.equal(pixGeradoNaEscolha('expirado', ['cartao'], 'pix'), false);
+  // em todas as combinações: só junto da frase do prazo (o Pix fora das formas, com alguma valendo), no Pix pendente
+  for (const status of ['pendente', 'expirado'] as const)
+    for (const formas of [[], ['cartao'], ['pix'], ['cartao', 'pix']] as const)
+      for (const formaAtual of ['pix', 'cartao', undefined] as const) {
+        const lista: readonly string[] = formas;
+        const comAFraseDoPrazo = lista.length > 0 && !lista.includes('pix');
+        assert.equal(
+          pixGeradoNaEscolha(status, formas, formaAtual),
+          comAFraseDoPrazo && status === 'pendente' && formaAtual === 'pix',
+          `${status} ${formas} ${formaAtual}`,
+        );
+      }
+});
+
+test('a tela de pagar passa a frase do Pix gerado à escolha, que a mostra embaixo da frase do prazo, no mesmo quadro', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  assert.ok(importadoDaEspera(checkout).includes('pixGeradoNaEscolha'));
+  const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
+  // a frase só pela regra, com o status, as formas de agora e a forma do pedido; o texto é o de sempre (pedido.pixGerado)
+  assert.match(
+    pagarPedido,
+    /<EscolhaPagamento\b[^>]*\spixGerado=\{pixGeradoNaEscolha\(status, formas, formaAtual\) \? T\.pixGerado : undefined\}/,
+  );
+  assert.equal(checkout.match(/pixGeradoNaEscolha\(/g)?.length, 1);
+  // o checkout do carrinho não passa a frase
+  const carrinho = codigo('components', 'carrinho', 'FormularioCarrinho.tsx');
+  assert.match(carrinho, /<EscolhaPagamento\b/);
+  assert.doesNotMatch(carrinho, /pixGerado/);
+  // a escolha: embaixo da frase de por que o Pix ficou de fora, no mesmo quadro, e só a frase recebida
+  const escolha = codigo('components', 'pagamento', 'EscolhaPagamento.tsx');
+  assert.match(escolha, /^\s+pixGerado\?: string;$/m);
+  const quadro = escolha.match(
+    /\{!formas\.includes\('pix'\) && \(\s*<p className="([^"]*)">\s*\{fraseSemPix\(T, semPix\)\}\s*\{pixGerado && \(\s*<>\s*\{' '\}\s*<span className="([^"]*)">\{pixGerado\}<\/span>\s*<\/>\s*\)\}\s*<\/p>\s*\)\}/,
+  );
+  assert.ok(quadro, 'o quadro do motivo, com a frase do Pix gerado embaixo');
+  // o quadro é o mesmo elemento de antes, com as mesmas classes (sem a frase nova, nada muda nele: o checkout do carrinho e
+  // os roteiros da bancada que o acham por `fieldset p.bg-superficie`); a frase nova é um bloco na linha de baixo, com o vão
+  // de 0,5rem, e nada segura a largura: as duas frases quebram entre as palavras
+  assert.deepEqual(quadro[1].split(/\s+/), ['mt-3', 'bg-superficie', 'px-4', 'py-3', 'text-small']);
+  assert.deepEqual(quadro[2].split(/\s+/), ['mt-2', 'block']);
+  assert.doesNotMatch(quadro[0], /whitespace-nowrap|min-w-|(?<![\w-])w-\[|style=/);
+  assert.equal(escolha.match(/fraseSemPix\(/g)?.length, 1);
+  assert.equal(escolha.match(/\{pixGerado\}/g)?.length, 1);
+});
+
+test('a frase do Pix gerado cabe no quadro do motivo: nenhuma palavra mais longa que as de lá, e folga em 320 px com a letra em 150%', () => {
+  const maisLonga = (frase: string) => Math.max(...frase.split(/\s+/).map((palavra) => palavra.length));
+  const IDIOMAS = ['pt', 'en', 'es', 'es-ar'] as const;
+  for (const idioma of IDIOMAS) {
+    const p = dicionario(idioma).pedido;
+    // as frases do motivo já foram medidas nesse quadro, de 320 a 1440 px com a letra até 150% (Pacote 9)
+    assert.ok(maisLonga(p.pixGerado) <= Math.max(maisLonga(p.semPixPrazo), maisLonga(p.semPixLimite)), idioma);
+  }
+  // a conta, nas telas estreitas: a margem da página (clamp(1rem, 0.6rem + 1.8vw, 2rem), src/app/tokens.css) e o respiro do
+  // quadro (px-4, 1rem) dos dois lados; a letra miúda é 0,9375rem. A palavra mais longa da frase nova, com folga (0,8em por
+  // letra; a Barlow, a letra do site, fica bem abaixo disso), cabe com a letra em 100, 125 e 150% (raiz de 16, 20 e 24 px)
+  const margem = (largura: number, raiz: number) => Math.min(2 * raiz, Math.max(raiz, 0.6 * raiz + (1.8 * largura) / 100));
+  const espaco = (largura: number, raiz: number) => largura - 2 * margem(largura, raiz) - 2 * raiz;
+  assert.equal(espaco(320, 24), 224);
+  const maior = Math.max(...IDIOMAS.map((idioma) => maisLonga(dicionario(idioma).pedido.pixGerado)));
+  assert.equal(maior, 9);
+  for (const largura of [320, 360, 390])
+    for (const raiz of [16, 20, 24]) assert.ok(maior * 0.8 * 0.9375 * raiz < espaco(largura, raiz), `${largura} px, raiz ${raiz} px`);
 });
 
 test('a faixa das duas páginas passa pela regra única (formasDaFaixa), na faixa e nas linhas dos itens', () => {

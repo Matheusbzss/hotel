@@ -1,0 +1,247 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
+// O formulário da Stripe que não carrega (lacuna 16 do teste de 15/11; Pacote 8, 16/11). Com a rede que deixa o script
+// da Stripe pendurado, ou com o script que carrega e o formulário que não monta, o cliente ficava diante de uma caixa
+// branca. O conserto: 15 s sem o quadro da Stripe na caixa, o aviso entra ACIMA da caixa, que continua montada (a peça
+// da Stripe para React, desmontada, deixa um formulário fantasma, e o Stripe.js recusa o seguinte: "You cannot have
+// multiple Embedded Checkout objects"; medido pelo crítico com as peças de verdade). O componente só roda no navegador
+// (React, a peça da Stripe e o atalho "@/"), então estes testes leem o código dele. Só leitura: nada é gravado.
+
+/**
+ * O código sem os comentários (os do JSX, os de bloco que começam a linha e as linhas de comentário): só o que roda. As
+ * quebras de linha do Windows (o arquivo pode estar com CRLF no disco) viram \n.
+ */
+const semComentarios = (fonte: string) =>
+  fonte
+    .replace(/\r\n/g, '\n')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/^\s*\/\*[\s\S]*?\*\//gm, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+
+const codigo = semComentarios(readFileSync(path.join('src', 'components', 'pagamento', 'CheckoutEmbutido.tsx'), 'utf8'));
+
+/** O componente CheckoutEmbutido (sem PagarPedido nem o gancho da consulta). */
+const componente = (() => {
+  const inicio = codigo.indexOf('export function CheckoutEmbutido(');
+  const fim = codigo.indexOf('export interface TextosPagarPedido');
+  assert.notEqual(inicio, -1);
+  assert.ok(fim > inicio);
+  return codigo.slice(inicio, fim);
+})();
+
+/** O efeito do prazo: do useEffect que cria o MutationObserver até as dependências dele. */
+function efeitoDoPrazo(): string {
+  const olho = componente.indexOf('new MutationObserver(');
+  assert.notEqual(olho, -1, 'o vigia da caixa (MutationObserver)');
+  const inicio = componente.lastIndexOf('useEffect(() => {', olho);
+  const deps = '}, [stripe, segredo, semStripe]);';
+  const fim = componente.indexOf(deps, olho);
+  assert.notEqual(inicio, -1);
+  assert.notEqual(fim, -1, 'o prazo recomeça com o Stripe.js, a sessão e o aviso do script barrado');
+  return componente.slice(inicio, fim + deps.length);
+}
+
+/** Na tela: o aviso "o formulário não carregou" e a caixa do formulário, nessa ordem. */
+function blocos(): { aviso: string; caixa: string } {
+  const tela = componente.slice(componente.lastIndexOf('return (\n'));
+  const aviso = tela.indexOf('{semFormulario && (');
+  const caixa = tela.indexOf('{!semStripe && (');
+  assert.notEqual(aviso, -1, 'o aviso do formulário que não carrega');
+  assert.notEqual(caixa, -1, 'a caixa do formulário, só com o script barrado fora');
+  assert.ok(aviso < caixa, 'o aviso vem acima da caixa');
+  return { aviso: tela.slice(aviso, caixa), caixa: tela.slice(caixa) };
+}
+
+/** A caixa, da condição dela até a peça da Stripe (o que fica entre as duas decide se a peça continua montada). */
+function caixaAteAPeca(): string {
+  const { caixa } = blocos();
+  const peca = caixa.indexOf('<EmbeddedCheckoutProvider');
+  assert.notEqual(peca, -1, 'a peça da Stripe dentro da caixa');
+  return caixa.slice(0, peca);
+}
+
+test('o formulário que não carrega: 15 s sem quadro da Stripe na caixa ligam o aviso do prazo (demorou), nunca o semStripe', () => {
+  assert.match(codigo, /^const ESPERA_PELO_FORMULARIO_MS = 15_000;$/m);
+  const efeito = efeitoDoPrazo();
+  // com o script barrado não há caixa nem prazo; o prazo procura o quadro da Stripe (um iframe) dentro da caixa
+  assert.match(efeito, /^useEffect\(\(\) => \{\s*if \(semStripe\) return;\s*const caixa = caixaRef\.current;\s*if \(!caixa\) return;/);
+  assert.match(efeito, /const temQuadro = \(\) => caixa\.querySelector\('iframe'\) !== null;/);
+  // passado o prazo, o aviso só entra se ainda não há quadro nenhum
+  assert.match(
+    efeito,
+    /const id = window\.setTimeout\(\(\) => \{\s*if \(!temQuadro\(\)\) setDemorou\(true\);\s*\}, ESPERA_PELO_FORMULARIO_MS\);/,
+  );
+  assert.equal(codigo.match(/ESPERA_PELO_FORMULARIO_MS/g)?.length, 2);
+  assert.equal(codigo.match(/setDemorou\(true\)/g)?.length, 1);
+  // o prazo nunca liga o semStripe: ele tiraria a caixa e desmontaria a peça da Stripe (o desenho reprovado)
+  assert.doesNotMatch(efeito, /setSemStripe/);
+  // um prazo novo a cada sessão nova (o Pix depois do cartão recusado) e a cada "Tentar de novo"
+  assert.match(efeito, /\}, \[stripe, segredo, semStripe\]\);$/);
+});
+
+test('o formulário que chega depois do prazo tira o aviso sozinho: um MutationObserver na caixa', () => {
+  const efeito = efeitoDoPrazo();
+  assert.match(
+    efeito,
+    /const olho = new MutationObserver\(\(\) => \{\s*if \(!temQuadro\(\)\) return;\s*window\.clearTimeout\(id\);\s*setDemorou\(false\);\s*\}\);/,
+  );
+  assert.match(efeito, /olho\.observe\(caixa, \{ childList: true, subtree: true \}\);/);
+  // ao sair (sessão nova, script barrado, página fechada): nem relógio nem vigia ficam para trás
+  assert.match(
+    efeito,
+    /return \(\) => \{\s*window\.clearTimeout\(id\);\s*olho\.disconnect\(\);\s*\};\s*\}, \[stripe, segredo, semStripe\]\);$/,
+  );
+  assert.equal(codigo.match(/new MutationObserver\(/g)?.length, 1);
+  // a caixa vigiada é a do formulário: uma só, a que envolve a peça da Stripe
+  assert.match(componente, /const caixaRef = useRef<HTMLDivElement>\(null\);/);
+  assert.equal(codigo.match(/ref=\{caixaRef\}/g)?.length, 1);
+  assert.match(caixaAteAPeca(), /^\{!semStripe && \(\s*<div\b[^>]*\sref=\{caixaRef\}/);
+});
+
+test('a caixa com a peça da Stripe depende só de semStripe, nunca do prazo: o aviso do prazo entra acima dela', () => {
+  const { aviso } = blocos();
+  const caixa = caixaAteAPeca();
+  // entre a condição da caixa e a peça da Stripe, nenhuma outra condição e nada do prazo
+  assert.doesNotMatch(caixa.slice('{!semStripe && ('.length), /&&|\?|\|\||demorou|semFormulario/);
+  // desde a caixa do Pix no celular (Pacote 10, opção B), o que fica entre as duas são o cartão e, dentro dele, a régua e
+  // as duas caixas da escala, nesta ordem e sem condição nenhuma. O caixaRef continua no cartão, o de fora: o vigia do
+  // prazo olha o cartão inteiro e acha o quadro da Stripe dentro da caixa que encolhe
+  assert.equal(caixa.match(/<div\b/g)?.length, 4);
+  assert.deepEqual(
+    [...caixa.matchAll(/<div\b[^>]*?\sref=\{(\w+)\}/g)].map((m) => m[1]),
+    ['caixaRef', 'reguaRef', 'foraRef', 'dentroRef'],
+  );
+  // e dentro da peça (a chave dela e o formulário que ela envolve): nada do prazo, nenhuma condição. Uma chave ou um
+  // formulário que dependesse do aviso remontaria a peça da Stripe como o desenho reprovado
+  const { caixa: caixaToda } = blocos();
+  const fimDaPeca = caixaToda.indexOf('</EmbeddedCheckoutProvider>');
+  assert.notEqual(fimDaPeca, -1, 'o fim da peça da Stripe dentro da caixa');
+  const pecaInteira = caixaToda.slice('{!semStripe && ('.length, fimDaPeca);
+  assert.doesNotMatch(pecaInteira, /&&|\?|\|\||demorou|semFormulario/);
+  assert.match(pecaInteira, /<EmbeddedCheckoutProvider key=\{segredo\} /);
+  // o aviso e a caixa são irmãos: a peça da Stripe não fica dentro do aviso
+  assert.doesNotMatch(aviso, /EmbeddedCheckout/);
+  // a troca de antes (o aviso OU a caixa) não volta: com ela, qualquer aviso desmontaria a peça da Stripe
+  assert.doesNotMatch(componente, /\{semStripe \? \(|\{semFormulario \? \(/);
+  assert.doesNotMatch(componente, /\) : \(\s*<div\b[^>]*\sref=\{caixaRef\}/);
+  // demorou só nasce e entra no aviso: nunca numa caixa, numa chave ou numa classe
+  const usos = [...componente.matchAll(/\bdemorou\b/g)].map((m) => {
+    const inicio = componente.lastIndexOf('\n', m.index) + 1;
+    return componente.slice(inicio, componente.indexOf('\n', m.index)).trim();
+  });
+  assert.deepEqual(usos, ['const [demorou, setDemorou] = useState(false);', 'const semFormulario = semStripe || demorou;']);
+  // a caixa nunca se esconde (nunca display: none): a peça da Stripe precisa dela na tela para o formulário que chega atrasado
+  assert.doesNotMatch(caixa, /className="[^"]*(?<![\w-])hidden(?![\w-])[^"]*"|display/);
+});
+
+test('a escala do celular (Pacote 10) não depende do aviso do prazo e nunca tira da tela nem monta de novo a peça da Stripe', () => {
+  const vigia = componente.indexOf('new ResizeObserver(');
+  assert.notEqual(vigia, -1, 'o vigia de tamanho da escala');
+  const inicio = componente.lastIndexOf('useEffect(() => {', vigia);
+  const deps = '}, [formaAtual, semStripe]);';
+  const fim = componente.indexOf(deps, vigia);
+  assert.notEqual(inicio, -1);
+  assert.notEqual(fim, -1);
+  const efeito = componente.slice(inicio, fim + deps.length);
+  // um efeito à parte do prazo: nada do aviso (demorou, semFormulario), nem o cartão que o vigia do prazo olha
+  assert.notEqual(inicio, componente.lastIndexOf('useEffect(() => {', componente.indexOf('new MutationObserver(')));
+  assert.doesNotMatch(efeito, /demorou|semFormulario|caixaRef|MutationObserver/);
+  // nenhum estado do React muda ali (nenhum set…(): só estilo nas duas caixas), então a escala nunca é o motivo de a peça
+  // da Stripe sair da tela ou ser montada de novo
+  assert.doesNotMatch(efeito, /(?<![\w.])set[A-Z]\w*\(/);
+});
+
+test('o primeiro efeito fica como era: o aviso no lugar da caixa só quando o Stripe.js resolve sem a Stripe', () => {
+  assert.match(
+    componente,
+    /useEffect\(\(\) => \{\s*let vivo = true;\s*stripe\.then\(\(s\) => \{\s*if \(vivo && !s\) setSemStripe\(true\);\s*\}\);\s*return \(\) => \{\s*vivo = false;\s*\};\s*\}, \[stripe\]\);/,
+  );
+  // o desenho reprovado trocava por setSemStripe(!s) e ligava o semStripe no prazo
+  assert.doesNotMatch(codigo, /setSemStripe\(!s\)/);
+  assert.equal(codigo.match(/setSemStripe\(true\)/g)?.length, 1);
+});
+
+test('o "Tentar de novo" do aviso do prazo vai à página do pedido com a página inteira carregando; o do script barrado carrega ali mesmo', () => {
+  const { aviso } = blocos();
+  assert.equal(aviso.match(/<button\b/g)?.length, 1);
+  assert.match(aviso, /<button type="button" className="botao w-full sm:w-auto" onClick=\{semStripe \? carregarDeNovo : irParaOPedido\}>/);
+  // a página do pedido como documento novo (sem o formulário que ficou para trás), de onde dá para pagar
+  assert.match(componente, /const irParaOPedido = useCallback\(\(\) => window\.location\.assign\(urlVolta\), \[urlVolta\]\);/);
+  // carregarDeNovo só no aviso do script barrado (a definição e o botão), e começa o prazo do zero
+  assert.equal(componente.match(/\bcarregarDeNovo\b/g)?.length, 2);
+  assert.match(
+    componente,
+    /function carregarDeNovo\(\) \{\s*setSemStripe\(false\);\s*setDemorou\(false\);\s*setStripe\(stripeDoNavegador\(\)\);\s*\}/,
+  );
+});
+
+test('o aviso recebe o foco ao nascer, também pelo prazo, e a frase do recebedor do Pix sai junto', () => {
+  assert.match(componente, /const semFormulario = semStripe \|\| demorou;/);
+  assert.match(componente, /useEffect\(\(\) => \{\s*if \(semFormulario\) semStripeRef\.current\?\.focus\(\);\s*\}, \[semFormulario\]\);/);
+  const { aviso } = blocos();
+  assert.match(
+    aviso,
+    /^\{semFormulario && \(\s*<div className="rounded-cartao bg-erro-claro px-5 py-4 text-mar">\s*<p ref=\{semStripeRef\} tabIndex=\{-1\} role="alert"/,
+  );
+  assert.match(componente, /\{formaAtual === 'pix' && !semFormulario && <p [^>]*>\{T\.pixRecebedor\}<\/p>\}/);
+  // nenhum texto novo: o aviso é o checkout.semStripe de sempre, com o "Tentar de novo" de sempre
+  assert.match(aviso, /\{T\.semStripe\}/);
+  assert.match(aviso, /\{T\.tentarDeNovo\}/);
+});
+
+test('o aviso é o mesmo bloco medido em 15/11 (sem rolar de lado de 320 a 1440 px, com a letra até 150%)', () => {
+  const { aviso } = blocos();
+  assert.match(aviso, /<p ref=\{semStripeRef\} tabIndex=\{-1\} role="alert" className="max-w-\[52ch\] font-semibold outline-none">/);
+  // os botões um embaixo do outro, com a largura toda, no celular; lado a lado do sm para cima
+  assert.match(aviso, /<div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">/);
+  assert.match(aviso, /<a href=\{contato\.href\} className="botao botao-vazado w-full sm:w-auto" data-evento="Contact">/);
+  // nada que segure a largura (largura fixa ou mínima, texto sem quebra); o max-w-[52ch] só limita
+  assert.doesNotMatch(aviso, /(?<![\w-])w-\[|min-w-|whitespace-nowrap|style=/);
+});
+
+// Reteste de 16-17/11 (R6): em 390 px o aviso do cartão recusado nascia com o topo a 12 px da tela, e o título "O cartão
+// não foi aprovado" ficava atrás do menu do topo (preso no alto, 4rem no celular): a tela só subia com o topo do aviso
+// ACIMA da tela (top < 0). Agora a folga é a margem de rolagem do próprio aviso (scroll-mt-24), a mesma que o
+// scrollIntoView respeita.
+test('o aviso do cartão recusado sobe para a vista sem ficar atrás do menu do topo: a folga é a margem de rolagem dele', () => {
+  const comeco = componente.indexOf("if (!recusa || formaAtual !== 'cartao') return;");
+  assert.notEqual(comeco, -1, 'o efeito que leva o aviso para a vista');
+  const inicio = componente.lastIndexOf('useEffect(() => {', comeco);
+  const deps = '}, [recusa, formaAtual]);';
+  const fim = componente.indexOf(deps, comeco);
+  assert.notEqual(fim, -1);
+  const efeito = componente.slice(inicio, fim + deps.length);
+  // a folga vem do CSS do aviso (lida na hora: cresce com a letra, como o menu); sem ela, zero, como antes
+  assert.match(efeito, /const folga = parseFloat\(getComputedStyle\(aviso\)\.scrollMarginTop\) \|\| 0;/);
+  assert.match(efeito, /const \{ top, bottom \} = aviso\.getBoundingClientRect\(\);/);
+  assert.match(efeito, /if \(top < folga \|\| bottom > window\.innerHeight\) aviso\.scrollIntoView\(\{ block: 'start' \}\);/);
+  // a conta de antes (só o topo acima da tela) não volta
+  assert.doesNotMatch(efeito, /top < 0/);
+  assert.equal(efeito.match(/scrollIntoView\(/g)?.length, 1);
+  // a margem é a do próprio aviso: scroll-mt-24 (6rem), maior que o menu (4rem no celular, 4,5rem do md para cima)
+  assert.match(componente, /<div ref=\{avisoRef\} role="alert" className="scroll-mt-24 [^"]*">/);
+});
+
+// Reteste de 16-17/11 (R2): depois de "Pagar de novo" num pedido vencido, a faixa escura do resumo continuava "Expirado"
+// com o pedido já pendente. A tela de pagar avisa a página quando a sessão nova abre (src/components/pagamento/
+// PalavraDoStatus.ts), sem redesenhá-la: com a chave do status, o redesenho desmontaria o formulário que acabou de abrir.
+test('"Pagar de novo": quando a sessão nova abre, a tela de pagar avisa a página, sem redesenhar', () => {
+  const inicio = codigo.indexOf('async function abrirCheckout(escolhida: FormaPagamento) {');
+  assert.notEqual(inicio, -1);
+  const funcao = codigo.slice(inicio, codigo.indexOf('\n  }\n', inicio));
+  // o aviso sai só com a sessão nova na mão, depois de abrir a tela do formulário, com o código do pedido
+  const ramo = funcao.slice(
+    funcao.indexOf("if ('clientSecret' in resposta) {"),
+    funcao.indexOf('} else if', funcao.indexOf("if ('clientSecret' in resposta) {")),
+  );
+  assert.match(ramo, /setEtapa\('checkout'\);\s+avisarSessaoNova\(codigoPedido\);\s*$/);
+  assert.equal(codigo.match(/avisarSessaoNova\(/g)?.length, 1);
+  // nesse ramo, nada de redesenhar a página
+  assert.doesNotMatch(ramo, /router\.|location\./);
+  // o aviso vem do arquivo pequeno da palavra (sem nada da Stripe), nunca de uma cópia aqui
+  assert.match(codigo, /^import \{ avisarSessaoNova \} from '\.\/PalavraDoStatus';$/m);
+  assert.doesNotMatch(codigo, /new CustomEvent\(|dispatchEvent\(/);
+});

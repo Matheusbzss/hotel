@@ -1,0 +1,80 @@
+/* Gerado por scripts/gerar-tokens.mjs a partir de design-dna.json. Não edite à mão. */
+@theme {
+  --color-fundo: #F4F8F8;
+  --color-papel: #FFFFFF;
+  --color-superficie: #E6EEEF;
+  --color-borda: #C3D2D4;
+  --color-borda-campo: #6F8790;
+  --color-tinta: #063643;
+  --color-tinta-suave: #4A6470;
+  --color-mar: #063643;
+  --color-acao: #F2AD47;
+  --color-sol: #F2AD47;
+  --color-turquesa: #04A7AA;
+  --color-turquesa-texto: #0A6F72;
+  --color-sucesso: #1E7A4C;
+  --color-aviso: #9A5B00;
+  --color-erro: #B3261E;
+  --color-erro-claro: #FFD9D4;
+  --color-whats: #25D366;
+  --color-brilho: #FFFFFF;
+  --color-ceu-alto: #273E6B;
+  --color-ceu-meio: #8C6A86;
+  --color-ceu-brilho: #FAC27F;
+  --color-mar-longe: #0F4A5A;
+  --color-terra: #A0926C;
+  --color-d1: #8FD3D4;
+  --color-d2: #B9DFD3;
+  --color-d3: #E4D9B8;
+  --color-d4: #F5C66E;
+  --color-d5: #F29B5C;
+
+  --font-sans: var(--font-barlow), "Arial Nova", "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-semi: var(--font-barlow-semi), var(--font-barlow), "Arial Nova", system-ui, sans-serif;
+  --font-display: var(--font-barlow-cond), var(--font-barlow-semi), "Arial Nova", system-ui, sans-serif;
+
+  --text-small: 0.9375rem;
+  --text-small--line-height: 1.45;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.35;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.5;
+  --text-lead: clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem);
+  --text-lead--line-height: 1.2;
+  --text-head: clamp(2rem, 1.45rem + 2.6vw, 3.5rem);
+  --text-head--line-height: 1.02;
+  --text-h2: clamp(1.5rem, 1.25rem + 1.2vw, 2.25rem);
+  --text-h2--line-height: 1.1;
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+  --text-display--line-height: 0.98;
+  --text-overline: 0.75rem;
+  --text-overline--line-height: 1.2;
+  --text-figure: clamp(1.375rem, 1.25rem + 0.6vw, 1.75rem);
+  --text-figure--line-height: 1;
+  --text-figure-lg: clamp(1.75rem, 1.4rem + 1.6vw, 2.75rem);
+  --text-figure-lg--line-height: 1;
+
+  --ease-padrao: cubic-bezier(0.2, 0, 0, 1);
+  --ease-saida: cubic-bezier(0.3, 0, 1, 1);
+  --radius-celula: 4px;
+  --radius-folha: 8px;
+  --radius-cartao: 8px;
+  --radius-vidro: 16px;
+}
+
+:root {
+  --vidro-foto: rgb(255 255 255 / 0.16);
+  --vidro-foto-borda: rgb(255 255 255 / 0.38);
+  --vidro-claro: rgb(255 255 255 / 0.72);
+  --vidro-claro-borda: rgb(6 54 67 / 0.12);
+  --vidro-escuro: rgb(6 54 67 / 0.72);
+  --vidro-escuro-borda: rgb(255 255 255 / 0.18);
+  --vidro-desfoque: blur(18px) saturate(160%);
+  --dur-toque: 120ms;
+  --dur-estado: 200ms;
+  --dur-entrada: 360ms;
+  --stagger: 40ms;
+  --vao-celula: 3px;
+  --margem: clamp(1rem, 0.6rem + 1.8vw, 2rem);
+  --largura-max: 1200px;
+}

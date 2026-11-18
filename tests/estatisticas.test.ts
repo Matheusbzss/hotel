@@ -1,0 +1,522 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import {
+  calcularEstatisticas,
+  escolherPeriodo,
+  marcasDoEixo,
+  paisDoTelefone,
+  parteDoFaturamento,
+  variacao,
+  verPorSemana,
+} from '../src/lib/estatisticas.ts';
+import type { CarrinhoNoFunil } from '../src/lib/estatisticas.ts';
+import { agruparPedidos, valorRecebido } from '../src/lib/pedidos-painel.ts';
+import type { Reserva, ReservaPasseio, ReservaTransfer } from '../src/lib/reservas.ts';
+import { DDIS } from '../src/lib/validacao.ts';
+
+// pedidos fictícios, só para conferir as contas (nenhum é de cliente)
+const passeio = (mudanca: Partial<ReservaPasseio> & { codigo: string }): ReservaPasseio => ({
+  token: 'token-de-teste',
+  criadaEm: '2026-11-01T12:00:00.000Z',
+  atualizadaEm: '2026-11-01T12:00:00.000Z',
+  idioma: 'es',
+  status: 'pago',
+  data: '2026-11-20',
+  totalCentavos: 10000,
+  totalPixCentavos: 9000,
+  cliente: { nome: 'Teste', email: 'teste@exemplo.com', telefone: '+54 1100000000' },
+  pagamento: { metodo: 'pix', pagoEm: '2026-11-02T15:00:00.000Z' },
+  historico: [],
+  tipo: 'passeio',
+  passeio: { slug: 'escuna-arraial', nome: 'Escuna em Arraial', cidade: 'arraial-do-cabo', unidade: 'pessoa' },
+  adultos: 2,
+  criancas: 0,
+  unidades: 1,
+  hospedagem: { cidade: 'buzios', hotel: 'Pousada Teste' },
+  ...mudanca,
+});
+
+const transfer = (mudanca: Partial<ReservaTransfer> & { codigo: string }): ReservaTransfer => ({
+  token: 'token-de-teste',
+  criadaEm: '2026-11-01T12:00:00.000Z',
+  atualizadaEm: '2026-11-01T12:00:00.000Z',
+  idioma: 'es',
+  status: 'pago',
+  data: '2026-11-19',
+  totalCentavos: 30000,
+  totalPixCentavos: 27000,
+  cliente: { nome: 'Teste', email: 'teste@exemplo.com', telefone: '+54 1100000000' },
+  pagamento: { metodo: 'cartao', pagoEm: '2026-11-02T15:00:00.000Z' },
+  historico: [],
+  tipo: 'transfer',
+  transfer: {
+    veiculo: 'carro',
+    ida: { saida: { lugar: 'galeao' }, destino: { lugar: 'buzios' }, data: '2026-11-19', hora: '10:00', precoCentavos: 30000 },
+    passageiros: 2,
+    malas: { grandes: 2, medias: 0, mao: 0 },
+    cadeirinhas: [],
+  },
+  ...mudanca,
+});
+
+const NOVEMBRO = { chave: 'outro', periodo: { de: '2026-11-01', ate: '2026-11-07' } };
+
+test('o que entrou depende da forma de pagamento', () => {
+  assert.equal(valorRecebido(passeio({ codigo: 'A' })), 9000);
+  assert.equal(valorRecebido(passeio({ codigo: 'B', pagamento: { metodo: 'cartao' } })), 10000);
+  // pago no Pix online: o total já tem o desconto
+  assert.equal(valorRecebido(passeio({ codigo: 'C', totalCentavos: 9000, totalPixCentavos: undefined })), 9000);
+  // venda antiga, sem a forma registrada
+  assert.equal(valorRecebido(passeio({ codigo: 'D', pagamento: { metodo: 'whatsapp' } })), 10000);
+});
+
+test('os vouchers ficam juntos no pedido, na ordem da viagem', () => {
+  const dados = { pedido: { codigo: 'ON-PEDIDO', totalCentavos: 40000, totalPixCentavos: 36000 } };
+  const lista: Reserva[] = [
+    passeio({ codigo: 'ON-ITEM1', ...dados, data: '2026-11-21' }),
+    passeio({ codigo: 'ON-SOZINHO', criadaEm: '2026-10-01T12:00:00.000Z' }),
+    transfer({ codigo: 'ON-ITEM2', ...dados, pagamento: { metodo: 'pix' } }),
+  ];
+  const pedidos = agruparPedidos(lista);
+  assert.deepEqual(
+    pedidos.map((p) => p.codigo),
+    ['ON-PEDIDO', 'ON-SOZINHO'],
+  );
+  assert.deepEqual(
+    pedidos[0].itens.map((i) => i.codigo),
+    ['ON-ITEM2', 'ON-ITEM1'],
+  );
+  assert.equal(pedidos[0].totalCentavos, 40000);
+  assert.equal(pedidos[0].totalPixCentavos, 36000);
+  assert.equal(pedidos[1].itens.length, 1);
+});
+
+test('o período vem dos botões, das datas digitadas ou do padrão', () => {
+  const hoje = '2026-11-06';
+  assert.deepEqual(escolherPeriodo({}, hoje), {
+    chave: '30',
+    periodo: { de: '2026-10-08', ate: hoje },
+    anterior: { de: '2026-09-08', ate: '2026-10-07' },
+  });
+  assert.deepEqual(escolherPeriodo({ periodo: '7' }, hoje).periodo, { de: '2026-10-31', ate: hoje });
+  assert.deepEqual(escolherPeriodo({ periodo: 'qualquer' }, hoje).chave, '30');
+  assert.deepEqual(escolherPeriodo({ periodo: 'tudo' }, hoje, '2026-03-01'), { chave: 'tudo', periodo: { de: '2026-03-01', ate: hoje } });
+  assert.deepEqual(escolherPeriodo({ de: '2026-10-01', ate: '2026-10-10' }, hoje), {
+    chave: 'outro',
+    periodo: { de: '2026-10-01', ate: '2026-10-10' },
+    anterior: { de: '2026-09-21', ate: '2026-09-30' },
+  });
+  // o fim não passa de hoje, e data inválida ou invertida cai no padrão
+  assert.equal(escolherPeriodo({ de: '2026-11-01', ate: '2026-12-31' }, hoje).periodo.ate, hoje);
+  assert.equal(escolherPeriodo({ de: '2026-02-30', ate: '2026-03-10' }, hoje).chave, '30');
+  assert.equal(escolherPeriodo({ de: '2026-10-10', ate: '2026-10-01' }, hoje).chave, '30');
+  // um erro no ano não faz um gráfico sem fim
+  assert.equal(escolherPeriodo({ de: '1900-01-01', ate: hoje }, hoje).periodo.de, '2023-11-04');
+  assert.equal(verPorSemana({ de: '2026-10-08', ate: hoje }), false);
+  assert.equal(verPorSemana({ de: '2026-08-09', ate: hoje }), true);
+});
+
+test('só o pedido pago no período entra na conta, pelo valor que entrou', () => {
+  const e = calcularEstatisticas(
+    [
+      passeio({ codigo: 'PIX' }),
+      passeio({ codigo: 'CARTAO', pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' } }),
+      passeio({ codigo: 'ABERTO', status: 'aguardando_whatsapp', pagamento: { metodo: 'whatsapp' } }),
+      passeio({ codigo: 'REEMBOLSADO', status: 'reembolsado' }),
+      passeio({ codigo: 'OUTUBRO', pagamento: { metodo: 'pix', pagoEm: '2026-10-20T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(e.resumo.pedidos, 2);
+  assert.equal(e.resumo.centavos, 19000);
+  assert.equal(e.resumo.ticketCentavos, 9500);
+  assert.equal(e.resumoAnterior, undefined);
+  assert.deepEqual(
+    e.porPagamento.map((f) => [f.rotulo, f.centavos, f.quantidade]),
+    [
+      ['Cartão', 10000, 1],
+      ['Pix', 9000, 1],
+    ],
+  );
+});
+
+test('o dia da venda é o de Búzios, e o gráfico tem todos os dias do período', () => {
+  const e = calcularEstatisticas(
+    [
+      // 23h de 2 de novembro em Búzios, que já é dia 3 no horário universal
+      passeio({ codigo: 'NOITE', pagamento: { metodo: 'pix', pagoEm: '2026-11-03T02:00:00.000Z' } }),
+      // sem a data do pagamento, vale a da criação do pedido
+      passeio({ codigo: 'SEMDATA', criadaEm: '2026-11-05T12:00:00.000Z', pagamento: { metodo: 'cartao' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(e.porDia.length, 7);
+  assert.deepEqual(
+    e.porDia.filter((d) => d.pedidos).map((d) => [d.de, d.centavos]),
+    [
+      ['2026-11-02', 9000],
+      ['2026-11-05', 10000],
+    ],
+  );
+  // 1º de novembro de 2026 é domingo: a primeira semana tem um dia só
+  assert.deepEqual(
+    e.porSemana.map((s) => [s.de, s.ate, s.pedidos]),
+    [
+      ['2026-11-01', '2026-11-01', 0],
+      ['2026-11-02', '2026-11-07', 2],
+    ],
+  );
+});
+
+test('os rankings contam os itens, e o país e a origem contam os pedidos', () => {
+  const dados = { pedido: { codigo: 'ON-PEDIDO', totalCentavos: 40000, totalPixCentavos: 36000 } };
+  const e = calcularEstatisticas(
+    [
+      passeio({ codigo: 'ON-ITEM1', ...dados, sugestao: true }),
+      transfer({ codigo: 'ON-ITEM2', ...dados, pagamento: { metodo: 'pix', pagoEm: '2026-11-02T15:00:00.000Z' } }),
+      passeio({
+        codigo: 'ON-CHILE',
+        cliente: { nome: 'Teste', email: 'teste@exemplo.com', telefone: '+56 900000000' },
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-02T15:00:00.000Z' },
+        origem: { utm_source: 'meta', utm_medium: 'pago', utm_campaign: 'verao' },
+      }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.deepEqual(
+    e.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [
+      ['transfer', 27000, 1],
+      ['escuna-arraial', 19000, 2],
+    ],
+  );
+  assert.deepEqual(
+    e.porCidade.map((f) => [f.chave, f.quantidade]),
+    [
+      ['transfer', 1],
+      ['arraial-do-cabo', 2],
+    ],
+  );
+  assert.deepEqual(
+    e.porPais.map((f) => [f.rotulo, f.centavos, f.quantidade]),
+    [
+      ['Argentina', 36000, 1],
+      ['Chile', 10000, 1],
+    ],
+  );
+  assert.deepEqual(
+    e.porOrigem.map((f) => [f.rotulo, f.quantidade]),
+    [
+      ['Direto ou sem origem', 1],
+      ['Meta (Instagram e Facebook)', 1],
+    ],
+  );
+  // só a venda que veio de campanha entra na lista de campanhas
+  assert.deepEqual(
+    e.porCampanha.map((f) => [f.rotulo, f.centavos]),
+    [['verao', 10000]],
+  );
+  assert.equal(e.resumo.pedidos, 2);
+  assert.equal(e.resumo.itens, 3);
+  assert.equal(e.resumo.itensPorPedido, 1.5);
+  assert.deepEqual(
+    e.itensPorPedido.map((i) => i.pedidos),
+    [1, 1, 0, 0],
+  );
+  // a soma do que entrou fecha com os rankings
+  assert.equal(e.resumo.centavos, 46000);
+  assert.deepEqual(
+    { centavos: e.sugestoes.centavos, itens: e.sugestoes.itens, pedidos: e.sugestoes.pedidos },
+    { centavos: 9000, itens: 1, pedidos: 1 },
+  );
+  assert.equal(e.resumo.sugestoesCentavos, 9000);
+  assert.deepEqual(
+    e.sugestoes.porPasseio.map((f) => f.rotulo),
+    ['Escuna em Arraial'],
+  );
+});
+
+test('o funil segue os carrinhos criados no período', () => {
+  const carrinho = (dia: string, mudanca: Partial<CarrinhoNoFunil> = {}): CarrinhoNoFunil => ({
+    criadoEm: `${dia}T12:00:00.000Z`,
+    fezPedido: false,
+    pagou: false,
+    ...mudanca,
+  });
+  const carrinhos = [
+    carrinho('2026-11-02'),
+    carrinho('2026-11-02', { checkoutEm: '2026-11-02T12:05:00.000Z' }),
+    // a marca do checkout não foi gravada, mas o pedido existe
+    carrinho('2026-11-03', { fezPedido: true }),
+    carrinho('2026-11-03', { checkoutEm: '2026-11-03T12:05:00.000Z', fezPedido: true, pagou: true }),
+    carrinho('2026-10-31', { checkoutEm: '2026-10-31T12:05:00.000Z', fezPedido: true, pagou: true }),
+  ];
+  const e = calcularEstatisticas([], carrinhos, { ...NOVEMBRO, anterior: { de: '2026-10-25', ate: '2026-10-31' } });
+  assert.deepEqual(e.funil, { carrinhos: 4, checkout: 3, pedidos: 2, pagos: 1 });
+  assert.deepEqual(e.funilAnterior, { carrinhos: 1, checkout: 1, pedidos: 1, pagos: 1 });
+});
+
+test('o país vem do código do telefone', () => {
+  assert.equal(paisDoTelefone('+55 22999990000').rotulo, 'Brasil');
+  assert.equal(paisDoTelefone('+598 99000000').rotulo, 'Uruguai');
+  assert.equal(paisDoTelefone('+1 3050000000').rotulo, 'EUA ou Canadá');
+  assert.equal(paisDoTelefone('+7 9000000000').rotulo, 'Outro país');
+  // todo código do checkout tem o nome do país em português
+  for (const { ddi, pais } of DDIS) assert.notEqual(paisDoTelefone(`+${ddi} 900000000`).rotulo, pais, `falta o nome de ${pais}`);
+});
+
+test('a comparação e as marcas do eixo', () => {
+  assert.equal(variacao(150, 100), 50);
+  assert.equal(variacao(50, 100), -50);
+  assert.equal(variacao(50, 0), null);
+  assert.equal(variacao(50, undefined), null);
+  assert.deepEqual(marcasDoEixo(0), [0, 1]);
+  assert.deepEqual(marcasDoEixo(3), [0, 1, 2, 3]);
+  assert.deepEqual(marcasDoEixo(7), [0, 2, 4, 6, 8]);
+  assert.deepEqual(marcasDoEixo(38000, 100), [0, 10000, 20000, 30000, 40000]);
+});
+
+// Desde 16/11 (o teste de 15/11 achou R$ 1.400,60 de diferença entre as duas páginas): as estatísticas fazem a conta da
+// página de pedidos, "Vendido (pagos, menos reembolsos)", e o voucher devolvido ou cancelado sozinho não é item vendido.
+
+/** Um pedido pago no cartão com dois itens, como o ON-YTMC29 do teste (os valores dele, nenhum dado de cliente). */
+const pedidoComUmDevolvido = (reembolsoCentavos: number, statusDoPasseio?: Reserva['statusItem']) => {
+  const dados = {
+    pedido: { codigo: 'ON-PEDIDO', totalCentavos: 35640 },
+    reembolsoCentavos,
+    pagamento: { metodo: 'cartao' as const, pagoEm: '2026-11-02T15:00:00.000Z' },
+    origem: { utm_source: 'meta', utm_medium: 'pago', utm_campaign: 'verao' },
+  };
+  return [
+    passeio({
+      codigo: 'ON-ITEM1',
+      ...dados,
+      totalCentavos: 13860,
+      sugestao: true,
+      ...(statusDoPasseio ? { statusItem: statusDoPasseio } : {}),
+    }),
+    transfer({ codigo: 'ON-ITEM2', ...dados, totalCentavos: 21780 }),
+  ];
+};
+
+test('o voucher devolvido sozinho: o faturamento é o que ficou, e ele não é item vendido nem entra nos rankings', () => {
+  const e = calcularEstatisticas(pedidoComUmDevolvido(13860, 'reembolsado'), [], NOVEMBRO);
+  assert.equal(e.resumo.pedidos, 1);
+  // R$ 356,40 pagos, R$ 138,60 devolvidos
+  assert.equal(e.resumo.centavos, 21780);
+  assert.equal(e.resumo.ticketCentavos, 21780);
+  assert.equal(e.resumo.itens, 1);
+  assert.equal(e.resumo.itensPorPedido, 1);
+  // o dia do gráfico leva o que ficou
+  assert.deepEqual(
+    e.porDia.filter((d) => d.pedidos).map((d) => [d.de, d.pedidos, d.centavos]),
+    [['2026-11-02', 1, 21780]],
+  );
+  // o passeio devolvido sai dos rankings por item e das sugestões
+  assert.deepEqual(
+    e.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['transfer', 21780, 1]],
+  );
+  assert.deepEqual(
+    e.porCidade.map((f) => [f.chave, f.quantidade]),
+    [['transfer', 1]],
+  );
+  assert.deepEqual(
+    { centavos: e.sugestoes.centavos, itens: e.sugestoes.itens, pedidos: e.sugestoes.pedidos },
+    { centavos: 0, itens: 0, pedidos: 0 },
+  );
+  assert.equal(e.resumo.sugestoesCentavos, 0);
+  // o pedido de dois itens com um devolvido entra em "1 item"
+  assert.deepEqual(
+    e.itensPorPedido.map((i) => i.pedidos),
+    [1, 0, 0, 0],
+  );
+  // o país, a forma de pagamento, a origem e a campanha também pelo que ficou
+  for (const fatias of [e.porPais, e.porPagamento, e.porOrigem, e.porCampanha])
+    assert.deepEqual(
+      fatias.map((f) => [f.centavos, f.quantidade]),
+      [[21780, 1]],
+    );
+  // o voucher cancelado sozinho também não é item vendido
+  assert.equal(calcularEstatisticas(pedidoComUmDevolvido(0, 'cancelado'), [], NOVEMBRO).resumo.itens, 1);
+  // sem reembolso, nada muda: os dois itens, pelo valor cheio
+  const inteiro = calcularEstatisticas(pedidoComUmDevolvido(0), [], NOVEMBRO);
+  assert.equal(inteiro.resumo.centavos, 35640);
+  assert.equal(inteiro.resumo.itens, 2);
+  assert.equal(inteiro.sugestoes.pedidos, 1);
+});
+
+test('o reembolso sem voucher (um desconto num pedido de um item): o dinheiro do pedido desce, o item fica nos rankings', () => {
+  const e = calcularEstatisticas(
+    [passeio({ codigo: 'ON-DESCONTO', reembolsoCentavos: 2000, pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' } })],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(e.resumo.centavos, 8000);
+  assert.equal(e.resumo.itens, 1);
+  assert.deepEqual(
+    e.porDia.filter((d) => d.pedidos).map((d) => d.centavos),
+    [8000],
+  );
+  assert.deepEqual(
+    e.porPagamento.map((f) => [f.rotulo, f.centavos]),
+    [['Cartão', 8000]],
+  );
+  // o limite que fica: o ranking por item só tira o voucher marcado como devolvido, então o passeio continua cheio
+  assert.deepEqual(
+    e.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['escuna-arraial', 10000, 1]],
+  );
+  assert.deepEqual(
+    e.itensPorPedido.map((i) => i.pedidos),
+    [1, 0, 0, 0],
+  );
+});
+
+test('a página de pedidos e as estatísticas dão o mesmo número (o período "Tudo")', () => {
+  // a conta da página de pedidos, lida do código dela
+  const pagina = readFileSync(path.join('src', 'app', 'admin', 'page.tsx'), 'utf8');
+  assert.match(pagina, /const receita = pagos\.reduce\(\(s, p\) => s \+ p\.recebidoCentavos - p\.reembolsoCentavos, 0\);/);
+  assert.match(pagina, /Vendido \(pagos, menos reembolsos\)/);
+  const reservas: Reserva[] = [
+    // pago no Pix, sem reembolso: R$ 90,00
+    passeio({ codigo: 'ON-PIX' }),
+    // pago no cartão, com um voucher devolvido: R$ 217,80 dos R$ 356,40
+    ...pedidoComUmDevolvido(13860, 'reembolsado'),
+    // pago no cartão, com um desconto sem voucher: R$ 80,00 dos R$ 100,00
+    passeio({ codigo: 'ON-DESCONTO', reembolsoCentavos: 2000, pagamento: { metodo: 'cartao', pagoEm: '2026-10-20T15:00:00.000Z' } }),
+    // fora da conta: reembolsado inteiro, contestado e esperando pagamento
+    passeio({ codigo: 'ON-REEMBOLSADO', status: 'reembolsado', reembolsoCentavos: 9000 }),
+    passeio({ codigo: 'ON-CONTESTADO', status: 'contestado' }),
+    passeio({ codigo: 'ON-PENDENTE', status: 'pendente', pagamento: { metodo: 'pix' } }),
+  ];
+  const pagos = agruparPedidos(reservas).filter((p) => p.status === 'pago');
+  const receita = pagos.reduce((s, p) => s + p.recebidoCentavos - p.reembolsoCentavos, 0);
+  assert.equal(receita, 9000 + 21780 + 8000);
+  const e = calcularEstatisticas(reservas, [], escolherPeriodo({ periodo: 'tudo' }, '2026-11-16', '2026-10-01'));
+  assert.equal(e.resumo.pedidos, pagos.length);
+  assert.equal(e.resumo.centavos, receita);
+  // o gráfico e os rankings por pedido fecham com o mesmo número
+  assert.equal(
+    e.porDia.reduce((s, d) => s + d.centavos, 0),
+    receita,
+  );
+  for (const fatias of [e.porPais, e.porPagamento, e.porOrigem])
+    assert.equal(
+      fatias.reduce((s, f) => s + f.centavos, 0),
+      receita,
+    );
+  // e a página das estatísticas diz que é o número sem os reembolsos, num rótulo que pode quebrar a linha no celular
+  const estatisticas = readFileSync(path.join('src', 'app', 'admin', 'estatisticas', 'page.tsx'), 'utf8');
+  assert.match(estatisticas, /<p className="text-small text-tinta-suave">Faturamento \(menos reembolsos\)<\/p>/);
+});
+
+// Pacote 11 (16/11): a parte "do faturamento" das sugestões passava de 100% com um desconto sem voucher (o valor cheio do
+// item sugerido sobre o faturamento já descontado). As sugestões passam a vir na mesma base do faturamento.
+
+test('as sugestões na base do faturamento: com um desconto, a parte delas "do faturamento" nunca passa de 100%', () => {
+  // um pedido de um item sugerido, R$ 100,00 no cartão, com R$ 20,00 de desconto sem voucher
+  const sozinho = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-SUGERIDO',
+        sugestao: true,
+        reembolsoCentavos: 2000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(sozinho.resumo.centavos, 8000);
+  // antes: R$ 100,00 de sugestões sobre R$ 80,00 de faturamento, "125% do faturamento"
+  assert.equal(sozinho.resumo.sugestoesCentavos, 8000);
+  assert.equal(sozinho.sugestoes.centavos, 8000);
+  assert.equal(parteDoFaturamento(sozinho.resumo.sugestoesCentavos, sozinho.resumo.centavos), 100);
+  // o ranking das sugestões, como os outros rankings por item, continua com o valor cheio do item (o limite que fica)
+  assert.deepEqual(
+    sozinho.sugestoes.porPasseio.map((f) => [f.chave, f.centavos, f.quantidade]),
+    [['escuna-arraial', 10000, 1]],
+  );
+
+  // dois pedidos: o do item sugerido com R$ 50,00 de desconto e outro sem sugestão; o desconto é só do pedido dele
+  const dois = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-COMDESCONTO',
+        sugestao: true,
+        reembolsoCentavos: 5000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+      passeio({ codigo: 'ON-OUTRO', pagamento: { metodo: 'cartao', pagoEm: '2026-11-04T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(dois.resumo.centavos, 15000);
+  assert.equal(dois.resumo.sugestoesCentavos, 5000);
+  assert.equal(Math.round(parteDoFaturamento(dois.resumo.sugestoesCentavos, dois.resumo.centavos) * 10) / 10, 33.3);
+
+  // um pedido de dois itens no Pix, o passeio sugerido (R$ 90,00) e o transfer (R$ 270,00), com R$ 36,00 de desconto: o
+  // desconto desce na proporção de cada item
+  const dados = { pedido: { codigo: 'ON-PEDIDO', totalCentavos: 40000, totalPixCentavos: 36000 }, reembolsoCentavos: 3600 };
+  const misto = calcularEstatisticas(
+    [
+      passeio({ codigo: 'ON-ITEM1', ...dados, sugestao: true }),
+      transfer({ codigo: 'ON-ITEM2', ...dados, pagamento: { metodo: 'pix', pagoEm: '2026-11-02T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(misto.resumo.centavos, 32400);
+  assert.equal(misto.resumo.sugestoesCentavos, 8100);
+  assert.equal(parteDoFaturamento(misto.resumo.sugestoesCentavos, misto.resumo.centavos), 25);
+
+  // um dado fora do comum (mais devolvido do que entrou) não leva a parte além de 100%
+  const estranho = calcularEstatisticas(
+    [
+      passeio({
+        codigo: 'ON-ESTRANHO',
+        sugestao: true,
+        reembolsoCentavos: 12000,
+        pagamento: { metodo: 'cartao', pagoEm: '2026-11-03T15:00:00.000Z' },
+      }),
+      passeio({ codigo: 'ON-NORMAL', sugestao: true, pagamento: { metodo: 'cartao', pagoEm: '2026-11-04T15:00:00.000Z' } }),
+    ],
+    [],
+    NOVEMBRO,
+  );
+  assert.equal(estranho.resumo.centavos, 8000);
+  assert.equal(estranho.resumo.sugestoesCentavos, 10000);
+  assert.equal(parteDoFaturamento(estranho.resumo.sugestoesCentavos, estranho.resumo.centavos), 100);
+
+  // a conta: de 0 a 100, e 0 sem faturamento
+  assert.equal(parteDoFaturamento(5000, 10000), 50);
+  assert.equal(parteDoFaturamento(10000, 10000), 100);
+  assert.equal(parteDoFaturamento(15000, 10000), 100);
+  assert.equal(parteDoFaturamento(0, 10000), 0);
+  assert.equal(parteDoFaturamento(-5000, 10000), 0);
+  assert.equal(parteDoFaturamento(5000, 0), 0);
+  assert.equal(parteDoFaturamento(5000, -100), 0);
+  assert.equal(parteDoFaturamento(Number.NaN, 10000), 0);
+});
+
+test('a página das estatísticas: as duas partes "do faturamento" não passam de 100%, e o subtítulo diz "menos reembolsos"', () => {
+  const pagina = readFileSync(path.join('src', 'app', 'admin', 'estatisticas', 'page.tsx'), 'utf8').replace(/\r/g, '');
+  assert.match(pagina, /Só pedidos pagos, no dia do pagamento e pelo valor que entrou \(no Pix, com o desconto\), menos reembolsos/);
+  // o número das sugestões e o cartão delas, com a conta que não passa de 100%, sobre o mesmo faturamento
+  assert.match(
+    pagina,
+    /const doFaturamento = \(centavos: number, faturamento: number\) =>\s+`\$\{decimal\(parteDoFaturamento\(centavos, faturamento\)\)\}% do faturamento`;/,
+  );
+  assert.equal(pagina.match(/doFaturamento\(r\.sugestoesCentavos, r\.centavos\)/g)?.length, 1);
+  assert.equal(pagina.match(/doFaturamento\(e\.sugestoes\.centavos, r\.centavos\)/g)?.length, 1);
+  // nenhuma outra conta escreve "do faturamento"
+  assert.equal(pagina.match(/do faturamento`/g)?.length, 1);
+  assert.doesNotMatch(pagina, /porcento\([^)]*\)\} do faturamento/);
+});

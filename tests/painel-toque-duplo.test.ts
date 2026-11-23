@@ -951,7 +951,8 @@ test('o botão do painel manda a busca num campo escondido, e a rota a devolve e
   );
   // todo botão do painel leva a busca, e ela desce da página até ele por todos os componentes do pedido
   const botoes = [...pagina.matchAll(/<BotaoAcao\b[^>]*?\/>/g)].map((m) => m[0]);
-  assert.equal(botoes.length, 7);
+  // 7 + 1 do Pacote 22 (os dois botões do pagamento parado de um pedido cancelado, num BotaoAcao só, de uma lista)
+  assert.equal(botoes.length, 8);
   for (const b of botoes) assert.match(b, /\sfiltro=\{filtro\}\s+busca=\{busca\}/, b);
   for (const componente of ['Acoes', 'ReembolsoStripe', 'ReembolsoQueFalhou', 'ReembolsoSemVoucherNoPainel'])
     assert.match(pagina, new RegExp(`<${componente} p=\\{p\\} filtro=\\{filtro\\} busca=\\{busca\\}`), componente);

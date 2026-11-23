@@ -145,6 +145,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           // o de sempre, o parcial e, com um reembolso que falhou na Stripe, o pendente e o devolvido de outro jeito
           ...textosDoReembolso(d),
           reembolsoPendenteTitulo: d.pedido.reembolsoPendenteTitulo,
+          // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22)
+          pagamentoRetido: d.pedido.pagamentoRetido,
           noPix: d.preco.noPix,
           noCartao: d.preco.noCartao,
           dolar: d.preco.dolar,

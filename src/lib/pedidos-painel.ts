@@ -1,6 +1,6 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
-import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho } from './email/marcas.ts';
+import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho, marcaDoAvisoDoPagamentoRetido } from './email/marcas.ts';
 import { PIX_EXPIRADO, chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import {
   avisoDeReembolsoFechado,
@@ -72,6 +72,16 @@ const contestacaoTerminaDepois = (historico: readonly { evento: string }[], indi
 export function avisoAberto(historico: readonly { evento: string }[], indice: number): boolean {
   const linha = historico[indice]?.evento ?? '';
   if (!ehAviso(linha)) return false;
+  // o pagamento que chegou para o pedido cancelado (Pacote 22): aberto até a linha da decisão da equipe sobre ele, ou até
+  // uma linha do charge.refunded (planoDoReembolso, eventos.ts): num pedido cancelado com o parado, o pagamento do pedido
+  // é o parado, e o reembolso feito direto na Stripe (ou confirmado antes da linha da decisão) também o fecha
+  const retido = AVISO_DO_PAGAMENTO_RETIDO.exec(linha);
+  if (retido) {
+    const decisao = inicioDaDecisaoDoRetido(retido[1]);
+    return !historico
+      .slice(indice + 1)
+      .some((h) => h.evento.startsWith(decisao) || h.evento.startsWith('Reembolso total (') || h.evento.startsWith('Reembolso de '));
+  }
   const fechado = avisoDeReembolsoFechado(historico, indice);
   if (fechado !== null) return !fechado;
   if (PARADO_PELA_CONTESTACAO.test(linha)) return !contestacaoTerminaDepois(historico, indice);
@@ -105,6 +115,8 @@ export const ERROS_DO_PAINEL = {
   'falta-confirmar': 'Marque a caixa de confirmação antes de continuar. Nada foi feito.',
   'nada-a-devolver':
     'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
+  // o pagamento parado de um pedido cancelado (Pacote 22): a reativação relê o pagamento na Stripe antes de gravar
+  'stripe-fora': 'Não deu para conferir o pagamento na Stripe agora. Nada foi feito. Tente de novo em instantes.',
   'voucher-maior-que-o-resto':
     'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
 } as const;
@@ -406,8 +418,8 @@ export const pedidoNuncaPago = (r: Pick<Reserva, 'status' | 'pagamento' | 'histo
  * oferece "Marcar reembolsado" (não há o que devolver); a rota do painel recusa essa ação feita por uma aba antiga
  * (acao-nao-vale). O pedido pago pelo WhatsApp, mesmo cancelado depois, fica como sempre. O pedido da Stripe fica de fora:
  * nele o painel nunca oferece "Marcar reembolsado", e o pagamento que chega depois do cancelamento fica só numa linha do
- * histórico ("Pagamento na Stripe de um pedido cancelado (…): devolver ao cliente"), sem a hora do pagamento: ali "não
- * pago" seria falso.
+ * histórico ("Pagamento na Stripe de um pedido cancelado (…): devolver ao cliente") ou, desde o Pacote 22, fica parado na
+ * Stripe à espera da equipe (pagamento.retido), sem a hora do pagamento: ali "não pago" seria falso.
  */
 export const naoPagoNoPainel = (p: Pick<PedidoPainel, 'provedor' | 'itens'>): boolean =>
   p.provedor !== 'stripe' && p.itens[0] !== undefined && pedidoNuncaPago(p.itens[0]);
@@ -607,7 +619,10 @@ export function reembolsoNoPainel(p: PedidoPainel): ReembolsoNoPainel {
   const r = p.itens[0];
   if (p.provedor !== 'stripe' || !r?.paymentIntentId) return { tipo: 'nenhum' };
   if (p.status === 'contestado') return { tipo: 'contestado' };
-  if (p.status !== 'pago' && p.status !== 'reembolsado') return { tipo: 'nenhum' };
+  // o pagamento que chegou com o pedido cancelado e que a equipe mandou devolver (Pacote 22): o pedido continua cancelado,
+  // e a devolução que falhar na Stripe segue o caminho de sempre ("Falta devolver …", o botão de registrar e a faixa)
+  const devolucaoDoRetido = p.status === 'cancelado' && r.pagamento.retido?.decisao?.acao === 'devolver';
+  if (p.status !== 'pago' && p.status !== 'reembolsado' && !devolucaoDoRetido) return { tipo: 'nenhum' };
   const pago = p.status === 'pago';
   const varios = p.itens.length > 1;
   const semVoucher = pago && varios ? reembolsosSemVoucher(r.historico).filter((s) => !s.resolvido) : [];
@@ -863,6 +878,170 @@ export function acaoManualOferecida(r: Pick<Reserva, 'status' | 'provedor' | 'pa
     default:
       return false;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* O pagamento que chega para um pedido cancelado (Pacote 22, 23/11)    */
+
+// Decisão do dono de 23/11/2026: o pagamento que chega para um pedido que a equipe já cancelou e que nunca foi pago não
+// volta sozinho ao cliente. O dinheiro fica parado na Stripe (pagamento.retido, gravado por aplicarSessao, a porta única,
+// src/lib/pagamento-stripe.ts) e a equipe decide no painel: devolver ao cliente ou reativar o pedido. Cancelar no painel
+// já fecha a sessão e cancela o Pix do QR: isto só acontece numa corrida (o cliente paga no instante do cancelamento) ou
+// com uma sessão criada fora do site.
+
+/** A linha destacada do histórico, escrita uma vez, quando o pagamento fica parado. */
+export const avisoDoPagamentoRetido = (centavos: number, paymentIntentId: string): string =>
+  `Aviso: chegou um pagamento de ${cifra(centavos)} para este pedido cancelado (${paymentIntentId}): decidir no painel se devolve o dinheiro ou reativa o pedido`;
+/** A mesma linha, lida de volta: o id do pagamento. */
+const AVISO_DO_PAGAMENTO_RETIDO = /^Aviso: chegou um pagamento de .+? para este pedido cancelado \(([^()]+)\): decidir no painel/;
+
+/** O começo das duas linhas da decisão da equipe sobre o pagamento parado: elas fecham o aviso (avisoAberto). */
+export const inicioDaDecisaoDoRetido = (paymentIntentId: string): string => `Decisão sobre o pagamento ${paymentIntentId}`;
+/** A equipe mandou devolver: a linha do pedido à Stripe, com o id do reembolso (como as outras devoluções pedidas). */
+export const linhaDaDevolucaoDoRetido = (paymentIntentId: string, centavos: number, reembolsoId: string): string =>
+  `${inicioDaDecisaoDoRetido(paymentIntentId)}: devolver ${cifra(centavos)} ao cliente. Devolução solicitada na Stripe (${reembolsoId}); o pedido continua cancelado`;
+/** A equipe reativou o pedido: ele fica pago com este pagamento, e os vouchers voltam a valer. */
+export const linhaDaReativacao = (paymentIntentId: string, centavos: number): string =>
+  `${inicioDaDecisaoDoRetido(paymentIntentId)}: pedido reativado no painel, pago com este pagamento (${cifra(centavos)}); os vouchers voltam a valer`;
+
+/** As duas ações do pagamento parado, na ordem dos botões do painel. */
+export const ACOES_DO_PAGAMENTO_RETIDO = ['devolver_retido', 'reativar_retido'] as const;
+export type AcaoDoPagamentoRetido = (typeof ACOES_DO_PAGAMENTO_RETIDO)[number];
+
+/** O pedido como a regra do pagamento parado o lê (o voucher que representa o pedido). */
+export type PedidoComPagamentoRetido = Pick<Reserva, 'status' | 'provedor' | 'pagamento' | 'reembolsoCentavos'>;
+
+/**
+ * A regra única das duas ações do pagamento parado: a página do painel monta os botões por ela e a rota do painel a
+ * confere de novo dentro da trava de versão, com o pedido relido (como acaoManualOferecida). Só no pedido da Stripe ainda
+ * cancelado, com o pagamento parado e sem nada devolvido a ele (um reembolso feito direto na Stripe também encerra a
+ * escolha):
+ * - 'reativar_retido': enquanto a equipe não decidiu nada;
+ * - 'devolver_retido': enquanto não decidiu nada e também na devolução começada sem a resposta da Stripe (a função
+ *   cortada no meio, ou o segundo toque de quem começou): o mesmo botão completa, com a mesma chave de idempotência, e a
+ *   Stripe devolve o mesmo reembolso.
+ * As duas se excluem: reativado, nada de devolver; devolução começada, nada de reativar. Uma ação desconhecida nunca vale.
+ */
+export function acaoDoRetidoOferecida(r: PedidoComPagamentoRetido, acao: string): boolean {
+  const retido = r.pagamento.retido;
+  if (!retido || r.status !== 'cancelado' || provedorDaReserva(r) !== 'stripe' || (r.reembolsoCentavos ?? 0) > 0) return false;
+  const d = retido.decisao;
+  switch (acao) {
+    case 'devolver_retido':
+      return !d || (d.acao === 'devolver' && !d.reembolsoId);
+    case 'reativar_retido':
+      return !d;
+    default:
+      return false;
+  }
+}
+
+/**
+ * A ação já está feita (o duplo toque, ou a aba antiga, depois de ela dar certo): a devolução com o reembolso já gravado,
+ * ou o pedido já reativado com este pagamento. A rota volta como a que deu certo, sem gravar nada.
+ */
+export function acaoDoRetidoRepetida(r: Pick<Reserva, 'pagamento'>, acao: string): boolean {
+  const d = r.pagamento.retido?.decisao;
+  if (acao === 'devolver_retido') return d?.acao === 'devolver' && Boolean(d.reembolsoId);
+  if (acao === 'reativar_retido') return d?.acao === 'reativar';
+  return false;
+}
+
+/**
+ * "Devolver R$ … ao cliente", passo 1, dentro da trava de versão e ANTES de pedir à Stripe: marca a decisão de devolver
+ * (sem o reembolso ainda), para a reativação não valer mais. 'gravar': esta requisição marcou (gravar o pedido);
+ * 'ja-marcada': a devolução já estava começada (o segundo toque de quem começou, ou a volta depois de uma falha no meio):
+ * nada a gravar, e a requisição segue (a Stripe devolve o mesmo reembolso pela chave de idempotência); 'nao-vale': a regra
+ * não vale mais com o pedido relido (reativado, devolvido, outro pagamento): nada a gravar, e nada é pedido à Stripe.
+ */
+export function marcarDevolucaoDoRetido(
+  r: PedidoComPagamentoRetido,
+  paymentIntentId: string,
+  agoraIso: string,
+): 'gravar' | 'ja-marcada' | 'nao-vale' {
+  const retido = r.pagamento.retido;
+  if (!retido || retido.paymentIntentId !== paymentIntentId || !acaoDoRetidoOferecida(r, 'devolver_retido')) return 'nao-vale';
+  if (retido.decisao) return 'ja-marcada';
+  retido.decisao = { acao: 'devolver', em: agoraIso };
+  return 'gravar';
+}
+
+/**
+ * A Stripe não devolveu (a rede, a Stripe fora do ar, a recusa): tira a marca da devolução começada, se ela ainda está sem
+ * o reembolso, e o pedido volta à escolha (os dois botões). true: houve o que gravar.
+ */
+export function desfazerDevolucaoDoRetido(r: Pick<Reserva, 'pagamento'>, paymentIntentId: string): boolean {
+  const retido = r.pagamento.retido;
+  if (!retido || retido.paymentIntentId !== paymentIntentId || retido.decisao?.acao !== 'devolver' || retido.decisao.reembolsoId) {
+    return false;
+  }
+  delete retido.decisao;
+  return true;
+}
+
+/**
+ * "Devolver R$ … ao cliente", passo 2, dentro da trava, com o reembolso que a Stripe devolveu: grava o id do reembolso na
+ * decisão e a linha do pedido à Stripe (linhaDaDevolucaoDoRetido), uma vez só. Devolve a linha a registrar, '' quando só
+ * a decisão muda (a linha já estava lá), ou null quando não há nada a gravar: o segundo toque (o mesmo reembolso já
+ * gravado) e o pedido reativado no meio-tempo.
+ */
+export function concluirDevolucaoDoRetido(
+  r: Pick<Reserva, 'pagamento' | 'historico'>,
+  paymentIntentId: string,
+  reembolso: { id: string; centavos: number },
+  agoraIso: string,
+): string | null {
+  const retido = r.pagamento.retido;
+  if (!retido || retido.paymentIntentId !== paymentIntentId || retido.decisao?.acao === 'reativar') return null;
+  const anotado = r.historico.some((h) => h.evento.includes(`(${reembolso.id})`));
+  if (retido.decisao?.reembolsoId === reembolso.id && anotado) return null;
+  retido.decisao = { acao: 'devolver', em: retido.decisao?.em ?? agoraIso, reembolsoId: reembolso.id };
+  return anotado ? '' : linhaDaDevolucaoDoRetido(paymentIntentId, reembolso.centavos, reembolso.id);
+}
+
+/** O pedido tem um pagamento parado esperando a decisão da equipe (a frase vermelha, a faixa e os botões). */
+export const pagamentoRetidoADecidir = (r: PedidoComPagamentoRetido): boolean => acaoDoRetidoOferecida(r, 'devolver_retido');
+
+/** A frase vermelha do cartão do pedido com o pagamento parado. */
+export const fraseDoPagamentoRetido = (centavos: number): string =>
+  `Este pedido estava cancelado e recebeu um pagamento de ${cifra(centavos)}. O dinheiro está parado na Stripe: escolha devolver ao cliente ou reativar o pedido.`;
+
+/** Os dois botões, cada um com a caixa de confirmar (a de devolver é a mesma dos outros reembolsos). */
+export const botaoDevolverRetido = (centavos: number) => ({
+  rotulo: `Devolver ${cifra(centavos)} ao cliente`,
+  confirmacao: confirmacaoDoReembolso(centavos),
+});
+export const BOTAO_REATIVAR_RETIDO = {
+  rotulo: 'Reativar o pedido (fica pago)',
+  confirmacao: 'Confirmo: o pedido volta a valer, pago, e o cliente recebe o e-mail com os vouchers.',
+} as const;
+
+/** Quantos pedidos têm um pagamento parado esperando a decisão (a faixa do topo). */
+export const contarPagamentosRetidos = (pedidos: readonly Pick<PedidoPainel, 'itens'>[]): number =>
+  pedidos.filter((p) => p.itens[0] !== undefined && pagamentoRetidoADecidir(p.itens[0])).length;
+
+/** A faixa do topo do painel; nenhuma sem pedido. */
+export const avisoDosPagamentosRetidos = (n: number): string | null =>
+  n <= 0
+    ? null
+    : n === 1
+      ? '1 pedido cancelado recebeu pagamento: decidir se devolve ou reativa'
+      : `${n} pedidos cancelados receberam pagamento: decidir se devolve ou reativa`;
+
+/**
+ * O e-mail à equipe do pagamento parado (enviarAvisoDoPagamentoRetido, src/lib/email/pedidos.ts), lido do pedido: o
+ * valor, ou null quando o e-mail deste pagamento já saiu (marcaDoAvisoDoPagamentoRetido), o pagamento parado do pedido é
+ * outro ou já não há o que decidir (a equipe decidiu antes de o e-mail sair). Um por pagamento.
+ */
+export function avisoDoPagamentoRetidoPorEmail(
+  r: PedidoComPagamentoRetido & Pick<Reserva, 'historico'>,
+  paymentIntentId: string,
+): { centavos: number } | null {
+  const marca = marcaDoAvisoDoPagamentoRetido(paymentIntentId);
+  if (r.historico.some((h) => h.evento.startsWith(marca))) return null;
+  const retido = r.pagamento.retido;
+  if (!retido || retido.paymentIntentId !== paymentIntentId || !pagamentoRetidoADecidir(r)) return null;
+  return { centavos: retido.valorCentavos };
 }
 
 /* ------------------------------------------------------------------ */

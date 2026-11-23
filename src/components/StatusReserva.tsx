@@ -471,7 +471,8 @@ export function StatusReserva({
     pendente: { titulo: statusTextos.pendente, texto: textos.atualizaSozinho },
     recusado: { titulo: textos.recusadoTitulo, texto: textos.recusadoTexto },
     expirado: { titulo: textos.expiradoTitulo, texto: textos.expiradoTexto },
-    cancelado: { titulo: textos.canceladoTitulo, texto: textos.canceladoTexto },
+    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto
+    cancelado: { titulo: textos.canceladoTitulo, texto: r.pagamentoRetido ? textos.pagamentoRetido : textos.canceladoTexto },
     // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; depois que a
     // equipe devolve de outro jeito, a frase diz isso. Uma frase por parágrafo; sem falha, a frase de sempre
     reembolsado: {

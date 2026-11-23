@@ -63,6 +63,8 @@ export const ajustesAR: AjustesAR = {
     contestadoTextoVarios:
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, los vouchers quedan suspendidos. Si tenés dudas, escribinos.',
     reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tenés dudas, escribinos.',
+    // Pacote 22: o pagamento que chegou para o pedido cancelado ("con vos")
+    pagamentoRetido: 'Recibimos un pago para este pedido, que estaba cancelado. Nuestro equipo se va a comunicar con vos para resolverlo.',
   },
   boletim: {
     escolha: 'Tocá un paseo para ver el total y reservar.',

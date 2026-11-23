@@ -204,9 +204,13 @@ test('a leitura do pedido traz o valor devolvido e as partes (o que a consulta j
   const gancho = codigo('components', 'pagamento', 'useStatusDoPedido.ts');
   assert.match(
     gancho,
-    /export type LeituraDoPedido = Pick<ReservaPublica, 'status' \| 'recusa' \| 'reembolsoCentavos' \| 'reembolsoPartes'>;/,
+    /export type LeituraDoPedido = Pick<ReservaPublica, 'status' \| 'recusa' \| 'reembolsoCentavos' \| 'reembolsoPartes' \| 'pagamentoRetido'>;/,
   );
-  assert.match(gancho, /export type LeituraQueRedesenha = Pick<LeituraDoPedido, 'status' \| 'reembolsoCentavos' \| 'reembolsoPartes'>;/);
+  // + o pagamento parado do pedido cancelado (Pacote 22): a decisão da equipe muda a frase da página aberta
+  assert.match(
+    gancho,
+    /export type LeituraQueRedesenha = Pick<LeituraDoPedido, 'status' \| 'reembolsoCentavos' \| 'reembolsoPartes' \| 'pagamentoRetido'>;/,
+  );
   // a resposta é a de sempre: o paraPublico do voucher consultado, que já tem os dois valores
   const rota = codigo('app', 'api', 'reservas', '[codigo]', 'route.ts');
   assert.match(rota, /reserva: paraPublico\(reserva, idioma\)/);

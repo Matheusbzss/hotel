@@ -11,34 +11,42 @@ import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import {
+  ACOES_DO_PAGAMENTO_RETIDO,
   ACOES_MANUAIS_DO_PAINEL,
+  BOTAO_REATIVAR_RETIDO,
   BUSCA_DO_PAINEL_MAXIMO,
   EM_ABERTO,
   NAO_PAGO,
   NENHUM_VOUCHER,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
+  acaoDoRetidoOferecida,
   acaoManualOferecida,
   agruparPedidos,
   avisoAberto,
   avisosDeContestacao,
+  avisoDosPagamentosRetidos,
   avisosDeReembolso,
+  botaoDevolverRetido,
   botaoDevolvidoPorFora,
   botaoReembolsoDoVoucher,
   botaoVoucherDaStripe,
   botaoVoucherPorFora,
   buscaDoPainel,
   confirmacaoDoReembolso,
+  contarPagamentosRetidos,
   contarReembolsosAResolver,
   contestacoesAbertas,
   devolucaoNoPainel,
   formaEProvedorNoPainel,
   fraseDoErro,
+  fraseDoPagamentoRetido,
   fraseDoReembolsoSemVoucher,
   frasesDoReembolsoNoPainel,
   motivoNoPainel,
   naoPagoNoPainel,
   oQueFazerNaContestacao,
+  pagamentoRetidoADecidir,
   reembolsoNoPainel,
   reembolsoParaResolver,
   seloDoPedidoNoPainel,
@@ -93,6 +101,18 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (
   // contestação (as três faixas do topo levam para cá)
   { valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: (p) => reembolsoParaResolver(p) },
   { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
+];
+
+/**
+ * Os filtros que só a faixa do topo abre, sem botão na barra (a barra de filtros não muda no celular): os pedidos
+ * cancelados que receberam um pagamento ainda à espera da decisão da equipe (Pacote 22).
+ */
+const FILTROS_DAS_FAIXAS: typeof FILTROS = [
+  {
+    valor: 'pagamentos-a-decidir',
+    rotulo: 'Pagamentos a decidir',
+    so: (p) => p.itens[0] !== undefined && pagamentoRetidoADecidir(p.itens[0]),
+  },
 ];
 
 const dataHora = (iso?: string) =>
@@ -488,8 +508,34 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
   if (desistenciaParaResponder(p.itens)) {
     acoes.push({ acao: 'desistencia_respondida', rotulo: rotuloDaDesistenciaRespondida(p.reembolsoCentavos) });
   }
+  // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ou reativar, cada um
+  // com a sua caixa "Confirmo", pela mesma regra que a rota confere de novo dentro da trava (acaoDoRetidoOferecida)
+  const retido = r.pagamento.retido;
+  const botoesDoRetido = retido
+    ? ACOES_DO_PAGAMENTO_RETIDO.filter((acao) => acaoDoRetidoOferecida(r, acao)).map((acao) =>
+        acao === 'devolver_retido'
+          ? { acao, ...botaoDevolverRetido(retido.valorCentavos), cor: 'bg-erro-claro' }
+          : { acao, ...BOTAO_REATIVAR_RETIDO, cor: 'bg-superficie' },
+      )
+    : [];
   return (
     <div className="flex min-w-0 flex-col items-start gap-3">
+      {botoesDoRetido.length > 0 && (
+        <div className="max-w-xl space-y-3">
+          {botoesDoRetido.map((b) => (
+            <BotaoAcao
+              key={b.acao}
+              voucher={r.codigo}
+              acao={b.acao}
+              rotulo={b.rotulo}
+              confirmacao={b.confirmacao}
+              filtro={filtro}
+              busca={busca}
+              cor={b.cor}
+            />
+          ))}
+        </div>
+      )}
       {(acoes.length > 0 || reembolso.tipo === 'stripe') && (
         <div className="flex flex-wrap items-start gap-2">
           {acoes.map((a) => (
@@ -615,6 +661,10 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
             "Reembolso pendente", como as linhas dos vouchers e a página do cliente (seloDoPedidoNoPainel) */}
         <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{seloDoPedidoNoPainel(p)}</span>
         {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
+        {/* o pagamento que chegou com o pedido cancelado, à espera da decisão (Pacote 22) */}
+        {r.pagamento.retido && pagamentoRetidoADecidir(r) && (
+          <p className="mt-2 text-small font-semibold text-[#7a1f12]">{fraseDoPagamentoRetido(r.pagamento.retido.valorCentavos)}</p>
+        )}
         {desistenciaParaResponder(p.itens) && (
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">
             Pedido de desistência pelo site: responder em até 1 dia útil. Antes de estornar, confirme com o titular pelo e-mail ou WhatsApp
@@ -728,7 +778,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   } catch (e) {
     erroBanco = String(e instanceof Error ? e.message : e);
   }
-  const filtro = FILTROS.find((f) => f.valor === filtroAtual) ?? FILTROS[0];
+  const filtro = [...FILTROS, ...FILTROS_DAS_FAIXAS].find((f) => f.valor === filtroAtual) ?? FILTROS[0];
   const pedidos = agruparPedidos(todas);
   const lista = pedidos.filter(
     (p) =>
@@ -751,6 +801,8 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   const desistencias = pedidos.filter((p) => desistenciaParaResponder(p.itens)).length;
   // os reembolsos que pedem uma ação da equipe (as contas são por pedido): também valem sem os e-mails
   const reembolsos = avisosDeReembolso(contarReembolsosAResolver(pedidos));
+  // os pedidos cancelados que receberam um pagamento ainda à espera da decisão (Pacote 22): também valem sem os e-mails
+  const pagamentosRetidos = avisoDosPagamentosRetidos(contarPagamentosRetidos(pedidos));
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">
@@ -809,6 +861,11 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
           {aviso} →
         </a>
       ))}
+      {pagamentosRetidos && (
+        <a href="/admin?status=pagamentos-a-decidir" className="mt-3 block bg-erro-claro px-5 py-3 font-semibold text-mar">
+          {pagamentosRetidos} →
+        </a>
+      )}
       {erroAcao && (
         <p role="alert" className="mt-3 bg-erro-claro px-5 py-3 font-semibold text-mar">
           {erroAcao}

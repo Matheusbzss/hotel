@@ -14,10 +14,10 @@ import type { ReservaPublica } from '@/lib/reserva-publica';
 const INTERVALO_CONSULTA_MS = 4000;
 
 /** O que a página precisa saber da resposta de GET /api/reservas/[codigo] (paraPublico do voucher consultado). */
-export type LeituraDoPedido = Pick<ReservaPublica, 'status' | 'recusa' | 'reembolsoCentavos' | 'reembolsoPartes'>;
+export type LeituraDoPedido = Pick<ReservaPublica, 'status' | 'recusa' | 'reembolsoCentavos' | 'reembolsoPartes' | 'pagamentoRetido'>;
 
 /** O que, numa leitura, muda a página que não espera pagamento: o status, o valor devolvido e as partes do reembolso. */
-export type LeituraQueRedesenha = Pick<LeituraDoPedido, 'status' | 'reembolsoCentavos' | 'reembolsoPartes'>;
+export type LeituraQueRedesenha = Pick<LeituraDoPedido, 'status' | 'reembolsoCentavos' | 'reembolsoPartes' | 'pagamentoRetido'>;
 
 /** As partes de um reembolso que falhou como um texto só, para comparar (sem falha, vazio). */
 const partesDaLeitura = ({ reembolsoPartes: p }: LeituraQueRedesenha): string =>
@@ -34,7 +34,9 @@ export function leituraMudou(lido: LeituraQueRedesenha, antes: LeituraQueRedesen
   return (
     lido.status !== antes.status ||
     (lido.reembolsoCentavos ?? 0) !== (antes.reembolsoCentavos ?? 0) ||
-    partesDaLeitura(lido) !== partesDaLeitura(antes)
+    partesDaLeitura(lido) !== partesDaLeitura(antes) ||
+    // o pagamento que chegou com o pedido cancelado: a equipe decidiu devolver (o pedido continua cancelado; Pacote 22)
+    Boolean(lido.pagamentoRetido) !== Boolean(antes.pagamentoRetido)
   );
 }
 

@@ -31,6 +31,7 @@ const ESSENCIAIS: ReadonlySet<TipoEmail> = new Set<TipoEmail>([
   'desistencia-recebida',
   'desistencia-equipe',
   'reembolso-falho-equipe',
+  'pagamento-retido-equipe',
 ]);
 
 export const emailEssencial = (tipo: TipoEmail): boolean => ESSENCIAIS.has(tipo);

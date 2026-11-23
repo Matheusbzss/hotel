@@ -5,12 +5,18 @@ import { avisarCompra } from '@/lib/avisar-compra';
 import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
-import { podeMudar } from '@/lib/pagamento-stripe';
+import { interpretarSessao, pedidoPago, podeMudar, reativarPedidoRetido } from '@/lib/pagamento-stripe';
 import {
+  acaoDoRetidoOferecida,
+  acaoDoRetidoRepetida,
   acaoManualOferecida,
   acaoManualRepetida,
   buscaDoPainel,
+  concluirDevolucaoDoRetido,
+  desfazerDevolucaoDoRetido,
+  linhaDaReativacao,
   marcaOVoucherPorFora,
+  marcarDevolucaoDoRetido,
   pedidoNuncaPago,
   valorDoVoucherPorFora,
   valorRecebido,
@@ -43,7 +49,7 @@ import {
   type Reserva,
   type StatusReserva,
 } from '@/lib/reservas';
-import { criarReembolso, reembolsosDoPagamento } from '@/lib/stripe';
+import { criarReembolso, obterSessao, reembolsosDoPagamento } from '@/lib/stripe';
 import { cancelarPedidoAberto, vouchersDoPedido } from '../../../pedido/pedido-stripe';
 import {
   avisosDeReembolsoSemVoucher,
@@ -94,6 +100,102 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
 }
 
 /**
+ * "Devolver R$ … ao cliente" no pedido cancelado com o pagamento parado (Pacote 22). Três passos, para o duplo toque e a
+ * aba antiga não gravarem nada e as duas ações se excluírem: (1) dentro da trava, a marca da decisão de devolver ANTES de
+ * pedir à Stripe (marcarDevolucaoDoRetido: a reativação deixa de valer); (2) o reembolso do pagamento inteiro, com a
+ * chave de idempotência dos outros reembolsos (criarReembolso, referência "total"), ou o que já existe na Stripe com essa
+ * referência; (3) dentro da trava, o id do reembolso e a linha do pedido à Stripe, uma vez (concluirDevolucaoDoRetido). Se
+ * a Stripe não devolver, a marca sai e o pedido volta à escolha. O pedido continua cancelado; o resto é como nos outros
+ * reembolsos: o charge.refunded confirma, e o refund.failed leva ao "Falta devolver …". Devolve o erro do painel, ou null.
+ */
+async function devolverPagamentoRetido(alvo: Reserva, codigoDoPedido: string): Promise<ErroDoPainel | null> {
+  const pi = alvo.pagamento.retido?.paymentIntentId;
+  if (!pi) return 'acao-nao-vale';
+  // num objeto, e não numa variável solta, para o TypeScript não achar que o valor nunca muda (ele muda lá dentro)
+  const marca: { resultado?: ReturnType<typeof marcarDevolucaoDoRetido>; repetida?: boolean } = {};
+  await atualizarReserva(alvo.codigo, (r) => {
+    marca.resultado = marcarDevolucaoDoRetido(r, pi, new Date().toISOString());
+    marca.repetida = acaoDoRetidoRepetida(r, 'devolver_retido');
+    return marca.resultado === 'gravar' ? r : null;
+  });
+  if (marca.resultado === 'nao-vale') return marca.repetida ? null : 'acao-nao-vale';
+  let reembolso: Stripe.Refund;
+  try {
+    const feitos = await reembolsosDoPagamento(pi);
+    reembolso = feitos.find((f) => f.metadata?.referencia === 'total' && reembolsoEmVigor(f.status)) ?? (await criarReembolso(pi));
+  } catch (e) {
+    // nada foi devolvido: a escolha volta (os dois botões)
+    await atualizarReserva(alvo.codigo, (r) => (desfazerDevolucaoDoRetido(r, pi) ? r : null)).catch((e2) =>
+      console.error(`[admin] não deu para desfazer a devolução começada do pedido ${codigoDoPedido}: ${mensagem(e2)}`),
+    );
+    if (e instanceof Stripe.errors.StripeError && e.code === 'charge_disputed') {
+      console.error(`[admin] a devolução do pagamento parado do pedido ${codigoDoPedido} foi recusada: o pagamento está contestado`);
+      return 'contestado-nao-reembolsa';
+    }
+    console.error(`[admin] a devolução do pagamento parado do pedido ${codigoDoPedido} falhou: ${mensagem(e)}`);
+    return 'stripe-falhou';
+  }
+  const agoraIso = new Date().toISOString();
+  await atualizarReserva(alvo.codigo, (r) => {
+    const linha = concluirDevolucaoDoRetido(r, pi, { id: reembolso.id, centavos: reembolso.amount }, agoraIso);
+    if (linha === null) return null;
+    return linha ? registrar(r, linha) : r;
+  });
+  return null;
+}
+
+/**
+ * "Reativar o pedido (fica pago)" no pedido cancelado com o pagamento parado (Pacote 22): o pagamento é relido na Stripe
+ * (a sessão continua paga por ele e nada foi devolvido dele; a verdade é a Stripe, nunca o que o pedido guardou), e só
+ * então, dentro da trava, com a regra conferida de novo no pedido relido, o pedido vira pago com esse pagamento
+ * (reativarPedidoRetido: a forma, o valor, o pagamento, a hora da cobrança; os avisos de valor diferente e de pagamento
+ * depois do horário). Só a requisição que gravou manda o aviso de compra e o e-mail do pagamento aprovado (pedidoPago,
+ * como um pagamento normal): o duplo toque e a aba antiga não gravam nada. Devolve o erro do painel, ou null.
+ */
+async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva[]): Promise<ErroDoPainel | null> {
+  const retido = alvo.pagamento.retido;
+  if (!retido) return 'acao-nao-vale';
+  let leitura: ReturnType<typeof interpretarSessao>;
+  try {
+    const [sessao, reembolsos] = await Promise.all([obterSessao(retido.sessaoId), reembolsosDoPagamento(retido.paymentIntentId)]);
+    leitura = interpretarSessao(sessao);
+    const devolvido = reembolsos.some((f) => reembolsoEmVigor(f.status));
+    if (leitura.status !== 'pago' || leitura.paymentIntentId !== retido.paymentIntentId || devolvido) return 'acao-nao-vale';
+  } catch (e) {
+    console.error(`[admin] não deu para reler o pagamento parado do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e)}`);
+    return 'stripe-fora';
+  }
+  const outros = vouchers.filter((v) => v.codigo !== alvo.codigo);
+  // num objeto, e não numa variável solta (ele muda lá dentro): a cada volta da trava a leitura recomeça
+  const gravado: { reativou?: boolean; repetida?: boolean } = {};
+  const reativada = await atualizarReserva(alvo.codigo, (r) => {
+    gravado.reativou = false;
+    gravado.repetida = acaoDoRetidoRepetida(r, 'reativar_retido');
+    if (!acaoDoRetidoOferecida(r, 'reativar_retido') || r.pagamento.retido?.paymentIntentId !== retido.paymentIntentId) return null;
+    for (const linha of reativarPedidoRetido(r, outros, new Date(), linhaDaReativacao)) registrar(r, linha);
+    gravado.reativou = true;
+    return r;
+  });
+  if (!gravado.reativou) return gravado.repetida ? null : 'acao-nao-vale';
+  // No banco, cancelar levou TODOS os itens a 'cancelado', e gravar o pedido como pago só atualiza o item deste voucher:
+  // os outros vouchers do pedido voltam a valer aqui. A releitura vem DEPOIS da gravação: com o pedido ainda cancelado
+  // o banco não devolve o statusItem; com ele pago, o irmão parado aparece com 'cancelado'. Nos arquivos nenhum irmão
+  // tem statusItem 'cancelado' (o cancelamento só muda o status) e o laço não faz nada. Uma falha não desfaz a reativação.
+  const releitura = await vouchersDoPedido(alvo.pedido?.codigo ?? alvo.codigo);
+  for (const v of releitura) {
+    if (v.codigo === alvo.codigo || v.statusItem !== 'cancelado') continue;
+    try {
+      await atualizarItem(v.codigo, 'ativo', `Voucher ${v.codigo} volta a valer com o pedido reativado`);
+    } catch (e) {
+      console.error(`[admin] o voucher ${v.codigo} não voltou a valer na reativação do pedido: ${mensagem(e)}`);
+    }
+  }
+  // o aviso de compra (a Meta) e o e-mail do pagamento aprovado com os vouchers, uma vez, como num pagamento normal
+  if (reativada) await pedidoPago(reativada, leitura);
+  return null;
+}
+
+/**
  * As ações do painel sobre um pedido (o código pode ser o do pedido ou o de qualquer voucher dele):
  * - 'reembolsar' (total) e 'reembolsar_item' (um voucher, pelo valor inteiro do item na forma paga, e só quando ele
  *   cabe no que ainda resta do pagamento: voucherCabeNoQueResta, a mesma regra do botão do painel) pedem o reembolso à
@@ -124,6 +226,11 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  *   num pedido já cancelado ou reembolsado, ou "Cancelar" num reembolsado, volta com acao-nao-vale, sem gravar nada, sem
  *   aviso de compra e sem e-mail (reteste de 22/11: o ON-ZELYQN, cancelado, virou pago pela aba antiga, e o e-mail do
  *   pagamento aprovado foi agendado). No pedido da Stripe nada muda: valem as conferências de sempre, acima;
+ * - 'devolver_retido' e 'reativar_retido' (Pacote 22, decisão do dono de 23/11/2026): o pagamento que chegou para um
+ *   pedido cancelado e ficou parado na Stripe (pagamento.retido). Devolver pede à Stripe o reembolso desse pagamento (o
+ *   pedido continua cancelado); reativar relê o pagamento na Stripe e deixa o pedido pago com ele, com o aviso de compra e
+ *   o e-mail com os vouchers uma vez. As duas pedem a caixa "Confirmo", valem pela regra da página (acaoDoRetidoOferecida),
+ *   conferida de novo dentro da trava, e se excluem; o duplo toque e a aba antiga não gravam nada;
  * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido (src/lib/desistencia.ts), sem reembolso
  *   ou com o resto do pedido seguindo pago depois do reembolso de uma parte: só a linha no histórico, que tira o pedido
  *   da faixa do topo.
@@ -343,6 +450,17 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (!daStripe || alvo.status !== 'pago' || !semVoucherAberto(alvo, id)) return voltar('acao-nao-vale');
     await atualizarReserva(alvo.codigo, (r) => (semVoucherAberto(r, id) ? registrar(r, linhaDoReembolsoSemMudarVoucher(id)) : null));
     return voltar();
+  }
+
+  // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ao cliente ou reativar o
+  // pedido. A regra é a mesma dos botões da página (acaoDoRetidoOferecida); a ação já feita volta como a que deu certo,
+  // sem gravar nada, e a que não vale mais (a outra já escolhida, o pedido mudou) volta com acao-nao-vale
+  if (acao === 'devolver_retido' || acao === 'reativar_retido') {
+    if (!daStripe || !acaoDoRetidoOferecida(alvo, acao)) return voltar(acaoDoRetidoRepetida(alvo, acao) ? undefined : 'acao-nao-vale');
+    if (!confirmou) return voltar('falta-confirmar');
+    const erro =
+      acao === 'devolver_retido' ? await devolverPagamentoRetido(alvo, codigoDoPedido) : await reativarPagamentoRetido(alvo, vouchers);
+    return voltar(erro ?? undefined);
   }
 
   const manual = ACOES_MANUAIS[acao];

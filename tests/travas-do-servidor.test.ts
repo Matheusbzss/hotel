@@ -345,10 +345,11 @@ test('a página só se redesenha depois de uma leitura que mudou o que ela mostr
   assert.equal(pedido.split('<AoVoltarParaAAba').length, 2);
   assert.ok(senao < usa, 'fora da tela de pagar');
   assert.ok(usa < pedido.indexOf('<h1 className="display text-head">{titulo}</h1>'));
-  // todos os vouchers do pedido, com os valores de quando a página abriu; só esses valores vão ao navegador
+  // todos os vouchers do pedido, com os valores de quando a página abriu; só esses valores vão ao navegador (desde o Pacote
+  // 22, também a marca do pagamento parado do pedido cancelado, sem valor nem id)
   assert.match(
     pedido.slice(usa),
-    /^<AoVoltarParaAAba\s+token=\{token\}\s+idioma=\{locale\}\s+vouchers=\{itens\.map\(\(\{ codigo, status, reembolsoCentavos, reembolsoPartes \}\) => \(\{\s+codigo,\s+status,\s+reembolsoCentavos,\s+reembolsoPartes,\s+\}\)\)\}\s+\/>/,
+    /^<AoVoltarParaAAba\s+token=\{token\}\s+idioma=\{locale\}\s+vouchers=\{itens\.map\(\(\{ codigo, status, reembolsoCentavos, reembolsoPartes, pagamentoRetido \}\) => \(\{\s+codigo,\s+status,\s+reembolsoCentavos,\s+reembolsoPartes,\s+pagamentoRetido,\s+\}\)\)\}\s+\/>/,
   );
   assert.doesNotMatch(pedido, /status=\{itens\[0\]\.status\}/);
 });

@@ -110,8 +110,37 @@ interface ReservaBase {
     apresentado?: { moeda: string; valorCentavos: number };
     pagoEm?: string;
     ultimaConsulta?: string;
+    /**
+     * O pagamento que chegou com o pedido já cancelado e nunca pago (Pacote 22, decisão do dono de 23/11/2026): não volta
+     * sozinho ao cliente; fica parado na Stripe até a equipe decidir no painel se devolve ou reativa o pedido
+     * (pagamentoParaReter, src/lib/pagamento-stripe.ts). Sem migração: mora no JSON `pagamento`, nos arquivos e no banco.
+     */
+    retido?: PagamentoRetido;
   };
   historico: { em: string; evento: string }[];
+}
+
+/**
+ * O pagamento parado de um pedido cancelado (pagamento.retido): o que a sessão paga relida na Stripe disse na hora em que
+ * ele chegou, para a reativação gravar o pagamento como um pagamento normal, e a decisão da equipe no painel.
+ */
+export interface PagamentoRetido {
+  paymentIntentId: string;
+  /** A sessão paga (cs_…). */
+  sessaoId: string;
+  /** O total que a sessão cobrou, em centavos de real. */
+  valorCentavos: number;
+  forma?: 'pix' | 'cartao';
+  /** A hora da cobrança que deu certo ou, sem ela na leitura, a hora em que o site viu o pagamento. */
+  pagoEm: string;
+  cartao?: { bandeira: string; final: string; pais?: string };
+  apresentado?: { moeda: string; valorCentavos: number };
+  clientePais?: string;
+  /**
+   * O que a equipe decidiu no painel. 'devolver' sem `reembolsoId` é a devolução começada e ainda sem a resposta da
+   * Stripe (o mesmo botão completa, com a mesma chave de idempotência); 'reativar' fecha a decisão de vez.
+   */
+  decisao?: { acao: 'devolver' | 'reativar'; em: string; reembolsoId?: string };
 }
 
 export interface ReservaPasseio extends ReservaBase {

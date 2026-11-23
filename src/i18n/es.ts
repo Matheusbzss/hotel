@@ -251,6 +251,7 @@ const es: Dicionario = {
     reembolsoPendenteTitulo: 'Reembolso pendiente',
     reembolsoFalhou: 'No pudimos devolver {valor} por el mismo medio de pago. Nuestro equipo te va a contactar.',
     reembolsoOutroMeio: 'Como no se pudo devolver por el mismo medio de pago, nuestro equipo devolvió {valor} de otra forma.',
+    pagamentoRetido: 'Recibimos un pago para este pedido, que estaba cancelado. Nuestro equipo se va a comunicar contigo para resolverlo.',
     // sem verbo em "tú" nem em "vos": serve igual às duas versões do espanhol (o es-ar não precisa de frase própria)
     desistirLink: 'Desistir de la compra',
     desistirTexto:

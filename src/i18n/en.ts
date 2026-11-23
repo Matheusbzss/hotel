@@ -242,6 +242,7 @@ const en: Dicionario = {
     reembolsoPendenteTitulo: 'Refund pending',
     reembolsoFalhou: 'We couldn’t return {valor} to the original payment method. Our team will contact you.',
     reembolsoOutroMeio: 'Since the original payment method couldn’t receive it, our team returned {valor} another way.',
+    pagamentoRetido: 'We received a payment for this order, which had been cancelled. Our team will get in touch with you to sort it out.',
     desistirLink: 'Cancel this purchase',
     desistirTexto:
       'You can withdraw within 7 days of the purchase, before the service, for a full refund. After that, the cancellation policy applies. Our team replies by email within 1 business day.',

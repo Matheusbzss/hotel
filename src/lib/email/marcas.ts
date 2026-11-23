@@ -24,6 +24,14 @@ export const MARCA_DO_AVISO_DE_REEMBOLSO_FALHO = 'E-mail à equipe: aviso do ree
 export const marcaDoAvisoDeReembolsoFalho = (reembolsoId: string): string => `${MARCA_DO_AVISO_DE_REEMBOLSO_FALHO} (${reembolsoId})`;
 
 /**
+ * O aviso à equipe (EMAIL_RESPOSTA) de um pagamento que chegou para um pedido cancelado e ficou parado na Stripe (Pacote
+ * 22): um por pagamento (pi_…). Não começa com "Aviso:": a linha não é destacada no painel.
+ */
+export const MARCA_DO_AVISO_DO_PAGAMENTO_RETIDO = 'E-mail à equipe: aviso do pagamento que chegou com o pedido cancelado';
+export const marcaDoAvisoDoPagamentoRetido = (paymentIntentId: string): string =>
+  `${MARCA_DO_AVISO_DO_PAGAMENTO_RETIDO} (${paymentIntentId})`;
+
+/**
  * Gravado ANTES de mandar o e-mail do pagamento aprovado: se a função for cortada no meio (o tempo da rota acabou) ou
  * o envio falhar, o aviso fica no histórico e o painel destaca. Quando o e-mail sai, a linha MARCA_DO_EMAIL do pagamento
  * aprovado vem logo depois e o painel para de destacar (avisoAberto, src/lib/pedidos-painel.ts).

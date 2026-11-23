@@ -15,7 +15,7 @@ import {
 } from '../formas-pagamento';
 import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
-import { avisoDoReembolsoFalho, provedorDaReserva, valorRecebido } from '../pedidos-painel';
+import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserva, valorRecebido } from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
@@ -30,10 +30,12 @@ import {
   MARCA_DO_AVISO_A_EQUIPE,
   MARCA_DO_EMAIL,
   marcaDoAvisoDeReembolsoFalho,
+  marcaDoAvisoDoPagamentoRetido,
   type TipoEmailDoPedido,
 } from './marcas';
 import {
   emailAvisoDaDesistencia,
+  emailAvisoDoPagamentoRetido,
   emailAvisoDoReembolsoFalho,
   emailDesistenciaRecebida,
   emailLinkDoPedido,
@@ -65,6 +67,8 @@ export { MARCA_DO_EMAIL, type TipoEmailDoPedido } from './marcas';
  * - desistencia-recebida: a confirmação do pedido de desistência pelo site, com a data e a hora em que chegou; junto,
  *   o aviso à equipe (enviarAvisoDaDesistencia).
  * - reembolso-falho-equipe: só para a equipe, quando um reembolso falha na Stripe (enviarAvisoDoReembolsoFalho).
+ * - pagamento-retido-equipe: só para a equipe, quando um pagamento chega para um pedido cancelado e fica parado na Stripe
+ *   (enviarAvisoDoPagamentoRetido, Pacote 22).
  * Cada envio fica no histórico do pedido ("E-mail ao cliente: …"), e o mesmo e-mail não sai de novo quando o aviso
  * chega repetido (a linha no histórico e a chave de idempotência do Resend). Sem RESEND_API_KEY, nada sai e nada é
  * lido do banco. Nada aqui desfaz um pagamento: quem chama agenda com agendarEmailDoPedido, depois da resposta.
@@ -435,4 +439,46 @@ export async function enviarAvisoDoReembolsoFalho(codigo: string, reembolsoId: s
 /** Agenda o aviso à equipe do reembolso que falhou para depois da resposta (o webhook da Stripe responde na hora). */
 export function agendarAvisoDoReembolsoFalho(codigo: string, reembolsoId: string): void {
   depoisDaResposta(`reembolso-falho-equipe ${codigo}`, () => enviarAvisoDoReembolsoFalho(codigo, reembolsoId));
+}
+
+/**
+ * O aviso à equipe (EMAIL_RESPOSTA) de um pagamento que chegou para um pedido cancelado e ficou parado na Stripe (Pacote 22,
+ * decisão do dono de 23/11/2026), com o mesmo cuidado do aviso do reembolso que falhou: lido do pedido gravado
+ * (avisoDoPagamentoRetidoPorEmail, src/lib/pedidos-painel.ts), um por pagamento (a linha marcaDoAvisoDoPagamentoRetido no
+ * histórico e a chave de idempotência `pagamento-retido-equipe/<pi_…>`), essencial na cota, e não sai se a equipe já
+ * decidiu. Nenhum e-mail ao cliente agora. Sem a chave do Resend, não sai: a faixa do topo do painel continua contando o
+ * pedido.
+ */
+export async function enviarAvisoDoPagamentoRetido(codigo: string, paymentIntentId: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): pagamento-retido-equipe ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const aviso = avisoDoPagamentoRetidoPorEmail(r, paymentIntentId);
+  if (!aviso) return;
+  const mensagem = emailAvisoDoPagamentoRetido({
+    codigo: pedido,
+    valor: formatarCifra(aviso.centavos, 'pt-BR'),
+    linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
+    site: siteDoEmail(),
+  });
+  const resultado = await enviarEmail({
+    tipo: 'pagamento-retido-equipe',
+    referencia: pedido,
+    para: responderPara(),
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `pagamento-retido-equipe/${paymentIntentId}`,
+  });
+  if (saiu(resultado)) await anotar(r.codigo, marcaDoAvisoDoPagamentoRetido(paymentIntentId));
+}
+
+/** Agenda o aviso à equipe do pagamento parado para depois da resposta (o webhook da Stripe responde na hora). */
+export function agendarAvisoDoPagamentoRetido(codigo: string, paymentIntentId: string): void {
+  depoisDaResposta(`pagamento-retido-equipe ${codigo}`, () => enviarAvisoDoPagamentoRetido(codigo, paymentIntentId));
 }

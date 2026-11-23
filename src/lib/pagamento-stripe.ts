@@ -4,7 +4,7 @@ import { mensagemDoErro } from './erros.ts';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
 import { segundosAteOInicio, type FormaPagamento, type ItemAgendado } from './formas-pagamento.ts';
-import { provedorDaReserva } from './pedidos-painel.ts';
+import { avisoDoPagamentoRetido, pedidoNuncaPago, provedorDaReserva } from './pedidos-painel.ts';
 import { PIX_EXPIRADO } from './recusas.ts';
 import type { Reserva, StatusReserva } from './reservas';
 import { expirarSessao, limiteDoToqueDoPix, modoStripe, obterSessao } from './stripe.ts';
@@ -369,7 +369,9 @@ export function pagoDepoisDoHorario(itens: readonly ItemAgendado[], agora: Date)
  * O pagamento a mais: a sessão foi paga, mas o pedido já não espera pagamento (não está pendente nem expirado) e
  * tem OUTRO pagamento registrado. É a segunda aba paga depois da primeira, ou o QR de um Pix antigo pago depois
  * de o pedido ser pago por outro meio, cancelado, reembolsado ou contestado. Esse dinheiro não entra no pedido:
- * volta ao cliente. Devolve o id do pagamento a devolver, ou undefined quando a sessão não foi paga, quando o
+ * volta ao cliente. Também o segundo pagamento de um pedido cancelado que já tem um parado (Pacote 22: o parado é o
+ * pagamento registrado do pedido); o primeiro, num pedido cancelado e nunca pago, fica parado (pagamentoParaReter, que
+ * aplicarSessao confere antes desta). Devolve o id do pagamento a devolver, ou undefined quando a sessão não foi paga, quando o
  * pagamento é o do próprio pedido ou quando o pedido ainda não tem nenhum registrado (aí não há "outro": segue
  * o caminho de sempre). Sem o banco, para ser testada em node (tests/stripe.test.ts).
  */
@@ -380,6 +382,96 @@ export function pagamentoAMais(
   const pi = leitura.paymentIntentId;
   if (leitura.status !== 'pago' || !pi || podeAbrirSessao(pedido.status)) return undefined;
   return pedido.paymentIntentId && pedido.paymentIntentId !== pi ? pi : undefined;
+}
+
+/**
+ * O pagamento que chega para um pedido cancelado (Pacote 22, decisão do dono de 23/11/2026): não volta sozinho ao cliente.
+ * 'reter': a sessão paga é de um pedido CANCELADO que nunca foi pago (pedidoNuncaPago: sem a hora do pagamento e sem linha
+ * de pago no histórico), sem nada devolvido e sem pagamento parado: o dinheiro fica parado na Stripe e a equipe decide no
+ * painel se devolve ou reativa o pedido. 'ja-retido': é o mesmo pagamento já parado (o aviso de novo, ou junto com a
+ * consulta): nada muda. undefined: o caminho de sempre, com as regras de hoje: o pagamento repetido de um pedido pago
+ * continua voltando sozinho, um SEGUNDO pagamento com um já parado volta sozinho (pagamentoAMais: o parado é o pagamento
+ * registrado do pedido), e o pedido cancelado depois de pago, reembolsado ou contestado fica com as regras dele. A leitura
+ * sem o valor cobrado também segue o caminho de sempre (sem valor a equipe não teria o que decidir), e o pedido que não é
+ * da Stripe (provedorDaReserva: o do WhatsApp) também, porque só o da Stripe tem a decisão no painel. Sem o banco, para
+ * ser testada em node (tests/pagamento-retido.test.ts).
+ */
+export function pagamentoParaReter(
+  pedido: Pick<Reserva, 'status' | 'pagamento' | 'historico' | 'reembolsoCentavos' | 'provedor'>,
+  leitura: Pick<LeituraSessao, 'status' | 'paymentIntentId' | 'valorCentavos'>,
+): 'reter' | 'ja-retido' | undefined {
+  const pi = leitura.paymentIntentId;
+  if (leitura.status !== 'pago' || !pi || pedido.status !== 'cancelado') return undefined;
+  // só o pedido da Stripe fica parado: é a mesma condição do painel (os botões, a faixa, a frase e o e-mail à equipe);
+  // num pedido do WhatsApp cancelado o pagamento volta sozinho, como hoje
+  if (provedorDaReserva(pedido) !== 'stripe') return undefined;
+  const retido = pedido.pagamento.retido;
+  if (retido) return retido.paymentIntentId === pi ? 'ja-retido' : undefined;
+  if (!pedidoNuncaPago(pedido) || (pedido.reembolsoCentavos ?? 0) > 0) return undefined;
+  return typeof leitura.valorCentavos === 'number' && leitura.valorCentavos > 0 ? 'reter' : undefined;
+}
+
+/**
+ * Grava no pedido o pagamento parado (pagamento.retido, no JSON do pagamento: sem migração, nos arquivos e no banco) com
+ * o que a sessão paga relida disse (o valor, o pagamento, a forma, a hora da cobrança ou, sem ela, `agoraIso`, o cartão,
+ * a moeda apresentada e o país), e o pagamento do pedido passa a ser ele (assim um segundo pagamento é "a mais" e volta
+ * sozinho, e a devolução pedida pela equipe é contada no pedido). O status não muda: o pedido continua cancelado, e os
+ * vouchers com ele. Devolve a linha do aviso para o histórico. Só para a leitura que pagamentoParaReter deu como 'reter'.
+ */
+export function reterPagamento(r: Reserva, leitura: LeituraSessao, sessaoId: string, agoraIso: string): string {
+  const pi = leitura.paymentIntentId ?? '';
+  const valorCentavos = leitura.valorCentavos ?? 0;
+  r.pagamento.retido = {
+    paymentIntentId: pi,
+    sessaoId,
+    valorCentavos,
+    ...(leitura.forma ? { forma: leitura.forma } : {}),
+    pagoEm: leitura.pagoEm ?? agoraIso,
+    ...(leitura.cartao ? { cartao: leitura.cartao } : {}),
+    ...(leitura.apresentado ? { apresentado: leitura.apresentado } : {}),
+    ...(leitura.clientePais ? { clientePais: leitura.clientePais } : {}),
+  };
+  r.paymentIntentId = pi;
+  return avisoDoPagamentoRetido(valorCentavos, pi);
+}
+
+/**
+ * A reativação do pedido com o pagamento parado (a ação "Reativar o pedido (fica pago)" do painel): o pedido vira pago
+ * com esse pagamento, como um pagamento normal (a forma, o pagamento, a sessão, a hora da cobrança, o cartão, a moeda
+ * apresentada e o país), os vouchers voltam a valer com ele e a decisão fica gravada. Devolve as linhas do histórico: a
+ * da decisão e os avisos que um pagamento normal deixaria (o valor diferente do esperado e o pagamento depois do horário
+ * do serviço, contado agora, na reativação: se o serviço já começou, a equipe confere com o parceiro). Quem chama confere
+ * a regra (acaoDoRetidoOferecida) dentro da trava de versão e relê o pagamento na Stripe antes. Sem o banco, para ser
+ * testada em node.
+ */
+export function reativarPedidoRetido(
+  r: Reserva,
+  itensDoPedido: readonly ItemAgendado[],
+  agora: Date,
+  linhaDaDecisao: (paymentIntentId: string, centavos: number) => string,
+): string[] {
+  const retido = r.pagamento.retido;
+  if (!retido) return [];
+  r.status = 'pago';
+  r.provedor = 'stripe';
+  r.pagamentoExternoId = retido.sessaoId;
+  r.paymentIntentId = retido.paymentIntentId;
+  if (retido.forma) r.pagamento.metodo = retido.forma;
+  r.pagamento.pagoEm = retido.pagoEm;
+  if (retido.cartao) {
+    r.pagamento.cartaoBandeira = retido.cartao.bandeira;
+    r.pagamento.cartaoFinal = retido.cartao.final;
+    if (retido.cartao.pais) r.pagamento.cartaoPais = retido.cartao.pais;
+  }
+  if (retido.apresentado) r.pagamento.apresentado = retido.apresentado;
+  if (retido.clientePais) r.cliente.pais = retido.clientePais;
+  delete r.pagamento.motivoCodigo;
+  retido.decisao = { acao: 'reativar', em: agora.toISOString() };
+  const linhas = [linhaDaDecisao(retido.paymentIntentId, retido.valorCentavos)];
+  const esperado = valorEsperado(r);
+  if (retido.valorCentavos !== esperado) linhas.push(avisoDeValorDiferente(retido.valorCentavos, esperado));
+  if (pagoDepoisDoHorario([r, ...itensDoPedido], agora)) linhas.push(AVISO_PAGO_DEPOIS_DO_HORARIO);
+  return linhas;
 }
 
 export interface ResultadoSessao {
@@ -394,6 +486,11 @@ export interface ResultadoSessao {
    * chave de idempotência do reembolso impede devolver duas vezes.
    */
   pagamentoRepetido?: string;
+  /**
+   * A sessão foi paga pelo pagamento parado de um pedido cancelado (pagamentoParaReter, Pacote 22): ele NÃO volta sozinho.
+   * Vem em toda chamada desse pagamento, para quem chama não o devolver.
+   */
+  pagamentoRetido?: string;
 }
 
 /**
@@ -410,6 +507,9 @@ export interface ResultadoSessao {
  * Na transição para pago, o pagamento que chegou depois do horário do serviço deixa AVISO_PAGO_DEPOIS_DO_HORARIO no
  * histórico do pedido, uma vez: a conta olha o serviço mais cedo entre todos os itens do pedido (pagoDepoisDoHorario),
  * lidos logo antes da gravação, e não só o voucher que representa o pedido.
+ * Desde o Pacote 22 (decisão do dono de 23/11/2026), o pagamento que chega para um pedido CANCELADO e nunca pago não
+ * volta sozinho: fica parado (pagamentoParaReter, reterPagamento), uma vez só, com o aviso destacado no histórico, o
+ * resultado traz pagamentoRetido (quem chama não devolve) e sai o e-mail à equipe; a equipe decide no painel.
  */
 export async function aplicarSessao(
   codigo: string,
@@ -439,14 +539,26 @@ export async function aplicarSessao(
   let virouPago = false;
   let virouExpirado = false;
   let repetido: string | undefined;
+  let retido: string | undefined;
 
   // atualizarReserva pode chamar de novo em caso de conflito: tudo que decide o resultado nasce aqui dentro
   const reserva = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = false;
     virouExpirado = false;
     repetido = undefined;
+    retido = undefined;
     r.pagamento.ultimaConsulta = agoraIso;
     const corrente = !r.pagamentoExternoId || r.pagamentoExternoId === sessao.id;
+
+    // o pagamento que chega para um pedido cancelado e nunca pago (Pacote 22): não volta sozinho. Fica parado na Stripe,
+    // gravado no pedido uma vez só, com a linha do aviso; a equipe decide no painel. O mesmo pagamento de novo (o aviso
+    // repetido, a consulta) não grava nada
+    const retencao = pagamentoParaReter(r, leitura);
+    if (retencao) {
+      retido = leitura.paymentIntentId;
+      if (retencao === 'ja-retido') return origem === 'consulta' ? r : null;
+      return registrar(r, reterPagamento(r, leitura, sessao.id, agoraIso));
+    }
 
     // o pedido já não espera pagamento e tem OUTRO pagamento registrado (segunda aba, o QR de um Pix antigo pago
     // depois): nada muda no pedido, nem o pagamento registrado nem o status, e este dinheiro volta ao cliente
@@ -525,7 +637,14 @@ export async function aplicarSessao(
 
   if (virouPago && reserva) await pedidoPago(reserva, leitura);
   if (virouExpirado && reserva) await pedidoExpirou(reserva, leitura);
-  return { reserva, leitura, virouPago, ...(repetido ? { pagamentoRepetido: repetido } : {}) };
+  if (retido && reserva) await pagamentoFicouRetido(reserva, retido);
+  return {
+    reserva,
+    leitura,
+    virouPago,
+    ...(repetido ? { pagamentoRepetido: repetido } : {}),
+    ...(retido ? { pagamentoRetido: retido } : {}),
+  };
 }
 
 /**
@@ -567,6 +686,22 @@ async function pedidoExpirou(reserva: Reserva, dados: LeituraSessao): Promise<vo
     agendarEmailDoPedido('pix-vencido', reserva.pedido?.codigo ?? reserva.codigo, { sessaoId: dados.sessaoId });
   } catch (e) {
     console.error(`[pagamento] falha ao agendar o e-mail do Pix vencido ${reserva.pedido?.codigo ?? reserva.codigo}: ${mensagemDoErro(e)}`);
+  }
+}
+
+/**
+ * O pagamento ficou parado num pedido cancelado (Pacote 22): o e-mail à equipe, depois da resposta, um por pagamento (a
+ * linha do e-mail no histórico e a chave de idempotência; agendado de novo a cada aviso do mesmo pagamento, ele só sai uma
+ * vez e não sai se a equipe já decidiu). Nenhum e-mail ao cliente agora. Uma falha aqui não muda o pedido.
+ */
+async function pagamentoFicouRetido(reserva: Reserva, paymentIntentId: string): Promise<void> {
+  try {
+    const { agendarAvisoDoPagamentoRetido } = await import('./email/pedidos.ts');
+    agendarAvisoDoPagamentoRetido(reserva.pedido?.codigo ?? reserva.codigo, paymentIntentId);
+  } catch (e) {
+    console.error(
+      `[pagamento] falha ao agendar o aviso à equipe do pagamento parado ${reserva.pedido?.codigo ?? reserva.codigo}: ${mensagemDoErro(e)}`,
+    );
   }
 }
 

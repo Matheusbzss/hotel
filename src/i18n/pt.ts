@@ -259,6 +259,9 @@ const pt = {
     reembolsoPendenteTitulo: 'Reembolso pendente',
     reembolsoFalhou: 'Não conseguimos devolver {valor} pela mesma forma de pagamento. A nossa equipe vai entrar em contato com você.',
     reembolsoOutroMeio: 'Como não deu para devolver pela mesma forma de pagamento, a nossa equipe devolveu {valor} de outro jeito.',
+    // o pagamento que chegou para o pedido já cancelado e espera a decisão da equipe (Pacote 22, 23/11): a página do pedido
+    // e a da reserva, no lugar do texto do cancelado; sem valor, sem prazo e sem prometer devolução ou reativação
+    pagamentoRetido: 'Recebemos um pagamento para este pedido, que estava cancelado. A nossa equipe vai falar com você para resolver.',
     // a desistência pelo próprio site (Decreto 7.962/2013, art. 5º, § 1º), num pedido pago antes do primeiro serviço
     desistirLink: 'Desistir da compra',
     desistirTexto:

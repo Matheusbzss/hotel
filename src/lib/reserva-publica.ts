@@ -12,7 +12,7 @@ import { formasDoPagamento, valorACobrar, type FormaPagamento, type ItemCobravel
 import type { TextosDoReembolso } from './frases-do-reembolso';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
-import { provedorDaReserva, valorRecebido } from './pedidos-painel';
+import { pagamentoRetidoADecidir, provedorDaReserva, valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { partesDaPagina, type PartesDoReembolso } from './reembolsos-a-resolver';
 import { recusaParaOCliente, type ChaveRecusa } from './recusas';
@@ -81,6 +81,12 @@ export interface ReservaPublica {
    * do pedido inteiro). Só os três valores: nunca o id do reembolso nem o motivo da falha.
    */
   reembolsoPartes?: PartesDoReembolso;
+  /**
+   * Só no pedido cancelado que recebeu um pagamento ainda à espera da decisão da equipe (Pacote 22,
+   * pagamentoRetidoADecidir): a página mostra pedido.pagamentoRetido no lugar do texto do cancelado. Nunca o valor, o id
+   * do pagamento nem o que a equipe vai decidir.
+   */
+  pagamentoRetido?: true;
 }
 
 /**
@@ -305,6 +311,8 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     apresentado: r.pagamento.apresentado,
     reembolsoCentavos: r.reembolsoCentavos,
     ...(reembolsoPartes ? { reembolsoPartes } : {}),
+    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22)
+    ...(status === 'cancelado' && pagamentoRetidoADecidir(r) ? { pagamentoRetido: true as const } : {}),
   };
   if (ehTransfer(r)) {
     const transfer = transferVisivel(r, idioma, d);

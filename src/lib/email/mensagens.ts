@@ -18,6 +18,7 @@ export type TipoEmail =
   | 'desistencia-recebida'
   | 'desistencia-equipe'
   | 'reembolso-falho-equipe'
+  | 'pagamento-retido-equipe'
   | 'lembrete-1'
   | 'lembrete-2';
 
@@ -309,6 +310,35 @@ export function emailAvisoDoReembolsoFalho(d: {
     preCabecalho: falhou,
     titulo: 'Reembolso que falhou',
     paragrafos,
+    codigo: { rotulo: 'Pedido', valor: d.codigo },
+    botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
+    rodape: { linhas: ['Aviso automático do site para a equipe.'] },
+    site: d.site,
+  });
+}
+
+/**
+ * O aviso à equipe (EMAIL_RESPOSTA, em português) de um pagamento que chegou para um pedido já cancelado e ficou parado na
+ * Stripe (Pacote 22, decisão do dono de 23/11/2026): o valor e o que fazer no painel. Nada volta sozinho ao cliente, e o
+ * cliente não recebe e-mail agora. O botão abre o pedido no painel.
+ */
+export function emailAvisoDoPagamentoRetido(d: {
+  codigo: string;
+  /** O valor que chegou, já escrito ("R$ 138,60"). */
+  valor: string;
+  linkPainel: string;
+  site: SiteDoEmail;
+}): MensagemEmail {
+  const chegou = `Chegou um pagamento de ${d.valor} para o pedido ${d.codigo}, que estava cancelado.`;
+  return mensagem({
+    idioma: 'pt',
+    assunto: `Pagamento recebido num pedido cancelado: ${d.codigo}`,
+    preCabecalho: chegou,
+    titulo: 'Pagamento num pedido cancelado',
+    paragrafos: [
+      `${chegou} O dinheiro está parado na Stripe: nada foi devolvido ao cliente.`,
+      'Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido (ele fica pago e o cliente recebe o e-mail com os vouchers). O cliente ainda não recebeu nenhum e-mail sobre este pagamento.',
+    ],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
     rodape: { linhas: ['Aviso automático do site para a equipe.'] },

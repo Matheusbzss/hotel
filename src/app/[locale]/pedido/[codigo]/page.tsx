@@ -149,7 +149,8 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     aguardando_whatsapp: { titulo: d.pedido.registradoTitulo, texto: d.pedido.registradoTexto },
     pendente: { titulo: d.pedido.confirmando, texto: d.pedido.confirmandoTexto },
     expirado: { titulo: d.pedido.tempoEsgotado, texto: d.pedido.tempoEsgotadoTexto },
-    cancelado: { titulo: d.pedido.canceladoTitulo, texto: d.pedido.canceladoTexto },
+    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto
+    cancelado: { titulo: d.pedido.canceladoTitulo, texto: itens[0]?.pagamentoRetido ? d.pedido.pagamentoRetido : d.pedido.canceladoTexto },
     // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; uma frase por
     // parágrafo; sem falha, a frase de sempre
     reembolsado: {
@@ -264,11 +265,12 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
               <AoVoltarParaAAba
                 token={token}
                 idioma={locale}
-                vouchers={itens.map(({ codigo, status, reembolsoCentavos, reembolsoPartes }) => ({
+                vouchers={itens.map(({ codigo, status, reembolsoCentavos, reembolsoPartes, pagamentoRetido }) => ({
                   codigo,
                   status,
                   reembolsoCentavos,
                   reembolsoPartes,
+                  pagamentoRetido,
                 }))}
               />
               <h1 className="display text-head">{titulo}</h1>

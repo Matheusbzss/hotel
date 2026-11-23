@@ -151,8 +151,8 @@ export function resumoDoEvento(evento: Pick<Stripe.Event, 'type' | 'data' | 'liv
 /* ------------------------------------------------------------------ */
 /* Pagamentos que voltam ao cliente                                     */
 
-/** O que interessa do pedido para saber de quem é um pagamento. */
-type PedidoDoPagamento = Pick<Reserva, 'status' | 'paymentIntentId'>;
+/** O que interessa do pedido para saber de quem é um pagamento (o pagamento parado de um pedido cancelado, Pacote 22). */
+type PedidoDoPagamento = Pick<Reserva, 'status' | 'paymentIntentId'> & { pagamento?: Pick<Reserva['pagamento'], 'retido'> };
 
 /**
  * O pagamento de uma sessão paga que o pedido não pode ficar: o pedido já estava pago (ou contestado) por outro
@@ -162,7 +162,9 @@ type PedidoDoPagamento = Pick<Reserva, 'status' | 'paymentIntentId'>;
  * Não depende do histórico: um evento repetido (ou a nova tentativa depois de uma falha) acha o mesmo pagamento, e
  * a chave de idempotência do reembolso impede devolver duas vezes. Quando o pedido tem OUTRO pagamento registrado,
  * aplicarSessao não o troca e já devolve pagamentoRepetido; esta leitura cobre também o que sobra: o pedido
- * cancelado pago pelo pagamento que ele mesmo tinha (o Pix gerado antes de cancelar) ou sem nenhum registrado.
+ * cancelado pago pelo pagamento que ele mesmo tinha (o Pix gerado antes de cancelar) ou sem nenhum registrado. Desde o
+ * Pacote 22 (23/11), o pedido cancelado e nunca pago guarda esse pagamento parado (pagamento.retido, aplicarSessao) e
+ * ele não volta por aqui: a equipe decide no painel; o pagamento parado é o registrado do pedido, e outro volta.
  */
 export function pagamentoParaDevolver(
   antes: PedidoDoPagamento,
@@ -177,7 +179,8 @@ export function pagamentoParaDevolver(
       // o pedido ficou com outro pagamento: este é o repetido
       return depois.paymentIntentId && depois.paymentIntentId !== pi ? pi : null;
     case 'cancelado':
-      return pi;
+      // o pagamento parado do pedido cancelado (Pacote 22) não volta sozinho: a equipe decide no painel. Um outro volta
+      return depois.pagamento?.retido?.paymentIntentId === pi ? null : pi;
     case 'reembolsado':
       // a releitura do próprio pagamento que já voltou não devolve de novo
       return antes.paymentIntentId !== pi ? pi : null;

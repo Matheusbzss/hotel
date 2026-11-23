@@ -200,9 +200,11 @@ async function sessaoMudou(alvo: AlvoDoEvento): Promise<ResultadoDaSessao> {
   if (!sessaoDoPedido(sessao, antes.pedido?.codigo ?? antes.codigo)) {
     return { codigo, resultado: 'sessão que o site não criou: ignorada', pagaDoPedido: false };
   }
-  const { reserva, leitura, virouPago, pagamentoRepetido } = await aplicarSessao(codigo, sessao, 'webhook');
+  const { reserva, leitura, virouPago, pagamentoRepetido, pagamentoRetido } = await aplicarSessao(codigo, sessao, 'webhook');
   if (!reserva) return { codigo, resultado: 'pedido não encontrado', pagaDoPedido: false };
   const pagaDoPedido = leitura.status === 'pago';
+  // o pagamento que chegou para o pedido cancelado e ficou parado (Pacote 22): não volta sozinho, a equipe decide no painel
+  if (pagamentoRetido) return { codigo, resultado: 'pedido cancelado: pagamento parado, a equipe decide no painel', pagaDoPedido };
 
   const devolver = pagamentoRepetido ?? pagamentoParaDevolver(antes, reserva, leitura);
   if (devolver) {

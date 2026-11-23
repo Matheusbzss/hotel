@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { TextosConsulta } from '@/lib/consulta-textos';
+import { respostaDeRobo } from '@/lib/robos';
 import { emailValido } from '@/lib/validacao';
 import { Campo, descricao } from './Campo';
 import { TextoComEmail } from './TextoComEmail';
@@ -26,9 +27,12 @@ export function FormularioConsulta({
   textos: T,
   emailEmpresa,
   hrefEmail,
+  textoRobo,
 }: {
   idioma: Idioma;
   textos: TextosConsulta;
+  /** A mensagem de quem a proteção contra robôs confundiu com robô (403 'robo'; comum.robo do dicionário). */
+  textoRobo: string;
   emailEmpresa: string;
   /** O link de e-mail para a equipe (mailto, com o assunto pronto). */
   hrefEmail: string;
@@ -91,7 +95,15 @@ export function FormularioConsulta({
       } else {
         const dados = (await res.json().catch(() => ({}))) as { erro?: string };
         setErroGeral(
-          res.status === 429 ? T.erroLimite : dados.erro === 'email' ? T.erroEmail : dados.erro === 'codigo' ? T.erroCodigo : T.erroGeral,
+          respostaDeRobo(res.status, dados)
+            ? textoRobo
+            : res.status === 429
+              ? T.erroLimite
+              : dados.erro === 'email'
+                ? T.erroEmail
+                : dados.erro === 'codigo'
+                  ? T.erroCodigo
+                  : T.erroGeral,
         );
       }
     } catch {

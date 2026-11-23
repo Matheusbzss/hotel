@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withBotId } from 'botid/next/config';
 
 /**
  * Política de segurança do navegador (CSP), em duas partes:
@@ -83,4 +84,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * A proteção contra robôs (BotID, src/lib/robos.ts): o invólucro que a documentação do BotID pede no Next. Ele só junta,
+ * ao que está acima, os dois caminhos do próprio BotID (o script do desafio e a passagem para a Vercel, servidos pelo
+ * nosso endereço) e o cabeçalho deles; os cabeçalhos, os redirecionamentos e o resto ficam iguais. Com o interruptor
+ * desligado ninguém chama esses caminhos: nada muda para quem visita.
+ */
+export default withBotId(nextConfig);

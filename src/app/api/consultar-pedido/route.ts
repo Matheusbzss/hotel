@@ -12,6 +12,7 @@ import {
 import { enviarEmailDoPedido } from '@/lib/email/pedidos';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { obterReservaDoPedido } from '@/lib/reservas';
+import { barrarRobo } from '@/lib/robos-servidor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,8 @@ const SEM_CACHE = { 'Cache-Control': 'no-store' };
  * "Consultar meu pedido": recebe { email, codigo, idioma } e responde SEMPRE o mesmo { ok: true } quando os dados vêm
  * no formato certo, exista o pedido ou não. A busca e o envio do link acontecem depois da resposta (after): se o e-mail
  * digitado for o do pedido, o link privado vai para ele (src/lib/consulta-pedido.ts). Erros: 400 com o campo de formato
- * errado; 429 'limite' (5 consultas por IP a cada 10 minutos). O campo-isca preenchido recebe a mesma resposta de
+ * errado; 429 'limite' (5 consultas por IP a cada 10 minutos); 403 'robo' (a proteção contra robôs, src/lib/robos.ts:
+ * nada é buscado nem enviado). O campo-isca preenchido recebe a mesma resposta de
  * sempre, e nada é feito. Nada do que foi digitado vai para o registro do servidor.
  */
 export async function POST(req: Request) {
@@ -36,6 +38,10 @@ export async function POST(req: Request) {
   if (!(await permitir(chaveDoLimite('consulta-pedido', ipDaRequisicao(req.headers)), CONSULTAS_POR_IP, JANELA_CONSULTAS_SEGUNDOS))) {
     return NextResponse.json({ ok: false, erro: 'limite' }, { status: 429, headers: SEM_CACHE });
   }
+  // a proteção contra robôs (src/lib/robos.ts): depois do campo-isca e do limite por endereço, antes da busca e do e-mail.
+  // A resposta é a mesma para dados certos e errados; a do robô (403 'robo') é a única nova
+  const robo = await barrarRobo('POST /api/consultar-pedido');
+  if (robo) return robo;
   const idioma: Idioma = typeof corpo?.idioma === 'string' && isIdioma(corpo.idioma) ? corpo.idioma : 'pt';
   const entrada = { email: String(corpo?.email), codigo: String(corpo?.codigo) };
 

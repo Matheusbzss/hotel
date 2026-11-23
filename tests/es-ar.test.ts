@@ -273,7 +273,8 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // + 1 do Pacote 19 (reteste de 22/11): a frase do pagamento contestado na página do pedido com mais de um voucher
   // ("los vouchers quedan suspendidos. Si tenés dudas, escribinos."), ao lado da de um voucher só, que já tinha versão
   // argentina
-  dicionario: 136,
+  // + 1 do Pacote 20 (23/11): a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos por WhatsApp")
+  dicionario: 137,
   guia: 138,
   passeios: 54,
   transfer: 2,
@@ -332,8 +333,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    110,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 110 (99 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
+    111,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 111 (100 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>

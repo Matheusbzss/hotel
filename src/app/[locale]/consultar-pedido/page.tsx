@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { FormularioConsulta } from '@/components/FormularioConsulta';
 import { TextoComEmail } from '@/components/TextoComEmail';
 import { EMPRESA } from '@/config/empresa';
+import { dicionario } from '@/i18n';
 import { isIdioma } from '@/i18n/config';
 import { textosConsulta } from '@/lib/consulta-textos';
 import { linkEmail } from '@/lib/email';
@@ -39,7 +40,13 @@ export default async function ConsultarPedido({ params }: PageProps<'/[locale]/c
         <div className="lg:col-span-6 lg:col-start-7">
           <div className="tom-papel px-6 pb-8 pt-2 md:px-8">
             {ligado ? (
-              <FormularioConsulta idioma={locale} textos={T} emailEmpresa={EMPRESA.email} hrefEmail={mailto} />
+              <FormularioConsulta
+                idioma={locale}
+                textos={T}
+                emailEmpresa={EMPRESA.email}
+                hrefEmail={mailto}
+                textoRobo={dicionario(locale).comum.robo}
+              />
             ) : (
               <div className="pt-6">
                 <p className="break-all font-semibold">

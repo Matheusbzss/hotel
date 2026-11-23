@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PaginaLegal } from '@/components/PaginaLegal';
 import { RedefinirCookies } from '@/components/RedefinirCookies';
-import { textosLegais } from '@/content/legal/online';
+import { privacidadeComRobos, textosLegais } from '@/content/legal/online';
 import { dicionario } from '@/i18n';
 import { isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { emailLigado } from '@/lib/email/enviar';
 import { pagamentoOnlineNoAr } from '@/lib/formas-pagamento';
+import { nivelDaVerificacao } from '@/lib/robos';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/politica-de-privacidade'>): Promise<Metadata> {
@@ -29,9 +30,12 @@ export default async function Pagina({ params }: PageProps<'/[locale]/politica-d
   // com o pagamento online no ar para o público, a versão dele (src/content/legal/online.ts); sem ele e com os e-mails
   // ligados (RESEND_API_KEY), a de hoje com a privacidade dos e-mails; senão, a de hoje
   const legais = textosLegais(pagamentoOnlineNoAr(), emailLigado());
+  // com a proteção contra robôs ligada (o interruptor, no build), a linha da Vercel e da Kasada na lista de quem trata os
+  // dados (src/lib/robos.ts); a data da política não muda por ela
+  const robos = nivelDaVerificacao(process.env.NEXT_PUBLIC_VERIFICACAO_ROBOS) !== 'desligada';
   return (
     <PaginaLegal
-      doc={texto(legais.privacidade, locale)}
+      doc={texto(privacidadeComRobos(legais.privacidade, robos), locale)}
       atualizadoEm={legais.atualizadoEm.privacidade}
       idioma={locale}
       d={d}

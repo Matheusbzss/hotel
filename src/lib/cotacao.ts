@@ -64,5 +64,7 @@ export const textosCotacao = (d: Dicionario) => ({
   erroObrigatorio: d.checkout.erros.obrigatorio,
   erroEmail: d.checkout.erros.email,
   erroTelefone: d.checkout.erros.telefone,
+  /** Quem a proteção contra robôs confundiu com robô (403 'robo', src/lib/robos.ts). */
+  erroRobo: d.comum.robo,
 });
 export type TextosCotacao = ReturnType<typeof textosCotacao>;

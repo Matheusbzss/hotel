@@ -190,6 +190,7 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     erroGenerico: C.erros.generico,
     semStripe: C.semStripe,
     tentarDeNovo: d.reserva.tentarNovamente,
+    robo: d.comum.robo,
     confirmando: P.confirmando,
     confirmandoTexto: P.confirmandoTexto,
     pixGerado: P.pixGerado,

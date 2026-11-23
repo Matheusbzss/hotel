@@ -588,3 +588,37 @@ export function textosLegais(online: boolean, emails: boolean = false): TextosLe
     };
   return { termos: TERMOS, cancelamento: CANCELAMENTO, privacidade: PRIVACIDADE, atualizadoEm: ATUALIZADO_EM };
 }
+
+/* ------------------------------------------------------------------ */
+/* A proteção contra robôs (Pacote 20): a linha da Vercel e da Kasada  */
+
+/** A frase da lista de quem trata os dados (item 4) depois da qual entra a linha da proteção contra robôs. */
+const VERCEL_NA_LISTA: Record<IdiomaConteudo, string> = {
+  pt: 'Vercel e Supabase: hospedagem do site e armazenamento seguro das reservas.',
+  en: 'Vercel and Supabase: website hosting and secure storage of bookings.',
+  es: 'Vercel y Supabase: alojamiento del sitio y almacenamiento seguro de las reservas.',
+};
+
+/**
+ * A linha nova da lista de quem trata os dados, com a proteção contra robôs ligada (o texto em português é o que o dono
+ * aprova pelos prints; o espanhol é neutro, sem verbo em vos, e vale igual no es-ar).
+ */
+export const LINHA_DOS_ROBOS: Record<IdiomaConteudo, string> = {
+  pt: 'Vercel (com a Kasada, parceira dela): verificação automática contra robôs nos formulários e no pagamento. Ela analisa sinais técnicos do aparelho e do navegador para detectar robôs e melhorar essa proteção.',
+  en: 'Vercel (with Kasada, its partner): automatic bot detection on the forms and at payment. It analyses technical signals from the device and the browser to detect bots and improve this protection.',
+  es: 'Vercel (con Kasada, su socia): verificación automática contra robots en los formularios y en el pago. Analiza señales técnicas del dispositivo y del navegador para detectar robots y mejorar esta protección.',
+};
+
+/**
+ * A privacidade com a linha da proteção contra robôs logo depois da Vercel e da Supabase, em qualquer uma das três versões
+ * (a de hoje, a dos e-mails e a do pagamento online), só quando o interruptor dela não está desligado
+ * (NEXT_PUBLIC_VERIFICACAO_ROBOS, src/lib/robos.ts; lido no build, como a página). A data da política não muda aqui: ela
+ * muda no dia de ligar o interruptor.
+ */
+export function privacidadeComRobos(doc: Traduzido<DocumentoLegal>, ligada: boolean): Traduzido<DocumentoLegal> {
+  if (!ligada) return doc;
+  const com = (idioma: IdiomaConteudo, documento: DocumentoLegal) =>
+    comMudancas(documento, { depois: [[VERCEL_NA_LISTA[idioma], [LINHA_DOS_ROBOS[idioma]]]] });
+  const ar = doc['es-ar'];
+  return { pt: com('pt', doc.pt), en: com('en', doc.en), es: com('es', doc.es), ...(ar ? { 'es-ar': com('es', ar) } : {}) };
+}

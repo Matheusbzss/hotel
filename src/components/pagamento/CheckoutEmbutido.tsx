@@ -12,6 +12,7 @@ import { formatarCifra } from '@/lib/cifra';
 import {
   depoisDaEspera,
   erroDaFormaRecusada,
+  escolhaSaiDaTela,
   etapaComAsFormasDeAgora,
   formasDaResposta,
   noLugarDaOfertaDoPix,
@@ -77,7 +78,8 @@ function stripeDoNavegador(): Promise<Stripe | null> {
  * servidor: 'forma' (a forma não vale mais para estes itens: o prazo dela passou, o valor passa do limite do Pix, ou o
  * interruptor fechou; `formas` diz as que ainda valem, vazia com o interruptor fechado, e, sem o Pix, `semPix` diz o
  * motivo), 'status' (o pedido não está pendente nem expirado: pago em outra aba, cancelado), 'limite' (muitas
- * tentativas), 'nao-encontrado', 'stripe'; 'rede' é daqui, quando a chamada nem chegou.
+ * tentativas), 'robo' (a proteção contra robôs, src/lib/robos.ts: nada gravado), 'nao-encontrado', 'stripe'; 'rede' é
+ * daqui, quando a chamada nem chegou.
  */
 type RespostaPagar = { clientSecret: string } | { erro: string; semPix?: MotivoSemPix; formas?: FormaPagamento[] };
 
@@ -142,6 +144,8 @@ export interface TextosCheckoutEmbutido {
    * depois do prazo sem formulário, abre a página do pedido com a página inteira carregando.
    */
   tentarDeNovo: string;
+  /** Quem a proteção contra robôs confundiu com robô (comum.robo; o 403 'robo' de POST /pagar, src/lib/robos.ts). */
+  robo: string;
 }
 
 export function CheckoutEmbutido({
@@ -372,6 +376,9 @@ export function CheckoutEmbutido({
       setSemPix(true);
       setMotivoDoServidor(resposta.semPix);
       setNoLugarDoPix(noLugarDaOfertaDoPix(resposta.formas));
+    } else if (resposta.erro === 'robo') {
+      // confundido com robô pela proteção: nada foi gravado, e a sessão do cartão aberta aqui continua valendo
+      setErro(T.robo);
     } else setErro(T.erroGenerico);
     setTrocando(false);
   }
@@ -566,6 +573,9 @@ export function PagarPedido({
   const tituloRef = useRef<HTMLHeadingElement>(null);
   // o "Pagar" que o servidor acabou de recusar pela forma (403 'forma'): a página está sendo relida
   const pagarRecusado = useRef(false);
+  // o erro desse "Pagar" quando o 403 diz que nenhuma forma vale (a escolha vai sair da tela): ele espera a página relida
+  // e só aparece se a escolha continuar lá (escolhaSaiDaTela, src/lib/espera-do-pagamento.ts)
+  const erroAdiado = useRef('');
   // as formas podem encolher depois de um router.refresh (o prazo passou): a marcada precisa continuar valendo
   const formaValida = forma && formas.includes(forma) ? forma : formaPadrao(formas, idioma);
 
@@ -608,13 +618,24 @@ export function PagarPedido({
   // que entrou: rola só quando o título está fora da vista (a mesma medida do aviso do cartão recusado), sem animação, e o
   // foco não rola de novo. Só depois desse toque (pagarRecusado), nunca quando a página nasce nem quando a espera troca
   // sozinha; se a página relida ainda tem a escolha (o Pix saiu e o cartão ficou), nada se mexe: o erro do "Pagar" já tem o
-  // foco. As formas chegam como uma lista nova a cada releitura da página, e é isso que acorda o efeito
+  // foco. As formas chegam como uma lista nova a cada releitura da página, e é isso que acorda o efeito.
+  // Uma rolagem só, e depois de o que entrou estar na tela: quando o 403 já diz que nenhuma forma vale, a frase vermelha do
+  // "Pagar" nem nasce (erroAdiado), porque o foco dela começava no Chromium uma rolagem suave até ela (uns 330 ms) que,
+  // com a página relida chegando no meio (100 a 250 ms de rede), continuava depois da ida ao título e ganhava: no Android o
+  // cliente via só o resumo do pedido (reteste de 23/11, F3). Se a página relida ainda tiver a escolha, a frase aparece
+  // então, com o foco, como antes
   useEffect(() => {
     if (!pagarRecusado.current) return;
     pagarRecusado.current = false;
+    const adiado = erroAdiado.current;
+    erroAdiado.current = '';
     const semAEscolha = etapa === 'confirmando' || (etapa === 'escolher' && formas.length === 0);
+    if (!semAEscolha) {
+      if (adiado) setErro(adiado);
+      return;
+    }
     const titulo = tituloRef.current;
-    if (!semAEscolha || !titulo) return;
+    if (!titulo) return;
     if (foraDaVista(titulo)) titulo.scrollIntoView({ block: 'start', behavior: 'instant' });
     titulo.focus({ preventScroll: true });
   }, [etapa, formas]);
@@ -654,10 +675,17 @@ export function PagarPedido({
       // sem nenhuma, nunca a frase do prazo do Pix; no pedido de Pix pendente, nenhum, porque a página relida volta à
       // espera com a frase do Pix gerado (o QR já gerado vale até a sessão acabar)
       const qual = erroDaFormaRecusada(escolhida, resposta.formas, status, formaAtual);
-      if (qual !== 'nenhum') setErro(qual === 'sem-pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo);
+      const frase = qual === 'nenhum' ? '' : qual === 'sem-pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo;
+      // sem forma nenhuma, a escolha vai sair da tela: a frase espera a página relida (o efeito de pagarRecusado), para a
+      // rolagem suave até ela não disputar com a ida ao título; com alguma forma valendo, a frase na hora, como sempre
+      if (escolhaSaiDaTela(resposta.formas)) erroAdiado.current = frase;
+      else if (frase) setErro(frase);
       // se a página relida tirar a escolha da tela (nenhuma forma vale mais), a tela e o foco vão até o título do que entrou
       pagarRecusado.current = true;
       router.refresh();
+    } else if (resposta.erro === 'robo') {
+      // confundido com robô pela proteção: nada foi gravado, e a mensagem própria no lugar do erro de sempre
+      setErro(T.robo);
     } else setErro(T.erroGenerico);
     setCriando(false);
   }

@@ -56,6 +56,12 @@ export function proxy(request: NextRequest) {
   return NextResponse.rewrite(interno);
 }
 
+/**
+ * O prefixo 149e9513-… é o caminho que o withBotId (next.config.ts) reescreve para api.vercel.com: o desafio c.js e a
+ * passagem /v1/proxy/:path* (ver node_modules/botid/dist/next/config/index.mjs). Fica fora das rotas de idioma; sem
+ * isto, as chamadas sem extensão do BotID virariam /pt/149e…, a reescrita nunca casaria e o envio do cliente ficaria
+ * esperando.
+ */
 export const config = {
-  matcher: ['/((?!api|admin|_next|_vercel|.*\\..*).*)'],
+  matcher: ['/((?!api|admin|_next|_vercel|149e9513-01fa-4fb0-aad4-566afd725d1b|.*\\..*).*)'],
 };

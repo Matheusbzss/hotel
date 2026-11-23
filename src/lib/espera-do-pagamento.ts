@@ -92,6 +92,19 @@ export function erroDaFormaRecusada(
 }
 
 /**
+ * A escolha da forma vai sair da tela depois do "Pagar" que esbarrou no 403 'forma'? Sim quando o 403 trouxe a lista das
+ * formas e ela veio vazia: a página relida (com a mesma conta das formas no servidor) volta sem forma nenhuma, e no lugar
+ * da escolha entra o aviso de que o pedido não pode mais ser pago pelo site ou, no pedido de Pix pendente, a espera
+ * (etapaComAsFormasDeAgora). Aí o erro do "Pagar" espera a página relida e só aparece se a escolha continuar na tela: a
+ * frase vermelha recebia o foco e o Chromium começava uma rolagem suave até ela, que disputava com a ida ao título (reteste
+ * de 23/11, F3: com 100 a 250 ms de rede o cliente via só o resumo do pedido). Sem a lista (o prazo do Pix que passou no
+ * meio da criação da sessão) não se sabe: a escolha fica, com o erro na hora, como sempre.
+ */
+export function escolhaSaiDaTela(formasDoServidor: readonly FormaPagamento[] | undefined): boolean {
+  return formasDoServidor !== undefined && formasDoServidor.length === 0;
+}
+
+/**
  * O que o aviso do cartão recusado (com o formulário do cartão aberto: CheckoutEmbutido) diz no lugar da oferta do Pix,
  * depois que o toque em "Cartão recusado? Pague com Pix…" esbarra no 403 'forma':
  * - 'so-outro-cartao': o 403 trouxe a lista das formas e ela veio vazia (nenhuma forma vale mais: o pagamento online foi

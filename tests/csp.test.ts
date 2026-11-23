@@ -166,3 +166,48 @@ test('o Permissions-Policy de todas as páginas: o pagamento pelo navegador (Goo
   const quadros = csp.split('; ').find((d) => d.startsWith('frame-src ')) ?? '';
   for (const origem of ['https://js.stripe.com', 'https://checkout.stripe.com']) assert.ok(quadros.split(' ').includes(origem), origem);
 });
+
+test('o invólucro do BotID (Pacote 20): junta os caminhos dele no próprio endereço e não muda nada do que já existia', async () => {
+  // os cabeçalhos de todas as páginas continuam os mesmos, palavra por palavra (o Permissions-Policy já foi conferido acima)
+  assert.ok(nextConfig.headers && nextConfig.rewrites && nextConfig.redirects);
+  const regras = await nextConfig.headers();
+  const todas = regras.find((r) => r.source === '/(.*)');
+  assert.ok(todas);
+  const valor = (chave: string) => todas.headers.find((h) => h.key === chave)?.value;
+  assert.equal(valor('Content-Security-Policy'), "object-src 'none'; base-uri 'self'; frame-ancestors 'self'");
+  assert.equal(valor('X-Frame-Options'), 'SAMEORIGIN');
+  assert.equal(valor('X-Content-Type-Options'), 'nosniff');
+  assert.equal(valor('Strict-Transport-Security'), 'max-age=63072000; includeSubDomains');
+  // os redirecionamentos e o resto da configuração ficam
+  const redirecionamentos = await nextConfig.redirects();
+  assert.deepEqual(
+    redirecionamentos.map((r) => r.source),
+    ['/passeio-e-hospedagem', '/:idioma(en|es)/passeio-e-hospedagem'],
+  );
+  assert.equal(nextConfig.poweredByHeader, false);
+  assert.deepEqual(nextConfig.experimental, { inlineCss: true });
+  // os dois caminhos do BotID: no nosso endereço (começam com /), passados para a Vercel pelo servidor
+  const passagens = await nextConfig.rewrites();
+  assert.ok(Array.isArray(passagens));
+  assert.equal(passagens.length, 2);
+  for (const p of passagens) {
+    assert.match(p.source, /^\/[0-9a-f-]+\/[0-9a-f-]+\//);
+    assert.match(p.destination, /^https:\/\/api\.vercel\.com\/bot-protection\/v1\//);
+  }
+  // o script do BotID e a passagem saem do próprio endereço: a política em aviso já os deixa ('self' no script e na
+  // conexão), então nada entra nela (a documentação do BotID não pede outra origem)
+  const csp = valor('Content-Security-Policy-Report-Only') ?? '';
+  const diretiva = (nome: string) => (csp.split('; ').find((d) => d.startsWith(`${nome} `)) ?? '').split(' ');
+  assert.ok(diretiva('script-src').includes("'self'"));
+  assert.ok(diretiva('connect-src').includes("'self'"));
+  assert.doesNotMatch(csp, /vercel|kasada/i);
+  // o cabeçalho que o BotID põe nos caminhos dele não abre nada: só o próprio site pode mostrá-los num quadro
+  const doBotId = regras.find(
+    (r) => r.source !== '/(.*)' && r.source.endsWith('/:path*') && !r.source.startsWith('/admin') && !r.source.startsWith('/api'),
+  );
+  assert.ok(doBotId, 'a regra dos caminhos do BotID');
+  assert.deepEqual(doBotId.headers, [
+    { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+    { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+  ]);
+});

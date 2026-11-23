@@ -6,6 +6,7 @@ import { FORMAS_PAGAMENTO, formasDoPagamento, type FormaPagamento } from '@/lib/
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { podeAbrirSessao } from '@/lib/pagamento-stripe';
 import { itensPagaveis, tokenConfere } from '@/lib/reserva-publica';
+import { barrarRobo } from '@/lib/robos-servidor';
 import { PixForaDoPrazo } from '@/lib/stripe';
 import { PedidoFechado, abrirSessaoDoPedido, vouchersDoPedido } from '../../pedido-stripe';
 
@@ -35,7 +36,8 @@ function erro(campo: string, status: number, extra: Record<string, unknown> = {}
  * pedido (abrirSessaoDoPedido explica a ordem). Devolve o `clientSecret` do checkout embutido. O status não muda
  * aqui (um pedido expirado volta a pendente ao gravar a sessão nova); pago, só pelo webhook.
  * Erros: 400 dados, 404 'nao-encontrado' (sem pedido ou sem o token certo), 409 'status', 403 'forma' (com as
- * formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou 'limite'), 429 'limite', 502 'stripe'.
+ * formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou 'limite'), 403 'robo' (a proteção contra robôs,
+ * src/lib/robos.ts: nada gravado), 429 'limite', 502 'stripe'.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = await params;
@@ -57,6 +59,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ codigo:
     const admin = sessaoValida((await cookies()).get(COOKIE_ADMIN)?.value);
     const { formas, semPix } = await formasDoPagamento(itensPagaveis(vouchers), agora, { admin });
     if (!formas.includes(r.data.forma)) return erro('forma', 403, { formas, ...(semPix ? { semPix } : {}) });
+
+    // a proteção contra robôs (src/lib/robos.ts): depois do limite por endereço, do token e das conferências, e antes de
+    // abrir a sessão na Stripe. Robô: 403 'robo' e nada gravado
+    const robo = await barrarRobo('POST /api/pedido/[codigo]/pagar');
+    if (robo) return robo;
 
     const sessao = await abrirSessaoDoPedido(vouchers, r.data.forma, agora);
     return NextResponse.json(

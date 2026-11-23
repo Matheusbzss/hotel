@@ -7,6 +7,7 @@ import { soCampanha } from '@/lib/origem';
 import { origemDaVisita } from '@/lib/origem-servidor';
 import { emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
 import { mensagemDoErro } from '@/lib/erros';
+import { barrarRobo } from '@/lib/robos-servidor';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +21,7 @@ function erro(campo: string, status = 400) {
 
 /**
  * Grava um pedido de orçamento ou uma mensagem do site, para a equipe responder pelo painel.
- * Erros: 400 com o campo; 429 'limite'; 503 'banco'.
+ * Erros: 400 com o campo; 429 'limite'; 403 'robo' (a proteção contra robôs, src/lib/robos.ts: nada gravado); 503 'banco'.
  */
 export async function POST(req: Request) {
   const r = EsquemaCotacao.safeParse(await req.json().catch(() => null));
@@ -38,6 +39,9 @@ export async function POST(req: Request) {
     // um robô não enche o painel de cotações: no máximo LIMITE_POR_IP envios por IP a cada 10 minutos
     if (!(await permitir(chaveDoLimite('cotacao', ipDaRequisicao(req.headers)), LIMITE_POR_IP, JANELA_SEGUNDOS)))
       return erro('limite', 429);
+    // a proteção contra robôs (src/lib/robos.ts): depois do limite por endereço e antes de gravar. Robô: 403 'robo'
+    const robo = await barrarRobo('POST /api/cotacoes');
+    if (robo) return robo;
     await criarCotacao({
       tipo: e.tipo,
       nome: e.nome,

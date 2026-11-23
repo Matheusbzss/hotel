@@ -15,6 +15,7 @@ import { criarPedido } from '@/lib/reservas';
 import { CIDADES_HOSPEDAGEM, emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
 import { abrirSessaoDoPedido, cancelarPedidoAberto, itemAgendado, vouchersDoPedido } from './pedido-stripe';
 import { mensagemDoErro } from '@/lib/erros';
+import { barrarRobo } from '@/lib/robos-servidor';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -70,8 +71,8 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * vira pago pelo webhook, e o cookie do carrinho fica até lá. Sem pagamento online para este cliente (interruptor
  * PAGAMENTO_ONLINE), o caminho do WhatsApp de hoje.
  * Erros: 400 com o campo; 409 'mudou'; 403 'forma' (com as formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou
- * 'limite'); 400 'pagamento' (o pagamento online está no ar e a forma não veio); 429 'limite'; 502 'stripe' (o pedido
- * fica cancelado e o carrinho continua); 503 'banco'.
+ * 'limite'); 400 'pagamento' (o pagamento online está no ar e a forma não veio); 429 'limite'; 403 'robo' (a proteção
+ * contra robôs, src/lib/robos.ts: nada gravado); 502 'stripe' (o pedido fica cancelado e o carrinho continua); 503 'banco'.
  */
 export async function POST(req: Request) {
   const r = Esquema.safeParse(await req.json().catch(() => null));
@@ -134,6 +135,11 @@ export async function POST(req: Request) {
       if (!('passeio' in c) && extras && extras.cadeirinhas.length > c.escolha.passageiros) return erro('cadeirinhas');
       novas.push(reservaDoItem(c, dados, extras));
     }
+
+    // a proteção contra robôs (src/lib/robos.ts): depois do campo-isca, das conferências e do limite por endereço, e antes
+    // de qualquer gravação (o pedido, o carrinho, o e-mail, a sessão na Stripe). Robô: 403 'robo' e nada gravado
+    const robo = await barrarRobo('POST /api/pedido');
+    if (robo) return robo;
 
     const pedido = await criarPedido(novas);
     // o pedido já existe: se marcar o carrinho falhar, o cliente não pode ver erro e enviar de novo

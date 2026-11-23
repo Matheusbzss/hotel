@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { TextosCotacao, TipoCotacao, TrajetoCotacao } from '@/lib/cotacao';
 import { rastrear } from '@/lib/pixel';
+import { respostaDeRobo } from '@/lib/robos';
 import { DDIS, PAIS_PADRAO, emailValido, telefoneValido } from '@/lib/validacao';
 import { Campo, descricao } from './Campo';
 
@@ -89,7 +90,8 @@ export function FormularioCotacao({
         setEnviado(true);
         return;
       }
-      setErroGeral(T.erro);
+      // confundido com robô pela proteção (403 'robo'): a mensagem própria, no lugar do erro de sempre
+      setErroGeral(respostaDeRobo(res.status, await res.json().catch(() => null)) ? T.erroRobo : T.erro);
     } catch {
       setErroGeral(T.erro);
     }

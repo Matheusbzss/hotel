@@ -37,6 +37,8 @@ const pt = {
     verPasseio: 'Ver passeio',
     verPasseios: 'Ver passeios',
     whatsapp: 'Falar no WhatsApp',
+    /** Quem a proteção contra robôs confundiu com robô (403 'robo'), nos quatro formulários (src/lib/robos.ts). */
+    robo: 'Não deu para concluir pelo site agora. Fale com a gente pelo WhatsApp, que a gente termina por lá.',
     cidade: 'Cidade',
     tipo: 'Tipo de passeio',
     todas: 'Todas',

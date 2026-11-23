@@ -10,6 +10,7 @@ import { textoDolar } from '@/lib/dolar';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
+import { respostaDeRobo } from '@/lib/robos';
 import {
   CIDADES_HOSPEDAGEM,
   DDIS,
@@ -143,6 +144,8 @@ export function FormularioCarrinho({
     aPartirDe: string;
     /** "Tentar de novo" (reserva.tentarNovamente), quando o formulário da Stripe não carrega. */
     tentarDeNovo: string;
+    /** Quem a proteção contra robôs confundiu com robô (comum.robo; o 403 'robo', src/lib/robos.ts). */
+    robo: string;
   };
   links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
@@ -368,6 +371,9 @@ export function FormularioCarrinho({
         setErroGeral(
           forma === 'pix' && !restantes.includes('pix') && pagamentoOnline ? fraseSemPix(pagamentoOnline.textos, motivo) : C.erros.generico,
         );
+      } else if (respostaDeRobo(res.status, corpo)) {
+        // confundido com robô pela proteção: nada foi gravado, e a mensagem própria no lugar do erro de sempre
+        setErroGeral(textos.robo);
       } else setErroGeral(C.erros.generico);
     } catch {
       setErroGeral(C.erros.generico);
@@ -442,6 +448,7 @@ export function FormularioCarrinho({
       erroGenerico: C.erros.generico,
       semStripe: C.semStripe,
       tentarDeNovo: textos.tentarDeNovo,
+      robo: textos.robo,
     };
     // o resumo é o do pedido criado, não o do carrinho de agora: a gaveta ainda deixa tirar item, e a Stripe cobra o pedido
     const doPedido = totaisDoCarrinho(sessao.lista);

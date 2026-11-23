@@ -28,6 +28,10 @@ export const ajustesAR: AjustesAR = {
       'Hablá con Orla Nativa: atención 100% online, en español, portugués e inglés, para paseos, traslados y reservas en Búzios y la Región de los Lagos.',
     chamadaPasseio: 'Reservá online y cancelá gratis hasta 24 h antes.',
   },
+  comum: {
+    // Pacote 20: a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos")
+    robo: 'No pudimos terminar por el sitio ahora. Escribinos por WhatsApp y lo terminamos por ahí.',
+  },
   grupo: {
     escolhaData: 'Elegí la fecha',
   },

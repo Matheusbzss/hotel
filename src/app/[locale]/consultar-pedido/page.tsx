@@ -8,6 +8,7 @@ import { isIdioma } from '@/i18n/config';
 import { textosConsulta } from '@/lib/consulta-textos';
 import { linkEmail } from '@/lib/email';
 import { emailLigado } from '@/lib/email/enviar';
+import { whatsappDoRobo } from '@/lib/whatsapp';
 
 // a página não entra no Google: é só o caminho de quem perdeu o link do pedido
 export async function generateMetadata({ params }: PageProps<'/[locale]/consultar-pedido'>): Promise<Metadata> {
@@ -46,6 +47,7 @@ export default async function ConsultarPedido({ params }: PageProps<'/[locale]/c
                 emailEmpresa={EMPRESA.email}
                 hrefEmail={mailto}
                 textoRobo={dicionario(locale).comum.robo}
+                whatsappRobo={whatsappDoRobo(dicionario(locale))}
               />
             ) : (
               <div className="pt-6">

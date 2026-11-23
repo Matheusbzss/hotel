@@ -20,7 +20,8 @@ export const EMPRESA = {
   telefoneExibicao: '+55 21 99050-2377',
   /**
    * Só números, com DDI e DDD. O WhatsApp aparece só no fim da reserva
-   * (finalizar o pagamento e falar sobre o voucher), nunca antes.
+   * (finalizar o pagamento e falar sobre o voucher), nunca antes. A única exceção é o botão embaixo da
+   * mensagem de quem a proteção contra robôs barrou (Pacote 21; whatsappDoRobo, src/lib/whatsapp.ts).
    * O ícone do rodapé é só enfeite e não usa este número.
    */
   whatsapp: '5521990502377',

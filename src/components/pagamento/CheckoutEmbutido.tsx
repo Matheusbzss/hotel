@@ -24,6 +24,8 @@ import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
 import type { StatusReserva } from '@/lib/reservas';
+import type { WhatsAppDoRobo } from '@/lib/whatsapp';
+import { BotaoWhatsAppDoRobo } from '../BotaoWhatsAppDoRobo';
 import {
   EscolhaPagamento,
   formaPadrao,
@@ -146,6 +148,8 @@ export interface TextosCheckoutEmbutido {
   tentarDeNovo: string;
   /** Quem a proteção contra robôs confundiu com robô (comum.robo; o 403 'robo' de POST /pagar, src/lib/robos.ts). */
   robo: string;
+  /** O botão do WhatsApp embaixo dessa mensagem, só com ela (whatsappDoRobo, src/lib/whatsapp.ts; Pacote 21). */
+  roboWhatsapp: WhatsAppDoRobo;
 }
 
 export function CheckoutEmbutido({
@@ -411,6 +415,9 @@ export function CheckoutEmbutido({
           )}
         </div>
       )}
+      {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento), logo embaixo do aviso
+          e fora dele: dentro do respiro do aviso, a palavra "WhatsApp" com a letra grande não caberia no botão */}
+      {recusa && formaAtual === 'cartao' && erro === T.robo && <BotaoWhatsAppDoRobo whatsapp={T.roboWhatsapp} />}
       {/* em cima do QR, antes de o cliente abrir o app do banco: o recebedor pode aparecer com outro nome, e não é golpe */}
       {formaAtual === 'pix' && !semFormulario && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
       {semFormulario && (
@@ -804,6 +811,12 @@ export function PagarPedido({
               <p ref={erroRef} tabIndex={-1} className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
                 {erro}
               </p>
+            )}
+            {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
+            {erro === T.robo && (
+              <div className="mt-3">
+                <BotaoWhatsAppDoRobo whatsapp={T.roboWhatsapp} />
+              </div>
             )}
           </>
         ) : (

@@ -5,6 +5,8 @@ import type { Idioma } from '@/i18n/config';
 import type { TextosConsulta } from '@/lib/consulta-textos';
 import { respostaDeRobo } from '@/lib/robos';
 import { emailValido } from '@/lib/validacao';
+import type { WhatsAppDoRobo } from '@/lib/whatsapp';
+import { BotaoWhatsAppDoRobo } from './BotaoWhatsAppDoRobo';
 import { Campo, descricao } from './Campo';
 import { TextoComEmail } from './TextoComEmail';
 
@@ -28,11 +30,14 @@ export function FormularioConsulta({
   emailEmpresa,
   hrefEmail,
   textoRobo,
+  whatsappRobo,
 }: {
   idioma: Idioma;
   textos: TextosConsulta;
   /** A mensagem de quem a proteção contra robôs confundiu com robô (403 'robo'; comum.robo do dicionário). */
   textoRobo: string;
+  /** O botão do WhatsApp embaixo dessa mensagem, só com ela (whatsappDoRobo, src/lib/whatsapp.ts; Pacote 21). */
+  whatsappRobo: WhatsAppDoRobo;
   emailEmpresa: string;
   /** O link de e-mail para a equipe (mailto, com o assunto pronto). */
   hrefEmail: string;
@@ -190,6 +195,8 @@ export function FormularioConsulta({
           {erroGeral}
         </p>
       )}
+      {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
+      {erroGeral === textoRobo && <BotaoWhatsAppDoRobo whatsapp={whatsappRobo} />}
       <button type="submit" className="botao w-full sm:w-auto" disabled={enviando} aria-busy={enviando}>
         {enviando ? T.enviando : T.botao}
       </button>

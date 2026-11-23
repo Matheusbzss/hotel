@@ -486,6 +486,8 @@ test('o ícone do WhatsApp não encolhe dentro do botão com a letra grande: shr
     [['components', 'StatusReserva.tsx'], 2],
     [['app', '[locale]', 'pedido', '[codigo]', 'page.tsx'], 2],
     [['components', 'carrinho', 'FormularioCarrinho.tsx'], 1],
+    // o do WhatsApp embaixo da mensagem do robô (Pacote 21), nos quatro formulários
+    [['components', 'BotaoWhatsAppDoRobo.tsx'], 1],
   ];
   for (const [partes, quantos] of lugares) {
     const fonte = codigo(...partes);

@@ -19,6 +19,7 @@ import { recusaParaOCliente, type ChaveRecusa } from './recusas';
 import { ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type StatusReserva } from './reservas';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
+import { whatsappDoRobo } from './whatsapp';
 import { mensagemDoErro } from './erros.ts';
 
 /**
@@ -191,6 +192,7 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     semStripe: C.semStripe,
     tentarDeNovo: d.reserva.tentarNovamente,
     robo: d.comum.robo,
+    roboWhatsapp: whatsappDoRobo(d),
     confirmando: P.confirmando,
     confirmandoTexto: P.confirmandoTexto,
     pixGerado: P.pixGerado,

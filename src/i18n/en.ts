@@ -38,6 +38,7 @@ const en: Dicionario = {
     verPasseios: 'View tours',
     whatsapp: 'Chat on WhatsApp',
     robo: "We couldn't finish this on the site right now. Talk to us on WhatsApp and we'll finish it there.",
+    roboSaudacao: "Hi! I couldn't finish on the website. Can you help me?",
     cidade: 'Town',
     tipo: 'Tour type',
     todas: 'All',

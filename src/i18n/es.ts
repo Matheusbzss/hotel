@@ -42,6 +42,7 @@ const es: Dicionario = {
     verPasseios: 'Ver paseos',
     whatsapp: 'Hablar por WhatsApp',
     robo: 'No pudimos terminar por el sitio ahora. Escríbenos por WhatsApp y lo terminamos por ahí.',
+    roboSaudacao: '¡Hola! No pude terminar en el sitio. ¿Me ayudan?',
     cidade: 'Ciudad',
     tipo: 'Tipo de paseo',
     todas: 'Todas',

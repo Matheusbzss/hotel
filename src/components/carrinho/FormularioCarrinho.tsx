@@ -20,6 +20,8 @@ import {
   telefoneValido,
   type CidadeHospedagem,
 } from '@/lib/validacao';
+import type { WhatsAppDoRobo } from '@/lib/whatsapp';
+import { BotaoWhatsAppDoRobo } from '../BotaoWhatsAppDoRobo';
 import { Campo, descricao } from '../Campo';
 import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
@@ -146,6 +148,8 @@ export function FormularioCarrinho({
     tentarDeNovo: string;
     /** Quem a proteção contra robôs confundiu com robô (comum.robo; o 403 'robo', src/lib/robos.ts). */
     robo: string;
+    /** O botão do WhatsApp embaixo dessa mensagem, só com ela (whatsappDoRobo, src/lib/whatsapp.ts; Pacote 21). */
+    roboWhatsapp: WhatsAppDoRobo;
   };
   links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
@@ -449,6 +453,7 @@ export function FormularioCarrinho({
       semStripe: C.semStripe,
       tentarDeNovo: textos.tentarDeNovo,
       robo: textos.robo,
+      roboWhatsapp: textos.roboWhatsapp,
     };
     // o resumo é o do pedido criado, não o do carrinho de agora: a gaveta ainda deixa tirar item, e a Stripe cobra o pedido
     const doPedido = totaisDoCarrinho(sessao.lista);
@@ -942,6 +947,8 @@ export function FormularioCarrinho({
                 {erroGeral || C.erros.revise}
               </p>
             )}
+            {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
+            {erroGeral === textos.robo && <BotaoWhatsAppDoRobo whatsapp={textos.roboWhatsapp} />}
             <p className="text-small">{K.umPagamento}</p>
             <p className="text-small">{C.avisoTotal}</p>
             {/* o total não inclui as taxas pagas no local dos passeios; o transfer já inclui pedágio e estacionamento */}

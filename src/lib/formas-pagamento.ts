@@ -219,7 +219,9 @@ export function cartaoDisponivel(itens: ItemAgendado[], agora: Date = new Date()
 
 /**
  * O WhatsApp da equipe só aparece depois do pagamento aprovado: nunca em pendente, recusado, expirado,
- * cancelado, nem na volta do navegador antes do webhook. Páginas, PDF e e-mails passam por aqui.
+ * cancelado, nem na volta do navegador antes do webhook. Páginas, PDF e e-mails passam por aqui. A única exceção, fora
+ * daqui: o botão embaixo da mensagem de quem a proteção contra robôs barrou (o 403 'robo'; whatsappDoRobo,
+ * src/lib/whatsapp.ts; Pacote 21, decisão do dono de 23/11/2026).
  */
 export const mostrarWhatsApp = (status: StatusReserva): boolean => status === 'pago';
 

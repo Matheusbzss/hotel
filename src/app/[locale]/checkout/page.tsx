@@ -16,6 +16,7 @@ import { emailLigado } from '@/lib/email/enviar';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { pagamentoDoCheckout } from '@/lib/reserva-publica';
 import { obterReservaDoPedido } from '@/lib/reservas';
+import { whatsappDoRobo } from '@/lib/whatsapp';
 
 /**
  * O mais que o checkout espera pela consulta à Stripe antes de abrir. O cliente da Stripe espera até 20 s por tentativa
@@ -103,6 +104,7 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
                 aPartirDe: d.comum.aPartirDe,
                 tentarDeNovo: d.reserva.tentarNovamente,
                 robo: d.comum.robo,
+                roboWhatsapp: whatsappDoRobo(d),
               }}
               links={{
                 termos: rota(locale, '/termos-de-uso'),

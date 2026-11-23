@@ -39,6 +39,11 @@ const pt = {
     whatsapp: 'Falar no WhatsApp',
     /** Quem a proteção contra robôs confundiu com robô (403 'robo'), nos quatro formulários (src/lib/robos.ts). */
     robo: 'Não deu para concluir pelo site agora. Fale com a gente pelo WhatsApp, que a gente termina por lá.',
+    /**
+     * A mensagem já escrita no WhatsApp da equipe, no botão embaixo de comum.robo (Pacote 21): sem dado nenhum do
+     * cliente, do pedido ou do carrinho (whatsappDoRobo, src/lib/whatsapp.ts).
+     */
+    roboSaudacao: 'Olá! Não consegui concluir pelo site. Pode me ajudar?',
     cidade: 'Cidade',
     tipo: 'Tipo de passeio',
     todas: 'Todas',

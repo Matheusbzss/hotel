@@ -59,10 +59,36 @@ Nos quatro formulários, no mesmo lugar onde eles já mostram o erro do envio (`
 - es: "No pudimos terminar por el sitio ahora. Escríbenos por WhatsApp y lo terminamos por ahí."
 - es-ar: "No pudimos terminar por el sitio ahora. Escribinos por WhatsApp y lo terminamos por ahí."
 
-O dono aprova os textos pelos prints antes de qualquer coisa ir ao ar. **Nenhum dos quatro formulários tem hoje um botão
-de link do WhatsApp** (o "Finalizar pelo WhatsApp" do checkout é o botão que envia o pedido, não um link; e a regra do site
-mostra o WhatsApp da equipe só depois do pagamento): por isso a mensagem aparece sem botão. Pôr um botão do WhatsApp nessa
-mensagem é decisão do dono.
+O dono aprova os textos pelos prints antes de qualquer coisa ir ao ar.
+
+### O botão do WhatsApp embaixo da mensagem (Pacote 21)
+
+O dono decidiu em 23/11/2026, depois de ver o print do Pacote 20, que a mensagem leva um botão do WhatsApp da equipe.
+Logo embaixo dela, nos quatro formulários (fechar o pedido; "Pagar agora" / "Pagar de novo" e o "Pague com Pix" do cartão
+recusado, em `src/components/pagamento/CheckoutEmbutido.tsx`; orçamento e mensagem; consultar meu pedido), aparece o
+botão verde com o ícone do WhatsApp e o rótulo que o site já usa no voucher pago (`reserva.chamarWhatsapp`: "Chamar no
+WhatsApp", "Message us on WhatsApp", "Escribir por WhatsApp"). Ele abre o WhatsApp da equipe numa aba nova, com a
+mensagem já escrita (`comum.roboSaudacao`):
+
+- pt: "Olá! Não consegui concluir pelo site. Pode me ajudar?"
+- en: "Hi! I couldn't finish on the website. Can you help me?"
+- es e es-ar: "¡Hola! No pude terminar en el sitio. ¿Me ayudan?"
+
+- **Só com a mensagem do robô.** O botão aparece só quando o erro na tela é a mensagem do robô (a que só a resposta
+  `403 { erro: 'robo' }` põe ali) e some junto com ela. Nenhum outro erro o mostra.
+- **A única exceção à regra do WhatsApp.** No resto do site continua valendo "o WhatsApp da equipe só depois do
+  pagamento" (`mostrarWhatsApp`, `src/lib/formas-pagamento.ts`, e [pagamentos-stripe.md](pagamentos-stripe.md)). Aqui
+  a pessoa foi barrada sem ter feito nada de errado e não tem outro jeito de terminar pelo site, por isso o dono abriu
+  essa exceção.
+- **Nada do cliente no link.** O link é montado no servidor (`whatsappDoRobo`, `src/lib/whatsapp.ts`): o número é o dos
+  dados da empresa (`EMPRESA.whatsapp`) e o texto é só a saudação. Nada do que o cliente digitou, nem o pedido, nem o
+  carrinho. Os dados da empresa não vão para o JavaScript do navegador (o componente só recebe o link pronto).
+- **Tela.** O botão é `src/components/BotaoWhatsAppDoRobo.tsx`, com as classes dos outros botões do WhatsApp
+  (`botao botao-whats w-full sm:w-auto`, mais `min-w-0` para não alargar a coluna dos formulários em grade) e o ícone que
+  não encolhe. No cartão recusado ele fica logo embaixo do aviso, fora do respiro dele (lá dentro, com a letra em 150% em
+  320 px, a palavra "WhatsApp" não caberia). A conta da largura (320, 360, 390 e 1440 px, letra 100, 125 e 150%) está em
+  `tests/whatsapp-do-robo.test.ts`; os prints ficam para o reteste na bancada.
+- O clique conta como "Contact" para os anúncios (`data-evento="Contact"`), como os outros botões do WhatsApp.
 
 ## Como ligar (o que o dono faz no painel da Vercel)
 

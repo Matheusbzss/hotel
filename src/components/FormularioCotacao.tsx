@@ -6,6 +6,7 @@ import type { TextosCotacao, TipoCotacao, TrajetoCotacao } from '@/lib/cotacao';
 import { rastrear } from '@/lib/pixel';
 import { respostaDeRobo } from '@/lib/robos';
 import { DDIS, PAIS_PADRAO, emailValido, telefoneValido } from '@/lib/validacao';
+import { BotaoWhatsAppDoRobo } from './BotaoWhatsAppDoRobo';
 import { Campo, descricao } from './Campo';
 
 type Erros = Partial<Record<'nome' | 'email' | 'telefone' | 'mensagem', string>>;
@@ -214,6 +215,8 @@ export function FormularioCotacao({
           {erroGeral}
         </p>
       )}
+      {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
+      {erroGeral === T.erroRobo && <BotaoWhatsAppDoRobo whatsapp={T.erroRoboWhatsapp} />}
       <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando}>
         {enviando ? T.enviando : botao}
       </button>

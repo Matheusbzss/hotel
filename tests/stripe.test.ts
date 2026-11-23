@@ -25,6 +25,7 @@ import {
   horarioJaPassou,
   interpretarSessao,
   pagamentoAMais,
+  pagoDepoisDoHorario,
   podeAbrirSessao,
   podeMudar,
   proximaTentativa,
@@ -355,6 +356,7 @@ const PI_CARTAO_PAGO = {
     id: 'ch_3Teste1',
     object: 'charge',
     created: 1794700110,
+    status: 'succeeded',
     paid: true,
     refunded: false,
     amount: 95400,
@@ -845,7 +847,10 @@ test('a hora do pagamento é só a da cobrança: o Pix confirmado pela consulta 
   assert.match(corpoDe(pagamento, 'export async function sincronizarComStripe('), /aplicarSessao\(codigo, sessao, 'consulta', agora\)/);
   // e a leitura não tira a hora de mais nada: nem da criação do pagamento, nem da sessão
   const interpretar = corpoDe(pagamento, 'export function interpretarSessao(');
-  assert.match(interpretar, /\.\.\.\(cobranca\?\.created \? \{ pagoEm: iso\(cobranca\.created\) \} : \{\}\),/);
+  assert.match(
+    interpretar,
+    /\.\.\.\(cobranca\?\.status === 'succeeded' && cobranca\.created \? \{ pagoEm: iso\(cobranca\.created\) \} : \{\}\),/,
+  );
   assert.doesNotMatch(interpretar, /pi\?\.created|sessao\.created/);
 });
 
@@ -896,8 +901,115 @@ test('o aviso do pagamento depois do horário conta segundos, como o corte do ca
   // e é ela que decide o aviso na transição para pago, com o mesmo `agora` da leitura
   assert.match(
     corpoDe(fonte('lib', 'pagamento-stripe.ts'), 'export async function aplicarSessao('),
-    /if \(horarioJaPassou\(r, agora\)\) registrar\(r, AVISO_PAGO_DEPOIS_DO_HORARIO\);/,
+    /if \(pagoDepoisDoHorario\(\[r, \.\.\.itensDoPedido\], agora\)\) registrar\(r, AVISO_PAGO_DEPOIS_DO_HORARIO\);/,
   );
+});
+
+// Reteste de 22/11 (o que não foi coberto, item 3; a sobra do revisor do Pacote 17; Pacote 19): o aviso do pagamento que
+// chegou depois do horário olhava só o voucher que representa o pedido. Num pedido de vários itens, o serviço mais cedo
+// pode ser de outro voucher: o pagamento que chegasse depois dele, e antes do serviço do voucher que representa o pedido,
+// não deixava o aviso.
+test('o aviso do pagamento depois do horário olha o serviço mais cedo entre todos os itens do pedido', () => {
+  const as = (dataHora: string) => new Date(`${dataHora}-03:00`);
+  // dois itens: o voucher que representa o pedido (o primeiro) é o passeio do dia 3; o serviço mais cedo é o do OUTRO
+  // voucher, o transfer da véspera, às 14h
+  const primeiro = { tipo: 'passeio' as const, data: '2026-11-03', horario: { hora: '09:00' } };
+  const outro = { tipo: 'transfer' as const, data: '2026-11-02', transfer: { ida: { hora: '14:00' } } };
+  // pago depois de o transfer começar e antes do passeio: o aviso sai (antes, só o primeiro voucher contava, e ele ainda
+  // não tinha começado: nenhum aviso)
+  const entreOsDois = as('2026-11-02T14:00:30');
+  assert.equal(horarioJaPassou(primeiro, entreOsDois), false);
+  assert.equal(horarioJaPassou(outro, entreOsDois), true);
+  assert.equal(pagoDepoisDoHorario([primeiro, outro], entreOsDois), true);
+  // em qualquer ordem dos itens, e com o voucher que representa o pedido repetido na lista (o relido na trava e o da leitura
+  // do pedido), dá o mesmo
+  assert.equal(pagoDepoisDoHorario([outro, primeiro], entreOsDois), true);
+  assert.equal(pagoDepoisDoHorario([primeiro, primeiro, outro], entreOsDois), true);
+  // pago antes dos dois: sem aviso; no horário cravado do mais cedo, ainda não; 1 segundo depois, sim
+  assert.equal(pagoDepoisDoHorario([primeiro, outro], as('2026-11-02T13:30:00')), false);
+  assert.equal(pagoDepoisDoHorario([primeiro, outro], as('2026-11-02T14:00:00')), false);
+  assert.equal(pagoDepoisDoHorario([primeiro, outro], as('2026-11-02T14:00:01')), true);
+  // pago depois dos dois: o aviso, uma vez (é uma resposta só para o pedido inteiro)
+  assert.equal(pagoDepoisDoHorario([primeiro, outro], as('2026-11-03T09:00:01')), true);
+  // o pedido de um item: como sempre, a conta do próprio voucher, segundo a segundo em volta do horário
+  const horario = as('2026-11-03T09:00:00').getTime();
+  for (let s = -90; s <= 90; s++) {
+    const agora = new Date(horario + s * 1000);
+    assert.equal(pagoDepoisDoHorario([primeiro], agora), horarioJaPassou(primeiro, agora), `${s} s`);
+    assert.equal(pagoDepoisDoHorario([primeiro], agora), s > 0, `${s} s`);
+  }
+  // é o serviço mais cedo que decide: a mesma resposta que o menor tempo até o início, o dos prazos de pagar (validadeDoPix)
+  for (const agora of [as('2026-11-02T13:59:59'), as('2026-11-02T14:00:01'), as('2026-11-02T20:00:00'), as('2026-11-03T09:00:01')]) {
+    const maisCedo = Math.min(segundosAteOInicio(primeiro, agora), segundosAteOInicio(outro, agora));
+    assert.equal(pagoDepoisDoHorario([primeiro, outro], agora), maisCedo < 0, agora.toISOString());
+  }
+  // um item com a data que não dá para ler não acusa nem esconde o outro; sem item nenhum, nada
+  const ilegivel = { tipo: 'passeio' as const, data: 'amanhã', horario: { hora: '12:00' } };
+  assert.equal(pagoDepoisDoHorario([ilegivel], entreOsDois), false);
+  assert.equal(pagoDepoisDoHorario([ilegivel, primeiro], entreOsDois), false);
+  assert.equal(pagoDepoisDoHorario([ilegivel, outro], entreOsDois), true);
+  assert.equal(pagoDepoisDoHorario([], entreOsDois), false);
+
+  // aplicarSessao: os itens do pedido são lidos antes da trava, só com a sessão paga e o pedido de vários itens, e a falha
+  // dessa leitura não segura o pagamento (o aviso volta a olhar só o voucher que representa o pedido)
+  const aplicar = corpoDe(fonte('lib', 'pagamento-stripe.ts'), 'export async function aplicarSessao(');
+  assert.match(aplicar, /const pedidoDeVarios = leitura\.status === 'pago' \? alvo\.pedido\?\.codigo : undefined;/);
+  assert.match(
+    aplicar,
+    /const itensDoPedido: ItemAgendado\[\] = pedidoDeVarios\s+\? await obterPedido\(pedidoDeVarios\)\.catch\(\(e\) => \{\s+console\.error\([^;]*\);\s+return \[\];\s+\}\)\s+: \[\];/,
+  );
+  const leituraDosItens = aplicar.indexOf('await obterPedido(pedidoDeVarios)');
+  const trava = aplicar.indexOf('await atualizarReserva(alvo.codigo, (r) => {');
+  assert.ok(leituraDosItens !== -1 && trava !== -1 && leituraDosItens < trava, 'os itens lidos antes da trava');
+  // o aviso continua nascendo num lugar só, na transição para pago (a porta única), depois da linha "Pago (…)": uma vez
+  assert.equal(aplicar.match(/AVISO_PAGO_DEPOIS_DO_HORARIO/g)?.length, 1);
+  const transicao = aplicar.slice(aplicar.indexOf("if (leitura.status === 'pago') {\n      virouPago = true;"));
+  assert.match(
+    transicao,
+    /^if \(leitura\.status === 'pago'\) \{\s+virouPago = true;[\s\S]*?registrar\(r, `Pago \(\$\{quem\}\)`\);[\s\S]*?if \(pagoDepoisDoHorario\(\[r, \.\.\.itensDoPedido\], agora\)\) registrar\(r, AVISO_PAGO_DEPOIS_DO_HORARIO\);\s+return r;\s+\}/,
+  );
+  // a conta de antes (só o voucher que representa o pedido) não volta
+  assert.doesNotMatch(aplicar, /horarioJaPassou\(r, agora\)/);
+  // e os itens são os mesmos de quem decide os prazos de pagar: todos os vouchers do pedido (a rota de pagar e a página)
+  assert.match(fonte('app', 'api', 'pedido', 'pedido-stripe.ts'), /const todos = await obterPedido\(r\.pedido\.codigo\);/);
+});
+
+// Pacote 19 (reteste de 22/11): a hora do pagamento vem da cobrança (latest_charge.created), e latest_charge é a última
+// cobrança que o pagamento criou. A de uma tentativa que falhou continua nele (medido em 16/11: o QR do Pix que venceu, com
+// outro QR já na tela). Se a leitura da sessão paga chegar antes de a cobrança paga tomar o lugar (como chegou sem cobrança
+// nenhuma no ON-KEG69N), a hora da falha viraria a hora do pagamento.
+test('a hora do pagamento só vem da cobrança que deu certo: a de uma tentativa que falhou, ou ainda pendente, não conta', () => {
+  const piPixPago = { ...PI_PIX_NA_TELA, status: 'succeeded', next_action: null };
+  const lida = (latest_charge: unknown) =>
+    interpretarSessao(
+      sessaoPix({ status: 'complete', payment_status: 'paid', payment_intent: { ...piPixPago, latest_charge } }),
+      aos(60 * 60),
+    );
+  // o QR de antes venceu (a cobrança falha, criada na hora em que ele morreu) e o cliente pagou o QR novo: a leitura que
+  // ainda traz a cobrança falha dá o pedido como pago, sem hora (aplicarSessao grava a hora em que o site viu o pagamento)
+  const comAFalha = lida(COBRANCA_PIX_FALHA);
+  assert.equal(comAFalha.status, 'pago');
+  assert.equal(comAFalha.forma, 'pix');
+  assert.equal('pagoEm' in comAFalha, false);
+  // a cobrança ainda pendente, ou sem status: também sem hora
+  for (const status of ['pending', 'failed', undefined, '']) {
+    const l = lida({ ...COBRANCA_PIX_FALHA, status, created: TOQUE + 1801 });
+    assert.equal(l.status, 'pago', String(status));
+    assert.equal('pagoEm' in l, false, String(status));
+  }
+  // a cobrança que deu certo: a hora dela, como sempre (no Pix e no cartão)
+  const paga = lida({ ...COBRANCA_PIX_FALHA, id: 'py_3Pix2', status: 'succeeded', paid: true, created: TOQUE + 2400 });
+  assert.equal(paga.pagoEm, new Date((TOQUE + 2400) * 1000).toISOString());
+  const cartao = interpretarSessao(sessao({ status: 'complete', payment_status: 'paid', payment_intent: PI_CARTAO_PAGO }));
+  assert.equal(PI_CARTAO_PAGO.latest_charge.status, 'succeeded');
+  assert.equal(cartao.pagoEm, new Date(PI_CARTAO_PAGO.latest_charge.created * 1000).toISOString());
+  // o cartão recusado antes do aprovado, se a leitura ainda trouxesse a cobrança recusada: pago, sem a hora da recusa
+  const recusada = { ...PI_CARTAO_PAGO.latest_charge, id: 'ch_3Recusada', status: 'failed', paid: false, created: 1794700050 };
+  const comARecusada = interpretarSessao(
+    sessao({ status: 'complete', payment_status: 'paid', payment_intent: { ...PI_CARTAO_PAGO, latest_charge: recusada } }),
+  );
+  assert.equal(comARecusada.status, 'pago');
+  assert.equal('pagoEm' in comARecusada, false);
 });
 
 test('o webhook processa cada evento uma vez só: a entrega repetida espera a primeira terminar e depois não muda nada', async () => {

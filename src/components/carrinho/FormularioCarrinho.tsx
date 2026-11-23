@@ -630,7 +630,14 @@ export function FormularioCarrinho({
               <span className="rotulo" id="telefone-rotulo">
                 {C.telefone}
               </span>
-              <div className="flex gap-2">
+              {/* o país e o telefone lado a lado, como sempre, enquanto os dois cabem; quando não cabem (a letra grande em
+                  tela estreita), o telefone desce para a linha de baixo e ocupa a linha inteira. O telefone cresce a partir
+                  do zero (flex-1) e nunca fica com menos de 9rem, onde cabem os 13 caracteres de "21 99999-9999" (6,54rem
+                  na letra do campo) com o respiro e a borda dele: a linha só quebra com menos de 17rem (7,5 do país, 0,5
+                  do vão e 9 do telefone). Com a letra normal isso é 272 px, e a linha tem 288 em 320 px: nada muda. Até o
+                  reteste de 22/11 a linha não quebrava, e em 320 px com a letra em 150% sobravam 80 px para o telefone (3
+                  algarismos à vista por vez) */}
+              <div className="flex flex-wrap gap-2">
                 <label htmlFor="ddi" className="sr-only">
                   {C.ddi}
                 </label>
@@ -651,7 +658,7 @@ export function FormularioCarrinho({
                   id="telefone"
                   type="tel"
                   inputMode="tel"
-                  className="campo"
+                  className="campo min-w-[9rem] flex-1"
                   autoComplete="tel-national"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}

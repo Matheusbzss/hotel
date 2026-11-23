@@ -7,11 +7,14 @@ import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { podeMudar } from '@/lib/pagamento-stripe';
 import {
+  acaoManualOferecida,
   acaoManualRepetida,
+  buscaDoPainel,
   marcaOVoucherPorFora,
   pedidoNuncaPago,
   valorDoVoucherPorFora,
   valorRecebido,
+  voltaAoPainel,
   voucherAtivo,
   voucherCabeNoQueResta,
   voucherDaStripeAindaLiga,
@@ -115,7 +118,12 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  *   reembolso que falhou: invalida todos os vouchers e não soma o valor devolvido (como no ON-A8RVZN); esse caminho é
  *   'devolvido_por_fora' e 'voucher_por_fora'. As ações manuais continuam valendo para os pedidos do WhatsApp e os
  *   antigos, menos "marcar reembolsado" num pedido que nunca foi pago (pedidoNuncaPago: o do WhatsApp cancelado antes de
- *   pagar), recusado com acao-nao-vale;
+ *   pagar), recusado com acao-nao-vale. Fora da Stripe, cada ação manual só vale a partir do estado em que o painel a
+ *   oferece (acaoManualOferecida, src/lib/pedidos-painel.ts, a regra única dos botões da página), conferido dentro da
+ *   trava de versão, com o pedido relido, depois da ação repetida: a aba antiga do painel que ainda mostra "Pago no Pix"
+ *   num pedido já cancelado ou reembolsado, ou "Cancelar" num reembolsado, volta com acao-nao-vale, sem gravar nada, sem
+ *   aviso de compra e sem e-mail (reteste de 22/11: o ON-ZELYQN, cancelado, virou pago pela aba antiga, e o e-mail do
+ *   pagamento aprovado foi agendado). No pedido da Stripe nada muda: valem as conferências de sempre, acima;
  * - 'desistencia_respondida': o pedido de desistência pelo site foi respondido (src/lib/desistencia.ts), sem reembolso
  *   ou com o resto do pedido seguindo pago depois do reembolso de uma parte: só a linha no histórico, que tira o pedido
  *   da faixa do topo.
@@ -128,7 +136,9 @@ function reembolsosSemDono(reembolsos: Stripe.Refund[], vouchers: readonly Reser
  * Quem clica é uma pessoa, num formulário: toda ação recusada volta para o painel com ?erro= e um código curto,
  * que a página troca por uma frase fixa na faixa vermelha (ERROS_DO_PAINEL; nunca o texto que veio no endereço,
  * nem uma resposta em JSON, que o navegador abriria como texto cru). O que a Stripe respondeu fica só no registro
- * do servidor. Só a falta de login responde de outro jeito (pedidoRecusado).
+ * do servidor. Só a falta de login responde de outro jeito (pedidoRecusado). Toda volta, com sucesso ou com erro, leva
+ * o filtro de status e a busca em que a equipe estava (voltaAoPainel): até o reteste de 22/11 a busca se perdia a cada
+ * ação.
  */
 export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/[codigo]'>) {
   const recusa = await pedidoRecusado(req);
@@ -137,15 +147,16 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   const form = await req.formData();
   const acao = String(form.get('acao'));
   const filtro = form.get('filtro');
+  // a busca em que a equipe estava (o campo escondido "q" dos botões do painel): sem as pontas e cortada no máximo que a
+  // caixa da busca aceita
+  const busca = buscaDoPainel(form.get('q'));
   // a caixa "Confirmo" dos botões que devolvem dinheiro ou tiram a validade de um voucher (decisão do dono de 16/11): o
   // navegador não envia o formulário sem ela marcada, e a rota confere de novo
   const confirmou = form.get('confirmo') === 'sim';
-  const voltar = (erro?: ErroDoPainel) => {
-    const volta = new URL('/admin', req.url);
-    if (filtro) volta.searchParams.set('status', String(filtro));
-    if (erro) volta.searchParams.set('erro', erro);
-    return NextResponse.redirect(volta, 303);
-  };
+  // a volta ao painel, com sucesso ou com erro: o filtro de status e a busca voltam juntos (voltaAoPainel, que escreve
+  // tudo pelo URLSearchParams), e o pedido continua na tela depois da ação
+  const voltar = (erro?: ErroDoPainel) =>
+    NextResponse.redirect(voltaAoPainel(req.url, { filtro: filtro ? String(filtro) : undefined, busca, erro }), 303);
 
   // o status, o pagamento e o histórico do pedido ficam no voucher que o representa (o primeiro da viagem): é o que
   // o webhook e a consulta à Stripe atualizam, qualquer que seja o voucher no endereço
@@ -357,12 +368,24 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   if (!daStripe && manual.status === 'reembolsado' && pedidoNuncaPago(alvo)) return voltar('acao-nao-vale');
 
   let virouPago = false;
+  // a ação que o painel não oferece no estado em que o pedido está: decidida a cada volta da trava, com o pedido relido
+  let foraDeHora = false;
   const atualizada = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = manual.status === 'pago' && r.status !== 'pago';
+    foraDeHora = false;
     // o duplo toque, ou a aba antiga do painel: o pedido relido dentro da trava já está como a ação o deixaria (o status
     // e, quando ela diz a forma, a forma). Nada é gravado: nem a linha de novo, nem o aviso de compra, nem o e-mail
     // (virouPago já é false: o status é o da ação), e a volta é a de sempre
     if (acaoManualRepetida(r, manual)) return null;
+    // a aba antiga do painel com um botão que a tela de agora não oferece mais neste status ("Pago no Pix" num pedido do
+    // WhatsApp cancelado ou reembolsado no meio-tempo, "Cancelar" num reembolsado): a mesma regra dos botões da página
+    // (acaoManualOferecida), com o pedido relido. Nada é gravado, o pedido não vira pago (nem aviso de compra, nem e-mail
+    // com o voucher) e a volta é acao-nao-vale. Só fora da Stripe: no pedido dela valem as conferências de cima, como antes
+    if (!daStripe && !acaoManualOferecida(r, acao)) {
+      foraDeHora = true;
+      virouPago = false;
+      return null;
+    }
     r.status = manual.status;
     // quem cobrou continua sendo a equipe: sem isto, anotar "Pix" ou "cartão" numa reserva do WhatsApp fazia o
     // painel mostrar o checkout antigo, que é o que uma forma online sem provedor gravado quer dizer
@@ -371,6 +394,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (manual.status === 'pago' && !r.pagamento.pagoEm) r.pagamento.pagoEm = new Date().toISOString();
     return registrar(r, manual.evento);
   });
+  if (foraDeHora) return voltar('acao-nao-vale');
   if (virouPago && atualizada) {
     await avisarCompra(atualizada);
     // o e-mail do pagamento aprovado, com os vouchers (Etapa 6), depois da resposta; uma vez só por pedido

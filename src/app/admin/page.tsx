@@ -11,10 +11,14 @@ import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
 import { semFaixas } from '@/lib/passeio-view';
 import {
+  ACOES_MANUAIS_DO_PAINEL,
+  BUSCA_DO_PAINEL_MAXIMO,
+  EM_ABERTO,
   NAO_PAGO,
   NENHUM_VOUCHER,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
+  acaoManualOferecida,
   agruparPedidos,
   avisoAberto,
   avisosDeContestacao,
@@ -23,6 +27,7 @@ import {
   botaoReembolsoDoVoucher,
   botaoVoucherDaStripe,
   botaoVoucherPorFora,
+  buscaDoPainel,
   confirmacaoDoReembolso,
   contarReembolsosAResolver,
   contestacoesAbertas,
@@ -41,6 +46,7 @@ import {
   valorDoVoucherPorFora,
   valorRecebido,
   voucherAtivo,
+  type AcaoManualDoPainel,
   type PedidoPainel,
   type ReembolsoNoPainel,
 } from '@/lib/pedidos-painel';
@@ -88,9 +94,6 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (
   { valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: (p) => reembolsoParaResolver(p) },
   { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
 ];
-
-/** Os pedidos cuja forma de pagamento ainda não fechou: os dois totais (Pix e cartão) continuam valendo. */
-const EM_ABERTO: readonly StatusReserva[] = ['aguardando_whatsapp', 'pendente', 'expirado', 'recusado'];
 
 const dataHora = (iso?: string) =>
   iso
@@ -233,13 +236,16 @@ function textosDaBusca(r: Reserva): string[] {
  * sobre um reembolso que a Stripe fez ou não conseguiu fazer, o id dele vai no campo `reembolso`. Com `confirmacao`, o
  * formulário ganha a caixa de marcar obrigatória: o navegador não envia sem ela marcada, e a rota confere de novo. É o
  * gesto de propósito antes de devolver dinheiro ou tirar a validade de um voucher (decisão do dono de 16/11), sem
- * JavaScript, igual no celular e no computador; tocar no texto também marca a caixa.
+ * JavaScript, igual no celular e no computador; tocar no texto também marca a caixa. O filtro de status e a busca em que
+ * a equipe estava vão em campos escondidos (`filtro` e `q`): a rota volta para o painel com os dois (voltaAoPainel,
+ * src/lib/pedidos-painel.ts), e o pedido continua na tela depois da ação (reteste de 22/11: a volta perdia a busca).
  */
 function BotaoAcao({
   voucher,
   acao,
   rotulo,
   filtro,
+  busca,
   cor = 'bg-superficie',
   item,
   reembolso,
@@ -249,6 +255,8 @@ function BotaoAcao({
   acao: string;
   rotulo: string;
   filtro: string;
+  /** A busca em que a equipe estava: volta com o painel depois da ação, junto do filtro. */
+  busca: string;
   cor?: string;
   item?: string;
   reembolso?: string;
@@ -258,6 +266,7 @@ function BotaoAcao({
     <form method="post" action={`/api/admin/reservas/${voucher}`}>
       <input type="hidden" name="acao" value={acao} />
       <input type="hidden" name="filtro" value={filtro} />
+      {busca && <input type="hidden" name="q" value={busca} />}
       {item && <input type="hidden" name="voucher" value={item} />}
       {reembolso && <input type="hidden" name="reembolso" value={reembolso} />}
       {confirmacao && (
@@ -282,7 +291,19 @@ function BotaoAcao({
  * (botaoReembolsoDoVoucher). O que vale mais do que resta fica sem botão: devolver só ele levaria tudo o que resta, a
  * Stripe trataria como reembolso total e todos os vouchers deixariam de valer; o "Reembolsar tudo (R$ …)" diz esse efeito.
  */
-function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; filtro: string; restante: number; vouchers: Reserva[] }) {
+function ReembolsoStripe({
+  p,
+  filtro,
+  busca,
+  restante,
+  vouchers,
+}: {
+  p: PedidoPainel;
+  filtro: string;
+  busca: string;
+  restante: number;
+  vouchers: Reserva[];
+}) {
   const r = p.itens[0];
   return (
     <details className="text-small">
@@ -299,6 +320,7 @@ function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; f
           acao="reembolsar"
           rotulo={`Reembolsar tudo (${formatarPreco(restante)})`}
           filtro={filtro}
+          busca={busca}
           cor="bg-erro-claro"
           confirmacao={confirmacaoDoReembolso(restante)}
         />
@@ -313,6 +335,7 @@ function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; f
                 acao="reembolsar_item"
                 rotulo={botao.rotulo}
                 filtro={filtro}
+                busca={busca}
                 confirmacao={botao.confirmacao}
               />
             )
@@ -331,10 +354,12 @@ function ReembolsoStripe({ p, filtro, restante, vouchers }: { p: PedidoPainel; f
 function ReembolsoQueFalhou({
   p,
   filtro,
+  busca,
   reembolso,
 }: {
   p: PedidoPainel;
   filtro: string;
+  busca: string;
   reembolso: Extract<ReembolsoNoPainel, { tipo: 'falhou' }>;
 }) {
   const r = p.itens[0];
@@ -353,6 +378,7 @@ function ReembolsoQueFalhou({
             rotulo={botao.rotulo}
             confirmacao={botao.confirmacao}
             filtro={filtro}
+            busca={busca}
             cor="bg-erro-claro"
           />
         );
@@ -369,6 +395,7 @@ function ReembolsoQueFalhou({
             rotulo={botao.rotulo}
             confirmacao={botao.confirmacao}
             filtro={filtro}
+            busca={busca}
           />
         );
       })}
@@ -381,7 +408,17 @@ function ReembolsoQueFalhou({
  * ("Foi o voucher …", com a caixa "Confirmo": o voucher deixa de valer, sem novo reembolso) e "Nenhum voucher: foi só um
  * desconto". Nenhum chama a Stripe. Com mais de um reembolso assim, cada grupo vem com a frase do seu valor.
  */
-function ReembolsoSemVoucherNoPainel({ p, filtro, semVoucher }: { p: PedidoPainel; filtro: string; semVoucher: ReembolsoSemVoucher[] }) {
+function ReembolsoSemVoucherNoPainel({
+  p,
+  filtro,
+  busca,
+  semVoucher,
+}: {
+  p: PedidoPainel;
+  filtro: string;
+  busca: string;
+  semVoucher: ReembolsoSemVoucher[];
+}) {
   const r = p.itens[0];
   const ativos = p.itens.filter(voucherAtivo);
   return (
@@ -401,10 +438,18 @@ function ReembolsoSemVoucherNoPainel({ p, filtro, semVoucher }: { p: PedidoPaine
                 rotulo={botao.rotulo}
                 confirmacao={botao.confirmacao}
                 filtro={filtro}
+                busca={busca}
               />
             );
           })}
-          <BotaoAcao voucher={r.codigo} acao="reembolso_sem_voucher" reembolso={s.id} rotulo={NENHUM_VOUCHER} filtro={filtro} />
+          <BotaoAcao
+            voucher={r.codigo}
+            acao="reembolso_sem_voucher"
+            reembolso={s.id}
+            rotulo={NENHUM_VOUCHER}
+            filtro={filtro}
+            busca={busca}
+          />
         </div>
       ))}
     </div>
@@ -415,38 +460,28 @@ function ReembolsoSemVoucherNoPainel({ p, filtro, semVoucher }: { p: PedidoPaine
  * O status é do pedido inteiro, com todos os vouchers: um pagamento só. O que o pedido mostra sobre reembolso vem de
  * reembolsoNoPainel (src/lib/pedidos-painel.ts): os botões da Stripe de sempre, nenhum no pedido contestado (a frase no
  * lugar), os de registrar depois de um reembolso que falhou e os de dizer de qual voucher foi o reembolso feito direto
- * na Stripe.
+ * na Stripe. As ações manuais ("Pago no Pix", "Pago no cartão", "Marcar como pago", os dois "Corrigir", "Cancelar" e
+ * "Marcar reembolsado") aparecem pela regra única acaoManualOferecida (src/lib/pedidos-painel.ts), com o voucher que
+ * representa o pedido: é a mesma que a rota do painel confere de novo antes de gravar, e a aba antiga do painel não faz
+ * o que esta tela não oferece mais (reteste de 22/11).
  */
-function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: string }) {
   const r = p.itens[0];
-  const stripe = p.provedor === 'stripe';
   const reembolso = reembolsoNoPainel(p);
-  const acoes: { acao: string; rotulo: string }[] = [];
-  if (EM_ABERTO.includes(p.status)) {
-    if (p.metodo === 'whatsapp') {
-      // a forma de pagamento define quanto entrou
-      acoes.push(
-        { acao: 'pago_pix', rotulo: `Pago no Pix (${formatarPreco(p.totalPixCentavos ?? p.totalCentavos)})` },
-        { acao: 'pago_cartao', rotulo: `Pago no cartão (${formatarPreco(p.totalCentavos)})` },
-      );
-    } else if (!stripe) {
-      // pela Stripe ninguém marca pago à mão: só o webhook (ou a consulta à sessão) muda o status
-      acoes.push({ acao: 'marcar_pago', rotulo: 'Marcar como pago' });
-    }
-  }
-  // marcou errado: dá para trocar, menos no pagamento online, que veio do sistema de pagamento
-  if (p.status === 'pago' && !stripe && !r.pagamento.pedidoId) {
-    if (p.metodo !== 'pix') acoes.push({ acao: 'pago_pix', rotulo: 'Corrigir: foi no Pix' });
-    if (p.metodo !== 'cartao') acoes.push({ acao: 'pago_cartao', rotulo: 'Corrigir: foi no cartão' });
-  }
-  // um pedido pago pela Stripe se desfaz com o reembolso, não com o cancelamento
-  const pagoNaStripe = stripe && (p.status === 'pago' || p.status === 'contestado');
-  if (p.status !== 'cancelado' && p.status !== 'reembolsado' && !pagoNaStripe) acoes.push({ acao: 'cancelar', rotulo: 'Cancelar' });
-  // "Marcar reembolsado" só no pedido que chegou a ser pago: no do WhatsApp cancelado antes de pagar não há o que devolver
-  // (naoPagoNoPainel; reteste de 17-18/11, pergunta 11). A rota do painel recusa o mesmo pedido vindo de uma aba antiga
-  if (!stripe && (p.status === 'pago' || p.status === 'cancelado') && !naoPagoNoPainel(p)) {
-    acoes.push({ acao: 'reembolsado', rotulo: 'Marcar reembolsado' });
-  }
+  // o que cada botão diz. No pedido em aberto do WhatsApp a forma de pagamento define quanto entrou; no pago, os dois
+  // botões da forma são para corrigir o que foi marcado errado (a regra só oferece o da outra forma)
+  const corrigir = p.status === 'pago';
+  const rotulos: Record<AcaoManualDoPainel, string> = {
+    pago_pix: corrigir ? 'Corrigir: foi no Pix' : `Pago no Pix (${formatarPreco(p.totalPixCentavos ?? p.totalCentavos)})`,
+    pago_cartao: corrigir ? 'Corrigir: foi no cartão' : `Pago no cartão (${formatarPreco(p.totalCentavos)})`,
+    marcar_pago: 'Marcar como pago',
+    cancelar: 'Cancelar',
+    reembolsado: 'Marcar reembolsado',
+  };
+  const acoes: { acao: string; rotulo: string }[] = ACOES_MANUAIS_DO_PAINEL.filter((acao) => acaoManualOferecida(r, acao)).map((acao) => ({
+    acao,
+    rotulo: rotulos[acao],
+  }));
   // o pedido de desistência respondido pela equipe, sem reembolso (a política não devolve) ou com o resto do pedido
   // seguindo pago depois do reembolso de uma parte: sai da faixa do topo. Só o reembolso do pedido inteiro tira o pedido
   // de lá sozinho (o status deixa de ser pago)
@@ -458,18 +493,18 @@ function Acoes({ p, filtro }: { p: PedidoPainel; filtro: string }) {
       {(acoes.length > 0 || reembolso.tipo === 'stripe') && (
         <div className="flex flex-wrap items-start gap-2">
           {acoes.map((a) => (
-            <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} />
+            <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} busca={busca} />
           ))}
           {reembolso.tipo === 'stripe' && (
-            <ReembolsoStripe p={p} filtro={filtro} restante={reembolso.restanteCentavos} vouchers={reembolso.vouchers} />
+            <ReembolsoStripe p={p} filtro={filtro} busca={busca} restante={reembolso.restanteCentavos} vouchers={reembolso.vouchers} />
           )}
         </div>
       )}
       {/* no contestado, a frase no lugar da caixa "Reembolsar na Stripe…" (o que fazer fica na frase vermelha de cima) */}
       {reembolso.tipo === 'contestado' && <p className="max-w-xl text-small text-tinta-suave">{SEM_REEMBOLSO_NA_CONTESTACAO}</p>}
-      {reembolso.tipo === 'falhou' && <ReembolsoQueFalhou p={p} filtro={filtro} reembolso={reembolso} />}
+      {reembolso.tipo === 'falhou' && <ReembolsoQueFalhou p={p} filtro={filtro} busca={busca} reembolso={reembolso} />}
       {(reembolso.tipo === 'falhou' || reembolso.tipo === 'stripe') && reembolso.semVoucher.length > 0 && (
-        <ReembolsoSemVoucherNoPainel p={p} filtro={filtro} semVoucher={reembolso.semVoucher} />
+        <ReembolsoSemVoucherNoPainel p={p} filtro={filtro} busca={busca} semVoucher={reembolso.semVoucher} />
       )}
     </div>
   );
@@ -567,7 +602,7 @@ function MotivoDoPagamento({ codigo, metodo }: { codigo: string; metodo: PedidoP
  * (os códigos da Stripe do histórico), e o cartão, com a caixa "Confirmo" do reembolso, passava da tela (reteste de
  * 16-17/11, R1). Do lg para cima, as 12 colunas de sempre.
  */
-function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
+function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: string }) {
   const r = p.itens[0];
   const varios = p.itens.length > 1;
   const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
@@ -650,7 +685,7 @@ function CartaoPedido({ p, filtro }: { p: PedidoPainel; filtro: string }) {
         <ValorDoPedido p={p} />
       </div>
       <div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">
-        <Acoes p={p} filtro={filtro} />
+        <Acoes p={p} filtro={filtro} busca={busca} />
         {/* com algum aviso aberto (a Stripe não devolveu, valor diferente, pago depois do horário, o e-mail com os
             vouchers que não saiu, o pedido de desistência), o histórico já vem aberto. Os códigos da Stripe das linhas
             (cs_test_…, pi_…, re_…) não têm onde quebrar: no celular, quebram em qualquer ponto em vez de alargar o cartão */}
@@ -680,7 +715,9 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   }
 
   const filtroAtual = typeof q.status === 'string' ? q.status : '';
-  const busca = typeof q.q === 'string' ? q.q.trim().toLowerCase() : '';
+  // a busca: sem os espaços das pontas e no máximo o que a caixa aceita (buscaDoPainel, a mesma regra com que a rota das
+  // ações a devolve no endereço depois de cada ação)
+  const busca = buscaDoPainel(q.q).toLowerCase();
   // a rota das ações volta com ?erro=<código> quando recusa uma ação; a faixa vermelha mostra a frase fixa desse
   // código (ERROS_DO_PAINEL), nunca o texto que veio no endereço
   const erroAcao = fraseDoErro(typeof q.erro === 'string' ? q.erro : undefined);
@@ -721,9 +758,12 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo/orla-nativa-emblema.svg" alt="" width={48} height={48} className="size-12" />
-          <div>
+          {/* o bloco do título pode encolher (min-w-0) e a linha quebra em qualquer ponto: com a chave da Stripe posta e o
+              interruptor desligado, a palavra "PAGAMENTO_ONLINE" não tinha onde quebrar e a página rolava 19 px de lado em
+              320 px com a letra em 150% (reteste de 22/11) */}
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Pedidos</h1>
-            <p className="text-small text-tinta-suave">
+            <p className="text-small text-tinta-suave [overflow-wrap:anywhere]">
               Pagamento online: {textoPagamentoOnline()} · Pedidos em: {ondeFicamAsReservas()}
             </p>
           </div>
@@ -811,6 +851,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
             id="q"
             name="q"
             defaultValue={busca}
+            maxLength={BUSCA_DO_PAINEL_MAXIMO}
             placeholder="Buscar pedido, voucher, nome, hotel…"
             className="campo min-h-11 min-w-0 flex-1 py-2 sm:w-64 sm:flex-none"
           />
@@ -827,7 +868,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
       </p>
       <ul className="mt-3 space-y-3">
         {lista.map((p) => (
-          <CartaoPedido key={p.codigo} p={p} filtro={filtro.valor} />
+          <CartaoPedido key={p.codigo} p={p} filtro={filtro.valor} busca={busca} />
         ))}
       </ul>
     </main>

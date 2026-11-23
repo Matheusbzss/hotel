@@ -537,3 +537,170 @@ test('a conta do botão do WhatsApp do voucher pago: com o ícone inteiro, a pal
       assert.ok(1.25 * raiz + 0.6 * raiz + palavra * 1.125 * raiz <= pagina - 2 * 1.4 * raiz, `página ${largura}/${raiz}`);
     }
 });
+
+/* ------------------------------------------------------------------ */
+/* A bolinha da forma marcada e o telefone do checkout (Pacote 19, reteste de 22/11) */
+
+test('a bolinha da forma marcada: a borda cresce com a letra, como a bolinha, e o miolo não fica largo com a letra grande', () => {
+  // Com a letra em 150% a forma marcada virava um anel de miolo branco largo, parecido com a bolinha desmarcada: a bolinha
+  // cresce com a letra (size-5, 1.25rem) e a borda da marcada era fixa (border-[6px])
+  const bolinha = classesDe(escolha, /<span\s+aria-hidden="true"\s+className="([^"]*)"\s*\/>/, 'a bolinha do rádio');
+  for (const c of [
+    'size-5',
+    'shrink-0',
+    'rounded-full',
+    'border-2',
+    'group-data-[ativo=true]:border-[0.375rem]',
+    'group-data-[ativo=true]:border-(--color-tinta)',
+  ])
+    assert.ok(bolinha.includes(c), `${c}: ${bolinha.join(' ')}`);
+  // nenhuma borda em px fixos na marcada, em parte nenhuma do componente
+  assert.doesNotMatch(escolha, /border-\[\d+(?:\.\d+)?px\]/);
+  assert.equal(escolha.match(/group-data-\[ativo=true\]:border-\[/g)?.length, 1);
+  // a conta: a bolinha tem 1.25rem e a borda da marcada 0.375rem de cada lado; o miolo fica com 0.5rem, 40% da bolinha, em
+  // qualquer letra. Com a letra normal são os mesmos 6 px de borda e 8 de miolo de antes; com 150%, 9 e 12 (eram 6 e 18)
+  const [tamanho, borda] = [1.25, 0.375];
+  for (const raiz of RAIZES) {
+    const miolo = (tamanho - 2 * borda) * raiz;
+    assert.equal(miolo / (tamanho * raiz), 0.4, `raiz ${raiz}`);
+    const antes = tamanho * raiz - 2 * 6;
+    if (raiz === 16) assert.deepEqual([borda * raiz, miolo, antes], [6, 8, 8]);
+    if (raiz === 24) assert.deepEqual([borda * raiz, miolo, antes], [9, 12, 18]);
+  }
+});
+
+/** A linha do telefone do checkout no celular: a tela menos a margem da página (.moldura), sem nenhuma outra caixa em volta. */
+const linhaDoTelefone = (largura: number, raiz: number) => largura - 2 * margemDaPagina(largura, raiz);
+/** As medidas da linha, em rem: a caixa do país, o vão e o respiro lateral do campo; a borda do campo é de 1 px. */
+const PAIS_REM = 7.5;
+const VAO_REM = 0.5;
+const RESPIRO_REM = 0.85;
+/** A letra do campo (--text-body) e quantas vezes ela mede "21 99999-9999" (o reteste: 104,6 px com 17 px e 157 px com 25,5). */
+const LETRA_DO_CAMPO_REM = 1.0625;
+const VEZES_O_TELEFONE = 6.157;
+/** O que sobra para o texto dentro de um campo de `largura` px (o respiro dos dois lados e a borda). */
+const mioloDoCampo = (largura: number, raiz: number) => largura - 2 * RESPIRO_REM * raiz - 2;
+
+test('o telefone do checkout: a linha do país e do telefone pode quebrar, e o telefone tem a largura mínima de 9rem', () => {
+  const linha = classesDe(carrinho, /<div className="([^"]*)">\s*<label htmlFor="ddi" className="sr-only">/, 'a linha do telefone');
+  assert.deepEqual(linha, ['flex', 'flex-wrap', 'gap-2']);
+  // o país fica como era: a largura fixa de 7.5rem, sem encolher
+  const pais = classesDe(carrinho, /<select\s+id="ddi"\s+className="([^"]*)"/, 'a caixa do país');
+  assert.deepEqual(pais, ['campo', 'w-[7.5rem]', 'shrink-0']);
+  // o telefone cresce a partir do zero (flex-1: sem isso, os 100% de largura do .campo o jogariam sempre para a linha de
+  // baixo) e nunca fica com menos que o mínimo
+  const telefone = classesDe(carrinho, /<input\s+id="telefone"\s+type="tel"\s+inputMode="tel"\s+className="([^"]*)"/, 'o telefone');
+  assert.deepEqual(telefone, ['campo', 'min-w-[9rem]', 'flex-1']);
+  // as medidas que a conta usa, lidas do CSS do projeto: o campo (largura de 100%, o respiro, a borda e a letra), a letra do
+  // corpo, a margem da página e a moldura do checkout
+  const css = readFileSync(path.join('src', 'app', 'globals.css'), 'utf8').replace(/\r\n/g, '\n');
+  const campo = css.slice(css.indexOf('\n  .campo {'), css.indexOf('}', css.indexOf('\n  .campo {')));
+  for (const regra of [
+    'display: block;',
+    'width: 100%;',
+    'padding: 0.7rem 0.85rem;',
+    'border: 1px solid var(--color-borda-campo);',
+    'font-size: var(--text-body);',
+  ])
+    assert.ok(campo.includes(regra), regra);
+  const tokens = readFileSync(path.join('src', 'app', 'tokens.css'), 'utf8');
+  assert.match(tokens, /--text-body: 1\.0625rem;/);
+  assert.match(tokens, /--margem: clamp\(1rem, 0\.6rem \+ 1\.8vw, 2rem\);/);
+  assert.match(
+    css,
+    /\.moldura \{\s+width: 100%;\s+max-width: calc\(var\(--largura-max\) \+ 2 \* var\(--margem\)\);\s+margin-inline: auto;\s+padding-inline: var\(--margem\);/,
+  );
+  assert.match(codigo('app', '[locale]', 'checkout', 'page.tsx'), /<div className="moldura pb-24 pt-4 md:pb-32 md:pt-8">/);
+  // o rótulo escondido do país (sr-only) fica fora da linha: só o país e o telefone ocupam lugar nela
+  assert.match(carrinho, /<label htmlFor="ddi" className="sr-only">/);
+});
+
+test('a conta do telefone do checkout: com a letra normal, igual a antes; com a letra grande, desce só quando não cabe, e os 13 caracteres aparecem sempre', () => {
+  const MINIMO_REM = 9;
+  const ladoALado = (largura: number, raiz: number) => (PAIS_REM + VAO_REM + MINIMO_REM) * raiz <= linhaDoTelefone(largura, raiz);
+  // antes: o telefone ficava sempre ao lado do país, com o que sobrasse
+  const telefoneAntes = (largura: number, raiz: number) => linhaDoTelefone(largura, raiz) - (PAIS_REM + VAO_REM) * raiz;
+  // agora: ao lado, o mesmo que sobrava; na linha de baixo, a linha inteira
+  const telefoneAgora = (largura: number, raiz: number) =>
+    ladoALado(largura, raiz) ? telefoneAntes(largura, raiz) : linhaDoTelefone(largura, raiz);
+  const numero = (raiz: number) => VEZES_O_TELEFONE * LETRA_DO_CAMPO_REM * raiz;
+  const perto = (a: number, b: number, onde: string) => assert.ok(Math.abs(a - b) < 0.3, `${onde}: ${a} e ${b}`);
+
+  // (1) o modelo dá as medidas do reteste de 22/11 (a linha de antes): o país, o telefone e o miolo dele
+  const RETESTE: [number, number, number, number, number][] = [
+    // largura, raiz, país, telefone, miolo
+    [320, 24, 180, 80, 37.2],
+    [320, 16, 120, 160, 130.8],
+    [360, 24, 180, 120, 77.2],
+    [390, 16, 120, 228.8, 199.8],
+  ];
+  for (const [largura, raiz, pais, telefone, miolo] of RETESTE) {
+    const onde = `${largura}/${raiz}`;
+    assert.equal(PAIS_REM * raiz, pais, onde);
+    perto(telefoneAntes(largura, raiz), telefone, onde);
+    perto(mioloDoCampo(telefoneAntes(largura, raiz), raiz), miolo, onde);
+  }
+  // e o defeito: em 320 px com a letra em 150% sobravam 37 px para um número de 157 (3 algarismos à vista), e em 360, 77
+  perto(numero(24), 157, 'o número com a letra em 150%');
+  perto(numero(16), 104.6, 'o número com a letra normal');
+  assert.ok(mioloDoCampo(telefoneAntes(320, 24), 24) < numero(24) / 4);
+  assert.ok(mioloDoCampo(telefoneAntes(360, 24), 24) < numero(24) / 2);
+
+  // (2) com a letra normal, a linha fica exatamente como era em 320, 360 e 390 px (e em toda largura a partir de 320):
+  // lado a lado, com as mesmas larguras, e com folga de pelo menos 8 px para um arredondamento não a quebrar
+  for (const largura of [320, 360, 390]) {
+    assert.equal(ladoALado(largura, 16), true, `${largura}/16`);
+    assert.equal(telefoneAgora(largura, 16), telefoneAntes(largura, 16), `${largura}/16`);
+    assert.ok(linhaDoTelefone(largura, 16) - (PAIS_REM + VAO_REM + MINIMO_REM) * 16 >= 8, `${largura}/16`);
+  }
+  assert.equal(linhaDoTelefone(320, 16) - (PAIS_REM + VAO_REM + MINIMO_REM) * 16, 16);
+  assert.deepEqual(
+    [telefoneAgora(320, 16), Math.round(telefoneAgora(360, 16) * 10) / 10, Math.round(telefoneAgora(390, 16) * 10) / 10],
+    [160, 199.8, 228.8],
+  );
+  for (let largura = 320; largura <= 1023; largura++) assert.equal(ladoALado(largura, 16), true, `${largura}/16`);
+
+  // (3) com a letra grande, o telefone desce onde os dois não cabem lado a lado (e só ali): com 125%, em 320 e 360 px; com
+  // 150%, em 320, 360 e 390 px. Onde cabem, ficam lado a lado, como em 390 px com 125%
+  assert.deepEqual(
+    [320, 360, 390].map((largura) => ladoALado(largura, 20)),
+    [false, false, true],
+  );
+  assert.deepEqual(
+    [320, 360, 390].map((largura) => ladoALado(largura, 24)),
+    [false, false, false],
+  );
+  // embaixo, o telefone ocupa a linha inteira, e a linha nunca é mais estreita que o mínimo dele (ele não passa da tela)
+  assert.deepEqual([telefoneAgora(320, 24), telefoneAgora(360, 24), telefoneAgora(390, 24)], [272, 312, 342]);
+  for (const raiz of RAIZES)
+    for (let largura = 320; largura <= 1023; largura++)
+      assert.ok(linhaDoTelefone(largura, raiz) >= MINIMO_REM * raiz, `${largura}/${raiz}`);
+
+  // (4) os 13 caracteres de "21 99999-9999" aparecem inteiros em toda largura a partir de 320 px, com a letra em 100, 125 e
+  // 150%: o telefone nunca tem menos que o mínimo (ao lado do país, pela regra da quebra; embaixo, a linha inteira), e no
+  // mínimo o miolo já comporta o número, com 10 px ou mais de sobra
+  for (const raiz of RAIZES) {
+    assert.ok(mioloDoCampo(MINIMO_REM * raiz, raiz) - numero(raiz) >= 10, `raiz ${raiz}`);
+    for (let largura = 320; largura <= 1023; largura++) {
+      const telefone = telefoneAgora(largura, raiz);
+      assert.ok(telefone >= MINIMO_REM * raiz, `${largura}/${raiz}`);
+      assert.ok(mioloDoCampo(telefone, raiz) >= numero(raiz), `${largura}/${raiz}`);
+    }
+  }
+  // antes, com a letra grande, o número não cabia de 320 px até uns 366 px (125%) ou 439 px (150%)
+  assert.ok(mioloDoCampo(telefoneAntes(366, 20), 20) < numero(20) && mioloDoCampo(telefoneAntes(367, 20), 20) >= numero(20));
+  assert.ok(mioloDoCampo(telefoneAntes(439, 24), 24) < numero(24) && mioloDoCampo(telefoneAntes(440, 24), 24) >= numero(24));
+  // um mínimo menor que 8,4rem cortaria o número; os 9rem deixam a sobra, e ainda cabem ao lado do país em 320 px
+  assert.ok(mioloDoCampo(8.3 * 16, 16) < numero(16));
+  // (5) do lg para cima (o formulário em 7 das 12 colunas, com o vão de 3.5rem), a coluna tem bem mais que os 17rem da
+  // linha: lado a lado em 1024 e 1440 px com qualquer letra
+  const coluna = (largura: number, raiz: number) => {
+    const moldura = Math.min(largura, 1200 + 2 * margemDaPagina(largura, raiz)) - 2 * margemDaPagina(largura, raiz);
+    const umaColuna = (moldura - 11 * 3.5 * raiz) / 12;
+    return 7 * umaColuna + 6 * 3.5 * raiz;
+  };
+  assert.match(carrinho, /className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-14"/);
+  assert.match(carrinho, /<div className="space-y-12 lg:col-span-7">/);
+  for (const largura of [1024, 1440])
+    for (const raiz of RAIZES) assert.ok(coluna(largura, raiz) >= (PAIS_REM + VAO_REM + MINIMO_REM) * raiz, `${largura}/${raiz}`);
+});

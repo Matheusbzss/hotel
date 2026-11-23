@@ -14,8 +14,10 @@ import {
   erroDaFormaRecusada,
   etapaComAsFormasDeAgora,
   formasDaResposta,
+  noLugarDaOfertaDoPix,
   pixGeradoNaEscolha,
   type EtapaDePagar,
+  type NoLugarDaOfertaDoPix,
 } from '@/lib/espera-do-pagamento';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
@@ -192,6 +194,9 @@ export function CheckoutEmbutido({
   // motivo que ele mandou entra no lugar
   const [semPix, setSemPix] = useState(false);
   const [motivoDoServidor, setMotivoDoServidor] = useState<MotivoSemPix | undefined>();
+  // o que entra no lugar da oferta: a frase do motivo com o convite para outro cartão (como sempre) ou, quando o servidor
+  // diz que nenhuma forma vale mais (o freio de emergência), só o convite (noLugarDaOfertaDoPix)
+  const [noLugarDoPix, setNoLugarDoPix] = useState<NoLugarDaOfertaDoPix>('motivo-do-pix');
   const avisoRef = useRef<HTMLDivElement>(null);
   const erroRef = useRef<HTMLParagraphElement>(null);
   const semStripeRef = useRef<HTMLParagraphElement>(null);
@@ -361,9 +366,12 @@ export function CheckoutEmbutido({
       return;
     } else if (resposta.erro === 'forma') {
       // o prazo do Pix passou com o checkout aberto: no lugar da oferta entra o convite para outro cartão (a
-      // sessão do cartão que está aberta aqui continua valendo, o servidor não a fechou)
+      // sessão do cartão que está aberta aqui continua valendo, o servidor não a fechou). Com a frase do motivo do Pix, menos
+      // quando o 403 diz que nenhuma forma vale mais (as formas vazias: o pagamento online desligado às pressas): aí só o
+      // convite, porque nenhuma frase do Pix seria verdade (noLugarDaOfertaDoPix; B5 do reteste de 22/11)
       setSemPix(true);
       setMotivoDoServidor(resposta.semPix);
+      setNoLugarDoPix(noLugarDaOfertaDoPix(resposta.formas));
     } else setErro(T.erroGenerico);
     setTrocando(false);
   }
@@ -381,6 +389,9 @@ export function CheckoutEmbutido({
             <button type="button" className="botao mt-4 w-full" onClick={pagarComPix} disabled={trocando} aria-busy={trocando}>
               {trocando ? T.processando : T.recusadoPix}
             </button>
+          ) : noLugarDoPix === 'so-outro-cartao' ? (
+            // nenhuma forma vale mais (o freio de emergência): só o convite; o formulário do cartão, embaixo, continua aberto
+            <p className="mt-2 text-small">{T.tentarOutroCartao}</p>
           ) : (
             <p className="mt-2 text-small">
               {fraseSemPix(T, motivoDoServidor ?? semPixDoServidor)} {T.tentarOutroCartao}
@@ -482,6 +493,17 @@ export interface TextosPagarPedido extends TextosEscolhaPagamento, TextosCheckou
 }
 
 /**
+ * O elemento está fora da vista: o começo dele atrás do menu do topo (a folga é a margem de rolagem do próprio elemento,
+ * scroll-mt-24, lida do CSS na hora) ou o fim dele abaixo da tela. É a mesma medida do aviso do cartão recusado
+ * (CheckoutEmbutido, mais acima).
+ */
+function foraDaVista(elemento: HTMLElement): boolean {
+  const folga = parseFloat(getComputedStyle(elemento).scrollMarginTop) || 0;
+  const { top, bottom } = elemento.getBoundingClientRect();
+  return top < folga || bottom > window.innerHeight;
+}
+
+/**
  * O pedido pendente ou expirado pela Stripe, na página do pedido ou da reserva: "confirmando o pagamento"
  * enquanto o servidor espera o webhook; "o tempo para pagar terminou" com o botão de pagar de novo; a recusa
  * do cartão com a oferta do Pix. O pagamento novo abre o checkout embutido ali mesmo, com o mesmo pedido, o
@@ -540,6 +562,10 @@ export function PagarPedido({
   const [erro, setErro] = useState('');
   const [esperou, setEsperou] = useState(false);
   const erroRef = useRef<HTMLParagraphElement>(null);
+  // o título da tela (o da espera ou o da escolha: só uma das duas está na página de cada vez)
+  const tituloRef = useRef<HTMLHeadingElement>(null);
+  // o "Pagar" que o servidor acabou de recusar pela forma (403 'forma'): a página está sendo relida
+  const pagarRecusado = useRef(false);
   // as formas podem encolher depois de um router.refresh (o prazo passou): a marcada precisa continuar valendo
   const formaValida = forma && formas.includes(forma) ? forma : formaPadrao(formas, idioma);
 
@@ -574,6 +600,24 @@ export function PagarPedido({
     setEsperou(true);
     setEtapa(etapaDeAgora);
   }
+
+  // depois do "Pagar" recusado pela forma, a página relida pode tirar a escolha da tela: sem forma nenhuma, entra o aviso de
+  // que o pedido não pode mais ser pago pelo site (ou, no pedido de Pix pendente, a espera). O que entra fica lá em cima, e
+  // o cliente estava embaixo, no botão: no motor do iPhone a página continuava rolada onde o botão estava e ele via só o
+  // resumo do pedido (reteste de 22/11, em 390×664 e 320×568; o Chromium sobe sozinho). A tela e o foco vão até o título do
+  // que entrou: rola só quando o título está fora da vista (a mesma medida do aviso do cartão recusado), sem animação, e o
+  // foco não rola de novo. Só depois desse toque (pagarRecusado), nunca quando a página nasce nem quando a espera troca
+  // sozinha; se a página relida ainda tem a escolha (o Pix saiu e o cartão ficou), nada se mexe: o erro do "Pagar" já tem o
+  // foco. As formas chegam como uma lista nova a cada releitura da página, e é isso que acorda o efeito
+  useEffect(() => {
+    if (!pagarRecusado.current) return;
+    pagarRecusado.current = false;
+    const semAEscolha = etapa === 'confirmando' || (etapa === 'escolher' && formas.length === 0);
+    const titulo = tituloRef.current;
+    if (!semAEscolha || !titulo) return;
+    if (foraDaVista(titulo)) titulo.scrollIntoView({ block: 'start', behavior: 'instant' });
+    titulo.focus({ preventScroll: true });
+  }, [etapa, formas]);
 
   // enquanto o checkout não está aberto aqui, a página acompanha o pedido: mudou de status, o servidor redesenha.
   // Pausa enquanto a sessão nova é criada: ela mesma tira o pedido de expirado, e redesenhar ali fecharia o checkout
@@ -611,6 +655,8 @@ export function PagarPedido({
       // espera com a frase do Pix gerado (o QR já gerado vale até a sessão acabar)
       const qual = erroDaFormaRecusada(escolhida, resposta.formas, status, formaAtual);
       if (qual !== 'nenhum') setErro(qual === 'sem-pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo);
+      // se a página relida tirar a escolha da tela (nenhuma forma vale mais), a tela e o foco vão até o título do que entrou
+      pagarRecusado.current = true;
       router.refresh();
     } else setErro(T.erroGenerico);
     setCriando(false);
@@ -654,7 +700,11 @@ export function PagarPedido({
   if (etapa === 'confirmando') {
     return (
       <div>
-        <h1 className="display text-head">{T.confirmando}</h1>
+        {/* o título recebe a tela e o foco quando a espera entra no lugar da escolha, depois do "Pagar" recusado (o efeito de
+            pagarRecusado, mais acima): a margem de rolagem é a folga do menu do topo, como a do aviso do cartão recusado */}
+        <h1 ref={tituloRef} tabIndex={-1} className="display scroll-mt-24 text-head outline-none">
+          {T.confirmando}
+        </h1>
         <p className="mt-4 max-w-[44ch] text-lead">{T.confirmandoTexto}</p>
         {/* o Pix já gerado sem outra forma que valha (o pagamento online desligado às pressas): o QR ainda vale */}
         {esperou && depois === 'esperar-o-pix' && <p className="mt-4 max-w-[44ch] text-lead">{T.pixGerado}</p>}
@@ -676,7 +726,10 @@ export function PagarPedido({
   const texto = status === 'expirado' ? T.tempoEsgotadoTexto : recusado ? T.recusa[recusa] : '';
   return (
     <div>
-      <h1 className="display text-head">{titulo}</h1>
+      {/* o mesmo título com o foco quando o aviso sem formas entra no lugar da escolha, depois do "Pagar" recusado */}
+      <h1 ref={tituloRef} tabIndex={-1} className="display scroll-mt-24 text-head outline-none">
+        {titulo}
+      </h1>
       {texto && (
         <p className="mt-4 max-w-[44ch] text-lead" role={recusado ? 'alert' : undefined}>
           {texto}

@@ -170,7 +170,7 @@ test('Etapa 4: os textos do pagamento existem nos quatro idiomas, com os marcado
 test('a contestação vale para cartão e para Pix: o texto do cliente não fala em cartão', () => {
   for (const idioma of IDIOMAS) {
     const d = dicionario(idioma);
-    for (const t of [d.pedido.contestadoTitulo, d.pedido.contestadoTexto, d.status.contestado])
+    for (const t of [d.pedido.contestadoTitulo, d.pedido.contestadoTexto, d.pedido.contestadoTextoVarios, d.status.contestado])
       assert.doesNotMatch(t, /cart[ãa]o|tarjeta|card/i, `${idioma}: ${t}`);
   }
 });

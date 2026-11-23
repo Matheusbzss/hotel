@@ -239,6 +239,9 @@ const es: Dicionario = {
     contestadoTitulo: 'Pago en disputa',
     contestadoTexto:
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tienes dudas, escríbenos.',
+    // a mesma frase na página do pedido com mais de um voucher
+    contestadoTextoVarios:
+      'Este pago está en disputa con el banco. Mientras el banco lo revisa, los vouchers quedan suspendidos. Si tienes dudas, escríbenos.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devuelto por el mismo medio de pago.',
     reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tienes dudas, escríbenos.',
     // o reembolso que a Stripe não conseguiu devolver: sem prazo, sem o motivo e sem falar em cartão. Sem verbo em "tú"

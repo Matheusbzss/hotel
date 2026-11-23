@@ -231,6 +231,9 @@ const en: Dicionario = {
     contestadoTitulo: 'Payment disputed',
     contestadoTexto:
       'This payment has been disputed with the bank. While the bank reviews it, the voucher is on hold. If you have any questions, talk to us.',
+    // a mesma frase na página do pedido com mais de um voucher
+    contestadoTextoVarios:
+      'This payment has been disputed with the bank. While the bank reviews it, the vouchers are on hold. If you have any questions, talk to us.',
     reembolsadoParcial: 'Partial refund of {valor}, returned to the original payment method.',
     reembolsadoTexto: 'The amount has been returned to the original payment method. If you have any questions, talk to us.',
     // o reembolso que a Stripe não conseguiu devolver: sem prazo, sem o motivo e sem falar em cartão

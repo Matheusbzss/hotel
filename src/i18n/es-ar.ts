@@ -56,6 +56,8 @@ export const ajustesAR: AjustesAR = {
     tentarOutroCartao: 'Probá con otra tarjeta.',
     contestadoTexto:
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tenés dudas, escribinos.',
+    contestadoTextoVarios:
+      'Este pago está en disputa con el banco. Mientras el banco lo revisa, los vouchers quedan suspendidos. Si tenés dudas, escribinos.',
     reembolsadoTexto: 'El valor se devolvió por el mismo medio de pago. Si tenés dudas, escribinos.',
   },
   boletim: {

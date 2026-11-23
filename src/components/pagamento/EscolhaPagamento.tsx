@@ -131,10 +131,13 @@ export function EscolhaPagamento({
                   alargar a caixa (e a página). Com a letra normal, a partir de 320 px, ele fica ao lado do nome */}
               <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                 <span className="flex items-center gap-3">
-                  {/* a bolinha do rádio, desenhada para acompanhar a cor da tinta (taste-skill-ignore) */}
+                  {/* a bolinha do rádio, desenhada para acompanhar a cor da tinta (taste-skill-ignore). A borda da marcada cresce
+                      com a letra, como a bolinha (size-5 = 1.25rem): 0.375rem são os mesmos 6 px com a letra normal, e o miolo
+                      branco fica sempre com 0.5rem. Com a borda fixa em 6 px e a letra em 150%, a bolinha ia a 30 px e o
+                      miolo a 18: a forma marcada parecia desmarcada (reteste de 22/11) */}
                   <span
                     aria-hidden="true"
-                    className="size-5 shrink-0 rounded-full border-2 border-(--color-borda-campo) transition-[border-width,border-color] duration-200 group-data-[ativo=true]:border-[6px] group-data-[ativo=true]:border-(--color-tinta)"
+                    className="size-5 shrink-0 rounded-full border-2 border-(--color-borda-campo) transition-[border-width,border-color] duration-200 group-data-[ativo=true]:border-[0.375rem] group-data-[ativo=true]:border-(--color-tinta)"
                   />
                   <span className="text-lead font-semibold leading-tight">{forma === 'pix' ? T.pix : T.cartao}</span>
                 </span>

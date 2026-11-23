@@ -36,6 +36,7 @@ import {
   type ReservaPublica,
 } from '@/lib/reserva-publica';
 import { obterPedido, provedorDaReserva, type StatusReserva } from '@/lib/reservas';
+import { textoDoContestado } from '@/lib/texto-do-contestado';
 import { formatarDataIso } from '@/lib/validacao';
 import { linkWhatsApp } from '@/lib/whatsapp';
 
@@ -155,8 +156,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
       titulo: reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status.reembolsado,
       texto: frasesDoReembolsoDoPedido(true),
     },
-    // texto neutro: a contestação é entre o cliente e o banco dele
-    contestado: { titulo: d.pedido.contestadoTitulo, texto: d.pedido.contestadoTexto },
+    // texto neutro: a contestação é entre o cliente e o banco dele. Com mais de um voucher, "os vouchers ficam suspensos"
+    // (textoDoContestado); a página da reserva, que é a de um voucher, continua com "o voucher fica suspenso"
+    contestado: { titulo: d.pedido.contestadoTitulo, texto: textoDoContestado(d.pedido, reservas.length) },
     recusado: { titulo: d.reserva.recusadoTitulo, texto: d.reserva.recusadoTexto },
   };
   const { titulo, texto } = cabecalho[status];

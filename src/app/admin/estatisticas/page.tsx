@@ -423,9 +423,15 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
               largura de dentro do cartão, o @container dele), nunca mais que 3.25rem. Com 11vw ela ficava nos 3.25rem, e
               R$ 58.517,68 passava 23,8 px do cartão em 1024 px já com a letra normal (reteste de 17-18/11, T2b). Com 12cqi,
               cabe qualquer número de até 8,3 vezes a letra, em qualquer largura e letra (R$ 1.234.567,89 mede 7,5 vezes a
-              letra no Segoe UI em negrito, a letra do painel no Windows: o layout do painel não carrega o Barlow) */}
+              letra no Segoe UI em negrito, a letra do painel no Windows: o layout do painel não carrega o Barlow).
+              Abaixo do lg a letra também tem o teto do cartão: a regra de antes, nunca mais que 14cqi (14% de dentro do
+              cartão, que ali tem a largura da tela menos a margem). Só com a tela, R$ 100.000,00 passava 13,3 px do cartão em
+              320 px com a letra em 150%, e R$ 1.234.567,89 fazia a página rolar de lado (reteste de 22/11, medido com o número
+              trocado na tela). Com 14cqi, até R$ 9.999.999,99 fica dentro do cartão em 320, 360 e 390 px com a letra em 100,
+              125 e 150%, e de 336 px para cima com a letra normal nada muda (em 390 px, os 42,9 px de antes: 14% de dentro do
+              cartão dá 44,5). A regra só da tela continua na frente, para o navegador que não conhece o cqi */}
           <p className="text-small text-tinta-suave">Faturamento (menos reembolsos)</p>
-          <p className="mt-1 whitespace-nowrap text-[clamp(min(2.25rem,12vw),11vw,3.25rem)] font-bold leading-none lg:text-[min(12cqi,3.25rem)]">
+          <p className="mt-1 whitespace-nowrap text-[clamp(min(2.25rem,12vw),11vw,3.25rem)] font-bold leading-none max-lg:text-[min(clamp(min(2.25rem,12vw),11vw,3.25rem),14cqi)] lg:text-[min(12cqi,3.25rem)]">
             {formatarPreco(r.centavos)}
           </p>
           <Comparacao atual={r.centavos} anterior={antes?.centavos} />

@@ -67,7 +67,7 @@ test('o cartão do pedido no painel: uma coluna que encolhe no celular e o hist�
   // as caixas em volta das ações deixam o reembolso (com a caixa "Confirmo") encolher até a largura do cartão
   assert.match(
     painel,
-    /<div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">\s*<Acoes p=\{p\} filtro=\{filtro\} \/>/,
+    /<div className="flex flex-wrap items-start justify-between gap-3 lg:col-span-12">\s*<Acoes p=\{p\} filtro=\{filtro\} busca=\{busca\} \/>/,
   );
   assert.match(painel, /<div className="flex min-w-0 flex-col items-start gap-3">/);
   // os códigos da Stripe fora do histórico (os links do pagamento) já quebravam em qualquer letra
@@ -283,9 +283,14 @@ test('o número grande do faturamento: do lg para cima a letra segue o cartão (
   const grande = classesDe(estatisticas, /Faturamento \(menos reembolsos\)<\/p>\s*<p className="([^"]*)">/, 'o faturamento');
   // no celular (abaixo do lg), a letra de antes (Pacotes 12 e 15); do lg para cima, 12cqi, nunca mais que os 3.25rem de antes
   temTodas(grande, ['whitespace-nowrap', 'text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]', 'lg:text-[min(12cqi,3.25rem)]'], 'o faturamento');
+  // desde o Pacote 19 (reteste de 22/11), entre as duas, o teto do cartão também abaixo do lg (os testes do fim do arquivo)
   assert.deepEqual(
     grande.filter((c) => c.includes('text-[')),
-    ['text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]', 'lg:text-[min(12cqi,3.25rem)]'],
+    [
+      'text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]',
+      'max-lg:text-[min(clamp(min(2.25rem,12vw),11vw,3.25rem),14cqi)]',
+      'lg:text-[min(12cqi,3.25rem)]',
+    ],
   );
   // a grade e a página que a conta abaixo usa: max-w-7xl com px-4 e md:px-8; 2 colunas, 3 do lg para cima, com gap-3
   assert.match(estatisticas, /<main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">/);
@@ -357,4 +362,175 @@ test('a conta do número grande no computador: o modelo dá as sobras do reteste
   // a letra continua grande: no mínimo 28,5 px (1024 px com a letra em 150%) e 32,6 com a letra normal
   assert.equal(Math.round(agora(1024, 24) * 10) / 10, 28.5);
   assert.equal(Math.round(agora(1024, 16) * 10) / 10, 32.6);
+});
+
+/* ------------------------------------------------------------------ */
+/* O painel e as estatísticas no reteste de 22/11 (Pacote 19)           */
+
+test('o cabeçalho do painel: o bloco do título encolhe e a linha do pagamento online quebra em qualquer ponto', () => {
+  // Com a chave da Stripe posta e o interruptor desligado, a linha diz "Stripe (teste), interruptor PAGAMENTO_ONLINE
+  // desligado": a palavra "PAGAMENTO_ONLINE" não tinha onde quebrar, o bloco do título não encolhia abaixo dela e a página
+  // rolava 19 px de lado em 320 px com a letra em 150% (o emblema de 3rem e o vão de 1rem, 96 px, mais a palavra, uns 195
+  // px, contra os 272 px da tela menos a margem)
+  assert.match(painel, /: 'interruptor PAGAMENTO_ONLINE desligado';/);
+  const linha = classesDe(
+    painel,
+    /<p className="([^"]*)">\s*Pagamento online: \{textoPagamentoOnline\(\)\} · Pedidos em: \{ondeFicamAsReservas\(\)\}\s*<\/p>/,
+    'a linha do pagamento online',
+  );
+  temTodas(linha, ['text-small', 'text-tinta-suave', '[overflow-wrap:anywhere]'], 'a linha do pagamento online');
+  // o bloco do título (o título e a linha) pode ficar mais estreito que a palavra mais longa da linha
+  const bloco = classesDe(
+    painel,
+    /<div className="([^"]*)">\s*<h1 className="text-2xl font-bold">Pedidos<\/h1>\s*<p className="[^"]*">\s*Pagamento online:/,
+    'o bloco do título',
+  );
+  assert.deepEqual(bloco, ['min-w-0']);
+  // nada na linha nem no título impede a quebra
+  assert.doesNotMatch(linha.join(' '), /whitespace-nowrap|text-nowrap|truncate|break-normal/);
+  // a conta: em 320 px com a letra em 150% (o html em 24 px), a página (px-4) deixa 272 px; o emblema (size-12) e o vão
+  // (gap-4) levam 96; sobram 176 px para o bloco do título, menos que os cerca de 195 px da palavra. Por isso a linha tem
+  // de poder quebrar dentro dela
+  assert.match(painel, /<main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">/);
+  assert.match(painel, /<img src="\/logo\/orla-nativa-emblema\.svg" alt="" width=\{48\} height=\{48\} className="size-12" \/>/);
+  assert.match(
+    painel,
+    /<header className="flex flex-wrap items-center justify-between gap-4">\s*<div className="flex items-center gap-4">/,
+  );
+  const raiz = 24;
+  const tela = 320 - 2 * raiz;
+  assert.equal(tela, 272);
+  assert.equal(tela - 3 * raiz - raiz, 176);
+  assert.ok(176 < 195 && 3 * raiz + raiz + 195 - tela === 19, 'os 19 px que a página rolava de lado');
+});
+
+/** A letra do número grande com a regra só da tela, clamp(min(2.25rem,12vw),11vw,3.25rem), numa tela de `largura` px. */
+const letraPelaTela = (largura: number, raiz: number) =>
+  Math.max(Math.min(2.25 * raiz, 0.12 * largura), Math.min(0.11 * largura, 3.25 * raiz));
+/** Abaixo do lg, o cartão do faturamento tem a tela menos a margem da página (px-4 dos dois lados). */
+const cartaoNoCelular = (largura: number, raiz: number) => largura - 2 * raiz;
+/** Dentro do cartão (sem o respiro px-5 dos dois lados): é o que o cqi mede. */
+const dentroNoCelular = (largura: number, raiz: number) => cartaoNoCelular(largura, raiz) - 2 * 1.25 * raiz;
+/**
+ * Quantas vezes a letra mede cada número no Segoe UI em negrito (a letra do painel no Windows da bancada, no Chromium e no
+ * WebKit): as medidas do conferente das telas no reteste de 22/11 (telas-conferencia/saida/90-c2-numero-maior-imitado).
+ * Os algarismos têm todos a mesma largura ("R$ 100.000,00" e "R$ 987.654,32" mediram igual): "R$ 9.999.999,99" mede o
+ * mesmo que "R$ 1.234.567,89", e "R$ 999.999,99", o mesmo que "R$ 100.000,00".
+ */
+const VEZES_A_LETRA = { 'R$ 99.999,99': 6.0723, 'R$ 999.999,99': 6.648, 'R$ 9.999.999,99': 7.4944 };
+
+test('o número grande do faturamento no celular: a regra de antes na frente e, abaixo do lg, o teto de 14% de dentro do cartão', () => {
+  const grande = classesDe(estatisticas, /Faturamento \(menos reembolsos\)<\/p>\s*<p className="([^"]*)">/, 'o faturamento');
+  // a regra só da tela continua lá, sem variante: é o que vale no navegador que não conhece o cqi
+  assert.ok(grande.includes('text-[clamp(min(2.25rem,12vw),11vw,3.25rem)]'), grande.join(' '));
+  // abaixo do lg, a mesma regra, letra por letra, nunca mais que N cqi; do lg para cima, a do Pacote 18, sem mudar
+  const doCelular = grande.filter((c) => c.startsWith('max-lg:'));
+  assert.equal(doCelular.length, 1, grande.join(' '));
+  const teto = doCelular[0].match(/^max-lg:text-\[min\((clamp\(min\(2\.25rem,12vw\),11vw,3\.25rem\)),(\d+(?:\.\d+)?)cqi\)\]$/);
+  assert.ok(teto, doCelular[0]);
+  assert.ok(grande.includes(`text-[${teto[1]}]`), 'a regra dentro do min é a da frente');
+  assert.equal(Number(teto[2]), 14);
+  assert.ok(grande.includes('lg:text-[min(12cqi,3.25rem)]'), grande.join(' '));
+  // o cqi mede o cartão do faturamento: é ele o @container, e o número é filho direto dele
+  assert.match(
+    estatisticas,
+    /<div className="@container col-span-2 [^"]*">\s*<p className="text-small text-tinta-suave">Faturamento \(menos reembolsos\)<\/p>\s*<p className="[^"]*max-lg:text-\[/,
+  );
+  assert.equal(estatisticas.match(/@container/g)?.length, 1);
+  // abaixo do lg o cartão ocupa as duas colunas da grade, e a página tem px-4 de cada lado
+  assert.match(estatisticas, /<main className="mx-auto max-w-7xl px-4 pb-20 pt-6 text-mar md:px-8">/);
+  assert.match(
+    estatisticas,
+    /<div className="@container col-span-2 flex flex-col justify-center bg-white px-5 py-5 lg:col-span-1 lg:row-span-2">/,
+  );
+});
+
+test('a conta do número grande no celular: o modelo dá as sobras do reteste; com 14cqi, R$ 9.999.999,99 fica dentro do cartão e a letra de 390 px não muda', () => {
+  const N = 14;
+  const agora = (largura: number, raiz: number) => Math.min(letraPelaTela(largura, raiz), (N / 100) * dentroNoCelular(largura, raiz));
+  const raizes = [16, 20, 24];
+  // as medidas do reteste de 22/11, com a letra em 100, 125 e 150%: a letra do número, a largura do cartão e quanto
+  // "R$ 100.000,00" e "R$ 1.234.567,89" passavam dele (o número começa depois do respiro de 1.25rem)
+  const RETESTE: Record<number, [number, number, number, number][]> = {
+    320: [
+      [36, 288, 0, 1.8],
+      [38.4, 280, 0.3, 32.8],
+      [38.4, 272, 13.3, 45.8],
+    ],
+    360: [
+      [39.6, 328, 0, 0],
+      [43.2, 320, 0, 28.7],
+      [43.2, 312, 5.2, 41.7],
+    ],
+    390: [
+      [42.9, 358, 0, 0],
+      [45, 350, 0, 12.2],
+      [46.8, 342, 0, 38.7],
+    ],
+  };
+  const passa = (largura: number, raiz: number, letra: number, vezes: number) =>
+    Math.max(0, 1.25 * raiz + vezes * letra - cartaoNoCelular(largura, raiz));
+  for (const [texto, medidas] of Object.entries(RETESTE)) {
+    const largura = Number(texto);
+    raizes.forEach((raiz, n) => {
+      const onde = `${largura}/${raiz}`;
+      const [letra, cartao, passava100mil, passava1milhao] = medidas[n];
+      // (1) o modelo dá a letra, o cartão e as duas sobras que o reteste mediu com a regra só da tela
+      assert.ok(Math.abs(letraPelaTela(largura, raiz) - letra) < 0.05, onde);
+      assert.equal(cartaoNoCelular(largura, raiz), cartao, onde);
+      assert.ok(Math.abs(passa(largura, raiz, letraPelaTela(largura, raiz), VEZES_A_LETRA['R$ 999.999,99']) - passava100mil) < 0.1, onde);
+      assert.ok(
+        Math.abs(passa(largura, raiz, letraPelaTela(largura, raiz), VEZES_A_LETRA['R$ 9.999.999,99']) - passava1milhao) < 0.1,
+        onde,
+      );
+      // (2) agora nenhum dos três passa do cartão (nem a página rola de lado: o cartão acaba antes da margem da página), com
+      // pelo menos 7 px de folga até a borda no maior deles
+      for (const [numero, vezes] of Object.entries(VEZES_A_LETRA))
+        assert.equal(passa(largura, raiz, agora(largura, raiz), vezes), 0, `${numero} em ${onde}`);
+      const folga = cartaoNoCelular(largura, raiz) - 1.25 * raiz - VEZES_A_LETRA['R$ 9.999.999,99'] * agora(largura, raiz);
+      assert.ok(folga >= 7, `${onde}: ${folga}`);
+      // e até R$ 999.999,99 o número nem entra no respiro do cartão
+      assert.ok(VEZES_A_LETRA['R$ 999.999,99'] * agora(largura, raiz) <= dentroNoCelular(largura, raiz), onde);
+      // a letra nunca cresce: é a de antes ou o teto
+      assert.ok(agora(largura, raiz) <= letraPelaTela(largura, raiz), onde);
+    });
+  }
+  // (3) com a letra normal, em 390 px a letra é a de antes para qualquer valor (o teto, 14% de 318 px, fica acima dos 42,9
+  // px), e também nos outros celulares comuns, de 336 px para cima
+  assert.equal(agora(390, 16), letraPelaTela(390, 16));
+  assert.equal(Math.round(agora(390, 16) * 10) / 10, 42.9);
+  assert.equal(Math.round((N / 100) * dentroNoCelular(390, 16) * 100) / 100, 44.52);
+  for (const largura of [340, 360, 375, 390, 393, 412, 430, 768, 1023])
+    assert.equal(agora(largura, 16), letraPelaTela(largura, 16), `${largura}/100`);
+  // (a conta dá 336 px cravados: 14% de dentro do cartão empata com os 11vw; em 335 px o teto já segura)
+  assert.ok((N / 100) * dentroNoCelular(335, 16) < letraPelaTela(335, 16));
+  // só no celular mais estreito a letra normal encolhe, e pouco: em 320 px, de 36 para 34,7 px
+  assert.equal(Math.round(agora(320, 16) * 10) / 10, 34.7);
+  // (4) de onde sai o 14: as duas condições juntas deixam o teto entre 13,5 e 14,4 cqi. Menos que isso mexe na letra de
+  // hoje em 390 px com a letra normal (13cqi dá 41,3 px, abaixo dos 42,9); mais que isso deixa R$ 9.999.999,99 passar do
+  // cartão em 320 px com a letra normal. O 14 fica no meio, com folga dos dois lados
+  const minimo = (letraPelaTela(390, 16) / dentroNoCelular(390, 16)) * 100;
+  const maximo = Math.min(
+    ...[320, 360, 390].flatMap((largura) =>
+      raizes
+        // onde a regra só da tela já cabe no cartão, o teto não precisa segurar nada
+        .filter((raiz) => passa(largura, raiz, letraPelaTela(largura, raiz), VEZES_A_LETRA['R$ 9.999.999,99']) > 0)
+        .map(
+          (raiz) =>
+            ((cartaoNoCelular(largura, raiz) - 1.25 * raiz) / VEZES_A_LETRA['R$ 9.999.999,99'] / dentroNoCelular(largura, raiz)) * 100,
+        ),
+    ),
+  );
+  assert.equal(Math.round(minimo * 100) / 100, 13.49);
+  assert.equal(Math.round(maximo * 100) / 100, 14.42);
+  assert.ok(minimo < N && N < maximo);
+  assert.ok(0.13 * dentroNoCelular(390, 16) < letraPelaTela(390, 16), 'com 13cqi a letra de 390 px mudaria');
+  assert.ok(
+    passa(320, 16, Math.min(letraPelaTela(320, 16), 0.15 * dentroNoCelular(320, 16)), VEZES_A_LETRA['R$ 9.999.999,99']) > 0,
+    'com 15cqi passaria em 320 px',
+  );
+  // (5) uma letra do sistema 2% mais larga que a da bancada ainda deixa R$ 9.999.999,99 dentro do cartão em toda a matriz
+  for (const largura of [320, 360, 390])
+    for (const raiz of raizes)
+      assert.equal(passa(largura, raiz, agora(largura, raiz), VEZES_A_LETRA['R$ 9.999.999,99'] * 1.02), 0, `${largura}/${raiz}`);
 });

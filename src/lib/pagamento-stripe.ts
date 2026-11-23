@@ -64,8 +64,9 @@ export interface LeituraSessao {
   /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade da moeda. */
   apresentado?: { moeda: string; valorCentavos: number };
   /**
-   * Só no pago: a hora da cobrança (latest_charge.created). Sem a cobrança na leitura, nada: aplicarSessao grava a hora
-   * em que o site viu o pagamento, nunca a da criação do pagamento ou da sessão.
+   * Só no pago: a hora da cobrança que deu certo (latest_charge.created, com status 'succeeded'). Sem ela na leitura (ainda
+   * sem cobrança, ou com a cobrança de uma tentativa anterior que falhou), nada: aplicarSessao grava a hora em que o site
+   * viu o pagamento, nunca a da criação do pagamento ou da sessão.
    */
   pagoEm?: string;
   paymentIntentId?: string;
@@ -123,8 +124,11 @@ export function interpretarSessao(sessao: Stripe.Checkout.Session, agora: Date =
       // a hora do pagamento é só a da cobrança. Logo depois de um Pix a leitura ainda pode vir sem ela (a consulta da página
       // chega antes): aí fica sem hora, e aplicarSessao grava a hora em que o site viu o pagamento. A criação do pagamento
       // e a da sessão são de quando o cliente abriu o formulário ou gerou o QR, até 30 minutos antes (reteste de 17-18/11:
-      // ON-KEG69N gravou 20:50:24 para a cobrança das 20:53:27)
-      ...(cobranca?.created ? { pagoEm: iso(cobranca.created) } : {}),
+      // ON-KEG69N gravou 20:50:24 para a cobrança das 20:53:27). E só a da cobrança que deu certo: latest_charge é a última
+      // cobrança que o pagamento criou, e a de uma tentativa anterior que falhou continua nele (o QR do Pix que venceu e foi
+      // gerado de novo, o cartão recusado antes do aprovado). Se a leitura da sessão paga chegar antes de a cobrança paga
+      // tomar o lugar dela, a hora da falha não vira a hora do pagamento: fica sem hora, como a leitura sem cobrança
+      ...(cobranca?.status === 'succeeded' && cobranca.created ? { pagoEm: iso(cobranca.created) } : {}),
       ...(cartao
         ? { cartao: { bandeira: cartao.brand ?? '', final: cartao.last4 ?? '', ...(cartao.country ? { pais: cartao.country } : {}) } }
         : {}),
@@ -349,6 +353,19 @@ export function horarioJaPassou(r: ItemAgendado, agora: Date): boolean {
 }
 
 /**
+ * O pagamento chegou depois do horário do serviço: o primeiro serviço do pedido já começou, ou seja, algum dos itens que
+ * o pagamento cobre já começou (horarioJaPassou em cada um). Os itens são todos os vouchers do pedido, os mesmos de quem
+ * decide os prazos de pagar (itensPagaveis nas páginas e na rota de pagar; o primeiro serviço, em validadeDoPix e
+ * cartaoDisponivel). Até o reteste de 22/11 (sobra do revisor do Pacote 17) o aviso olhava só o voucher que representa o
+ * pedido: num pedido de vários itens, se o serviço mais cedo fosse de outro voucher, o pagamento que chegasse depois dele
+ * não deixava o aviso. Um item com a data ou a hora que não dá para ler não acusa, e não esconde os outros. Sem item
+ * nenhum, não acusa. Sem o banco, para ser testada em node (tests/stripe.test.ts).
+ */
+export function pagoDepoisDoHorario(itens: readonly ItemAgendado[], agora: Date): boolean {
+  return itens.some((item) => horarioJaPassou(item, agora));
+}
+
+/**
  * O pagamento a mais: a sessão foi paga, mas o pedido já não espera pagamento (não está pendente nem expirado) e
  * tem OUTRO pagamento registrado. É a segunda aba paga depois da primeira, ou o QR de um Pix antigo pago depois
  * de o pedido ser pago por outro meio, cancelado, reembolsado ou contestado. Esse dinheiro não entra no pedido:
@@ -390,6 +407,9 @@ export interface ResultadoSessao {
  * Quando a leitura pede (fecharSessao: o Pix venceu sem pagamento, ou o tempo de gerar o Pix acabou), a sessão é
  * fechada na Stripe DEPOIS de o pedido ser gravado: fechada, a Stripe apaga o erro do pagamento, então o motivo tem de
  * ser decidido nesta leitura.
+ * Na transição para pago, o pagamento que chegou depois do horário do serviço deixa AVISO_PAGO_DEPOIS_DO_HORARIO no
+ * histórico do pedido, uma vez: a conta olha o serviço mais cedo entre todos os itens do pedido (pagoDepoisDoHorario),
+ * lidos logo antes da gravação, e não só o voucher que representa o pedido.
  */
 export async function aplicarSessao(
   codigo: string,
@@ -397,10 +417,22 @@ export async function aplicarSessao(
   origem: OrigemAtualizacao,
   agora: Date = new Date(),
 ): Promise<ResultadoSessao> {
-  const { atualizarReserva, obterReservaDoPedido, registrar } = await import('./reservas.ts');
+  const { atualizarReserva, obterPedido, obterReservaDoPedido, registrar } = await import('./reservas.ts');
   const leitura = interpretarSessao(sessao, agora);
   const alvo = await obterReservaDoPedido(codigo);
   if (!alvo) return { reserva: null, leitura, virouPago: false };
+
+  // os outros itens que o pagamento cobre, para o aviso do pagamento que chega depois do horário (pagoDepoisDoHorario):
+  // o serviço mais cedo do pedido pode ser de outro voucher, não o que representa o pedido. Lidos antes da trava, só com a
+  // sessão paga e o pedido de vários itens (a data e a hora de um item não mudam depois que o pedido é criado). Se a
+  // leitura falhar, o pagamento é aplicado do mesmo jeito, e o aviso olha só o voucher que representa o pedido, como antes
+  const pedidoDeVarios = leitura.status === 'pago' ? alvo.pedido?.codigo : undefined;
+  const itensDoPedido: ItemAgendado[] = pedidoDeVarios
+    ? await obterPedido(pedidoDeVarios).catch((e) => {
+        console.error(`[pagamento] não deu para ler os itens do pedido ${pedidoDeVarios} para o aviso do horário: ${mensagemDoErro(e)}`);
+        return [];
+      })
+    : [];
 
   const agoraIso = agora.toISOString();
   const quem = origem === 'webhook' ? 'webhook da Stripe' : 'consulta à Stripe';
@@ -469,8 +501,9 @@ export async function aplicarSessao(
       if (leitura.valorCentavos !== undefined && leitura.valorCentavos !== esperado) {
         registrar(r, avisoDeValorDiferente(leitura.valorCentavos, esperado));
       }
-      // não reembolsa sozinho: a equipe confere com o parceiro
-      if (horarioJaPassou(r, agora)) registrar(r, AVISO_PAGO_DEPOIS_DO_HORARIO);
+      // não reembolsa sozinho: a equipe confere com o parceiro. O aviso olha o serviço mais cedo do pedido: o voucher que o
+      // representa e os outros itens que o pagamento cobre; uma vez só, nesta transição, no histórico do pedido
+      if (pagoDepoisDoHorario([r, ...itensDoPedido], agora)) registrar(r, AVISO_PAGO_DEPOIS_DO_HORARIO);
       return r;
     }
     virouExpirado = leitura.status === 'expirado';

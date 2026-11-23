@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    135,
-    `${diferentes} frases diferem entre es e es-ar; esperava 135 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás"). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    136,
+    `${diferentes} frases diferem entre es e es-ar; esperava 136 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 
@@ -188,8 +188,8 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     assert.ok(textoAr.includes(trechoAr), `${caminho} no es-ar: ${textoAr}`);
     assert.ok(textoEs.includes(trechoEs), `${caminho} no es: ${textoEs}`);
   }
-  for (const caminho of ['pedido.contestadoTexto', 'pedido.reembolsadoTexto'] as const) {
-    const [grupo, chave] = caminho.split('.') as ['pedido', 'contestadoTexto' | 'reembolsadoTexto'];
+  for (const caminho of ['pedido.contestadoTexto', 'pedido.contestadoTextoVarios', 'pedido.reembolsadoTexto'] as const) {
+    const [grupo, chave] = caminho.split('.') as ['pedido', 'contestadoTexto' | 'contestadoTextoVarios' | 'reembolsadoTexto'];
     assert.ok(ar[grupo][chave].endsWith('Si tenés dudas, escribinos.'), `${caminho} no es-ar`);
     assert.ok(es[grupo][chave].endsWith('Si tienes dudas, escríbenos.'), `${caminho} no es`);
   }

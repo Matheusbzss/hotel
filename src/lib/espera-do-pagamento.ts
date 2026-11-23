@@ -6,8 +6,9 @@ import type { StatusReserva } from './reservas';
  * src/components/pagamento/CheckoutEmbutido.tsx): o que ela mostra quando a espera termina (depoisDaEspera) e quando as
  * formas acabam com a escolha aberta (etapaComAsFormasDeAgora). E, na escolha da forma da mesma tela, o erro do "Pagar"
  * que esbarra no 403 'forma' (formasDaResposta, erroDaFormaRecusada) e a frase do Pix já gerado embaixo da frase de por
- * que o Pix ficou de fora (pixGeradoNaEscolha). Este arquivo roda no navegador e nos testes (node puro), por isso só
- * importa tipos: nada de src/lib/formas-pagamento.ts com valor vai para o navegador por causa dele.
+ * que o Pix ficou de fora (pixGeradoNaEscolha). E, com o formulário do cartão aberto, o que o aviso do cartão recusado diz
+ * quando o "Pague com Pix" esbarra no mesmo 403 (noLugarDaOfertaDoPix). Este arquivo roda no navegador e nos testes (node
+ * puro), por isso só importa tipos: nada de src/lib/formas-pagamento.ts com valor vai para o navegador por causa dele.
  */
 
 /**
@@ -88,6 +89,26 @@ export function erroDaFormaRecusada(
     return depoisDaEspera(status, formasDoServidor, formaAtual) === 'esperar-o-pix' ? 'nenhum' : 'sem-prazo';
   }
   return escolhida === 'pix' ? 'sem-pix' : 'sem-prazo';
+}
+
+/**
+ * O que o aviso do cartão recusado (com o formulário do cartão aberto: CheckoutEmbutido) diz no lugar da oferta do Pix,
+ * depois que o toque em "Cartão recusado? Pague com Pix…" esbarra no 403 'forma':
+ * - 'so-outro-cartao': o 403 trouxe a lista das formas e ela veio vazia (nenhuma forma vale mais: o pagamento online foi
+ *   desligado às pressas, o freio de emergência). Só o convite para outro cartão (pedido.tentarOutroCartao): a sessão do
+ *   cartão que está aberta continua valendo (o servidor não a fecha), e nenhuma frase do Pix seria verdade;
+ * - 'motivo-do-pix': o Pix saiu e o cartão continua (o prazo do Pix passou com o formulário aberto, ou o valor passa do
+ *   limite de um Pix), ou o 403 não trouxe a lista (o prazo do Pix que passou no meio da criação da sessão): a frase do
+ *   motivo (fraseSemPix, com o motivo do servidor) e o convite para outro cartão, como sempre.
+ * Até o reteste de 22/11 (B5, ON-D2GGKW e ON-SHEN4P) o 403 do freio (formas vazias, sem motivo) deixava no aviso, e ela
+ * ficava ali, "O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão. Tente
+ * com outro cartão.": falso (o passeio era em dezembro; o Pix tinha saído porque o pagamento foi desligado). É a mesma
+ * regra do "Pagar" da escolha (erroDaFormaRecusada): com as formas vazias, nunca a frase do prazo do Pix. Sem texto novo.
+ */
+export type NoLugarDaOfertaDoPix = 'so-outro-cartao' | 'motivo-do-pix';
+
+export function noLugarDaOfertaDoPix(formasDoServidor: readonly FormaPagamento[] | undefined): NoLugarDaOfertaDoPix {
+  return formasDoServidor && formasDoServidor.length === 0 ? 'so-outro-cartao' : 'motivo-do-pix';
 }
 
 /**

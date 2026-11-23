@@ -242,6 +242,9 @@ const pt = {
     contestadoTitulo: 'Pagamento contestado',
     contestadoTexto:
       'Este pagamento foi contestado no banco. Enquanto o banco analisa, o voucher fica suspenso. Se tiver dúvidas, fale com a gente.',
+    // a mesma frase na página do pedido com mais de um voucher (textoDoContestado, src/lib/texto-do-contestado.ts)
+    contestadoTextoVarios:
+      'Este pagamento foi contestado no banco. Enquanto o banco analisa, os vouchers ficam suspensos. Se tiver dúvidas, fale com a gente.',
     reembolsadoParcial: 'Reembolso parcial de {valor}, devolvido pela mesma forma de pagamento.',
     reembolsadoTexto: 'O valor foi devolvido pela mesma forma de pagamento. Se tiver dúvidas, fale com a gente.',
     // o reembolso que a Stripe não conseguiu devolver (raro: cartão cancelado, por exemplo; o de Pix também pode falhar):

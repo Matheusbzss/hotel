@@ -809,3 +809,91 @@ export function marcaOVoucherPorFora(
  */
 export const voucherDaStripeAindaLiga = (r: Pick<Reserva, 'status' | 'statusItem' | 'historico'>, reembolsoId: string): boolean =>
   r.status === 'pago' && voucherAtivo(r) && reembolsosSemVoucher(r.historico).some((s) => s.id === reembolsoId && !s.resolvido);
+
+/* ------------------------------------------------------------------ */
+/* As ações manuais pelo status de partida (reteste de 22/11)          */
+
+/** Os pedidos cuja forma de pagamento ainda não fechou: os dois totais (Pix e cartão) continuam valendo. */
+export const EM_ABERTO: readonly StatusReserva[] = ['aguardando_whatsapp', 'pendente', 'expirado', 'recusado'];
+
+/**
+ * As ações manuais do painel, na ordem em que os botões aparecem (as chaves de ACOES_MANUAIS, em
+ * src/app/api/admin/reservas/[codigo]/route.ts; um teste confere que são as mesmas).
+ */
+export const ACOES_MANUAIS_DO_PAINEL = ['pago_pix', 'pago_cartao', 'marcar_pago', 'cancelar', 'reembolsado'] as const;
+export type AcaoManualDoPainel = (typeof ACOES_MANUAIS_DO_PAINEL)[number];
+
+/**
+ * A ação manual que o painel oferece a partir do estado em que o pedido está (o voucher que o representa: o status, quem
+ * cobrou, a forma e o histórico). É a regra única dos botões "Pago no Pix", "Pago no cartão", "Marcar como pago",
+ * "Corrigir: foi no Pix", "Corrigir: foi no cartão", "Cancelar" e "Marcar reembolsado": a página do painel monta os botões
+ * por ela (Acoes, src/app/admin/page.tsx) e a rota do painel a confere de novo dentro da trava de versão do pedido, com
+ * o pedido relido. Assim a aba antiga do painel não faz o que a tela de agora não oferece: no reteste de 22/11, o "Pago
+ * no Pix" de uma aba aberta antes do cancelamento marcou como pago um pedido do WhatsApp já cancelado (ON-ZELYQN), e o
+ * e-mail do pagamento aprovado, com o voucher, foi agendado (no ar, sairia para o cliente). A regra:
+ * - 'pago_pix' e 'pago_cartao': no pedido do WhatsApp em aberto (EM_ABERTO, com a forma ainda por decidir:
+ *   pagamento.metodo 'whatsapp', que um pedido da Stripe nunca tem), em que a forma de pagamento só se decide agora; e no
+ *   pedido pago fora da Stripe e fora do checkout antigo (sem pagamento.pedidoId), só para a OUTRA forma (os botões
+ *   "Corrigir": marcou errado, dá para trocar);
+ * - 'marcar_pago': no pedido em aberto que não é do WhatsApp nem da Stripe (o checkout antigo). Pela Stripe ninguém
+ *   marca pago à mão: só o aviso dela (ou a consulta à sessão) muda o status;
+ * - 'cancelar': em qualquer pedido que não está cancelado nem reembolsado, menos o pago ou contestado pela Stripe (esse
+ *   se desfaz com o reembolso, não com o cancelamento);
+ * - 'reembolsado': fora da Stripe, no pedido pago ou no cancelado que chegou a ser pago (pedidoNuncaPago: no do WhatsApp
+ *   cancelado antes de pagar não há o que devolver).
+ * Uma ação que a lista não conhece nunca é oferecida.
+ */
+export function acaoManualOferecida(r: Pick<Reserva, 'status' | 'provedor' | 'pagamento' | 'historico'>, acao: string): boolean {
+  const stripe = provedorDaReserva(r) === 'stripe';
+  const emAberto = EM_ABERTO.includes(r.status);
+  const metodo = r.pagamento.metodo;
+  // marcou errado: dá para trocar, menos no pagamento online, que veio do sistema de pagamento
+  const corrige = r.status === 'pago' && !stripe && !r.pagamento.pedidoId;
+  switch (acao) {
+    case 'pago_pix':
+      return (emAberto && metodo === 'whatsapp') || (corrige && metodo !== 'pix');
+    case 'pago_cartao':
+      return (emAberto && metodo === 'whatsapp') || (corrige && metodo !== 'cartao');
+    case 'marcar_pago':
+      return emAberto && metodo !== 'whatsapp' && !stripe;
+    case 'cancelar':
+      return r.status !== 'cancelado' && r.status !== 'reembolsado' && !(stripe && (r.status === 'pago' || r.status === 'contestado'));
+    case 'reembolsado':
+      return !stripe && (r.status === 'pago' || r.status === 'cancelado') && !pedidoNuncaPago(r);
+    default:
+      return false;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* A volta ao painel depois de uma ação (reteste de 22/11)             */
+
+/**
+ * O máximo de letras da busca do painel: a caixa "Buscar pedido, voucher, nome, hotel…" não aceita mais que isto
+ * (maxLength), e é onde a rota corta a busca que volta no endereço. Cabe o maior campo que a busca compara (o e-mail do
+ * pedido, até 160 letras).
+ */
+export const BUSCA_DO_PAINEL_MAXIMO = 160;
+
+/**
+ * A busca do painel como ela vale: sem os espaços das pontas e cortada no máximo que a caixa aceita. Qualquer coisa que
+ * não seja texto (o campo que não veio, um arquivo num formulário montado à mão) é busca nenhuma.
+ */
+export const buscaDoPainel = (valor: unknown): string => (typeof valor === 'string' ? valor.trim().slice(0, BUSCA_DO_PAINEL_MAXIMO) : '');
+
+/**
+ * O endereço para onde a rota das ações do painel volta, com sucesso ou com erro: o painel, com o filtro de status e a
+ * busca em que a equipe estava e, na ação recusada, o código do erro (ERROS_DO_PAINEL). Até o reteste de 22/11 a volta só
+ * levava o filtro: depois de cada ação o painel voltava sem a busca, desenhava a lista inteira e a equipe tinha de buscar
+ * o pedido de novo para ver o resultado. Tudo é escrito pelo URLSearchParams, nunca colado no endereço: uma busca com
+ * "&", "#", espaços ou acentos volta inteira e não vira outro parâmetro. O caminho é sempre /admin, no mesmo site de
+ * `base`.
+ */
+export function voltaAoPainel(base: string | URL, volta: { filtro?: string; busca?: string; erro?: ErroDoPainel }): URL {
+  const endereco = new URL('/admin', base);
+  if (volta.filtro) endereco.searchParams.set('status', volta.filtro);
+  const busca = buscaDoPainel(volta.busca);
+  if (busca) endereco.searchParams.set('q', busca);
+  if (volta.erro) endereco.searchParams.set('erro', volta.erro);
+  return endereco;
+}

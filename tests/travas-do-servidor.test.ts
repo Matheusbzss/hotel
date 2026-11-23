@@ -93,7 +93,16 @@ test('no painel, a ação recusada volta para a página com o aviso (?erro=), nu
   // nenhuma resposta em JSON nem código de erro: a recusa é a volta para /admin com ?erro=, que a página mostra
   assert.doesNotMatch(rota, /NextResponse\.json\(/);
   assert.doesNotMatch(rota, /status: [45]\d\d/);
-  assert.match(rota, /volta\.searchParams\.set\('erro', erro\);\s+return NextResponse\.redirect\(volta, 303\);/);
+  // desde o Pacote 19 (reteste de 22/11) o endereço da volta é montado por voltaAoPainel (src/lib/pedidos-painel.ts), que
+  // leva também a busca; o erro continua sendo um parâmetro da volta para /admin, com 303
+  assert.match(
+    rota,
+    /const voltar = \(erro\?: ErroDoPainel\) =>\s+NextResponse\.redirect\(voltaAoPainel\(req\.url, \{ filtro: filtro \? String\(filtro\) : undefined, busca, erro \}\), 303\);/,
+  );
+  assert.equal(rota.match(/NextResponse\.redirect\(/g)?.length, 1);
+  const painel = codigo('lib', 'pedidos-painel.ts');
+  assert.match(painel, /const endereco = new URL\('\/admin', base\);/);
+  assert.match(painel, /if \(volta\.erro\) endereco\.searchParams\.set\('erro', volta\.erro\);\s+return endereco;/);
   // cada recusa leva a sua frase: pedido não encontrado, sem pagamento na Stripe, status que não aceita o reembolso,
   // voucher de outro pedido, item já fechado, reembolso recusado pela Stripe, ação desconhecida, marcar pago num
   // pedido da Stripe, pedido já pago (cancelar) e status que não aceita a ação manual

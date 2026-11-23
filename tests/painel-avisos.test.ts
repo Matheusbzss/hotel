@@ -15,6 +15,7 @@ import {
   ROTULO_DO_STATUS,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
+  acaoManualOferecida,
   agruparPedidos,
   avisoAberto,
   avisoDoReembolsoFalho,
@@ -1459,13 +1460,34 @@ test('o pedido do WhatsApp que nunca foi pago: "não pago" junto do valor e sem 
   assert.equal(naoPagoNoPainel(daStripeCancelado), false);
   assert.equal(NAO_PAGO, 'não pago');
 
-  // a página do painel: "Marcar reembolsado" só no pedido que chegou a ser pago (um botão só, com a regra)
-  const pagina = codigo('app', 'admin', 'page.tsx');
-  assert.match(
-    pagina,
-    /if \(!stripe && \(p\.status === 'pago' \|\| p\.status === 'cancelado'\) && !naoPagoNoPainel\(p\)\) \{\s*acoes\.push\(\{ acao: 'reembolsado', rotulo: 'Marcar reembolsado' \}\);\s*\}/,
+  // a página do painel: "Marcar reembolsado" só no pedido que chegou a ser pago. Desde o Pacote 19 (reteste de 22/11) o
+  // botão sai da regra única das ações manuais (acaoManualOferecida; a tabela inteira em tests/painel-toque-duplo.test.ts),
+  // que dá aqui o mesmo de antes: nunca no pedido que nunca foi pago, sim no pago e no pago e depois cancelado
+  for (const p of [cancelado1, cancelado2]) assert.equal(acaoManualOferecida(p.itens[0], 'reembolsado'), false, p.codigo);
+  assert.equal(acaoManualOferecida(daStripeCancelado.itens[0], 'reembolsado'), false, 'pela Stripe, nunca');
+  const pagoPeloWhatsApp = umItem({
+    provedor: 'whatsapp',
+    paymentIntentId: undefined,
+    pagamento: { metodo: 'pix', pagoEm: '2026-11-17T20:00:00Z' },
+  });
+  assert.equal(acaoManualOferecida(pagoPeloWhatsApp.itens[0], 'reembolsado'), true);
+  assert.equal(
+    acaoManualOferecida(
+      {
+        ...pagoPeloWhatsApp.itens[0],
+        status: 'cancelado',
+        historico: historico('Reserva criada', 'Marcada como paga no Pix, no admin', 'Cancelada no admin'),
+      },
+      'reembolsado',
+    ),
+    true,
   );
-  assert.equal(pagina.match(/acao: 'reembolsado'/g)?.length, 1);
+  const pagina = codigo('app', 'admin', 'page.tsx');
+  assert.match(pagina, /ACOES_MANUAIS_DO_PAINEL\.filter\(\(acao\) => acaoManualOferecida\(r, acao\)\)/);
+  assert.match(pagina, /^\s+reembolsado: 'Marcar reembolsado',$/m);
+  assert.equal(pagina.match(/Marcar reembolsado'/g)?.length, 1);
+  // a conta de antes, escrita na página, não volta: o botão só nasce da regra
+  assert.doesNotMatch(pagina, /acoes\.push\(\{ acao: 'reembolsado'/);
   // e "não pago" junto do valor do pedido fechado, num pedaço que não se parte; o pedido em aberto (os dois preços) fica igual
   const inicio = pagina.indexOf('function ValorDoPedido(');
   assert.notEqual(inicio, -1);

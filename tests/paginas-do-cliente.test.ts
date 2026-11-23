@@ -10,8 +10,10 @@ import {
   erroDaFormaRecusada,
   etapaComAsFormasDeAgora,
   formasDaResposta,
+  noLugarDaOfertaDoPix,
   pixGeradoNaEscolha,
 } from '../src/lib/espera-do-pagamento.ts';
+import { textoDoContestado } from '../src/lib/texto-do-contestado.ts';
 
 // As páginas do cliente depois do reteste de 16-17/11 (Pacote 13): a faixa que continuava "Expirado" depois de "Pagar de
 // novo" (R2), o checkout que ficava só com "Seu carrinho está vazio." depois do 409 "mudou" (R3), os "Próximos passos" do
@@ -263,7 +265,7 @@ test('a tela de pagar usa a decisão: o relógio dos 15 s só troca para o aviso
   const confirmando = pagarPedido.slice(pagarPedido.indexOf("if (etapa === 'confirmando') {"));
   assert.match(
     confirmando,
-    /^if \(etapa === 'confirmando'\) \{\s+return \(\s+<div>\s+<h1 className="display text-head">\{T\.confirmando\}<\/h1>\s+<p className="mt-4 max-w-\[44ch\] text-lead">\{T\.confirmandoTexto\}<\/p>\s+\{esperou && depois === 'esperar-o-pix' && <p className="mt-4 max-w-\[44ch\] text-lead">\{T\.pixGerado\}<\/p>\}\s+<p className="mt-6 max-w-\[52ch\] bg-superficie px-5 py-4">\{T\.atualizaSozinho\}<\/p>\s+\{esperou && depois === 'pagar' && \(\s+<div className="mt-6">\s+<button type="button" className="botao botao-vazado w-full sm:w-auto" onClick=\{\(\) => setEtapa\('escolher'\)\}>\s+\{T\.pagarAgora\}/,
+    /^if \(etapa === 'confirmando'\) \{\s+return \(\s+<div>\s+<h1 ref=\{tituloRef\} tabIndex=\{-1\} className="display scroll-mt-24 text-head outline-none">\s+\{T\.confirmando\}\s+<\/h1>\s+<p className="mt-4 max-w-\[44ch\] text-lead">\{T\.confirmandoTexto\}<\/p>\s+\{esperou && depois === 'esperar-o-pix' && <p className="mt-4 max-w-\[44ch\] text-lead">\{T\.pixGerado\}<\/p>\}\s+<p className="mt-6 max-w-\[52ch\] bg-superficie px-5 py-4">\{T\.atualizaSozinho\}<\/p>\s+\{esperou && depois === 'pagar' && \(\s+<div className="mt-6">\s+<button type="button" className="botao botao-vazado w-full sm:w-auto" onClick=\{\(\) => setEtapa\('escolher'\)\}>\s+\{T\.pagarAgora\}/,
   );
   assert.equal(checkout.match(/\{T\.pixGerado\}/g)?.length, 1);
   // a frase tem as classes da "Se você já pagou…" (medida de 320 a 1440 px com a letra até 150%): quebra como ela, sem
@@ -373,7 +375,7 @@ test('a tela de pagar troca a escolha pela espera na própria renderização, co
   // testes logo abaixo) e a página relida, como antes (é a página relida que traz as formas de agora)
   assert.match(
     pagarPedido,
-    /\} else if \(resposta\.erro === 'forma'\) \{\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);\s+\}/,
+    /\} else if \(resposta\.erro === 'forma'\) \{\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+pagarRecusado\.current = true;\s+router\.refresh\(\);\s+\}/,
   );
   // a espera que a troca mostra é a de sempre: a frase do Pix gerado com esperou e 'esperar-o-pix', sem o botão de pagar
   assert.match(
@@ -469,7 +471,7 @@ test('a tela de pagar guarda as formas do 403 e decide o erro pela regra, e a p�
   const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
   assert.match(
     abrir,
-    /const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+router\.refresh\(\);/,
+    /const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+if \(qual !== 'nenhum'\) setErro\(qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo\);\s+pagarRecusado\.current = true;\s+router\.refresh\(\);/,
   );
   assert.equal(abrir.match(/fraseSemPix\(/g)?.length, 1);
   assert.doesNotMatch(abrir, /escolhida === 'pix' \? fraseSemPix/);
@@ -479,6 +481,160 @@ test('a tela de pagar guarda as formas do 403 e decide o erro pela regra, e a p�
     rota,
     /if \(!formas\.includes\(r\.data\.forma\)\) return erro\('forma', 403, \{ formas, \.\.\.\(semPix \? \{ semPix \} : \{\}\) \}\);/,
   );
+});
+
+/* ------------------------------------------------------------------ */
+/* O freio, o cartão recusado e o "Pague com Pix" (reteste de 22/11, B5; Pacote 19) */
+
+// O formulário do cartão aberto, o freio de emergência publicado nesse meio-tempo, o cartão recusado e o toque em "Cartão
+// recusado? Pague com Pix…": a rota responde 403 { erro: 'forma', formas: [] } e o aviso passava a dizer, e ficava dizendo,
+// "O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão. Tente com outro
+// cartão." (ON-D2GGKW e ON-SHEN4P): falso, o passeio era em dezembro e o Pix tinha saído porque o pagamento foi desligado.
+// As formas do 403 já chegavam à tela desde o Pacote 17 (formasDaResposta); faltava o aviso do cartão recusado usá-las.
+
+test('no lugar da oferta do Pix: com as formas vazias, só o convite para outro cartão; com o cartão valendo ou sem a lista, a frase do motivo', () => {
+  // o B5: o 403 do freio traz a lista vazia
+  assert.equal(noLugarDaOfertaDoPix([]), 'so-outro-cartao');
+  // o prazo do Pix passou (ou o valor passa do limite) e o cartão continua: a frase do motivo e o convite, como sempre
+  assert.equal(noLugarDaOfertaDoPix(['cartao']), 'motivo-do-pix');
+  // o 403 sem a lista (o prazo do Pix que passou no meio da criação da sessão): o de hoje
+  assert.equal(noLugarDaOfertaDoPix(undefined), 'motivo-do-pix');
+  // qualquer lista com alguma forma é "o de hoje": só a lista vazia tira a frase do Pix
+  for (const formas of [['pix'], ['cartao', 'pix'], ['pix', 'cartao']] as const)
+    assert.equal(noLugarDaOfertaDoPix(formas), 'motivo-do-pix');
+  // pelas formas como o 403 as entrega à tela (formasDaResposta)
+  assert.equal(noLugarDaOfertaDoPix(formasDaResposta([])), 'so-outro-cartao');
+  assert.equal(noLugarDaOfertaDoPix(formasDaResposta(['cartao'])), 'motivo-do-pix');
+  assert.equal(noLugarDaOfertaDoPix(formasDaResposta(undefined)), 'motivo-do-pix');
+  assert.equal(noLugarDaOfertaDoPix(formasDaResposta(null)), 'motivo-do-pix');
+  // é a mesma regra do "Pagar" da escolha: com as formas vazias, nunca a frase do Pix (erroDaFormaRecusada)
+  for (const status of ['pendente', 'expirado'] as const)
+    for (const formaAtual of ['pix', 'cartao', undefined] as const) {
+      assert.notEqual(erroDaFormaRecusada('pix', [], status, formaAtual), 'sem-pix');
+      assert.equal(noLugarDaOfertaDoPix([]), 'so-outro-cartao');
+    }
+  // o que o cliente lê em cada caso, nos quatro idiomas, com as frases de sempre do dicionário (nenhum texto novo)
+  const aviso = (idioma: 'pt' | 'en' | 'es' | 'es-ar', formas: Parameters<typeof noLugarDaOfertaDoPix>[0], motivo?: 'prazo' | 'limite') => {
+    const P = dicionario(idioma).pedido;
+    const frase = motivo === 'limite' ? P.semPixLimite : P.semPixPrazo;
+    return noLugarDaOfertaDoPix(formas) === 'so-outro-cartao' ? P.tentarOutroCartao : `${frase} ${P.tentarOutroCartao}`;
+  };
+  assert.equal(aviso('pt', []), 'Tente com outro cartão.');
+  assert.equal(aviso('en', []), 'Try another card.');
+  assert.equal(aviso('es', []), 'Prueba con otra tarjeta.');
+  assert.equal(aviso('es-ar', []), 'Probá con otra tarjeta.');
+  assert.equal(
+    aviso('pt', ['cartao'], 'prazo'),
+    'O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão. Tente com outro cartão.',
+  );
+  assert.equal(aviso('pt', undefined), aviso('pt', ['cartao'], 'prazo'));
+  assert.equal(
+    aviso('pt', ['cartao'], 'limite'),
+    'O Pix tem um valor máximo por pagamento, e este pedido passa dele. Para este pedido, só dá para pagar com cartão. Tente com outro cartão.',
+  );
+  for (const idioma of ['pt', 'en', 'es', 'es-ar'] as const) {
+    const P = dicionario(idioma).pedido;
+    // com o freio, nem a frase do prazo nem a do limite
+    assert.ok(!aviso(idioma, []).includes(P.semPixPrazo) && !aviso(idioma, []).includes(P.semPixLimite), idioma);
+    assert.ok(aviso(idioma, ['cartao'], 'prazo').startsWith(P.semPixPrazo), idioma);
+    assert.ok(aviso(idioma, ['cartao'], 'limite').startsWith(P.semPixLimite), idioma);
+  }
+});
+
+test('o aviso do cartão recusado guarda a decisão do 403 e, sem forma nenhuma, mostra só o convite para outro cartão', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  assert.ok(importadoDaEspera(checkout).includes('noLugarDaOfertaDoPix'));
+  const inicio = checkout.indexOf('export function CheckoutEmbutido(');
+  const fim = checkout.indexOf('export interface TextosPagarPedido');
+  assert.ok(inicio !== -1 && fim > inicio);
+  const componente = checkout.slice(inicio, fim);
+  // de saída, o de hoje: sem o Pix desde a abertura (o prazo ou o limite), a frase do motivo com o convite
+  assert.match(componente, /const \[noLugarDoPix, setNoLugarDoPix\] = useState<NoLugarDaOfertaDoPix>\('motivo-do-pix'\);/);
+  // o toque em "Pague com Pix" que esbarra no 403 'forma': a oferta sai, o motivo do servidor fica guardado e a regra
+  // decide com as formas que o 403 trouxe. A sessão do cartão aberta não é tocada (nem o segredo, nem a forma, nem a página)
+  const pagar = componente.slice(
+    componente.indexOf('async function pagarComPix() {'),
+    componente.indexOf('return (\n', componente.indexOf('async function pagarComPix() {')),
+  );
+  const ramo = pagar.match(/\} else if \(resposta\.erro === 'forma'\) \{([\s\S]*?)\} else setErro\(T\.erroGenerico\);/);
+  assert.ok(ramo, "o ramo do 403 'forma'");
+  assert.match(
+    ramo[1],
+    /^\s+setSemPix\(true\);\s+setMotivoDoServidor\(resposta\.semPix\);\s+setNoLugarDoPix\(noLugarDaOfertaDoPix\(resposta\.formas\)\);\s+$/,
+  );
+  assert.equal(checkout.match(/noLugarDaOfertaDoPix\(/g)?.length, 1);
+  assert.equal(componente.match(/setNoLugarDoPix\(/g)?.length, 1);
+  // o aviso: o botão do Pix enquanto ele vale; senão, só o convite quando nenhuma forma vale; senão, a frase de sempre
+  assert.match(
+    componente,
+    /\{pixDisponivel && !semPix \? \(\s+<button [^>]*onClick=\{pagarComPix\}[^>]*>\s+\{trocando \? T\.processando : T\.recusadoPix\}\s+<\/button>\s+\) : noLugarDoPix === 'so-outro-cartao' \? \(\s+<p className="mt-2 text-small">\{T\.tentarOutroCartao\}<\/p>\s+\) : \(\s+<p className="mt-2 text-small">\s+\{fraseSemPix\(T, motivoDoServidor \?\? semPixDoServidor\)\} \{T\.tentarOutroCartao\}\s+<\/p>\s+\)\}/,
+  );
+  // a frase do Pix continua saindo de um lugar só no aviso, e o convite, dos dois ramos
+  assert.equal(componente.match(/fraseSemPix\(/g)?.length, 1);
+  assert.equal(componente.match(/\{T\.tentarOutroCartao\}/g)?.length, 2);
+  // nenhum texto novo: o convite é o pedido.tentarOutroCartao de sempre, que a tela já recebia
+  assert.match(codigo('lib', 'reserva-publica.ts'), /^\s+tentarOutroCartao: P\.tentarOutroCartao,$/m);
+});
+
+/* ------------------------------------------------------------------ */
+/* A tela que ficava embaixo da frase no motor do iPhone (reteste de 22/11; Pacote 19) */
+
+// Sem nenhuma forma valendo no instante do toque em "Pagar" (o freio, ou o último prazo passando com o cliente parado na
+// escolha), a escolha some e o bloco "Este pedido não pode mais ser pago pelo site…" aparece lá em cima. No WebKit a página
+// continuava rolada onde o botão estava: em 390×664 e 320×568 o cliente via só o resumo do pedido (o Chromium sobe
+// sozinho). O mesmo pode acontecer com o pedido de Pix pendente, que volta para "Confirmando o pagamento…".
+
+test('depois do "Pagar" recusado, a tela e o foco vão até o título do que entrou no lugar da escolha: só depois do toque e sem animação', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
+  const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
+  // a medida de "fora da vista" é a do aviso do cartão recusado: o começo atrás do menu do topo (a folga é a margem de
+  // rolagem do próprio elemento, lida do CSS na hora) ou o fim abaixo da tela
+  assert.match(
+    checkout,
+    /function foraDaVista\(elemento: HTMLElement\): boolean \{\s+const folga = parseFloat\(getComputedStyle\(elemento\)\.scrollMarginTop\) \|\| 0;\s+const \{ top, bottom \} = elemento\.getBoundingClientRect\(\);\s+return top < folga \|\| bottom > window\.innerHeight;\s+\}/,
+  );
+  assert.match(checkout, /const folga = parseFloat\(getComputedStyle\(aviso\)\.scrollMarginTop\) \|\| 0;/);
+  assert.match(checkout, /if \(top < folga \|\| bottom > window\.innerHeight\) aviso\.scrollIntoView\(\{ block: 'start' \}\);/);
+  // o título e a marca do "Pagar" recusado
+  assert.match(pagarPedido, /const tituloRef = useRef<HTMLHeadingElement>\(null\);/);
+  assert.match(pagarPedido, /const pagarRecusado = useRef\(false\);/);
+  // a marca só nasce no "Pagar" que esbarra na forma, logo antes de a página ser relida: nunca quando a página nasce, nem
+  // no relógio da espera, nem nos outros erros (o do status redesenha a página inteira no estado novo, com outra chave)
+  assert.equal(pagarPedido.match(/pagarRecusado\.current = true;/g)?.length, 1);
+  const inicioAbrir = pagarPedido.indexOf('async function abrirCheckout(');
+  const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
+  const ramo = abrir.match(/\} else if \(resposta\.erro === 'forma'\) \{([\s\S]*?)\} else setErro\(T\.erroGenerico\);/);
+  assert.ok(ramo, "o ramo do 403 'forma'");
+  assert.match(ramo[1], /pagarRecusado\.current = true;\s+router\.refresh\(\);\s+$/);
+  // o efeito: sem a marca, nada (a página que nasce, a espera que troca sozinha); com ela, uma vez só; só quando a escolha
+  // saiu da tela (a espera, ou a escolha sem forma nenhuma, onde entra o aviso sem formas); rola só com o título fora da
+  // vista, sem animação (o html do site rola suave: aqui é 'instant'), e o foco não rola de novo
+  const efeito = pagarPedido.match(/useEffect\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;[\s\S]*?\n {2}\}, \[([^\]]*)\]\);/);
+  assert.ok(efeito, 'o efeito do "Pagar" recusado');
+  assert.match(
+    efeito[0],
+    /^useEffect\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;\s+pagarRecusado\.current = false;\s+const semAEscolha = etapa === 'confirmando' \|\| \(etapa === 'escolher' && formas\.length === 0\);\s+const titulo = tituloRef\.current;\s+if \(!semAEscolha \|\| !titulo\) return;\s+if \(foraDaVista\(titulo\)\) titulo\.scrollIntoView\(\{ block: 'start', behavior: 'instant' \}\);\s+titulo\.focus\(\{ preventScroll: true \}\);\s+\}, \[etapa, formas\]\);$/,
+  );
+  assert.equal(efeito[1], 'etapa, formas');
+  assert.equal(pagarPedido.match(/scrollIntoView\(/g)?.length, 1);
+  assert.equal(pagarPedido.match(/tituloRef\.current/g)?.length, 1);
+  assert.doesNotMatch(pagarPedido, /behavior: 'smooth'|behavior: 'auto'/);
+  // a escolha sem forma nenhuma é exatamente onde a tela mostra o aviso sem formas
+  assert.match(pagarPedido, /\{formas\.length > 0 && formaValida \? \([\s\S]*?\) : \(\s+semFormas\s+\)\}/);
+  // os títulos: o da espera e o da escolha recebem a tela e o foco (a margem de rolagem é a folga do menu do topo, a mesma
+  // do aviso do cartão recusado; o foco não desenha contorno num título); o do formulário aberto fica como era
+  const titulos = [...pagarPedido.matchAll(/<h1\b([^>]*)>\s*\{([^}]*)\}\s*<\/h1>/g)].map((m) => ({ abertura: m[1], texto: m[2] }));
+  assert.deepEqual(
+    titulos.map((t) => t.texto),
+    ['T.pagamento', 'T.confirmando', 'titulo'],
+  );
+  assert.equal(titulos[0].abertura, ' className="display text-head"');
+  for (const t of titulos.slice(1)) {
+    assert.match(t.abertura, /^ ref=\{tituloRef\} tabIndex=\{-1\} className="([^"]*)"$/, t.texto);
+    const classes = (t.abertura.match(/className="([^"]*)"/)?.[1] ?? '').split(/\s+/);
+    assert.deepEqual([...classes].sort(), ['display', 'outline-none', 'scroll-mt-24', 'text-head'], t.texto);
+  }
+  assert.match(checkout, /<div ref=\{avisoRef\} role="alert" className="scroll-mt-24 [^"]*">/);
 });
 
 /* ------------------------------------------------------------------ */
@@ -648,4 +804,65 @@ test('o mesmo no checkout embutido: a troca para o Pix que levou à página do p
   const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
   assert.doesNotMatch(pagarPedido, /location\./);
   assert.match(pagarPedido, /\} else setErro\(T\.erroGenerico\);\s+setCriando\(false\);\s+\}/);
+});
+
+/* ------------------------------------------------------------------ */
+/* O pagamento contestado no pedido com mais de um voucher (reteste de 22/11, pergunta 16; Pacote 19) */
+
+// A página do pedido de um pagamento contestado dizia "…o voucher fica suspenso…" mesmo com vários vouchers. Na página do
+// pedido com mais de um voucher, o plural; a página da reserva (um voucher) e o pedido de um item ficam com a frase de sempre.
+
+test('o texto do pagamento contestado: com um voucher, a frase de sempre; com mais de um, "os vouchers ficam suspensos", nos quatro idiomas', () => {
+  const UM = {
+    pt: 'Este pagamento foi contestado no banco. Enquanto o banco analisa, o voucher fica suspenso. Se tiver dúvidas, fale com a gente.',
+    en: 'This payment has been disputed with the bank. While the bank reviews it, the voucher is on hold. If you have any questions, talk to us.',
+    es: 'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tienes dudas, escríbenos.',
+    'es-ar':
+      'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tenés dudas, escribinos.',
+  } as const;
+  const VARIOS = {
+    pt: 'Este pagamento foi contestado no banco. Enquanto o banco analisa, os vouchers ficam suspensos. Se tiver dúvidas, fale com a gente.',
+    en: 'This payment has been disputed with the bank. While the bank reviews it, the vouchers are on hold. If you have any questions, talk to us.',
+    es: 'Este pago está en disputa con el banco. Mientras el banco lo revisa, los vouchers quedan suspendidos. Si tienes dudas, escríbenos.',
+    'es-ar':
+      'Este pago está en disputa con el banco. Mientras el banco lo revisa, los vouchers quedan suspendidos. Si tenés dudas, escribinos.',
+  } as const;
+  for (const idioma of ['pt', 'en', 'es', 'es-ar'] as const) {
+    const P = dicionario(idioma).pedido;
+    // um voucher: a frase de hoje, sem mudar uma letra
+    assert.equal(textoDoContestado(P, 1), UM[idioma], idioma);
+    assert.equal(P.contestadoTexto, UM[idioma], idioma);
+    // dois ou mais: o plural
+    assert.equal(textoDoContestado(P, 2), VARIOS[idioma], idioma);
+    assert.equal(textoDoContestado(P, 3), VARIOS[idioma], idioma);
+    assert.equal(P.contestadoTextoVarios, VARIOS[idioma], idioma);
+    // nenhum (não acontece: a página sem voucher nem abre) fica com a de um
+    assert.equal(textoDoContestado(P, 0), UM[idioma], idioma);
+    // as duas frases só diferem no pedaço do voucher: o começo e o fim são os mesmos
+    const [antes, depois] = [UM[idioma].split('.')[0], UM[idioma].split('. ').at(-1)];
+    assert.ok(VARIOS[idioma].startsWith(`${antes}.`) && VARIOS[idioma].endsWith(String(depois)), idioma);
+    // o texto continua neutro: não fala em cartão (a contestação vale para o cartão e para o Pix)
+    assert.doesNotMatch(VARIOS[idioma], /cart[ãa]o|tarjeta|card/i, idioma);
+  }
+  // só o es-ar tem versão própria ("tenés", "escribinos"), como a frase de um voucher
+  assert.notEqual(dicionario('es-ar').pedido.contestadoTextoVarios, dicionario('es').pedido.contestadoTextoVarios);
+  assert.match(readFileSync(path.join('src', 'i18n', 'es-ar.ts'), 'utf8'), /^\s+contestadoTextoVarios:$/m);
+});
+
+test('a página do pedido escolhe a frase pelo número de vouchers; a da reserva, que é de um voucher, fica com a de sempre', () => {
+  const pedido = codigo('app', '[locale]', 'pedido', '[codigo]', 'page.tsx');
+  const reserva = codigo('app', '[locale]', 'reserva', '[codigo]', 'page.tsx');
+  const status = codigo('components', 'StatusReserva.tsx');
+  // a página do pedido: o título de sempre e a frase pela regra, com os vouchers que ela leu
+  assert.match(pedido, /contestado: \{ titulo: d\.pedido\.contestadoTitulo, texto: textoDoContestado\(d\.pedido, reservas\.length\) \},/);
+  assert.match(pedido, /^import \{ textoDoContestado \} from '@\/lib\/texto-do-contestado';$/m);
+  assert.doesNotMatch(pedido, /d\.pedido\.contestadoTexto\b/);
+  // o pedido de um item nem chega lá: abre na página da reserva
+  assert.match(pedido, /if \(!primeira\.pedido\) redirect\(/);
+  // a página da reserva (um voucher) e o componente dela: a frase de um voucher, como sempre
+  assert.match(reserva, /contestadoTexto: d\.pedido\.contestadoTexto,/);
+  assert.match(status, /contestado: \{ titulo: textos\.contestadoTitulo, texto: textos\.contestadoTexto \},/);
+  for (const fonte of [reserva, status]) assert.doesNotMatch(fonte, /contestadoTextoVarios|textoDoContestado/);
+  // a regra é pura: não importa nada (o servidor e os testes a usam)
+  assert.doesNotMatch(readFileSync(path.join('src', 'lib', 'texto-do-contestado.ts'), 'utf8'), /^import /m);
 });

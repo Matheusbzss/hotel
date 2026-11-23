@@ -146,7 +146,11 @@ export function FormularioCotacao({
         <span className="rotulo" id={`${id}-telefone-rotulo`}>
           {telefoneObrigatorio ? T.telefone : T.telefoneOpcional}
         </span>
-        <div className="flex gap-2">
+        {/* A linha pode quebrar: o telefone desce para a linha de baixo do país só quando os dois não cabem lado a lado
+            (o mínimo de 8.5rem é o que deixa "21 99999-9999" inteiro; menos que 8.4rem corta o número). Este formulário
+            fica dentro de um cartão, mais estreito que o checkout: em 360 e 390 px com a letra normal nada muda; em
+            320 px, e com a letra grande, o número ficava cortado (o mesmo conserto do telefone do checkout, Pacote 19). */}
+        <div className="flex flex-wrap gap-2">
           <label htmlFor={`${id}-ddi`} className="sr-only">
             {T.ddi}
           </label>
@@ -167,7 +171,7 @@ export function FormularioCotacao({
             id={`${id}-telefone`}
             type="tel"
             inputMode="tel"
-            className="campo min-w-0"
+            className="campo min-w-[8.5rem] flex-1"
             autoComplete="tel-national"
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}

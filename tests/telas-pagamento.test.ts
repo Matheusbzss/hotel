@@ -704,3 +704,62 @@ test('a conta do telefone do checkout: com a letra normal, igual a antes; com a 
   for (const largura of [1024, 1440])
     for (const raiz of RAIZES) assert.ok(coluna(largura, raiz) >= (PAIS_REM + VAO_REM + MINIMO_REM) * raiz, `${largura}/${raiz}`);
 });
+
+/* ------------------------------------------------------------------ */
+/* O telefone do formulário de mensagem e cotação (o mesmo conserto do telefone do checkout; medido na bancada em 23/11) */
+
+test('o telefone do formulário de mensagem: a linha pode quebrar e o telefone tem a largura mínima de 8.5rem', () => {
+  const cotacao = codigo('components', 'FormularioCotacao.tsx');
+  const linha = classesDe(
+    cotacao,
+    /<div className="([^"]*)">\s*<label htmlFor=\{`\$\{id\}-ddi`\} className="sr-only">/,
+    'a linha do telefone',
+  );
+  assert.deepEqual(linha, ['flex', 'flex-wrap', 'gap-2']);
+  const pais = classesDe(cotacao, /<select\s+id=\{`\$\{id\}-ddi`\}\s+className="([^"]*)"/, 'a caixa do país');
+  assert.deepEqual(pais, ['campo', 'w-[7.5rem]', 'shrink-0']);
+  const telefone = classesDe(
+    cotacao,
+    /<input\s+id=\{`\$\{id\}-telefone`\}\s+type="tel"\s+inputMode="tel"\s+className="([^"]*)"/,
+    'o telefone',
+  );
+  assert.deepEqual(telefone, ['campo', 'min-w-[8.5rem]', 'flex-1']);
+});
+
+test('a conta do telefone do formulário de mensagem: em 360 e 390 px com a letra normal fica igual; onde o número não cabia, o telefone desce e aparece inteiro', () => {
+  const MINIMO_REM = 8.5;
+  const numero = (raiz: number) => VEZES_O_TELEFONE * LETRA_DO_CAMPO_REM * raiz;
+  // a linha do telefone na página de contato, medida na bancada em 23/11 (o formulário fica dentro de um cartão):
+  // largura da tela, raiz e a largura da linha em px
+  const CONTATO: [number, number, number][] = [
+    [320, 16, 232],
+    [360, 16, 271.8],
+    [390, 16, 300.8],
+    [320, 20, 210],
+    [360, 20, 250],
+    [390, 20, 280],
+    [320, 24, 234.8],
+    [360, 24, 234.8],
+    [390, 24, 258],
+  ];
+  const ladoALado = (linha: number, raiz: number) => linha >= (PAIS_REM + VAO_REM + MINIMO_REM) * raiz;
+  const antes = (linha: number, raiz: number) => linha - (PAIS_REM + VAO_REM) * raiz;
+  const agora = (linha: number, raiz: number) => (ladoALado(linha, raiz) ? antes(linha, raiz) : linha);
+  for (const [largura, raiz, linha] of CONTATO) {
+    const onde = `${largura}/${raiz}`;
+    // antes: o número só cabia em 360 e 390 px com a letra normal (a bancada mediu 30 px de falta em 320 px)
+    const cabiaAntes = mioloDoCampo(antes(linha, raiz), raiz) >= numero(raiz);
+    assert.equal(cabiaAntes, raiz === 16 && largura >= 360, onde);
+    // agora: lado a lado só onde cabia (nada muda ali); nos outros, o telefone desce e ocupa a linha inteira
+    assert.equal(ladoALado(linha, raiz), cabiaAntes, onde);
+    if (cabiaAntes) assert.equal(agora(linha, raiz), antes(linha, raiz), onde);
+    else assert.equal(agora(linha, raiz), linha, onde);
+    // e o número aparece inteiro em todos os casos
+    assert.ok(mioloDoCampo(agora(linha, raiz), raiz) >= numero(raiz), onde);
+  }
+  // o mínimo de 8.5rem ainda deixa o número inteiro quando os dois ficam lado a lado no limite; menos que 8.4rem cortaria
+  for (const raiz of RAIZES) assert.ok(mioloDoCampo(MINIMO_REM * raiz, raiz) >= numero(raiz), `raiz ${raiz}`);
+  assert.ok(mioloDoCampo(8.3 * 16, 16) < numero(16));
+  // com os 9rem do checkout, a linha de 360 px com a letra normal (16,99rem) quebraria por 0,2 px: por isso 8.5rem aqui
+  assert.ok(271.8 < (PAIS_REM + VAO_REM + 9) * 16 && 271.8 >= (PAIS_REM + VAO_REM + MINIMO_REM) * 16);
+});

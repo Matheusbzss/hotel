@@ -1007,10 +1007,9 @@ test('a rota do painel: contestado e "Confirmo" antes da Stripe; a Stripe com me
 test('a rota do painel: o voucher sai pelo valor inteiro e só quando cabe no que resta; senão, recusa antes de qualquer chamada à Stripe', () => {
   const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
   const reembolsar = trechoDaAcao(rota, 'reembolsar');
-  // o que resta do pagamento: o que entrou (a conta do painel, valorRecebido de cada voucher) menos o que já voltou
-  const resta = reembolsar.indexOf(
-    'const restante = vouchers.reduce((soma, v) => soma + valorRecebido(v), 0) - (alvo.reembolsoCentavos ?? 0);',
-  );
+  // o que resta do pagamento: o que entrou (a conta do painel, recebidoDoPedido: o que a Stripe recebeu de verdade, ou a
+  // soma de valorRecebido de cada voucher, desde o Pacote 23) menos o que já voltou
+  const resta = reembolsar.indexOf('const restante = recebidoDoPedido(vouchers) - (alvo.reembolsoCentavos ?? 0);');
   const nada = reembolsar.indexOf("if (acao === 'reembolsar_item' && restante <= 0) return voltar('nada-a-devolver');");
   const doVoucher = reembolsar.indexOf("if (acao === 'reembolsar_item') {");
   const conta = reembolsar.indexOf('const centavos = item ? valorDoVoucher(alvo, item) : 0;');

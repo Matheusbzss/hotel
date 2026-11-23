@@ -12,7 +12,9 @@ import { formatarCifra } from '@/lib/cifra';
 import {
   depoisDaEspera,
   erroDaFormaRecusada,
-  escolhaSaiDaTela,
+  erroDepoisDaReleitura,
+  erroRepeteANotaDoPix,
+  ESPERA_DA_RELEITURA_MS,
   etapaComAsFormasDeAgora,
   formasDaResposta,
   noLugarDaOfertaDoPix,
@@ -580,9 +582,14 @@ export function PagarPedido({
   const tituloRef = useRef<HTMLHeadingElement>(null);
   // o "Pagar" que o servidor acabou de recusar pela forma (403 'forma'): a página está sendo relida
   const pagarRecusado = useRef(false);
-  // o erro desse "Pagar" quando o 403 diz que nenhuma forma vale (a escolha vai sair da tela): ele espera a página relida
-  // e só aparece se a escolha continuar lá (escolhaSaiDaTela, src/lib/espera-do-pagamento.ts)
+  // o erro desse "Pagar": ele espera a página relida e só aparece se a escolha continuar lá e ele não repetir o quadro
+  // cinza da escolha; sem a página relida, aparece depois de uma espera curta (ESPERA_DA_RELEITURA_MS,
+  // src/lib/espera-do-pagamento.ts)
   const erroAdiado = useRef('');
+  // o relógio dessa espera curta
+  const esperaDaReleitura = useRef<number | undefined>(undefined);
+  // o quadro cinza da escolha, quando o Pix está fora: a frase do motivo, com o motivo da página de agora
+  const notaDoPix = fraseSemPix(T, semPix);
   // as formas podem encolher depois de um router.refresh (o prazo passou): a marcada precisa continuar valendo
   const formaValida = forma && formas.includes(forma) ? forma : formaPadrao(formas, idioma);
 
@@ -630,15 +637,19 @@ export function PagarPedido({
   // "Pagar" nem nasce (erroAdiado), porque o foco dela começava no Chromium uma rolagem suave até ela (uns 330 ms) que,
   // com a página relida chegando no meio (100 a 250 ms de rede), continuava depois da ida ao título e ganhava: no Android o
   // cliente via só o resumo do pedido (reteste de 23/11, F3). Se a página relida ainda tiver a escolha, a frase aparece
-  // então, com o foco, como antes
+  // então, com o foco, como antes, menos quando só repetiria o quadro cinza da escolha (o prazo do Pix que passou com o
+  // cartão valendo: reteste de 23/11, R4; erroDepoisDaReleitura). A página relida chegou: a espera curta para quando ela
+  // não chega (ESPERA_DA_RELEITURA_MS) não vale mais
   useEffect(() => {
     if (!pagarRecusado.current) return;
     pagarRecusado.current = false;
+    window.clearTimeout(esperaDaReleitura.current);
     const adiado = erroAdiado.current;
     erroAdiado.current = '';
     const semAEscolha = etapa === 'confirmando' || (etapa === 'escolher' && formas.length === 0);
     if (!semAEscolha) {
-      if (adiado) setErro(adiado);
+      const frase = erroDepoisDaReleitura(adiado, formas, notaDoPix);
+      if (frase) setErro(frase);
       return;
     }
     const titulo = tituloRef.current;
@@ -646,6 +657,23 @@ export function PagarPedido({
     if (foraDaVista(titulo)) titulo.scrollIntoView({ block: 'start', behavior: 'instant' });
     titulo.focus({ preventScroll: true });
   }, [etapa, formas]);
+
+  // saindo da tela, o relógio da espera curta para
+  useEffect(() => () => window.clearTimeout(esperaDaReleitura.current), []);
+
+  // a página relida não chegou na espera curta (o router.refresh falhou, ou a releitura nunca veio): a frase guardada do
+  // "Pagar" recusado aparece onde aparecia antes do Pacote 20, embaixo do botão, com o foco (o efeito do erro), e o toque
+  // não parece mais não fazer nada. A marca do toque fica: se a página relida chegar depois, sem a escolha, a tela e o
+  // foco ainda vão até o título do que entrou (o efeito de pagarRecusado), e a frase não aparece de novo
+  function esperarAReleitura() {
+    window.clearTimeout(esperaDaReleitura.current);
+    esperaDaReleitura.current = window.setTimeout(() => {
+      if (!pagarRecusado.current) return;
+      const adiado = erroAdiado.current;
+      erroAdiado.current = '';
+      if (adiado) setErro(adiado);
+    }, ESPERA_DA_RELEITURA_MS);
+  }
 
   // enquanto o checkout não está aberto aqui, a página acompanha o pedido: mudou de status, o servidor redesenha.
   // Pausa enquanto a sessão nova é criada: ela mesma tira o pedido de expirado, e redesenhar ali fecharia o checkout
@@ -683,12 +711,13 @@ export function PagarPedido({
       // espera com a frase do Pix gerado (o QR já gerado vale até a sessão acabar)
       const qual = erroDaFormaRecusada(escolhida, resposta.formas, status, formaAtual);
       const frase = qual === 'nenhum' ? '' : qual === 'sem-pix' ? fraseSemPix(T, resposta.semPix) : T.semPrazo;
-      // sem forma nenhuma, a escolha vai sair da tela: a frase espera a página relida (o efeito de pagarRecusado), para a
-      // rolagem suave até ela não disputar com a ida ao título; com alguma forma valendo, a frase na hora, como sempre
-      if (escolhaSaiDaTela(resposta.formas)) erroAdiado.current = frase;
-      else if (frase) setErro(frase);
+      // a frase espera a página relida (o efeito de pagarRecusado): sem forma nenhuma, a escolha sai da tela, e a rolagem
+      // suave até ela disputaria com a ida ao título; com o Pix fora e o cartão valendo, o quadro cinza da escolha relida já
+      // diz o mesmo, e ela não aparece. Sem a página relida na espera curta, ela aparece embaixo do botão (esperarAReleitura)
+      erroAdiado.current = frase;
       // se a página relida tirar a escolha da tela (nenhuma forma vale mais), a tela e o foco vão até o título do que entrou
       pagarRecusado.current = true;
+      esperarAReleitura();
       router.refresh();
     } else if (resposta.erro === 'robo') {
       // confundido com robô pela proteção: nada foi gravado, e a mensagem própria no lugar do erro de sempre
@@ -806,8 +835,9 @@ export function PagarPedido({
                   ? T.pagarDeNovo
                   : fmt(T.pagar, { valor: brl(valorDaForma(totais, formaValida)) })}
             </button>
-            {/* o erro nasce embaixo do botão, e não entre a escolha e ele: assim o botão não é empurrado para fora da tela */}
-            {erro && (
+            {/* o erro nasce embaixo do botão, e não entre a escolha e ele: assim o botão não é empurrado para fora da tela.
+                Não quando só repetiria o quadro cinza da escolha (a frase do prazo do Pix: reteste de 23/11, R4) */}
+            {erro && !erroRepeteANotaDoPix(erro, formas, notaDoPix) && (
               <p ref={erroRef} tabIndex={-1} className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar outline-none" role="alert">
                 {erro}
               </p>

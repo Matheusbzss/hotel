@@ -15,7 +15,7 @@ import {
 } from '../formas-pagamento';
 import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
-import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserva, valorRecebido } from '../pedidos-painel';
+import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserva, recebidoDoPedido } from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
@@ -290,7 +290,8 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       // antes de tudo, o aviso de que o e-mail está saindo: se a função for cortada no meio, ele fica no histórico
       await anotar(r.codigo, AVISO_EMAIL_PAGO_SAINDO);
       anexos = await anexosDosVouchers(lista);
-      const recebido = lista.reduce((soma, v) => soma + valorRecebido(v), 0);
+      // o que entrou: com um valor recebido pela Stripe diferente do esperado (Pacote 23), o que ela recebeu de verdade
+      const recebido = recebidoDoPedido(lista);
       const forma = r.pagamento.metodo === 'whatsapp' ? undefined : r.pagamento.metodo;
       const whatsapp = mostrarWhatsApp(r.status) ? linkWhatsApp(`${dicionario(idioma).contato.msg} (${pedido})`) : undefined;
       mensagem = emailPagamentoAprovado({

@@ -8,7 +8,9 @@ import { dicionario } from '../src/i18n/index.ts';
 import {
   depoisDaEspera,
   erroDaFormaRecusada,
-  escolhaSaiDaTela,
+  erroDepoisDaReleitura,
+  erroRepeteANotaDoPix,
+  ESPERA_DA_RELEITURA_MS,
   etapaComAsFormasDeAgora,
   formasDaResposta,
   noLugarDaOfertaDoPix,
@@ -380,7 +382,7 @@ test('a tela de pagar troca a escolha pela espera na própria renderização, co
   // testes logo abaixo) e a página relida, como antes (é a página relida que traz as formas de agora)
   assert.match(
     pagarPedido,
-    /\} else if \(resposta\.erro === 'forma'\) \{\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+(?:\/\/[^\n]*\n\s+)*if \(escolhaSaiDaTela\(resposta\.formas\)\) erroAdiado\.current = frase;\s+else if \(frase\) setErro\(frase\);\s+(?:\/\/[^\n]*\n\s+)*pagarRecusado\.current = true;\s+router\.refresh\(\);\s+\}/,
+    /\} else if \(resposta\.erro === 'forma'\) \{\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+(?:\/\/[^\n]*\n\s+)*erroAdiado\.current = frase;\s+(?:\/\/[^\n]*\n\s+)*pagarRecusado\.current = true;\s+esperarAReleitura\(\);\s+router\.refresh\(\);\s+\}/,
   );
   // a espera que a troca mostra é a de sempre: a frase do Pix gerado com esperou e 'esperar-o-pix', sem o botão de pagar
   assert.match(
@@ -476,7 +478,7 @@ test('a tela de pagar guarda as formas do 403 e decide o erro pela regra, e a p�
   const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
   assert.match(
     abrir,
-    /const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+(?:\/\/[^\n]*\n\s+)*if \(escolhaSaiDaTela\(resposta\.formas\)\) erroAdiado\.current = frase;\s+else if \(frase\) setErro\(frase\);\s+(?:\/\/[^\n]*\n\s+)*pagarRecusado\.current = true;\s+router\.refresh\(\);/,
+    /const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+(?:\/\/[^\n]*\n\s+)*erroAdiado\.current = frase;\s+(?:\/\/[^\n]*\n\s+)*pagarRecusado\.current = true;\s+esperarAReleitura\(\);\s+router\.refresh\(\);/,
   );
   assert.equal(abrir.match(/fraseSemPix\(/g)?.length, 1);
   assert.doesNotMatch(abrir, /escolhida === 'pix' \? fraseSemPix/);
@@ -610,7 +612,7 @@ test('depois do "Pagar" recusado, a tela e o foco vão até o título do que ent
   const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
   const ramo = abrir.match(/\} else if \(resposta\.erro === 'forma'\) \{([\s\S]*?)\} else if \(resposta\.erro === 'robo'\) \{/);
   assert.ok(ramo, "o ramo do 403 'forma'");
-  assert.match(ramo[1], /pagarRecusado\.current = true;\s+router\.refresh\(\);\s+$/);
+  assert.match(ramo[1], /pagarRecusado\.current = true;\s+esperarAReleitura\(\);\s+router\.refresh\(\);\s+$/);
   // o efeito: sem a marca, nada (a página que nasce, a espera que troca sozinha); com ela, uma vez só; só quando a escolha
   // saiu da tela (a espera, ou a escolha sem forma nenhuma, onde entra o aviso sem formas); rola só com o título fora da
   // vista, sem animação (o html do site rola suave: aqui é 'instant'), e o foco não rola de novo
@@ -618,7 +620,7 @@ test('depois do "Pagar" recusado, a tela e o foco vão até o título do que ent
   assert.ok(efeito, 'o efeito do "Pagar" recusado');
   assert.match(
     efeito[0],
-    /^useEffect\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;\s+pagarRecusado\.current = false;\s+const adiado = erroAdiado\.current;\s+erroAdiado\.current = '';\s+const semAEscolha = etapa === 'confirmando' \|\| \(etapa === 'escolher' && formas\.length === 0\);\s+if \(!semAEscolha\) \{\s+if \(adiado\) setErro\(adiado\);\s+return;\s+\}\s+const titulo = tituloRef\.current;\s+if \(!titulo\) return;\s+if \(foraDaVista\(titulo\)\) titulo\.scrollIntoView\(\{ block: 'start', behavior: 'instant' \}\);\s+titulo\.focus\(\{ preventScroll: true \}\);\s+\}, \[etapa, formas\]\);$/,
+    /^useEffect\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;\s+pagarRecusado\.current = false;\s+window\.clearTimeout\(esperaDaReleitura\.current\);\s+const adiado = erroAdiado\.current;\s+erroAdiado\.current = '';\s+const semAEscolha = etapa === 'confirmando' \|\| \(etapa === 'escolher' && formas\.length === 0\);\s+if \(!semAEscolha\) \{\s+const frase = erroDepoisDaReleitura\(adiado, formas, notaDoPix\);\s+if \(frase\) setErro\(frase\);\s+return;\s+\}\s+const titulo = tituloRef\.current;\s+if \(!titulo\) return;\s+if \(foraDaVista\(titulo\)\) titulo\.scrollIntoView\(\{ block: 'start', behavior: 'instant' \}\);\s+titulo\.focus\(\{ preventScroll: true \}\);\s+\}, \[etapa, formas\]\);$/,
   );
   assert.equal(efeito[1], 'etapa, formas');
   assert.equal(pagarPedido.match(/scrollIntoView\(/g)?.length, 1);
@@ -880,52 +882,90 @@ test('a página do pedido escolhe a frase pelo número de vouchers; a da reserva
 // Chromium começava uma rolagem suave até ela (uns 330 ms); a página relida chegava no meio, a tela ia ao título e a
 // rolagem antiga continuava e ganhava. Com 0 ms e com 300 ms ou mais dava certo; no WebKit, sempre.
 
-test('a escolha sai da tela só quando o 403 traz a lista das formas vazia', () => {
-  assert.equal(escolhaSaiDaTela([]), true);
-  assert.equal(escolhaSaiDaTela(['cartao']), false);
-  assert.equal(escolhaSaiDaTela(['pix']), false);
-  assert.equal(escolhaSaiDaTela(['cartao', 'pix']), false);
-  // sem a lista (o prazo do Pix que passou no meio da criação da sessão) não se sabe: a escolha fica, com o erro na hora
-  assert.equal(escolhaSaiDaTela(undefined), false);
-  // é exatamente quando a página relida não tem a escolha: o aviso sem formas, ou a espera do pedido de Pix pendente
-  for (const status of ['pendente', 'expirado'] as const)
-    for (const formaAtual of ['pix', 'cartao', undefined] as const)
-      for (const formas of [[], ['cartao'], ['pix'], ['cartao', 'pix']] as const) {
-        const depois = depoisDaEspera(status, formas, formaAtual);
-        const etapa = etapaComAsFormasDeAgora('escolher', depois);
-        const semAEscolha = etapa === 'confirmando' || formas.length === 0;
-        assert.equal(escolhaSaiDaTela(formas), semAEscolha, `${status} ${formaAtual} ${formas}`);
-      }
+test('a frase vermelha do "Pagar" recusado não repete o quadro cinza da escolha (reteste de 23/11, R4; Pacote 23)', () => {
+  const T = dicionario('pt').pedido;
+  const prazo = T.semPixPrazo;
+  // o R4: a página relida com o Pix fora pelo prazo e o cartão valendo; a frase guardada é a mesma do quadro cinza
+  assert.equal(prazo, 'O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão.');
+  assert.equal(erroRepeteANotaDoPix(prazo, ['cartao'], prazo), true);
+  assert.equal(erroDepoisDaReleitura(prazo, ['cartao'], prazo), '');
+  // o motivo de agora é outro (o limite de valor de um Pix): o quadro diz outra coisa, e a frase vermelha aparece
+  assert.equal(erroDepoisDaReleitura(prazo, ['cartao'], T.semPixLimite), prazo);
+  // a página relida ainda com o Pix (o relógio do servidor ainda deixava): sem quadro cinza, a frase vermelha aparece
+  assert.equal(erroRepeteANotaDoPix(prazo, ['cartao', 'pix'], prazo), false);
+  assert.equal(erroDepoisDaReleitura(prazo, ['cartao', 'pix'], prazo), prazo);
+  // sem forma nenhuma a escolha nem está na tela (o aviso sem formas): não há quadro cinza para repetir
+  assert.equal(erroRepeteANotaDoPix(prazo, [], prazo), false);
+  // as outras frases nunca são o quadro cinza: "não pode mais ser pago pelo site", a do robô, a geral
+  for (const outra of [T.semPrazo, dicionario('pt').comum.robo, dicionario('pt').checkout.erros.generico]) {
+    assert.equal(erroRepeteANotaDoPix(outra, ['cartao'], prazo), false, outra);
+    assert.equal(erroDepoisDaReleitura(outra, ['cartao'], prazo), outra, outra);
+  }
+  // nada guardado, nada a mostrar
+  assert.equal(erroRepeteANotaDoPix('', ['cartao'], ''), false);
+  assert.equal(erroDepoisDaReleitura('', ['cartao'], prazo), '');
+  // a espera curta pela página relida: cerca de 4 segundos (antes, sem ela, o toque parecia não fazer nada)
+  assert.equal(ESPERA_DA_RELEITURA_MS, 4_000);
 });
 
-test('com a escolha saindo da tela, a frase vermelha não nasce antes da página relida: a única rolagem é a do título', () => {
+test('a frase do "Pagar" recusado espera a página relida e, sem ela, aparece embaixo do botão depois da espera curta (Pacote 23)', () => {
   const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
-  assert.ok(importadoDaEspera(checkout).includes('escolhaSaiDaTela'));
+  for (const nome of ['erroDepoisDaReleitura', 'erroRepeteANotaDoPix', 'ESPERA_DA_RELEITURA_MS']) {
+    assert.ok(importadoDaEspera(checkout).includes(nome), nome);
+  }
+  const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
+  // o quadro cinza da escolha é a frase do motivo com o motivo da página de agora (a mesma conta do EscolhaPagamento)
+  assert.match(pagarPedido, /const notaDoPix = fraseSemPix\(T, semPix\);/);
+  assert.match(
+    codigo('components', 'pagamento', 'EscolhaPagamento.tsx'),
+    /\{!formas\.includes\('pix'\) && \(\s+<p[^>]*>\s+\{fraseSemPix\(T, semPix\)\}/,
+  );
+  // a frase vermelha embaixo do botão não aparece quando só repetiria o quadro cinza (o R4: duas vezes na tela)
+  assert.match(pagarPedido, /\{erro && !erroRepeteANotaDoPix\(erro, formas, notaDoPix\) && \(\s+<p ref=\{erroRef\}/);
+  // a espera curta: um relógio só, desligado quando a página relida chega (no efeito de pagarRecusado) e quando a tela sai
+  const espera = pagarPedido.match(/function esperarAReleitura\(\) \{([\s\S]*?)\n {2}\}/);
+  assert.ok(espera, 'esperarAReleitura');
+  assert.match(
+    espera[1],
+    /^\s+window\.clearTimeout\(esperaDaReleitura\.current\);\s+esperaDaReleitura\.current = window\.setTimeout\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;\s+const adiado = erroAdiado\.current;\s+erroAdiado\.current = '';\s+if \(adiado\) setErro\(adiado\);\s+\}, ESPERA_DA_RELEITURA_MS\);\s*$/,
+  );
+  // a marca do toque fica: a página relida que chegar depois ainda leva a tela ao título, sem a frase de novo
+  assert.doesNotMatch(espera[1], /pagarRecusado\.current = false/);
+  assert.match(pagarPedido, /useEffect\(\(\) => \(\) => window\.clearTimeout\(esperaDaReleitura\.current\), \[\]\);/);
+  assert.equal(pagarPedido.match(/esperarAReleitura\(\);/g)?.length, 1);
+  assert.equal(pagarPedido.match(/window\.setTimeout\(\(\) => \{/g)?.length, 1);
+});
+
+test('a frase vermelha nunca nasce antes da página relida: a única rolagem é a do título', () => {
+  const checkout = codigo('components', 'pagamento', 'CheckoutEmbutido.tsx');
   const pagarPedido = checkout.slice(checkout.indexOf('export function PagarPedido('));
   assert.match(pagarPedido, /const erroAdiado = useRef\(''\);/);
   const inicioAbrir = pagarPedido.indexOf('async function abrirCheckout(');
   const abrir = pagarPedido.slice(inicioAbrir, pagarPedido.indexOf('const brl = ', inicioAbrir));
   const ramo = abrir.match(/\} else if \(resposta\.erro === 'forma'\) \{([\s\S]*?)\} else if \(resposta\.erro === 'robo'\) \{/);
   assert.ok(ramo, "o ramo do 403 'forma'");
-  // a frase pela regra de sempre; sem forma nenhuma no 403 ela fica guardada (nenhum setErro, nenhum foco, nenhuma
-  // rolagem até ela); com alguma forma valendo, na hora, como antes. Até o conserto: setErro sempre, antes da página relida
+  // a frase pela regra de sempre, sempre guardada (nenhum setErro, nenhum foco, nenhuma rolagem até ela antes da página
+  // relida). Até o Pacote 20: setErro sempre, antes da página relida; do Pacote 20 ao 23, só sem forma nenhuma no 403
   assert.match(
     ramo[1],
-    /^\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+if \(escolhaSaiDaTela\(resposta\.formas\)\) erroAdiado\.current = frase;\s+else if \(frase\) setErro\(frase\);\s+pagarRecusado\.current = true;\s+router\.refresh\(\);\s+$/,
+    /^\s+const qual = erroDaFormaRecusada\(escolhida, resposta\.formas, status, formaAtual\);\s+const frase = qual === 'nenhum' \? '' : qual === 'sem-pix' \? fraseSemPix\(T, resposta\.semPix\) : T\.semPrazo;\s+erroAdiado\.current = frase;\s+pagarRecusado\.current = true;\s+esperarAReleitura\(\);\s+router\.refresh\(\);\s+$/,
   );
-  assert.equal(ramo[1].match(/setErro\(/g)?.length, 1);
+  assert.doesNotMatch(ramo[1], /setErro\(/);
   // o efeito, depois de a página relida estar na tela: sem a escolha, uma rolagem só, sem animação, até o título, e o foco
   // sem rolar de novo; a frase guardada nunca aparece aí (o aviso sem formas diz o mesmo; a espera do Pix não tem erro).
-  // Com a escolha ainda na tela, a frase aparece então, com o foco dela, como antes
+  // Com a escolha ainda na tela, a frase aparece então, com o foco dela, como antes, menos quando repete o quadro cinza
   const efeito = pagarPedido.match(/useEffect\(\(\) => \{\s+if \(!pagarRecusado\.current\) return;[\s\S]*?\n {2}\}, \[etapa, formas\]\);/);
   assert.ok(efeito);
   const semEscolha = efeito[0].slice(efeito[0].indexOf('const titulo = tituloRef.current;'));
   assert.doesNotMatch(semEscolha, /setErro|erroAdiado/);
   assert.equal(efeito[0].match(/scrollIntoView\(/g)?.length, 1);
-  assert.match(efeito[0], /if \(!semAEscolha\) \{\s+if \(adiado\) setErro\(adiado\);\s+return;\s+\}/);
-  // a frase só sai da marca dentro do efeito, e a marca nasce só no ramo do 403
+  assert.match(
+    efeito[0],
+    /if \(!semAEscolha\) \{\s+const frase = erroDepoisDaReleitura\(adiado, formas, notaDoPix\);\s+if \(frase\) setErro\(frase\);\s+return;\s+\}/,
+  );
+  // a frase só sai da marca dentro do efeito ou da espera curta, e a marca nasce só no ramo do 403
   assert.equal(pagarPedido.match(/erroAdiado\.current = frase;/g)?.length, 1);
-  assert.equal(pagarPedido.match(/erroAdiado\.current = '';/g)?.length, 1);
+  assert.equal(pagarPedido.match(/erroAdiado\.current = '';/g)?.length, 2);
   // o foco da frase vermelha (o que rolava a tela) continua só no efeito do erro, e a regra do foco do Pacote 19 fica
   assert.match(pagarPedido, /useEffect\(\(\) => \{\s+if \(erro\) erroRef\.current\?\.focus\(\);\s+\}, \[erro\]\);/);
   assert.match(semEscolha, /titulo\.focus\(\{ preventScroll: true \}\);/);

@@ -38,6 +38,65 @@ export const provedorDaReserva = (r: { provedor?: Provedor; pagamento: { metodo:
 export const valorRecebido = (r: Reserva) => (r.pagamento.metodo === 'pix' ? (r.totalPixCentavos ?? r.totalCentavos) : r.totalCentavos);
 
 /**
+ * O total que o pedido esperava receber na forma registrada: o do pedido inteiro, não só deste voucher (no Pix, o total
+ * com o desconto). É a conta do aviso de valor diferente (aplicarSessao e reativarPedidoRetido, src/lib/pagamento-stripe.ts).
+ */
+export function valorEsperadoDoPedido(r: Pick<Reserva, 'totalCentavos' | 'totalPixCentavos' | 'pedido' | 'pagamento'>): number {
+  const total = r.pedido?.totalCentavos ?? r.totalCentavos;
+  const totalPix = r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos;
+  return r.pagamento.metodo === 'pix' ? (totalPix ?? total) : total;
+}
+
+/** A linha do aviso de valor diferente (avisoDeValorDiferente, src/lib/pagamento-stripe.ts), lida de volta: o recebido. */
+const AVISO_DE_VALOR_DIFERENTE = /^Aviso: a Stripe recebeu (.+?) e o pedido esperava .+?: conferir na Stripe/;
+
+/**
+ * O que a Stripe recebeu de verdade pelo pedido inteiro, só quando é DIFERENTE do que o pedido esperava
+ * (valorEsperadoDoPedido); undefined quando é igual ou quando não há o que ler. Só acontece com uma sessão criada fora do
+ * site (o site sempre cobra o valor do pedido): ON-HHPGZR e ON-6EJT3U receberam R$ 100,00 por R$ 154,00; ON-R4MM9Q, R$ 386,00
+ * por R$ 396,00, e foi reativado (retestes de 23/11). De onde vem, na ordem:
+ * - o pagamento parado de um pedido cancelado (pagamento.retido, Pacote 22): o valor que a sessão paga cobrou, que também
+ *   é o pagamento do pedido reativado com ele;
+ * - pagamento.recebidoCentavos, que aplicarSessao e reativarPedidoRetido gravam quando o valor difere (Pacote 23; no JSON
+ *   `pagamento`, nos arquivos e no banco, sem migração);
+ * - para os pedidos pagos antes do Pacote 23, a última linha do aviso "Aviso: a Stripe recebeu R$ … e o pedido esperava
+ *   R$ …" do histórico.
+ * Com o valor igual ao esperado, nada muda em lugar nenhum: quem usa esta função cai na conta de sempre.
+ */
+export function recebidoPelaStripe(
+  r: Pick<Reserva, 'totalCentavos' | 'totalPixCentavos' | 'pedido' | 'pagamento' | 'historico'>,
+): number | undefined {
+  let lido: number | undefined;
+  for (const h of r.historico) {
+    const m = AVISO_DE_VALOR_DIFERENTE.exec(h.evento);
+    if (m) lido = centavosDaCifra(m[1]);
+  }
+  const recebido = r.pagamento.retido?.valorCentavos ?? r.pagamento.recebidoCentavos ?? lido;
+  return recebido !== undefined && recebido !== valorEsperadoDoPedido(r) ? recebido : undefined;
+}
+
+/**
+ * O que entrou pelo pedido inteiro (os vouchers dele; o pagamento e o histórico são os do primeiro): o que a Stripe recebeu
+ * de verdade quando difere do esperado (recebidoPelaStripe) ou, como sempre, a soma do que cada voucher vale na forma paga
+ * (valorRecebido). É o número de tudo o que diz quanto foi PAGO ou quanto ainda dá para DEVOLVER: o valor do cartão do
+ * painel, "Reembolsar tudo", o limite de "Reembolsar só o voucher", o resto da rota do painel, as estatísticas e as
+ * páginas do cliente (paraPublico e a página do pedido).
+ */
+export function recebidoDoPedido(itens: readonly Reserva[]): number {
+  const diferente = itens[0] ? recebidoPelaStripe(itens[0]) : undefined;
+  return diferente ?? itens.reduce((soma, i) => soma + valorRecebido(i), 0);
+}
+
+/**
+ * O total que a página do cliente mostra no pedido fechado, quando a Stripe recebeu um valor diferente do esperado; undefined
+ * no resto (a conta de sempre). O pedido cancelado fica de fora: enquanto a equipe decide o pagamento parado, a página
+ * nunca diz o valor dele (Pacote 22), e o pedido cancelado mostra o que ele custava.
+ */
+export const recebidoNaPaginaDoCliente = (
+  r: Pick<Reserva, 'status' | 'totalCentavos' | 'totalPixCentavos' | 'pedido' | 'pagamento' | 'historico'>,
+): number | undefined => (r.status === 'cancelado' ? undefined : recebidoPelaStripe(r));
+
+/**
  * As linhas do histórico que pedem uma ação da equipe começam com "Aviso:": a Stripe não devolveu um pagamento,
  * o valor recebido difere do esperado, o pagamento chegou depois do horário do serviço. O painel destaca essas
  * linhas e já abre o histórico do pedido que tem alguma.
@@ -236,7 +295,10 @@ export interface PedidoPainel {
   totalCentavos: number;
   /** O total no Pix, quando a forma de pagamento ainda vai ser combinada pelo WhatsApp. */
   totalPixCentavos?: number;
-  /** O total pela forma de pagamento registrada. */
+  /**
+   * O que entrou: o total pela forma de pagamento registrada ou, quando a Stripe recebeu um valor diferente do esperado, o
+   * que ela recebeu de verdade (recebidoDoPedido). `totalCentavos` continua sendo o que o pedido custa.
+   */
   recebidoCentavos: number;
   /** Quanto já voltou para o cliente (reembolso total ou de um item só). */
   reembolsoCentavos: number;
@@ -263,7 +325,7 @@ export function agruparPedidos(reservas: Reserva[]): PedidoPainel[] {
         provedor: provedorDaReserva(r),
         totalCentavos: r.pedido?.totalCentavos ?? r.totalCentavos,
         totalPixCentavos: r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos,
-        recebidoCentavos: itens.reduce((soma, i) => soma + valorRecebido(i), 0),
+        recebidoCentavos: recebidoDoPedido(itens),
         reembolsoCentavos: r.reembolsoCentavos ?? 0,
       };
     })

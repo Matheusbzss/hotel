@@ -4,7 +4,7 @@ import { mensagemDoErro } from './erros.ts';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
 import { segundosAteOInicio, type FormaPagamento, type ItemAgendado } from './formas-pagamento.ts';
-import { avisoDoPagamentoRetido, pedidoNuncaPago, provedorDaReserva } from './pedidos-painel.ts';
+import { avisoDoPagamentoRetido, pedidoNuncaPago, provedorDaReserva, valorEsperadoDoPedido } from './pedidos-painel.ts';
 import { PIX_EXPIRADO } from './recusas.ts';
 import type { Reserva, StatusReserva } from './reservas';
 import { expirarSessao, limiteDoToqueDoPix, modoStripe, obterSessao } from './stripe.ts';
@@ -334,10 +334,23 @@ export const AVISO_PAGO_DEPOIS_DO_HORARIO =
  * Etapa 7 (casas com sinal): aí o valor esperado passa a ser o que foi cobrado de fato (o sinal), não o total do
  * pedido; trocar aqui junto com o valor mandado para a sessão, senão todo pagamento de casa gera o aviso de valor.
  */
-function valorEsperado(r: Reserva): number {
-  const total = r.pedido?.totalCentavos ?? r.totalCentavos;
-  const totalPix = r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos;
-  return r.pagamento.metodo === 'pix' ? (totalPix ?? total) : total;
+const valorEsperado = (r: Reserva): number => valorEsperadoDoPedido(r);
+
+/**
+ * Grava no pedido o que a Stripe recebeu (pagamento.recebidoCentavos) quando difere do que ele esperava, e devolve a linha
+ * do aviso; com o valor igual, nada é gravado (e um valor antigo sai). Desde o Pacote 23, é com este número que o painel, a
+ * rota do painel, as estatísticas e as páginas do cliente dizem quanto foi pago e quanto ainda dá para devolver
+ * (recebidoPelaStripe, src/lib/pedidos-painel.ts). Sem o valor na leitura, nada muda.
+ */
+export function anotarValorRecebido(r: Reserva, recebidoCentavos: number | undefined): string | undefined {
+  if (recebidoCentavos === undefined) return undefined;
+  const esperado = valorEsperado(r);
+  if (recebidoCentavos === esperado) {
+    delete r.pagamento.recebidoCentavos;
+    return undefined;
+  }
+  r.pagamento.recebidoCentavos = recebidoCentavos;
+  return avisoDeValorDiferente(recebidoCentavos, esperado);
 }
 
 /**
@@ -468,8 +481,8 @@ export function reativarPedidoRetido(
   delete r.pagamento.motivoCodigo;
   retido.decisao = { acao: 'reativar', em: agora.toISOString() };
   const linhas = [linhaDaDecisao(retido.paymentIntentId, retido.valorCentavos)];
-  const esperado = valorEsperado(r);
-  if (retido.valorCentavos !== esperado) linhas.push(avisoDeValorDiferente(retido.valorCentavos, esperado));
+  const aviso = anotarValorRecebido(r, retido.valorCentavos);
+  if (aviso) linhas.push(aviso);
   if (pagoDepoisDoHorario([r, ...itensDoPedido], agora)) linhas.push(AVISO_PAGO_DEPOIS_DO_HORARIO);
   return linhas;
 }
@@ -609,10 +622,9 @@ export async function aplicarSessao(
       // a recusa de uma tentativa anterior não interessa mais
       delete r.pagamento.motivoCodigo;
       registrar(r, `Pago (${quem})`);
-      const esperado = valorEsperado(r);
-      if (leitura.valorCentavos !== undefined && leitura.valorCentavos !== esperado) {
-        registrar(r, avisoDeValorDiferente(leitura.valorCentavos, esperado));
-      }
+      // o valor diferente do esperado fica gravado no pedido (pagamento.recebidoCentavos) junto com o aviso: é o que entrou
+      const aviso = anotarValorRecebido(r, leitura.valorCentavos);
+      if (aviso) registrar(r, aviso);
       // não reembolsa sozinho: a equipe confere com o parceiro. O aviso olha o serviço mais cedo do pedido: o voucher que o
       // representa e os outros itens que o pagamento cobre; uma vez só, nesta transição, no histórico do pedido
       if (pagoDepoisDoHorario([r, ...itensDoPedido], agora)) registrar(r, AVISO_PAGO_DEPOIS_DO_HORARIO);

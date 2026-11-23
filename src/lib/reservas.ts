@@ -109,6 +109,12 @@ interface ReservaBase {
     /** Quanto o cliente viu na moeda dele (Adaptive Pricing), na menor unidade dela: centavos no dólar, pesos inteiros no CLP. */
     apresentado?: { moeda: string; valorCentavos: number };
     pagoEm?: string;
+    /**
+     * O que a Stripe recebeu pelo pedido inteiro, em centavos de real, gravado só quando é DIFERENTE do que o pedido
+     * esperava (Pacote 23: aplicarSessao e reativarPedidoRetido, src/lib/pagamento-stripe.ts). Ausente = recebeu o
+     * esperado. Quem lê é recebidoPelaStripe (src/lib/pedidos-painel.ts). Sem migração: mora no JSON `pagamento`.
+     */
+    recebidoCentavos?: number;
     ultimaConsulta?: string;
     /**
      * O pagamento que chegou com o pedido já cancelado e nunca pago (Pacote 22, decisão do dono de 23/11/2026): não volta

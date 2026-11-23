@@ -18,8 +18,8 @@ import {
   marcaOVoucherPorFora,
   marcarDevolucaoDoRetido,
   pedidoNuncaPago,
+  recebidoDoPedido,
   valorDoVoucherPorFora,
-  valorRecebido,
   voltaAoPainel,
   voucherAtivo,
   voucherCabeNoQueResta,
@@ -280,9 +280,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (alvo.status === 'contestado') return voltar('contestado-nao-reembolsa');
     if (!podeMudar(alvo.status, 'reembolsado')) return voltar('status-nao-reembolsa');
     if (!confirmou) return voltar('falta-confirmar');
-    // o que ainda resta do pagamento: o que entrou menos o que já voltou ou tem de voltar (a conta do painel); sem nada a
-    // devolver, a recusa do voucher vem antes de qualquer chamada à Stripe
-    const restante = vouchers.reduce((soma, v) => soma + valorRecebido(v), 0) - (alvo.reembolsoCentavos ?? 0);
+    // o que ainda resta do pagamento: o que entrou (o que a Stripe recebeu de verdade, recebidoDoPedido) menos o que já
+    // voltou ou tem de voltar (a conta do painel); sem nada a devolver, a recusa do voucher vem antes de qualquer chamada à Stripe
+    const restante = recebidoDoPedido(vouchers) - (alvo.reembolsoCentavos ?? 0);
     if (acao === 'reembolsar_item' && restante <= 0) return voltar('nada-a-devolver');
     // o reembolso de um voucher só: o voucher vem no campo "voucher" ou, como nos botões do painel, no próprio endereço
     // (/api/admin/reservas/<voucher>), e é conferido aqui, antes de qualquer chamada à Stripe
@@ -394,7 +394,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // um reembolso feito direto na Stripe sem voucher pode ter sido deste: primeiro a equipe diz de qual foi
     if (vouchers.length > 1 && reembolsosSemVoucher(alvo.historico).some((s) => !s.resolvido)) return voltar('reembolso-sem-voucher');
     const valor = valorDoVoucher(alvo, item);
-    const recebido = vouchers.reduce((soma, v) => soma + valorRecebido(v), 0);
+    const recebido = recebidoDoPedido(vouchers);
     // nada mais a devolver deste pagamento: não há o que registrar (a não ser completar o voucher já gravado)
     const jaGravado = vouchersDevolvidosPorOutroMeio(alvo.historico).some((v) => v.voucher === voucher);
     if (!jaGravado && valorDoVoucherPorFora(valor, recebido - (alvo.reembolsoCentavos ?? 0)) <= 0) return voltar('acao-nao-vale');

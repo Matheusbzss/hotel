@@ -22,6 +22,7 @@ import { formasDoPagamento, mostrarWhatsApp, type FormaPagamento, type MotivoSem
 import { frasesDoReembolso } from '@/lib/frases-do-reembolso';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { formasDaFaixa, partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
+import { recebidoNaPaginaDoCliente } from '@/lib/pedidos-painel';
 import { partesDaPagina } from '@/lib/reembolsos-a-resolver';
 import {
   itensPagaveis,
@@ -97,8 +98,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const cambio = await cambioParaTela(locale);
   const usd = (c: number) => textoDolar(c, cambio.taxa, d.preco.dolar, intl);
   const noPix = pedido.totalPixCentavos ?? pedido.totalCentavos;
-  // pago no Pix, o cliente vê o que pagou, com o desconto
-  const fechado = primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos;
+  // pago no Pix, o cliente vê o que pagou, com o desconto; com um valor recebido pela Stripe diferente do esperado (Pacote
+  // 23), o que ela recebeu de verdade, o mesmo número do "Reembolsado" e da frase do reembolso parcial
+  const fechado = recebidoNaPaginaDoCliente(primeira) ?? (primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos);
   const total = emAberto ? `${brl(noPix)} ${d.preco.noPix} · ${brl(pedido.totalCentavos)} ${d.preco.noCartao}` : brl(fechado);
   const reembolso = primeira.reembolsoCentavos ?? 0;
   // o reembolso que falhou na Stripe (partesDaPagina, lido como o cliente lê): o que voltou pela mesma forma de

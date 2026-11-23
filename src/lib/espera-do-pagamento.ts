@@ -92,16 +92,32 @@ export function erroDaFormaRecusada(
 }
 
 /**
- * A escolha da forma vai sair da tela depois do "Pagar" que esbarrou no 403 'forma'? Sim quando o 403 trouxe a lista das
- * formas e ela veio vazia: a página relida (com a mesma conta das formas no servidor) volta sem forma nenhuma, e no lugar
- * da escolha entra o aviso de que o pedido não pode mais ser pago pelo site ou, no pedido de Pix pendente, a espera
- * (etapaComAsFormasDeAgora). Aí o erro do "Pagar" espera a página relida e só aparece se a escolha continuar na tela: a
- * frase vermelha recebia o foco e o Chromium começava uma rolagem suave até ela, que disputava com a ida ao título (reteste
- * de 23/11, F3: com 100 a 250 ms de rede o cliente via só o resumo do pedido). Sem a lista (o prazo do Pix que passou no
- * meio da criação da sessão) não se sabe: a escolha fica, com o erro na hora, como sempre.
+ * O erro do "Pagar" que esbarrou no 403 'forma' espera a página relida (router.refresh) e só então aparece, se ainda tiver
+ * o que dizer. Desde o Pacote 20 (reteste de 23/11, F3) era assim quando a escolha saía da tela (o 403 com a lista das
+ * formas vazia: no lugar da escolha entra o aviso sem formas ou, no pedido de Pix pendente, a espera): a frase vermelha
+ * recebia o foco e o Chromium começava uma rolagem suave até ela, que disputava com a ida ao título. Desde o Pacote 23 é
+ * assim sempre: com o Pix fora e o cartão valendo, a página relida já mostra a frase do prazo do Pix no quadro cinza da
+ * escolha, e a vermelha dizia a mesma coisa embaixo do botão (reteste de 23/11, R4). Se a página relida não chegar (o
+ * router.refresh falhou, a rede caiu), o toque parecia não fazer nada: passada esta espera curta sem ela, a frase aparece
+ * onde aparecia antes do Pacote 20, embaixo do botão, com o foco.
  */
-export function escolhaSaiDaTela(formasDoServidor: readonly FormaPagamento[] | undefined): boolean {
-  return formasDoServidor !== undefined && formasDoServidor.length === 0;
+export const ESPERA_DA_RELEITURA_MS = 4_000;
+
+/**
+ * A frase vermelha do "Pagar" recusado só repetiria o que já está na tela: a escolha mostra as formas (alguma vale), o Pix
+ * não está entre elas, e o quadro cinza da escolha (a frase de por que o Pix ficou de fora, `notaDoPix`: fraseSemPix com o
+ * motivo da página) diz exatamente a mesma coisa. Aí a vermelha não aparece; o quadro cinza fica. Nenhum texto muda.
+ */
+export function erroRepeteANotaDoPix(erro: string, formas: readonly FormaPagamento[], notaDoPix: string): boolean {
+  return erro !== '' && formas.length > 0 && !formas.includes('pix') && erro === notaDoPix;
+}
+
+/**
+ * A frase vermelha a mostrar quando a página relida chega com a escolha ainda na tela: a frase guardada do "Pagar"
+ * recusado, menos quando ela só repetiria o quadro cinza da escolha (erroRepeteANotaDoPix). '' = nenhuma.
+ */
+export function erroDepoisDaReleitura(adiado: string, formas: readonly FormaPagamento[], notaDoPix: string): string {
+  return erroRepeteANotaDoPix(adiado, formas, notaDoPix) ? '' : adiado;
 }
 
 /**

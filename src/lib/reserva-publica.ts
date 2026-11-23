@@ -12,7 +12,7 @@ import { formasDoPagamento, valorACobrar, type FormaPagamento, type ItemCobravel
 import type { TextosDoReembolso } from './frases-do-reembolso';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
-import { pagamentoRetidoADecidir, provedorDaReserva, valorRecebido } from './pedidos-painel';
+import { pagamentoRetidoADecidir, provedorDaReserva, recebidoNaPaginaDoCliente, valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { partesDaPagina, type PartesDoReembolso } from './reembolsos-a-resolver';
 import { recusaParaOCliente, type ChaveRecusa } from './recusas';
@@ -295,8 +295,11 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const reembolsoPartes = partesDaPagina({ voucherDePedido: Boolean(r.pedido), codigo: r.codigo }, r.reembolsoCentavos ?? 0, r.historico);
   const pagamento = {
     status,
-    // em aberto, os dois totais (a forma ainda não está fechada); pago no Pix, o cliente vê o que pagou, com o desconto
-    totalCentavos: emAberto ? r.totalCentavos : valorRecebido(r),
+    // em aberto, os dois totais (a forma ainda não está fechada); pago no Pix, o cliente vê o que pagou, com o desconto. No
+    // pedido de um item em que a Stripe recebeu um valor diferente do esperado (Pacote 23), o que ela recebeu de verdade:
+    // assim a faixa ("Pago R$ …", "Reembolsado R$ …") e a frase do reembolso parcial contam com o mesmo número. O voucher
+    // de um pedido com vários itens mostra o valor dele, como sempre (a página do pedido mostra o total recebido)
+    totalCentavos: emAberto ? r.totalCentavos : ((r.pedido ? undefined : recebidoNaPaginaDoCliente(r)) ?? valorRecebido(r)),
     totalPixCentavos: emAberto ? r.totalPixCentavos : undefined,
     nome: r.cliente.nome,
     metodo: r.pagamento.metodo,

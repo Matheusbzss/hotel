@@ -287,6 +287,7 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
     vouchers.map((v) => v.codigo),
     alvo.paymentIntentId,
     alvo.reembolsoCentavos ?? 0,
+    alvo.status,
   );
   if (plano.evento) {
     await atualizarReserva(alvo.codigo, (r) => {

@@ -282,10 +282,31 @@ export const stripeDevolveuMenos = (reembolsos: readonly Pick<Stripe.Refund, 'am
   devolvidoNaStripe(reembolsos) < registradoCentavos;
 
 /**
+ * A linha da devolução de OUTRO pagamento do pedido (não o dele), que a Stripe devolveu ao cliente. No pedido cancelado,
+ * "Pagamento de um pedido cancelado (pi_…) devolvido ao cliente pela Stripe: R$ …": é o segundo pagamento com um já parado,
+ * ou o pagamento que chega para um pedido cancelado depois de pago, e "repetido" confundia quando o pedido não tinha outro
+ * pagamento (reteste de 23/11, R3; Pacote 23). Nos outros (o pedido já pago, contestado ou reembolsado), "Pagamento
+ * repetido (pi_…) devolvido ao cliente pela Stripe: R$ …", como sempre.
+ */
+export const linhaDaDevolucaoDeOutroPagamento = (pi: string | undefined, centavos: number, status?: StatusReserva): string =>
+  `${status === 'cancelado' ? 'Pagamento de um pedido cancelado' : 'Pagamento repetido'} (${pi}) devolvido ao cliente pela Stripe: ${cifra(centavos)}`;
+
+/** As duas formas da linha da devolução de outro pagamento, lidas de volta: o que vem depois do começo (o pi e o valor). */
+const DEVOLUCAO_DE_OUTRO_PAGAMENTO =
+  /^(?:Pagamento repetido|Pagamento de um pedido cancelado) (\(.+\) devolvido ao cliente pela Stripe: .+)$/;
+
+/** A mesma devolução, escrita com qualquer um dos dois começos (a do pedido cancelado e a do pagamento repetido). */
+export const mesmaDevolucaoDeOutroPagamento = (a: string, b: string): boolean => {
+  const resto = DEVOLUCAO_DE_OUTRO_PAGAMENTO.exec(a)?.[1];
+  return resto !== undefined && resto === DEVOLUCAO_DE_OUTRO_PAGAMENTO.exec(b)?.[1];
+};
+
+/**
  * Lê a cobrança e os reembolsos relidos na Stripe. `vouchers` são os códigos dos itens do pedido;
  * `paymentIntentDoPedido` é o pagamento gravado no pedido (sem ele, a cobrança é tida como a do pedido);
- * `jaDevolvidoCentavos` é o que o pedido já registrava (reembolsoCentavos). O reembolso ainda pendente conta como
- * o concluído (reembolsoEmVigor); a linha do histórico diz "registrado" em vez de "confirmado" enquanto houver um.
+ * `jaDevolvidoCentavos` é o que o pedido já registrava (reembolsoCentavos); `statusDoPedido`, o status dele, só para a linha
+ * da devolução de outro pagamento (linhaDaDevolucaoDeOutroPagamento). O reembolso ainda pendente conta como o concluído
+ * (reembolsoEmVigor); a linha do histórico diz "registrado" em vez de "confirmado" enquanto houver um.
  */
 export function planoDoReembolso(
   cobranca: Pick<Stripe.Charge, 'id' | 'amount' | 'amount_refunded' | 'refunded' | 'payment_intent'>,
@@ -293,6 +314,7 @@ export function planoDoReembolso(
   vouchers: readonly string[],
   paymentIntentDoPedido: string | undefined,
   jaDevolvidoCentavos = 0,
+  statusDoPedido?: StatusReserva,
 ): PlanoDoReembolso {
   const pi = idDe(cobranca.payment_intent);
   const doPedido = !paymentIntentDoPedido || !pi || pi === paymentIntentDoPedido;
@@ -313,7 +335,7 @@ export function planoDoReembolso(
       total: false,
       itens: [],
       foraDoSite: [],
-      evento: `Pagamento repetido (${pi}) devolvido ao cliente pela Stripe: ${cifra(reembolsadoCentavos)}`,
+      evento: linhaDaDevolucaoDeOutroPagamento(pi, reembolsadoCentavos, statusDoPedido),
     };
   }
   const novoCentavos = Math.max(0, reembolsadoCentavos - jaDevolvidoCentavos);
@@ -347,7 +369,11 @@ export function mudancaDoReembolso(
 ): MudancaDoReembolso | null {
   const { evento } = plano;
   if (!evento) return null;
-  if (!plano.doPedido) return pedido.historico.some((h) => h.evento === evento) ? null : { evento };
+  // a mesma devolução já registrada com qualquer um dos dois começos (a linha escrita antes do Pacote 23, ou com o pedido
+  // noutro status) não entra de novo
+  if (!plano.doPedido) {
+    return pedido.historico.some((h) => h.evento === evento || mesmaDevolucaoDeOutroPagamento(h.evento, evento)) ? null : { evento };
+  }
   const jaTinha = pedido.reembolsoCentavos ?? 0;
   const viraReembolsado = plano.total && podeMudar(pedido.status, 'reembolsado');
   // a mesma leitura chegando de novo (dois eventos para o mesmo reembolso): nada novo

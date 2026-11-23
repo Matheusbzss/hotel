@@ -275,7 +275,8 @@ test('com os e-mails ligados (e o pagamento online desligado), a privacidade de 
   assert.equal(comEmails.privacidade, PRIVACIDADE_EMAILS);
   // só a data da privacidade muda (nunca para antes da de hoje); os termos e o cancelamento ficam com as deles
   assert.deepEqual(comEmails.atualizadoEm, { ...ATUALIZADO_EM, privacidade: ATUALIZADO_EM_EMAILS });
-  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-15');
+  // 2026-11-23: o dia em que a proteção contra robôs foi ligada no ar (a linha da Vercel e da Kasada na página)
+  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-23');
   assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM.privacidade);
   // com o pagamento online no ar, a versão dele (que já traz os e-mails), com ou sem a chave
   assert.equal(textosLegais(true, true).privacidade, PRIVACIDADE_ONLINE);

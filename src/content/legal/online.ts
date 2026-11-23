@@ -37,10 +37,12 @@ const P = DESCONTO_PIX_PORCENTO;
 export const ATUALIZADO_EM_ONLINE = '2026-11-14';
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
- * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel. Nunca
+ * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel (foi em
+ * 2026-11-15) ou em que o texto que ela mostra mudar. Em 2026-11-23 a proteção contra robôs foi ligada no ar e a página
+ * ganhou a linha da Vercel e da Kasada (privacidadeComRobos, mais abaixo): era esta a versão que estava valendo. Nunca
  * antes de ATUALIZADO_EM.privacidade.
  */
-export const ATUALIZADO_EM_EMAILS = '2026-11-15';
+export const ATUALIZADO_EM_EMAILS = '2026-11-23';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */

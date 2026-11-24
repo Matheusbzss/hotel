@@ -5,6 +5,7 @@ import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
 import type { Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import { codigoValido, gerarCodigo, gerarToken } from './codigo-reserva';
+import { pagosDasReservas, type PedidoPagoRecente } from './emails-pendentes';
 import type { Origem } from './origem';
 import { provedorDaReserva, quandoAcontece } from './pedidos-painel';
 import {
@@ -603,6 +604,44 @@ export async function atualizarItem(voucher: string, status: StatusItem, evento:
 export async function listarReservas(): Promise<Reserva[]> {
   const todas = await principal().listar();
   return todas.sort((a, b) => b.criadaEm.localeCompare(a.criadaEm));
+}
+
+/**
+ * Os pedidos pagos que viraram pagos desde `desde` (o agendamento do e-mail do pagamento aprovado que não saiu,
+ * src/lib/emails-pendentes.ts): um por pedido, só o código, o status, as horas (do pagamento, da reativação no painel e
+ * da última gravação) e o texto do histórico, sem dado do cliente. No banco, uma consulta estreita, sem migração: o
+ * status 'pago' e a última gravação desde `desde` (o pedido que virou pago desde então foi gravado desde então, também o
+ * reativado no painel, cuja hora do pagamento é a da cobrança antiga); o corte das 48 horas pela hora em que virou pago
+ * fica com faltaOEmailDoPagamento. Nos arquivos e no Blob, a lista de sempre, filtrada por pagosDasReservas (o pedido de
+ * vários itens aparece uma vez, pelo código do pedido).
+ */
+export async function listarPagosDesde(desde: Date): Promise<PedidoPagoRecente[]> {
+  if (usarBanco()) {
+    const { data, error } = await supabase()
+      .from('pedidos')
+      .select(
+        'codigo, status, pago_em, atualizado_em, reativacao:pagamento->retido->decisao->>acao, reativado_em:pagamento->retido->decisao->>em, pedidos_historico(evento)',
+      )
+      .eq('status', 'pago')
+      .gte('atualizado_em', desde.toISOString())
+      .order('atualizado_em', { ascending: false })
+      .limit(500);
+    if (error) throw erroDoBanco(error);
+    const linhas = data as unknown as (Pick<LinhaPedido, 'codigo' | 'status' | 'pago_em' | 'atualizado_em'> & {
+      reativacao: string | null;
+      reativado_em: string | null;
+      pedidos_historico: Pick<EventoHistorico, 'evento'>[] | null;
+    })[];
+    return linhas.map((p) => ({
+      codigo: p.codigo,
+      status: p.status as StatusReserva,
+      ...(p.pago_em ? { pagoEm: p.pago_em } : {}),
+      ...(p.reativacao === 'reativar' && p.reativado_em ? { reativadoEm: p.reativado_em } : {}),
+      atualizadaEm: p.atualizado_em,
+      eventos: (p.pedidos_historico ?? []).map((h) => h.evento),
+    }));
+  }
+  return pagosDasReservas(await principal().listar(), desde);
 }
 
 export function registrar(r: Reserva, evento: string): Reserva {

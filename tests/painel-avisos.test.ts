@@ -551,7 +551,7 @@ test('o motivo da falha do reembolso em português para a equipe; o que a lista 
     ['expired_or_canceled_card', 'cartão vencido ou cancelado'],
     ['lost_or_stolen_card', 'cartão dado como perdido ou roubado'],
     ['declined', 'recusado pelo banco'],
-    ['insufficient_funds', 'faltou saldo na conta da Stripe por mais de 45 dias'],
+    ['insufficient_funds', 'faltou saldo disponível na conta da Stripe'],
     ['merchant_request', 'cancelado a pedido da empresa'],
     ['charge_for_pending_refund_disputed', 'o cliente abriu uma contestação com o reembolso a caminho'],
     ['unknown', 'motivo não informado'],

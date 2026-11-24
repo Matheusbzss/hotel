@@ -36,10 +36,12 @@ import {
   devolucaoNoPainel,
   fraseDoPagamentoRetido,
   inicioDaDecisaoDoRetido,
+  irmaosAindaCancelados,
   linhaDaDevolucaoDoRetido,
   linhaDaReativacao,
   marcarDevolucaoDoRetido,
   pagamentoRetidoADecidir,
+  pagoPeloRetidoReativado,
   reembolsoNoPainel,
 } from '../src/lib/pedidos-painel.ts';
 import { linhaDoReembolsoFalho } from '../src/lib/reembolsos-a-resolver.ts';
@@ -431,7 +433,7 @@ test('a rota dentro da trava: o duplo toque e a aba antiga não gravam nada, e a
   const post = corpoDe(rota, 'export async function POST(');
   assert.match(
     post,
-    /if \(acao === 'devolver_retido' \|\| acao === 'reativar_retido'\) \{\s+if \(!daStripe \|\| !acaoDoRetidoOferecida\(alvo, acao\)\) return voltar\(acaoDoRetidoRepetida\(alvo, acao\) \? undefined : 'acao-nao-vale'\);\s+if \(!confirmou\) return voltar\('falta-confirmar'\);/,
+    /if \(acao === 'devolver_retido' \|\| acao === 'reativar_retido'\) \{\s+if \(!daStripe \|\| !acaoDoRetidoOferecida\(alvo, acao\)\) \{\s+const repetida = acaoDoRetidoRepetida\(alvo, acao\);[^]*?return voltar\(repetida \? undefined : 'acao-nao-vale'\);\s+\}\s+if \(!confirmou\) return voltar\('falta-confirmar'\);/,
   );
   const devolver = corpoDe(rota, 'async function devolverPagamentoRetido(', '\nasync function ');
   const marca = devolver.indexOf('marcarDevolucaoDoRetido(r, pi,');
@@ -441,7 +443,9 @@ test('a rota dentro da trava: o duplo toque e a aba antiga não gravam nada, e a
   // a chave de idempotência dos outros reembolsos: criarReembolso com a referência "total" (sem valor)
   assert.match(devolver, /f\.metadata\?\.referencia === 'total' && reembolsoEmVigor\(f\.status\)\) \?\? \(await criarReembolso\(pi\)\)/);
   assert.match(devolver, /desfazerDevolucaoDoRetido\(r, pi\)/);
-  const reativarNaRota = corpoDe(rota, 'async function reativarPagamentoRetido(');
+  const reativarNaRota = corpoDe(rota, 'async function reativarPagamentoRetido(', '\n}\n');
+  // o laço dos vouchers irmãos mora numa função à parte (Pacote 25): a reativação e o toque repetido rodam o mesmo
+  const laco = corpoDe(rota, 'async function religarIrmaos(', '\n}\n');
   // relê na Stripe antes de gravar, confere a regra dentro da trava e só quem gravou manda o aviso de compra e o e-mail
   const rele = reativarNaRota.indexOf('obterSessao(retido.sessaoId)');
   const trava = reativarNaRota.indexOf('await atualizarReserva(alvo.codigo, (r) => {');
@@ -455,12 +459,14 @@ test('a rota dentro da trava: o duplo toque e a aba antiga não gravam nada, e a
   assert.ok(reativarNaRota.indexOf('pedidoPago(') > reativarNaRota.indexOf('if (!gravado.reativou)'));
   // no banco, os outros vouchers que o cancelamento levou a 'cancelado' voltam a 'ativo': relidos DEPOIS da gravação
   // (com o pedido já pago o irmão parado aparece com statusItem 'cancelado') e antes do e-mail com os vouchers
-  const releVouchers = reativarNaRota.indexOf('await vouchersDoPedido(alvo.pedido?.codigo ?? alvo.codigo)');
-  const voltaAValer = reativarNaRota.indexOf("await atualizarItem(v.codigo, 'ativo',");
-  assert.ok(trava !== -1 && releVouchers > trava, `${trava} ${releVouchers}`);
-  assert.ok(voltaAValer > releVouchers && reativarNaRota.indexOf('pedidoPago(') > voltaAValer, `${releVouchers} ${voltaAValer}`);
-  assert.match(reativarNaRota, /if \(v\.codigo === alvo\.codigo \|\| v\.statusItem !== 'cancelado'\) continue;/);
-  assert.match(reativarNaRota, /try \{\s+await atualizarItem\(v\.codigo, 'ativo', [^;]+;\s+\} catch \(e\) \{\s+console\.error\(/);
+  const religa = reativarNaRota.indexOf('await religarIrmaos(alvo);');
+  assert.ok(trava !== -1 && religa > trava, `${trava} ${religa}`);
+  assert.ok(reativarNaRota.indexOf('pedidoPago(') > religa, `${religa}`);
+  const releVouchers = laco.indexOf('await vouchersDoPedido(alvo.pedido?.codigo ?? alvo.codigo)');
+  const voltaAValer = laco.indexOf("await atualizarItem(v.codigo, 'ativo',");
+  assert.ok(releVouchers !== -1 && voltaAValer > releVouchers, `${releVouchers} ${voltaAValer}`);
+  assert.match(laco, /for \(const v of irmaosAindaCancelados\(releitura, alvo\.codigo\)\) \{/);
+  assert.match(laco, /try \{\s+await atualizarItem\(v\.codigo, 'ativo', [^;]+;\s+\} catch \(e\) \{\s+console\.error\(/);
   assert.ok(ERROS_DO_PAINEL['stripe-fora']);
   // a página monta os botões pela mesma regra
   const pagina = fonte('app', 'admin', 'page.tsx');
@@ -672,4 +678,56 @@ test('a página do cliente: a frase nos 4 idiomas enquanto a equipe decide; depo
     fonte('components', 'pagamento', 'useStatusDoPedido.ts'),
     /Boolean\(lido\.pagamentoRetido\) !== Boolean\(antes\.pagamentoRetido\)/,
   );
+});
+
+/* ------------------------------------------------------------------ */
+/* Pacote 25 (achado B3): o toque repetido em "Reativar" refaz a volta dos vouchers */
+
+test('o toque repetido em "Reativar" refaz a volta do voucher irmão que ficou cancelado (B3)', () => {
+  // o pedido de dois vouchers já reativado: pago pelo pagamento que estava parado, com a decisão gravada
+  const r = cancelado({ pedido: { codigo: 'ON-PED234', totalCentavos: 30800, totalPixCentavos: 27720 } });
+  reterPagamento(r, PAGA, 'cs_test_fora', '2026-11-23T10:38:00.000Z');
+  reativarPedidoRetido(r, [], new Date('2026-11-23T11:00:00Z'), linhaDaReativacao);
+  r.status = 'pago';
+  assert.equal(pagoPeloRetidoReativado(r), true);
+  assert.equal(acaoDoRetidoRepetida(r, 'reativar_retido'), true);
+  // nenhum outro pedido refaz o laço: o cancelado ainda sem decisão, o reembolsado, o pago por outro pagamento, o devolvido
+  assert.equal(pagoPeloRetidoReativado(cancelado()), false);
+  assert.equal(pagoPeloRetidoReativado({ ...r, status: 'reembolsado' }), false);
+  assert.equal(pagoPeloRetidoReativado({ ...r, paymentIntentId: 'pi_outro' }), false);
+  const devolvido = structuredClone(r);
+  devolvido.pagamento.retido!.decisao = { acao: 'devolver', em: '2026-11-23T11:00:00.000Z', reembolsoId: 're_1' };
+  assert.equal(pagoPeloRetidoReativado(devolvido), false);
+  // só o irmão ainda 'cancelado' volta; o gravado, o ativo e o reembolsado ficam como estão
+  const irmaos = [
+    { codigo: 'ON-RET234', statusItem: undefined },
+    { codigo: 'ON-DOI234', statusItem: 'cancelado' as const },
+    { codigo: 'ON-TRE234', statusItem: 'ativo' as const },
+    { codigo: 'ON-QUA234', statusItem: 'reembolsado' as const },
+  ];
+  assert.deepEqual(
+    irmaosAindaCancelados(irmaos, 'ON-RET234').map((v) => v.codigo),
+    ['ON-DOI234'],
+  );
+  assert.deepEqual(irmaosAindaCancelados([{ codigo: 'ON-RET234', statusItem: 'cancelado' as const }], 'ON-RET234'), []);
+
+  // a rota: a reativação e o toque repetido rodam o mesmo laço, e o repetido continua voltando como a ação que deu certo
+  const rota = fonte('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  const laco = corpoDe(rota, 'async function religarIrmaos(', '\n}\n');
+  assert.match(laco, /for \(const v of irmaosAindaCancelados\(releitura, alvo\.codigo\)\)/);
+  assert.match(laco, /await atualizarItem\(v\.codigo, 'ativo', `Voucher \$\{v\.codigo\} volta a valer com o pedido reativado`\)/);
+  assert.match(
+    corpoDe(rota, 'async function reativarPagamentoRetido(', '\n}\n'),
+    /await religarIrmaos\(alvo\);\s+if \(reativada\) await pedidoPago/,
+  );
+  const ramo = corpoDe(rota, "if (acao === 'devolver_retido' || acao === 'reativar_retido') {", '\n  }\n');
+  const repetido = ramo.slice(0, ramo.indexOf('if (!confirmou)'));
+  assert.match(
+    repetido,
+    /if \(\s*repetida &&\s*daStripe &&\s*acao === 'reativar_retido' &&\s*pagoPeloRetidoReativado\(alvo\) &&\s*irmaosAindaCancelados\(vouchers, alvo\.codigo\)\.length\s*\) \{\s*await religarIrmaos\(alvo\)/,
+  );
+  // depois do laço, a mesma volta de antes: a ação repetida volta sem erro, a outra com acao-nao-vale
+  assert.match(repetido, /return voltar\(repetida \? undefined : 'acao-nao-vale'\);/);
+  // a decisão de reativar não se grava de novo: o repetido não passa por reativarPagamentoRetido nem por pedidoPago
+  assert.doesNotMatch(repetido, /reativarPagamentoRetido|pedidoPago/);
 });

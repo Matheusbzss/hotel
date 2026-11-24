@@ -497,7 +497,7 @@ const MOTIVO_DO_REEMBOLSO_FALHO = new Map<string, string>([
   ['expired_or_canceled_card', 'cartão vencido ou cancelado'],
   ['lost_or_stolen_card', 'cartão dado como perdido ou roubado'],
   ['declined', 'recusado pelo banco'],
-  ['insufficient_funds', 'faltou saldo na conta da Stripe por mais de 45 dias'],
+  ['insufficient_funds', 'faltou saldo disponível na conta da Stripe'],
   ['merchant_request', 'cancelado a pedido da empresa'],
   ['charge_for_pending_refund_disputed', 'o cliente abriu uma contestação com o reembolso a caminho'],
 ]);
@@ -1008,6 +1008,24 @@ export function acaoDoRetidoRepetida(r: Pick<Reserva, 'pagamento'>, acao: string
   if (acao === 'reativar_retido') return d?.acao === 'reativar';
   return false;
 }
+
+/**
+ * O pedido reativado no painel e pago pelo pagamento que estava parado (Pacote 22): é nele que o toque repetido em
+ * "Reativar o pedido (fica pago)" refaz a volta dos vouchers irmãos que ficaram 'cancelado' (Pacote 25, achado B3).
+ */
+export const pagoPeloRetidoReativado = (r: Pick<Reserva, 'status' | 'paymentIntentId' | 'pagamento'>): boolean =>
+  r.status === 'pago' &&
+  r.pagamento.retido?.decisao?.acao === 'reativar' &&
+  Boolean(r.paymentIntentId) &&
+  r.paymentIntentId === r.pagamento.retido.paymentIntentId;
+
+/**
+ * Os vouchers do pedido reativado que ainda estão 'cancelado' (relidos depois de o pedido ficar pago): no banco, cancelar
+ * levou todos os itens a 'cancelado' e gravar o pedido como pago só muda o item do voucher gravado. Os outros voltam a
+ * valer na reativação, um por um; o que falhou continua aqui e volta no toque repetido.
+ */
+export const irmaosAindaCancelados = <T extends Pick<Reserva, 'codigo' | 'statusItem'>>(releitura: readonly T[], gravado: string): T[] =>
+  releitura.filter((v) => v.codigo !== gravado && v.statusItem === 'cancelado');
 
 /**
  * "Devolver R$ … ao cliente", passo 1, dentro da trava de versão e ANTES de pedir à Stripe: marca a decisão de devolver

@@ -6,6 +6,7 @@ import {
   linhaDaDevolucaoDeOutroPagamento,
   mesmaDevolucaoDeOutroPagamento,
   mudancaDoReembolso,
+  pedidoSemPagamentoProprio,
   planoDoReembolso,
 } from '../src/app/api/webhooks/stripe/eventos.ts';
 import { dicionario } from '../src/i18n/index.ts';
@@ -19,6 +20,7 @@ import {
   confirmacaoDoReembolso,
   devolucaoNoPainel,
   linhaDaReativacao,
+  naoPagoNoPainel,
   recebidoDoPedido,
   recebidoNaPaginaDoCliente,
   recebidoPelaStripe,
@@ -375,8 +377,89 @@ test('a devolução de outro pagamento: "de um pedido cancelado" no cancelado, "
   // o webhook passa o status do pedido
   assert.match(
     fonte('app', 'api', 'webhooks', 'stripe', 'route.ts'),
-    /planoDoReembolso\(\s+atual,\s+reembolsos\.data,\s+vouchers\.map\(\(v\) => v\.codigo\),\s+alvo\.paymentIntentId,\s+alvo\.reembolsoCentavos \?\? 0,\s+alvo\.status,\s+\)/,
+    /planoDoReembolso\(\s+atual,\s+reembolsos\.data,\s+vouchers\.map\(\(v\) => v\.codigo\),\s+alvo\.paymentIntentId,\s+alvo\.reembolsoCentavos \?\? 0,\s+alvo\.status,\s+pedidoSemPagamentoProprio\(alvo\),\s+\)/,
   );
+});
+
+test('o pedido do WhatsApp cancelado e nunca pago: a devolução da sessão paga é "de um pedido cancelado" e o pedido não ganha reembolso (V4, Pacote 25)', () => {
+  // o ON-NF9PHD do reteste: aplicarSessao gravou o pi_ da sessão paga no pedido, que continuou cancelado, e o webhook
+  // devolveu o dinheiro sozinho (um reembolso só, com a referência da devolução)
+  const whatsapp = pago({
+    status: 'cancelado',
+    provedor: 'whatsapp',
+    pagamentoExternoId: undefined,
+    paymentIntentId: 'pi_novo',
+    pagamento: { metodo: 'whatsapp' },
+    historico: historico(
+      'Reserva criada',
+      'Cancelado no admin',
+      `Devolução de ${cifra(13860)} do pagamento pi_novo (pedido cancelado) pedida à Stripe (re_1)`,
+    ),
+  });
+  assert.equal(pedidoSemPagamentoProprio(whatsapp), true);
+  const plano = planoDoReembolso(
+    COBRANCA,
+    [{ id: 're_1', amount: 13860, status: 'succeeded', metadata: { referencia: 'pagamento-repetido' } }],
+    ['ON-VAL234'],
+    whatsapp.paymentIntentId,
+    0,
+    whatsapp.status,
+    pedidoSemPagamentoProprio(whatsapp),
+  );
+  assert.equal(plano.doPedido, false);
+  assert.equal(plano.total, false);
+  assert.equal(plano.evento, `Pagamento de um pedido cancelado (pi_novo) devolvido ao cliente pela Stripe: ${cifra(13860)}`);
+  // sem a regra nova, era o reembolso do pedido (o que o reteste viu)
+  assert.equal(
+    planoDoReembolso(COBRANCA, [], ['ON-VAL234'], 'pi_novo', 0, 'cancelado').evento,
+    `Reembolso total (${cifra(13860)}) confirmado pela Stripe`,
+  );
+  // o pedido guarda só a linha: nem valor devolvido nem status novo
+  const mudanca = mudancaDoReembolso(whatsapp, plano);
+  assert.deepEqual(mudanca, { evento: plano.evento });
+  const depois = { ...whatsapp, historico: [...whatsapp.historico, { em: '2026-11-23T10:40:00.000Z', evento: plano.evento ?? '' }] };
+  // o mesmo aviso de novo não repete a linha
+  assert.equal(mudancaDoReembolso(depois, plano), null);
+  // o cartão do painel continua "não pago", sem "Reembolsado R$ …", e as estatísticas não contam nada
+  const [cartao] = agruparPedidos([depois]);
+  assert.equal(cartao.reembolsoCentavos, 0);
+  assert.equal(naoPagoNoPainel(cartao), true);
+  assert.deepEqual(devolucaoNoPainel(cartao), {});
+  assert.equal(reembolsoNoPainel(cartao).tipo, 'nenhum');
+  const { resumo } = calcularEstatisticas([depois], [], NOVEMBRO);
+  assert.equal(resumo.centavos, 0);
+  assert.equal(resumo.pedidos, 0);
+});
+
+test('só o pedido cancelado e nunca pago, sem pagamento parado, fica sem pagamento próprio', () => {
+  const cancelado = (parcial: Partial<ReservaPasseio>) =>
+    pago({
+      status: 'cancelado',
+      pagamento: { metodo: 'whatsapp' },
+      historico: historico('Reserva criada', 'Cancelado no admin'),
+      ...parcial,
+    });
+  assert.equal(pedidoSemPagamentoProprio(cancelado({})), true);
+  // o da Stripe cancelado e nunca pago, sem o parado (a leitura sem o valor cobrado não para o pagamento): também
+  assert.equal(pedidoSemPagamentoProprio(cancelado({ provedor: 'stripe', pagamento: { metodo: 'pix' } })), true);
+  // o pagamento parado é o pagamento do pedido (Pacote 22): a devolução dele conta no pedido, como antes
+  const retido = {
+    paymentIntentId: 'pi_parado',
+    sessaoId: 'cs_parado',
+    valorCentavos: 15400,
+    pagoEm: '2026-11-23T10:39:01.000Z',
+    decisao: { acao: 'devolver' as const, em: '2026-11-23T10:45:00.000Z', reembolsoId: 're_parado' },
+  };
+  assert.equal(pedidoSemPagamentoProprio(cancelado({ provedor: 'stripe', pagamento: { metodo: 'cartao', retido } })), false);
+  // o pedido pago, mesmo cancelado depois, e os outros status ficam com as regras de sempre
+  assert.equal(pedidoSemPagamentoProprio(cancelado({ pagamento: { metodo: 'whatsapp', pagoEm: '2026-11-23T10:39:01.000Z' } })), false);
+  assert.equal(
+    pedidoSemPagamentoProprio(cancelado({ historico: historico('Reserva criada', 'Marcada como paga (Pix)', 'Cancelado no admin') })),
+    false,
+  );
+  for (const status of ['pago', 'reembolsado', 'contestado', 'pendente', 'expirado', 'aguardando_whatsapp'] as const) {
+    assert.equal(pedidoSemPagamentoProprio(cancelado({ status, pagamento: { metodo: 'whatsapp' } })), false, status);
+  }
 });
 
 test('a mesma devolução, com qualquer um dos dois começos, entra uma vez só', () => {

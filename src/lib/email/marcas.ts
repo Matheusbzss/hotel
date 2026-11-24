@@ -36,5 +36,12 @@ export const marcaDoAvisoDoPagamentoRetido = (paymentIntentId: string): string =
  * o envio falhar, o aviso fica no histórico e o painel destaca. Quando o e-mail sai, a linha MARCA_DO_EMAIL do pagamento
  * aprovado vem logo depois e o painel para de destacar (avisoAberto, src/lib/pedidos-painel.ts).
  */
+/**
+ * O começo comum dos dois avisos do e-mail do pagamento aprovado: o de que ele começou a sair (AVISO_EMAIL_PAGO_SAINDO)
+ * e o de que ele não saiu (gravado por src/lib/email/pedidos.ts). Qualquer um dos dois no histórico já está destacado no
+ * painel: o agendamento do e-mail que não saiu (src/lib/emails-pendentes.ts) deixa esse pedido para a equipe.
+ */
+export const PREFIXO_DOS_AVISOS_DO_EMAIL_PAGO = 'Aviso: o e-mail do pagamento aprovado';
+
 export const AVISO_EMAIL_PAGO_SAINDO =
   'Aviso: o e-mail do pagamento aprovado começou a sair; se a linha "E-mail ao cliente: pagamento aprovado" não aparecer logo depois, ele não saiu: mandar ao cliente o link do pedido';

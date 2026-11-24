@@ -14,9 +14,11 @@ import {
   buscaDoPainel,
   concluirDevolucaoDoRetido,
   desfazerDevolucaoDoRetido,
+  irmaosAindaCancelados,
   linhaDaReativacao,
   marcaOVoucherPorFora,
   marcarDevolucaoDoRetido,
+  pagoPeloRetidoReativado,
   pedidoNuncaPago,
   recebidoDoPedido,
   valorDoVoucherPorFora,
@@ -177,22 +179,29 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
     return r;
   });
   if (!gravado.reativou) return gravado.repetida ? null : 'acao-nao-vale';
-  // No banco, cancelar levou TODOS os itens a 'cancelado', e gravar o pedido como pago só atualiza o item deste voucher:
-  // os outros vouchers do pedido voltam a valer aqui. A releitura vem DEPOIS da gravação: com o pedido ainda cancelado
-  // o banco não devolve o statusItem; com ele pago, o irmão parado aparece com 'cancelado'. Nos arquivos nenhum irmão
-  // tem statusItem 'cancelado' (o cancelamento só muda o status) e o laço não faz nada. Uma falha não desfaz a reativação.
+  await religarIrmaos(alvo);
+  // o aviso de compra (a Meta) e o e-mail do pagamento aprovado com os vouchers, uma vez, como num pagamento normal
+  if (reativada) await pedidoPago(reativada, leitura);
+  return null;
+}
+
+/**
+ * Os vouchers irmãos do pedido reativado voltam a valer. No banco, cancelar levou TODOS os itens a 'cancelado', e gravar o
+ * pedido como pago só atualiza o item deste voucher: os outros vouchers do pedido voltam a valer aqui. A releitura vem
+ * DEPOIS da gravação: com o pedido ainda cancelado o banco não devolve o statusItem; com ele pago, o irmão parado aparece
+ * com 'cancelado'. Nos arquivos nenhum irmão tem statusItem 'cancelado' (o cancelamento só muda o status) e o laço não faz
+ * nada. Uma falha não desfaz a reativação: o voucher que não voltou continua 'cancelado' e volta no toque repetido em
+ * "Reativar o pedido (fica pago)" (Pacote 25, achado B3), que roda este mesmo laço; só o irmão ainda cancelado muda.
+ */
+async function religarIrmaos(alvo: Reserva): Promise<void> {
   const releitura = await vouchersDoPedido(alvo.pedido?.codigo ?? alvo.codigo);
-  for (const v of releitura) {
-    if (v.codigo === alvo.codigo || v.statusItem !== 'cancelado') continue;
+  for (const v of irmaosAindaCancelados(releitura, alvo.codigo)) {
     try {
       await atualizarItem(v.codigo, 'ativo', `Voucher ${v.codigo} volta a valer com o pedido reativado`);
     } catch (e) {
       console.error(`[admin] o voucher ${v.codigo} não voltou a valer na reativação do pedido: ${mensagem(e)}`);
     }
   }
-  // o aviso de compra (a Meta) e o e-mail do pagamento aprovado com os vouchers, uma vez, como num pagamento normal
-  if (reativada) await pedidoPago(reativada, leitura);
-  return null;
 }
 
 /**
@@ -456,7 +465,23 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // pedido. A regra é a mesma dos botões da página (acaoDoRetidoOferecida); a ação já feita volta como a que deu certo,
   // sem gravar nada, e a que não vale mais (a outra já escolhida, o pedido mudou) volta com acao-nao-vale
   if (acao === 'devolver_retido' || acao === 'reativar_retido') {
-    if (!daStripe || !acaoDoRetidoOferecida(alvo, acao)) return voltar(acaoDoRetidoRepetida(alvo, acao) ? undefined : 'acao-nao-vale');
+    if (!daStripe || !acaoDoRetidoOferecida(alvo, acao)) {
+      const repetida = acaoDoRetidoRepetida(alvo, acao);
+      // o toque repetido em "Reativar" com o pedido já pago pelo parado: o voucher irmão que ficou 'cancelado' (a volta dele
+      // falhou na primeira vez) volta a valer agora, pelo mesmo laço; a resposta continua a da ação repetida (B3)
+      if (
+        repetida &&
+        daStripe &&
+        acao === 'reativar_retido' &&
+        pagoPeloRetidoReativado(alvo) &&
+        irmaosAindaCancelados(vouchers, alvo.codigo).length
+      ) {
+        await religarIrmaos(alvo).catch((e) =>
+          console.error(`[admin] não deu para refazer a volta dos vouchers do pedido ${codigoDoPedido}: ${mensagem(e)}`),
+        );
+      }
+      return voltar(repetida ? undefined : 'acao-nao-vale');
+    }
     if (!confirmou) return voltar('falta-confirmar');
     const erro =
       acao === 'devolver_retido' ? await devolverPagamentoRetido(alvo, codigoDoPedido) : await reativarPagamentoRetido(alvo, vouchers);

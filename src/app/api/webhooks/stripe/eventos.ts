@@ -4,6 +4,7 @@ import type { Json } from '../../../../lib/banco-tipos';
 import { formatarCifra } from '../../../../lib/cifra.ts';
 import { codigoValido } from '../../../../lib/codigo-reserva.ts';
 import { podeAbrirSessao, podeMudar } from '../../../../lib/pagamento-stripe.ts';
+import { pedidoNuncaPago } from '../../../../lib/pedidos-painel.ts';
 import {
   linhaDaDevolucaoRepetidaQueFalhou,
   linhaDoReembolsoFalho,
@@ -302,11 +303,23 @@ export const mesmaDevolucaoDeOutroPagamento = (a: string, b: string): boolean =>
 };
 
 /**
+ * O pedido cancelado que nunca teve um pagamento dele (Pacote 25, cenário V4 do reteste): nunca pago (pedidoNuncaPago) e
+ * sem pagamento parado (o do Pacote 22, que é o pagamento do pedido). É o pedido do WhatsApp cancelado antes de pagar que
+ * recebe uma sessão paga com o código dele: aplicarSessao grava o pi_ no pedido (o pedido não muda de status) e o webhook
+ * devolve o dinheiro sozinho. Nenhuma cobrança da Stripe é dele: a devolução é a de outro pagamento
+ * (linhaDaDevolucaoDeOutroPagamento), não um reembolso do pedido, e o pedido não ganha valor devolvido.
+ */
+export const pedidoSemPagamentoProprio = (r: Pick<Reserva, 'status' | 'pagamento' | 'historico'>): boolean =>
+  r.status === 'cancelado' && !r.pagamento.retido && pedidoNuncaPago(r);
+
+/**
  * Lê a cobrança e os reembolsos relidos na Stripe. `vouchers` são os códigos dos itens do pedido;
  * `paymentIntentDoPedido` é o pagamento gravado no pedido (sem ele, a cobrança é tida como a do pedido);
  * `jaDevolvidoCentavos` é o que o pedido já registrava (reembolsoCentavos); `statusDoPedido`, o status dele, só para a linha
- * da devolução de outro pagamento (linhaDaDevolucaoDeOutroPagamento). O reembolso ainda pendente conta como o concluído
- * (reembolsoEmVigor); a linha do histórico diz "registrado" em vez de "confirmado" enquanto houver um.
+ * da devolução de outro pagamento (linhaDaDevolucaoDeOutroPagamento); `semPagamentoProprio`, o pedido cancelado que nunca
+ * teve um pagamento dele (pedidoSemPagamentoProprio): aí a cobrança nunca é a do pedido, mesmo com o pi_ dela gravado
+ * nele. O reembolso ainda pendente conta como o concluído (reembolsoEmVigor); a linha do histórico diz "registrado" em vez
+ * de "confirmado" enquanto houver um.
  */
 export function planoDoReembolso(
   cobranca: Pick<Stripe.Charge, 'id' | 'amount' | 'amount_refunded' | 'refunded' | 'payment_intent'>,
@@ -315,9 +328,10 @@ export function planoDoReembolso(
   paymentIntentDoPedido: string | undefined,
   jaDevolvidoCentavos = 0,
   statusDoPedido?: StatusReserva,
+  semPagamentoProprio = false,
 ): PlanoDoReembolso {
   const pi = idDe(cobranca.payment_intent);
-  const doPedido = !paymentIntentDoPedido || !pi || pi === paymentIntentDoPedido;
+  const doPedido = !(semPagamentoProprio && pi) && (!paymentIntentDoPedido || !pi || pi === paymentIntentDoPedido);
   const reembolsadoCentavos = cobranca.amount_refunded;
   const total = cobranca.refunded || reembolsadoCentavos >= cobranca.amount;
   const emVigor = reembolsos.filter((re) => reembolsoEmVigor(re.status));
@@ -335,7 +349,7 @@ export function planoDoReembolso(
       total: false,
       itens: [],
       foraDoSite: [],
-      evento: linhaDaDevolucaoDeOutroPagamento(pi, reembolsadoCentavos, statusDoPedido),
+      evento: linhaDaDevolucaoDeOutroPagamento(pi ?? undefined, reembolsadoCentavos, statusDoPedido),
     };
   }
   const novoCentavos = Math.max(0, reembolsadoCentavos - jaDevolvidoCentavos);

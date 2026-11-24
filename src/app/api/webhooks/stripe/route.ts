@@ -30,6 +30,7 @@ import {
   leituraDaContestacao,
   mudancaDoReembolso,
   pagamentoParaDevolver,
+  pedidoSemPagamentoProprio,
   planoDoReembolso,
   resumoDoEvento,
   sessaoDoPedido,
@@ -288,6 +289,7 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
     alvo.paymentIntentId,
     alvo.reembolsoCentavos ?? 0,
     alvo.status,
+    pedidoSemPagamentoProprio(alvo),
   );
   if (plano.evento) {
     await atualizarReserva(alvo.codigo, (r) => {

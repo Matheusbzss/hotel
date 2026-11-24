@@ -257,11 +257,21 @@ export async function reembolsosDoPagamento(paymentIntentId: string): Promise<St
 }
 
 /**
+ * O segredo do webhook como a Stripe o espera: sem espaço nem quebra de linha nas pontas. Um espaço colado junto com o
+ * valor na Vercel (aconteceu em 24/11/2026, no dia de ligar) faz a Stripe recusar TODA assinatura ("The provided signing
+ * secret contains whitespace"): o pedido só virava pago pela consulta da página, nunca pelo aviso.
+ */
+export function segredoDoWebhook(valor: string | undefined = process.env.STRIPE_WEBHOOK_SECRET): string | undefined {
+  const limpo = valor?.trim();
+  return limpo ? limpo : undefined;
+}
+
+/**
  * Confere a assinatura do webhook e devolve o evento; lança erro se a assinatura não bater (a rota responde
  * 400). O corpo tem de ser o texto cru (await request.text()), nunca o JSON já lido.
  */
 export function construirEvento(corpo: string | Buffer, assinatura: string): Stripe.Event {
-  const segredo = process.env.STRIPE_WEBHOOK_SECRET;
+  const segredo = segredoDoWebhook();
   if (!segredo) throw new Error('STRIPE_WEBHOOK_SECRET não configurada.');
   return stripe().webhooks.constructEvent(corpo, assinatura, segredo);
 }

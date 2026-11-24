@@ -687,9 +687,11 @@ const pt = {
       'O formulário de pagamento não carregou. Desligue o bloqueador de anúncios neste site ou use outra rede, como os dados do celular, e tente de novo. Se não der certo, fale com a gente por e-mail.',
     resumo: 'Resumo da reserva',
     total: 'Total',
-    indisponivelTitulo: 'Pagamento online em ativação',
+    // o quadro que aparece no lugar do Pix e do cartão quando o pagamento pelo site não abre (o freio de emergência,
+    // PAGAMENTO_ONLINE=desligado, ou uma falha); texto aprovado pelo dono em 24/11/2026
+    indisponivelTitulo: 'Pagamento online indisponível agora',
     indisponivelTexto:
-      'Estamos concluindo a ativação do pagamento online. Sua reserva fica registrada com todos os dados e você finaliza o pagamento com a nossa equipe pelo WhatsApp.',
+      'Não foi possível abrir o pagamento pelo site agora. Sua reserva fica registrada com todos os dados e você finaliza o pagamento com a nossa equipe pelo WhatsApp.',
     finalizarWhatsapp: 'Registrar e finalizar pelo WhatsApp',
     msgWhatsapp:
       'Olá! Acabei de registrar a reserva {codigo} no site: {passeio}, {data}, {pessoas}. Total {total}. Quero finalizar o pagamento.',

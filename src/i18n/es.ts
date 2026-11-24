@@ -646,9 +646,9 @@ const es: Dicionario = {
       'El formulario de pago no se cargó. Prueba sin el bloqueador de anuncios en este sitio o con otra red, como los datos del celular. Si sigue sin funcionar, escríbenos por e-mail.',
     resumo: 'Resumen de la reserva',
     total: 'Total',
-    indisponivelTitulo: 'Pago online en activación',
+    indisponivelTitulo: 'Pago online no disponible en este momento',
     indisponivelTexto:
-      'Estamos terminando de activar el pago online. Tu reserva queda registrada con todos los datos y completas el pago con nuestro equipo por WhatsApp.',
+      'No pudimos abrir el pago por el sitio en este momento. Tu reserva queda registrada con todos los datos y completas el pago con nuestro equipo por WhatsApp.',
     finalizarWhatsapp: 'Registrar y finalizar por WhatsApp',
     msgWhatsapp:
       '¡Hola! Acabo de registrar la reserva {codigo} en el sitio: {passeio}, {data}, {pessoas}. Total {total}. Quiero completar el pago.',

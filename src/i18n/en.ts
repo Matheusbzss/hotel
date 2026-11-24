@@ -631,9 +631,9 @@ const en: Dicionario = {
       'The payment form didn’t load. Turn off your ad blocker for this site or switch to another network, such as mobile data, and try again. If it still doesn’t work, email us.',
     resumo: 'Booking summary',
     total: 'Total',
-    indisponivelTitulo: 'Online payment being activated',
+    indisponivelTitulo: 'Online payment unavailable right now',
     indisponivelTexto:
-      'We are finishing the activation of online payments. Your booking is saved with all your details and you complete the payment with our team on WhatsApp.',
+      'We couldn’t open payment on the website right now. Your booking is saved with all your details and you complete the payment with our team on WhatsApp.',
     finalizarWhatsapp: 'Save and finish on WhatsApp',
     msgWhatsapp:
       'Hi! I just placed booking {codigo} on the website: {passeio}, {data}, {pessoas}. Total {total}. I’d like to complete the payment.',

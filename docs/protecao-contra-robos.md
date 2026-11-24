@@ -7,12 +7,12 @@ publicar este pacote não muda nada para quem visita o site. Os limites por ende
 
 ## Os quatro envios
 
-| Envio | Rota | O que existia antes (e continua antes da verificação) |
-|---|---|---|
-| Fechar o pedido | `POST /api/pedido` | campo-isca, conferências do formulário, 20 pedidos a cada 10 min por IP, carrinho do próprio navegador, formas de pagamento |
-| Pagar de novo um pedido em aberto | `POST /api/pedido/[codigo]/pagar` | 20 a cada 10 min por IP, o token do link privado, o status, as formas |
-| Orçamento e mensagem | `POST /api/cotacoes` | campo-isca, conferências, 10 a cada 10 min por IP |
-| Consultar meu pedido | `POST /api/consultar-pedido` | formato, campo-isca, 5 a cada 10 min por IP |
+| Envio                             | Rota                              | O que existia antes (e continua antes da verificação)                                                                       |
+| --------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Fechar o pedido                   | `POST /api/pedido`                | campo-isca, conferências do formulário, 20 pedidos a cada 10 min por IP, carrinho do próprio navegador, formas de pagamento |
+| Pagar de novo um pedido em aberto | `POST /api/pedido/[codigo]/pagar` | 20 a cada 10 min por IP, o token do link privado, o status, as formas                                                       |
+| Orçamento e mensagem              | `POST /api/cotacoes`              | campo-isca, conferências, 10 a cada 10 min por IP                                                                           |
+| Consultar meu pedido              | `POST /api/consultar-pedido`      | formato, campo-isca, 5 a cada 10 min por IP                                                                                 |
 
 Em cada rota a ordem é: tudo o que já existia, **depois** a verificação (`barrarRobo`, `src/lib/robos-servidor.ts`),
 **depois** o trabalho. Um envio que o limite já recusou nunca é verificado (com a análise profunda, cada verificação é
@@ -20,7 +20,7 @@ cobrada). O login do painel, o carrinho e a desistência ficam de fora.
 
 - **Robô:** a rota responde `403 { ok: false, erro: 'robo' }`, não grava nada (nenhum pedido, nenhuma mudança no carrinho,
   nenhum e-mail, nenhuma sessão na Stripe) e escreve uma linha no registro, só com a rota: `[robos] POST /api/pedido:
-  barrado como robô (403)`.
+barrado como robô (403)`.
 - **A verificação falhou** (erro da Vercel, ou mais de 3 segundos): o envio **passa** e fica uma linha no registro
   (`[robos] … a verificação falhou e o envio passou (…)`). Um problema da verificação nunca barra um cliente, como os
   limites por IP quando o banco falha.
@@ -30,11 +30,11 @@ cobrada). O login do painel, o carrinho e a desistência ficam de fora.
 
 Uma variável pública, lida no **build**: `NEXT_PUBLIC_VERIFICACAO_ROBOS`.
 
-| Valor | O que acontece |
-|---|---|
+| Valor                                                         | O que acontece                                                                                                                           |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `desligada` (também quando falta ou vem qualquer outra coisa) | Nada. Nenhum script do BotID é carregado no navegador, nenhuma verificação é pedida, a linha nova da política de privacidade não aparece |
-| `basica` | A verificação básica (grátis) nos quatro envios |
-| `profunda` | A análise profunda (Deep Analysis, da Kasada, paga por verificação) nos quatro envios |
+| `basica`                                                      | A verificação básica (grátis) nos quatro envios                                                                                          |
+| `profunda`                                                    | A análise profunda (Deep Analysis, da Kasada, paga por verificação) nos quatro envios                                                    |
 
 - Mudar o valor pede **uma publicação nova** (a variável entra no build, no navegador e no servidor).
 - O nível vai igual no navegador e no servidor (`advancedOptions.checkLevel`: `basic` ou `deepAnalysis`). A documentação
@@ -90,6 +90,43 @@ mensagem já escrita (`comum.roboSaudacao`):
   `tests/whatsapp-do-robo.test.ts`; os prints ficam para o reteste na bancada.
 - O clique conta como "Contact" para os anúncios (`data-evento="Contact"`), como os outros botões do WhatsApp.
 
+### O prazo dos quatro envios (Pacote 24)
+
+Com a proteção ligada, o BotID troca o `fetch` do navegador e, nos quatro envios, **espera o desafio dele antes de mandar o
+envio, sem prazo nenhum**. Se o script do desafio não carrega no aparelho do cliente (bloqueador de anúncios, rede ruim, o
+navegador de dentro do Instagram ou do Facebook), o primeiro toque falhava com o erro de sempre e o segundo ficava em
+"Enviando…" para sempre: nada gravado, a venda perdida e ninguém sabendo (achado R1 da revisão de 23/11).
+
+- Os quatro formulários enviam por `envioProtegido` (`src/lib/envio-protegido.ts`), e só eles.
+- **Desligada** (a mesma conta de `src/instrumentation-client.ts`): é exatamente o `fetch` de sempre, sem relógio nenhum.
+- **Ligada:** um prazo de **20 segundos** (`PRAZO_DO_ENVIO_PROTEGIDO_MS`), bem acima do pior caso normal do servidor (até
+  3 s da verificação, o banco e a sessão da Stripe). No prazo, o envio é **cancelado** (um desafio que chegue depois não
+  manda mais nada) e o formulário mostra **o mesmo que o 403 `robo`**: a mensagem `comum.robo` e o botão do WhatsApp. O
+  botão de enviar volta a funcionar.
+- **O primeiro toque** (o script do desafio bloqueado): o BotID 1.5.13 recusa com o evento `error` do `<script>`, e o
+  `fetch` de verdade nunca recusa assim (só com `TypeError` ou com o aborto). Por isso ele também mostra a mensagem do robô
+  e o botão do WhatsApp, na hora. Uma falha de rede comum continua com o erro de sempre.
+- **O que a bancada prova** (`tests/envio-protegido.test.ts`): o ajudante com um relógio de mentira (o prazo, o
+  cancelamento, a resposta atrasada que não chega a quem chamou, nenhum relógio sobrando); o BotID imitado na frente do
+  `fetch` de verdade do node, com um servidor local que conta os POSTs (o atrasado nunca sai); o código do pacote do BotID
+  lido no `node_modules` (a versão 1.5.13, a espera sem prazo, o `init` repassado e a recusa com o evento); e os quatro
+  formulários.
+- **No navegador (23/11):** uma cópia com a proteção ligada no build, servida no computador, com o cliente de verdade do
+  BotID no Chromium. Com o script do desafio bloqueado, o primeiro toque mostrou a mensagem do robô em menos de 1 s e o
+  segundo em cerca de 20 s, sem nenhum POST sair. Com o script vazio, os dois toques em cerca de 20 s. Com a proteção
+  desligada, nenhum pedido ao caminho do BotID.
+- **O que ela não prova:** o BotID de verdade na produção da Vercel com o script bloqueado num celular de verdade (no
+  computador, a verificação do servidor falha e deixa passar). No dia de ligar, num celular com bloqueador de anúncios (ou com o caminho `/149e9513-…/` bloqueado), tocar em
+  enviar duas vezes: a mensagem do robô e o botão do WhatsApp devem aparecer, no primeiro toque na hora e, no segundo, em
+  até 20 segundos. Trocar a versão do BotID pede reler o código dele (o teste falha de propósito).
+- **Um cuidado:** se um dia o servidor levar mais de 20 s para responder de verdade, o envio já pode ter sido gravado e o
+  cliente vê a mensagem do robô com o botão do WhatsApp. No carrinho, o pedido pendente fica no painel e o e-mail dele
+  pode sair; tocar de novo cancela esse pedido e cria outro. No orçamento, o segundo toque cria uma cotação repetida. Na
+  consulta, sai um segundo e-mail. No pagar, a sessão anterior pode ter vencido (o cliente recarrega a página do pedido).
+- **O segundo toque espera os 20 s inteiros**, mesmo depois de o primeiro já ter mostrado que o script não carregou: o
+  BotID deixa a tag do script com erro na página e só tenta de novo quando o cliente sai da aba e volta. O ajudante não
+  guarda essa memória de propósito (seria copiar uma regra interna do BotID, que pode mudar).
+
 ## Como ligar (o que o dono faz no painel da Vercel)
 
 Nada disso é feito por código nem por agente: nenhuma regra do firewall e nenhum segredo são criados por aqui. Os passos
@@ -131,7 +168,7 @@ Vercel (duas travas: `NEXT_PUBLIC_VERCEL_ENV` e `VERCEL_ENV`). Com ela, **todo**
   (ou a porta de sempre da bancada). No PowerShell: `$env:ROBOS_DE_MENTIRA='robo'; npm run start -- -p 3400`.
 - Desligar: parar o servidor e subir de novo sem a variável.
 - Para ver também a linha nova da política de privacidade, o build precisa do interruptor: `NEXT_PUBLIC_VERIFICACAO_ROBOS=basica
-  npm run build` e depois o `npm run start` (na bancada a verificação de verdade continua sem rodar).
+npm run build` e depois o `npm run start` (na bancada a verificação de verdade continua sem rodar).
 - Com `next dev` a mensagem também aparece com `ROBOS_DE_MENTIRA=robo` (no `next dev` o BotID do navegador não faz nada,
   como diz a documentação dele).
 - O `ROBOS_DE_MENTIRA` só funciona se o `.env.local` da bancada não trouxer `VERCEL_ENV=production` nem

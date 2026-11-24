@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fmt, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
+import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import {
   depoisDaEspera,
   erroDaFormaRecusada,
@@ -93,7 +94,7 @@ export const motivoSemPix = (valor: unknown): MotivoSemPix | undefined => (valor
 /** Pede ao servidor uma sessão de pagamento nova para o pedido (POST /api/pedido/[codigo]/pagar, com o token do link privado). */
 export async function pedirNovaSessao(codigoPedido: string, token: string, forma: FormaPagamento): Promise<RespostaPagar> {
   try {
-    const res = await fetch(`/api/pedido/${encodeURIComponent(codigoPedido)}/pagar`, {
+    const res = await envioProtegido(`/api/pedido/${encodeURIComponent(codigoPedido)}/pagar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ t: token, forma }),
@@ -111,8 +112,9 @@ export async function pedirNovaSessao(codigoPedido: string, token: string, forma
     // o erro (erroDaFormaRecusada). Até o reteste de 17-18/11 (F7) elas ficavam pelo caminho
     const formas = formasDaResposta(corpo.formas);
     return { erro: corpo.erro ?? 'generico', ...(semPix ? { semPix } : {}), ...(formas ? { formas } : {}) };
-  } catch {
-    return { erro: 'rede' };
+  } catch (e) {
+    // a proteção contra robôs não respondeu (src/lib/envio-protegido.ts): o mesmo caminho do 403 'robo'
+    return { erro: semRespostaDaProtecao(e) ? 'robo' : 'rede' };
   }
 }
 

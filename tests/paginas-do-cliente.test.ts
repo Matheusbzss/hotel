@@ -765,7 +765,7 @@ test('voltar para o checkout pela memória do navegador: o botão sai de "Proces
   // os dois saltos com a página inteira que deixam o botão em "Processando…" (setEnviando(true) antes, nenhum
   // setEnviando(false) depois) continuam como estavam: o do WhatsApp (no ar) e o do 409 "mudou" com o pedido em aberto
   const envio = carrinho.slice(carrinho.indexOf('async function enviar() {'));
-  assert.match(envio, /setEnviando\(true\);\s+try \{\s+const res = await fetch\('\/api\/pedido'/);
+  assert.match(envio, /setEnviando\(true\);\s+try \{\s+const res = await envioProtegido\('\/api\/pedido'/);
   assert.match(
     envio,
     /const base = corpo\.itens === 1 \? links\.reserva : links\.pedido;\s+window\.location\.assign\(`\$\{base\}\/\$\{corpo\.codigo\}\?t=\$\{encodeURIComponent\(corpo\.token\)\}`\);\s+return;/,

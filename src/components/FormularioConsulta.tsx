@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { TextosConsulta } from '@/lib/consulta-textos';
+import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import { respostaDeRobo } from '@/lib/robos';
 import { emailValido } from '@/lib/validacao';
 import type { WhatsAppDoRobo } from '@/lib/whatsapp';
@@ -90,7 +91,7 @@ export function FormularioConsulta({
     }
     setEnviando(true);
     try {
-      const res = await fetch('/api/consultar-pedido', {
+      const res = await envioProtegido('/api/consultar-pedido', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), codigo: codigo.trim(), idioma, site: isca }),
@@ -111,8 +112,9 @@ export function FormularioConsulta({
                   : T.erroGeral,
         );
       }
-    } catch {
-      setErroGeral(T.erroGeral);
+    } catch (e) {
+      // a proteção contra robôs não respondeu (src/lib/envio-protegido.ts): o mesmo que o 403 'robo' mostra
+      setErroGeral(semRespostaDaProtecao(e) ? textoRobo : T.erroGeral);
     }
     setEnviando(false);
   }

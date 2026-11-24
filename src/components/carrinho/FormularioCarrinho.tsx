@@ -7,6 +7,7 @@ import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
+import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
@@ -294,7 +295,7 @@ export function FormularioCarrinho({
     }
     setEnviando(true);
     try {
-      const res = await fetch('/api/pedido', {
+      const res = await envioProtegido('/api/pedido', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -379,8 +380,10 @@ export function FormularioCarrinho({
         // confundido com robô pela proteção: nada foi gravado, e a mensagem própria no lugar do erro de sempre
         setErroGeral(textos.robo);
       } else setErroGeral(C.erros.generico);
-    } catch {
-      setErroGeral(C.erros.generico);
+    } catch (e) {
+      // a proteção contra robôs não respondeu (o desafio preso ou o script dele bloqueado, src/lib/envio-protegido.ts): o
+      // mesmo que o 403 'robo' mostra, e o botão volta a funcionar
+      setErroGeral(semRespostaDaProtecao(e) ? textos.robo : C.erros.generico);
     }
     setEnviando(false);
   }

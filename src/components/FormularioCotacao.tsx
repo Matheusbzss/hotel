@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { Idioma } from '@/i18n/config';
 import type { TextosCotacao, TipoCotacao, TrajetoCotacao } from '@/lib/cotacao';
+import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import { rastrear } from '@/lib/pixel';
 import { respostaDeRobo } from '@/lib/robos';
 import { DDIS, PAIS_PADRAO, emailValido, telefoneValido } from '@/lib/validacao';
@@ -72,7 +73,7 @@ export function FormularioCotacao({
     if (Object.keys(validar()).length) return;
     setEnviando(true);
     try {
-      const res = await fetch('/api/cotacoes', {
+      const res = await envioProtegido('/api/cotacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -93,8 +94,9 @@ export function FormularioCotacao({
       }
       // confundido com robô pela proteção (403 'robo'): a mensagem própria, no lugar do erro de sempre
       setErroGeral(respostaDeRobo(res.status, await res.json().catch(() => null)) ? T.erroRobo : T.erro);
-    } catch {
-      setErroGeral(T.erro);
+    } catch (e) {
+      // a proteção contra robôs não respondeu (src/lib/envio-protegido.ts): o mesmo que o 403 'robo' mostra
+      setErroGeral(semRespostaDaProtecao(e) ? T.erroRobo : T.erro);
     }
     setEnviando(false);
   }

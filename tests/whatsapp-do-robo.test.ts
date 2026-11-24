@@ -179,8 +179,11 @@ test('os quatro lugares mostram o botão só junto da mensagem do robô (o 403 "
     cotacao,
     /\{erroGeral\}\s*<\/p>\s*\)\}\s*\{erroGeral === T\.erroRobo && <BotaoWhatsAppDoRobo whatsapp=\{T\.erroRoboWhatsapp\} \/>\}/,
   );
-  assert.equal(cotacao.match(/T\.erroRobo\b/g)?.length, 2);
-  assert.equal(conta(cotacao, '? T.erroRobo :'), 1);
+  // a mensagem só por dois caminhos: o 403 'robo' e a proteção que não respondeu no prazo (Pacote 24, src/lib/envio-protegido.ts)
+  assert.equal(cotacao.match(/T\.erroRobo\b/g)?.length, 3);
+  assert.equal(conta(cotacao, '? T.erroRobo :'), 2);
+  assert.equal(conta(cotacao, 'respostaDeRobo(res.status, await res.json().catch(() => null)) ? T.erroRobo : T.erro'), 1);
+  assert.equal(conta(cotacao, 'semRespostaDaProtecao(e) ? T.erroRobo : T.erro'), 1);
 
   // consultar meu pedido
   const consulta = codigo('src', 'components', 'FormularioConsulta.tsx');
@@ -190,7 +193,9 @@ test('os quatro lugares mostram o botão só junto da mensagem do robô (o 403 "
     /\{erroGeral\}\s*<\/p>\s*\)\}\s*\{erroGeral === textoRobo && <BotaoWhatsAppDoRobo whatsapp=\{whatsappRobo\} \/>\}/,
   );
   assert.match(consulta, /respostaDeRobo\(res\.status, dados\)\s+\? textoRobo\s+:/);
-  assert.equal(conta(consulta, 'textoRobo'), 4);
+  // e a proteção que não respondeu no prazo (Pacote 24, src/lib/envio-protegido.ts)
+  assert.equal(conta(consulta, 'semRespostaDaProtecao(e) ? textoRobo : T.erroGeral'), 1);
+  assert.equal(conta(consulta, 'textoRobo'), 5);
 });
 
 /* ------------------------------------------------------------------ */

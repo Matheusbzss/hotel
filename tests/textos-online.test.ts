@@ -49,7 +49,8 @@ test('com o interruptor desligado, os textos legais são os de hoje, os mesmos o
   // a data da versão online é a constante a trocar no dia de ligar, a mesma nos três textos (mudam juntos), e nunca antes
   // da revisão de hoje de nenhum deles: a versão online traz o texto de hoje (em 14/11, a privacidade de hoje ganhou os
   // anúncios do Google e da Meta, e a versão online também)
-  assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-14');
+  // 2026-11-24: o dia em que o cartão e o Pix abriram para o público
+  assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-24');
   for (const nome of NOMES) {
     assert.equal(online.atualizadoEm[nome], ATUALIZADO_EM_ONLINE, nome);
     assert.ok(ATUALIZADO_EM_ONLINE >= ATUALIZADO_EM[nome], `${nome}: ${ATUALIZADO_EM_ONLINE} antes de ${ATUALIZADO_EM[nome]}`);

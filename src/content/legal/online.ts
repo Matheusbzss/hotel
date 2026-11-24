@@ -34,7 +34,7 @@ const P = DESCONTO_PIX_PORCENTO;
  * (src/content/legal/tipos.ts): esta versão traz também o que os textos de hoje mudaram (em 2026-11-14, os anúncios do
  * Google e da Meta na privacidade).
  */
-export const ATUALIZADO_EM_ONLINE = '2026-11-14';
+export const ATUALIZADO_EM_ONLINE = '2026-11-24';
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
  * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel (foi em

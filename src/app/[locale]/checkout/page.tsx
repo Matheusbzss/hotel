@@ -54,9 +54,9 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
     }
   }
   const inicial = itensVisiveis(carrinho.itens, locale, d);
-  // cartão e Pix (o interruptor, a Stripe e o prazo), o pedido em aberto do carrinho e o pedido pago, decididos aqui no
-  // servidor
-  const { pagamentoOnline, pedidoAberto, pedidoPago } = await pagamentoDoCheckout(
+  // cartão e Pix (o interruptor, a Stripe e o prazo), se o pagamento online vale para este visitante, o pedido em aberto
+  // do carrinho e o pedido pago, decididos aqui no servidor
+  const { pagamentoOnline, pagamentoLigado, pedidoAberto, pedidoPago } = await pagamentoDoCheckout(
     locale,
     inicial,
     carrinho.pedido,
@@ -87,6 +87,8 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
               dolar={cambio.taxa}
               notaCambio={cambio.nota}
               pagamentoOnline={pagamentoOnline}
+              // a página guardada que abriu com o carrinho vazio (sem formas) pede as formas ao servidor quando ganha itens
+              pagamentoLigado={pagamentoLigado}
               pedidoAberto={pedidoAberto}
               // a ajuda do e-mail só fala dos lembretes quando os e-mails estão ligados (sem a chave do Resend, nada sai)
               lembretesLigados={emailLigado()}

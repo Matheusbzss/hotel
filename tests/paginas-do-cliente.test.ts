@@ -775,10 +775,11 @@ test('voltar para o checkout pela memória do navegador: o botão sai de "Proces
   assert.equal(carrinho.match(/addEventListener\('pageshow'/g)?.length, 1);
   assert.equal(carrinho.match(/removeEventListener\('pageshow'/g)?.length, 1);
   const efeito = efeitoDoPageshow(carrinho, '}, [recarregar]);');
-  // só a página que o navegador devolveu inteira (persisted); a carga comum não muda nada
+  // só a página que o navegador devolveu inteira (persisted); a carga comum não muda nada. Desde o Pacote 26, a trava da
+  // releitura das formas também solta ali (tests/releitura-do-checkout.test.ts)
   assert.match(
     efeito,
-    /^useEffect\(\(\) => \{\s+const aoMostrar = \(e: PageTransitionEvent\) => \{\s+if \(!e\.persisted\) return;\s+setEnviando\(false\);\s+recarregar\(\);\s+\};\s+window\.addEventListener\('pageshow', aoMostrar\);\s+return \(\) => window\.removeEventListener\('pageshow', aoMostrar\);\s+\}, \[recarregar\]\);$/,
+    /^useEffect\(\(\) => \{\s+const aoMostrar = \(e: PageTransitionEvent\) => \{\s+if \(!e\.persisted\) return;\s+setEnviando\(false\);\s+setJaReleu\(false\);\s+recarregar\(\);\s+\};\s+window\.addEventListener\('pageshow', aoMostrar\);\s+return \(\) => window\.removeEventListener\('pageshow', aoMostrar\);\s+\}, \[recarregar\]\);$/,
   );
   // o carrinho é relido pelo caminho de sempre (o do contexto do carrinho), nunca por uma cópia
   assert.match(carrinho, /const \{ itens: atuais, carregado, remover, recarregar \} = useCarrinho\(\);/);

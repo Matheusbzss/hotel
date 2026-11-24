@@ -260,6 +260,21 @@ export function escolherFormas(itens: ItemPagavel[], agora: Date, cotacao: numbe
 }
 
 /**
+ * O pagamento online vale para este visitante, seja qual for o carrinho: o interruptor no 'publico' (ou no 'admin', para
+ * quem tem o cookie do /admin) e a Stripe configurada. É o começo de formasDoPagamento, e o checkout manda o resultado ao
+ * formulário (pagamentoLigado, pagamentoDoCheckout em src/lib/reserva-publica.ts): a página guardada que abriu com o
+ * carrinho vazio, e por isso sem formas, sabe que tem de pedir as formas ao servidor quando o carrinho ganha um item
+ * (releituraDoCheckout, src/lib/releitura-do-checkout.ts; achado CE-1 da varredura de 24/11, Pacote 26). Só no servidor.
+ */
+export async function pagamentoOnlineAberto(opcoes: { admin: boolean }): Promise<boolean> {
+  const modo = modoPagamentoOnline();
+  if (modo === 'desligado' || (modo === 'admin' && !opcoes.admin)) return false;
+  // a Stripe (e o SDK dela) só é carregada aqui, no servidor: quem importa este arquivo no navegador não a leva junto
+  const { stripeConfigurado } = await import('./stripe.ts');
+  return stripeConfigurado();
+}
+
+/**
  * As formas que o checkout oferece agora, com o motivo quando o Pix fica de fora: nenhuma com o interruptor desligado,
  * só para o admin no modo 'admin', e só com a Stripe configurada; de resto, escolherFormas (o Pix até 2 horas antes do
  * primeiro serviço e dentro do limite de valor; o cartão até 30 minutos antes). A cotação do dólar, para o limite do
@@ -270,11 +285,7 @@ export async function formasDoPagamento(
   agora: Date = new Date(),
   opcoes: { admin: boolean; cotacao?: number | null } = { admin: false },
 ): Promise<FormasDoPagamento> {
-  const modo = modoPagamentoOnline();
-  if (modo === 'desligado' || (modo === 'admin' && !opcoes.admin)) return { formas: [] };
-  // a Stripe (e o SDK dela) só é carregada aqui, no servidor: quem importa este arquivo no navegador não a leva junto
-  const { stripeConfigurado } = await import('./stripe.ts');
-  if (!stripeConfigurado()) return { formas: [] };
+  if (!(await pagamentoOnlineAberto(opcoes))) return { formas: [] };
   let cotacao = opcoes.cotacao;
   if (cotacao === undefined) {
     const podePassar = pixDisponivel(itens, agora) && !(valorACobrar(itens, 'pix') <= CABE_COM_QUALQUER_COTACAO_CENTAVOS);

@@ -713,7 +713,8 @@ const DA_STRIPE = /(?:^|\/)stripe(?:\.ts)?$|^@stripe\//;
 test('formas-pagamento.ts nunca importa src/lib/stripe.ts de forma estática: a Stripe não vai para a página do transfer', () => {
   const formas = path.join('src', 'lib', 'formas-pagamento.ts');
   const fonte = readFileSync(formas, 'utf8');
-  // a única porta para a Stripe é o import() dinâmico dentro de formasDoPagamento, que só roda no servidor
+  // a única porta para a Stripe é o import() dinâmico dentro de pagamentoOnlineAberto (o começo de formasDoPagamento), que
+  // só roda no servidor
   assert.equal(fonte.match(/await import\('\.\/stripe\.ts'\)/g)?.length, 1);
   assert.deepEqual(
     importacoesEstaticas(fonte).filter((alvo) => DA_STRIPE.test(alvo)),

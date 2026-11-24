@@ -8,7 +8,14 @@ import { dicionario, type Dicionario } from '@/i18n';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import type { ItemVisivel } from './carrinho';
-import { formasDoPagamento, valorACobrar, type FormaPagamento, type ItemCobravel, type ItemPagavel } from './formas-pagamento';
+import {
+  formasDoPagamento,
+  pagamentoOnlineAberto,
+  valorACobrar,
+  type FormaPagamento,
+  type ItemCobravel,
+  type ItemPagavel,
+} from './formas-pagamento';
 import type { TextosDoReembolso } from './frases-do-reembolso';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
@@ -260,7 +267,10 @@ export function textosDaDesistencia(d: Dicionario): TextosDesistencia {
  * o pagamento (pendente ou expirado), o link privado dele para "continuar o pagamento". Se o carrinho virou um pedido
  * PAGO (o cliente pagou o Pix no app do banco e a aba recarregou), `pedidoPago`: o checkout leva ao pedido, em vez de
  * dizer que o carrinho está vazio. Só nesta carga: o cookie do carrinho que virou pedido fechado some logo depois
- * (GET /api/carrinho). Reembolsado, contestado e cancelado continuam como antes.
+ * (GET /api/carrinho). Reembolsado, contestado e cancelado continuam como antes. `pagamentoLigado`: o pagamento online
+ * vale para este visitante, seja qual for o carrinho (pagamentoOnlineAberto). Com ele, o formulário que ficou sem formas
+ * e tem itens (a página guardada que abriu com o carrinho vazio) pede a página de novo ao servidor, uma vez a cada
+ * volta à página (src/lib/releitura-do-checkout.ts; Pacote 26).
  */
 export async function pagamentoDoCheckout(
   idioma: Idioma,
@@ -268,7 +278,12 @@ export async function pagamentoDoCheckout(
   pedido: { codigo: string; token: string; status: StatusReserva } | undefined,
   admin: boolean,
   agora: Date = new Date(),
-): Promise<{ pagamentoOnline?: PagamentoOnlineCarrinho; pedidoAberto?: { href: string }; pedidoPago?: { codigo: string; href: string } }> {
+): Promise<{
+  pagamentoOnline?: PagamentoOnlineCarrinho;
+  pagamentoLigado: boolean;
+  pedidoAberto?: { href: string };
+  pedidoPago?: { codigo: string; href: string };
+}> {
   // qualquer falha aqui deixa o checkout no caminho do WhatsApp, que sempre funciona
   const { formas, semPix } = itens.length
     ? await formasDoPagamento(itensPagaveisDoCarrinho(itens), agora, { admin }).catch((e) => {
@@ -276,12 +291,15 @@ export async function pagamentoDoCheckout(
         return { formas: [], semPix: undefined };
       })
     : { formas: [], semPix: undefined };
+  // decidido aqui, nunca no navegador; uma falha deixa desligado, e o formulário fica como hoje
+  const pagamentoLigado = await pagamentoOnlineAberto({ admin }).catch(() => false);
   const aberto = pedido !== undefined && (pedido.status === 'pendente' || pedido.status === 'expirado');
   const pago = pedido !== undefined && pedido.status === 'pago';
   return {
     ...(formas.length
       ? { pagamentoOnline: { formas, ...(semPix ? { semPix } : {}), textos: textosDoPagamentoOnline(dicionario(idioma)) } }
       : {}),
+    pagamentoLigado,
     ...(aberto ? { pedidoAberto: { href: linkDoPedido(idioma, pedido.codigo, pedido.token) } } : {}),
     ...(pago ? { pedidoPago: { codigo: pedido.codigo, href: linkDoPedido(idioma, pedido.codigo, pedido.token) } } : {}),
   };

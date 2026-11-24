@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
@@ -11,6 +12,7 @@ import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
+import { formasChegaram, releituraDoCheckout } from '@/lib/releitura-do-checkout';
 import { respostaDeRobo } from '@/lib/robos';
 import {
   CIDADES_HOSPEDAGEM,
@@ -124,6 +126,7 @@ export function FormularioCarrinho({
   links,
   contato,
   pagamentoOnline,
+  pagamentoLigado = false,
   pedidoAberto,
   lembretesLigados = false,
 }: {
@@ -156,6 +159,12 @@ export function FormularioCarrinho({
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
   contato?: { href: string; rotulo: string };
   pagamentoOnline?: PagamentoOnlineCarrinho;
+  /**
+   * O pagamento online vale para este visitante, seja qual for o carrinho (decidido no servidor: pagamentoOnlineAberto).
+   * Com ele, o formulário que tem itens e ficou sem formas pede a página de novo ao servidor, uma vez a cada
+   * volta à página (releituraDoCheckout). Sem ele (o pagamento online desligado), o caminho do WhatsApp continua como sempre.
+   */
+  pagamentoLigado?: boolean;
   /** O carrinho está ligado a um pedido que ainda espera o pagamento: o link para continuar de onde parou. */
   pedidoAberto?: { href: string };
   /** Os e-mails estão ligados (RESEND_API_KEY): só então a ajuda do e-mail fala dos lembretes do carrinho. */
@@ -191,6 +200,47 @@ export function FormularioCarrinho({
   const [sessao, setSessao] = useState<SessaoAberta | null>(null);
   const emailGuardado = useRef('');
   const erroRef = useRef<HTMLParagraphElement>(null);
+  const router = useRouter();
+
+  // a página que abriu sem as formas (o carrinho estava vazio no servidor) e que o cliente reencontra com itens (o botão
+  // de voltar reaproveita a página guardada, ou o Safari a devolve da memória de voltar): com o pagamento online ligado,
+  // ela pede a página de novo ao servidor (router.refresh), uma vez a cada volta à página (jaReleu, a trava contra o laço:
+  // se a página relida ainda vier sem formas, fica como hoje e não pede de novo). Só as formas que vieram do servidor contam (releituraDoCheckout,
+  // src/lib/releitura-do-checkout.ts; achado CE-1 da varredura de 24/11, Pacote 26)
+  const [jaReleu, setJaReleu] = useState(false);
+  const [relendo, comecarReleitura] = useTransition();
+  const formasDoServidor = pagamentoOnline?.formas.length ?? 0;
+  const reler = releituraDoCheckout({
+    pagamentoLigado,
+    formasDoServidor,
+    itens: itens.length,
+    sessaoAberta: sessao !== null,
+    jaReleu,
+  });
+  // enquanto a página não volta relida, o botão do WhatsApp fica desligado: com o pagamento online aberto, o servidor o
+  // recusaria (400 'pagamento')
+  const esperandoFormas = reler || relendo;
+  useEffect(() => {
+    if (!reler) return;
+    setJaReleu(true);
+    // sem rede, o refresh cairia na navegação do navegador (a página de "sem conexão") e o que o cliente digitou se
+    // perderia: a página fica como hoje (o mesmo cuidado de src/components/pagamento/AoVoltarParaAAba.tsx)
+    if (navigator.onLine === false) return;
+    comecarReleitura(() => router.refresh());
+  }, [reler, router]);
+  // as formas da página relida entram no formulário quando a página de antes não tinha nenhuma (a lista, o motivo de o Pix
+  // ficar de fora e a forma marcada). Uma página que já tinha as formas fica com as dela. A troca é feita aqui, na
+  // renderização, quando as formas que vêm do servidor mudam: o React desenha de novo na hora, sem mostrar o quadro antigo
+  const [formasDaPagina, setFormasDaPagina] = useState(pagamentoOnline?.formas);
+  if (pagamentoOnline?.formas !== formasDaPagina) {
+    setFormasDaPagina(pagamentoOnline?.formas);
+    if (formasChegaram(formasDaPagina?.length ?? 0, formasDoServidor)) {
+      const novas = pagamentoOnline?.formas ?? [];
+      setFormas(novas);
+      setSemPix(pagamentoOnline?.semPix);
+      setForma(formaPadrao(novas, idioma));
+    }
+  }
 
   const temPasseio = itens.some((i) => i.tipo === 'passeio');
   // algum passeio com taxa paga no local (embarque ou prefeitura): a linha das taxas perto do total
@@ -243,11 +293,13 @@ export function FormularioCarrinho({
   // a página que o navegador guardou inteira e devolveu pelo botão de voltar (a memória de voltar do Safari): o envio que
   // terminou com a página inteira indo para o pedido ("Registrar e finalizar pelo WhatsApp", ou o 409 "mudou" com o
   // pedido em aberto) deixaria o botão em "Processando…" e desligado. O botão volta, e o carrinho é relido no servidor (o
-  // que virou pedido sai dele), como na primeira carga
+  // que virou pedido sai dele), como na primeira carga. A trava da releitura também solta: a página devolvida que tem
+  // itens e nenhuma forma pede a página de novo ao servidor, uma vez por volta (o router.refresh não dispara o pageshow)
   useEffect(() => {
     const aoMostrar = (e: PageTransitionEvent) => {
       if (!e.persisted) return;
       setEnviando(false);
+      setJaReleu(false);
       recarregar();
     };
     window.addEventListener('pageshow', aoMostrar);
@@ -287,6 +339,8 @@ export function FormularioCarrinho({
   const temErros = Object.keys(erros).length > 0;
 
   async function enviar() {
+    // a página está sendo relida para trazer as formas: o envio sem forma, o servidor recusaria
+    if (esperandoFormas) return;
     setErroGeral('');
     setTentou(true);
     if (Object.keys(validar()).length) {
@@ -939,7 +993,13 @@ export function FormularioCarrinho({
                 {enviando ? C.processando : fmt(C.pagar, { valor: brl(valorDaForma(totais, forma)) })}
               </button>
             ) : (
-              <button type="submit" className="botao botao-whats w-full" disabled={enviando} aria-busy={enviando}>
+              // desligado também enquanto a página é relida para trazer as formas (esperandoFormas), com o mesmo texto
+              <button
+                type="submit"
+                className="botao botao-whats w-full"
+                disabled={enviando || esperandoFormas}
+                aria-busy={enviando || esperandoFormas}
+              >
                 <IconeWhatsApp className="size-5" />
                 {enviando ? C.processando : C.finalizarWhatsapp}
               </button>

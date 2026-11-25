@@ -733,12 +733,20 @@ test('a faixa das duas páginas passa pela regra única (formasDaFaixa), na faix
   const pedido = codigo('app', '[locale]', 'pedido', '[codigo]', 'page.tsx');
   // a reserva: só no pagamento online em aberto, como antes; a regra soma a forma do pedido pendente
   assert.match(status, /const formasNaFaixa = formasDaFaixa\(r\.status, online \? pagamento : undefined\);/);
-  assert.match(status, /const brlTela = partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa\)\.map\(/);
-  assert.equal(status.match(/partesDoTotal\(/g)?.length, 1);
+  // na ordem de formaEmDestaque (segunda revisão do Pacote 29: o cartão primeiro em espanhol e inglês)
+  assert.match(status, /const brlTela = partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa, primeiraForma\)\.map\(/);
+  // a outra chamada é a da mensagem do WhatsApp: os dois valores, sem as formas, como antes, só que na mesma ordem
+  assert.equal(status.match(/partesDoTotal\(/g)?.length, 2);
+  assert.match(status, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, undefined, primeiraForma\)/);
   // o pedido: a faixa e as linhas de cada item, pelas mesmas formas (as de antes eram pagamento?.formas)
   assert.match(pedido, /const formasAbertas = formasDaFaixa\(status, pagamento\);/);
-  assert.match(pedido, /emAberto \? partesDoTotal\(totalCentavos, totalPixCentavos, formasAbertas\) : \[\{ centavos: totalCentavos \}\];/);
-  assert.equal(pedido.match(/partesDoTotal\(/g)?.length, 1);
+  assert.match(
+    pedido,
+    /emAberto \? partesDoTotal\(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma\) : \[\{ centavos: totalCentavos \}\];/,
+  );
+  // e a da mensagem do WhatsApp, como na reserva
+  assert.equal(pedido.match(/partesDoTotal\(/g)?.length, 2);
+  assert.match(pedido, /partesDoTotal\(pedido\.totalCentavos, noPix, undefined, primeiraForma\)/);
   assert.equal(pedido.match(/\bformasAbertas\b/g)?.length, 2);
   for (const fonte of [status, pedido]) {
     assert.doesNotMatch(fonte, /pagamento\?\.formas/);

@@ -149,6 +149,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           pagamentoRetido: d.pedido.pagamentoRetido,
           noPix: d.preco.noPix,
           noCartao: d.preco.noCartao,
+          // o Pix que vem depois do cartão, em espanhol e inglês: "con Pix (−10%)" (revisão do Pacote 29)
+          noPixComDesconto: d.preco.noPixComDesconto,
           dolar: d.preco.dolar,
         }}
       />

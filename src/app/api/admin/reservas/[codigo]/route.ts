@@ -502,30 +502,44 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // status, pagamento nem voucher; o voucher e a página do pedido passam a mostrar o nome. O segundo toque, com o hotel já
   // gravado igual, volta como deu certo. Tudo é decidido com cada passeio relido dentro da trava de versão (passoDoHotel),
   // nunca com a lista lida no começo da requisição: no duplo clique, as duas requisições leem antes de a primeira gravar
-  // (revisão do Pacote 29)
+  // (revisão do Pacote 29). Segunda revisão: o pedido que já tem outro hotel gravado (duas pessoas, ou duas abas, com nomes
+  // diferentes ao mesmo tempo) volta com hotel-ja-informado e nada muda, nem nos passeios seguintes: o primeiro nome que
+  // chegou vale para o pedido inteiro. E a linha do histórico vai só com o primeiro passeio do pedido: sem o banco (os
+  // arquivos do computador e o Blob), cada voucher guarda uma cópia do histórico, e o segundo toque, lendo o segundo
+  // passeio antes de a cópia chegar, gravava a mesma linha outra vez
   if (acao === 'hotel') {
     const hotel = hotelDoPainel(form.get('hotel'));
     if (!hotel) return voltar('hotel-invalido');
+    const primeiroPasseio = vouchers.find((v) => !ehTransfer(v))?.codigo;
     let gravados = 0;
     let jaEstava = false;
+    let outroHotel = false;
     for (const v of vouchers) {
       if (ehTransfer(v)) continue;
       let gravou = false;
       let igual = false;
+      let outro = false;
       await atualizarReserva(v.codigo, (x) => {
         gravou = false;
         igual = false;
+        outro = false;
         if (ehTransfer(x)) return null;
         const passo = passoDoHotel(x.hospedagem, x.historico, hotel);
         if (passo.tipo === 'ja-estava') igual = true;
+        if (passo.tipo === 'outro-hotel') outro = true;
         if (passo.tipo !== 'gravar') return null;
         x.hospedagem = passo.hospedagem;
         gravou = true;
-        return passo.linha ? registrar(x, passo.linha) : x;
+        return passo.linha && v.codigo === primeiroPasseio ? registrar(x, passo.linha) : x;
       });
       if (gravou) gravados++;
       if (igual) jaEstava = true;
+      if (outro) {
+        outroHotel = true;
+        break;
+      }
     }
+    if (outroHotel) return voltar('hotel-ja-informado');
     return voltar(gravados > 0 || jaEstava ? undefined : 'acao-nao-vale');
   }
 

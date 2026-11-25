@@ -9,6 +9,7 @@ import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { frasesDoReembolso, type TextosDoReembolso } from '@/lib/frases-do-reembolso';
 import { formatarCentavos } from '@/lib/orcamento';
 import { formasDaFaixa, partesDoTotal } from '@/lib/partes-do-total';
+import { formaEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
 import { Inteiro } from './ComDolar';
@@ -147,9 +148,19 @@ export function StatusReserva({
   // A compra é avisada à Meta e ao Google pelo servidor (src/lib/avisar-compra.ts e o arquivo diário do Google):
   // nesta página, que leva o token do cliente no endereço, as tags de anúncio não rodam (src/lib/pixel.ts).
 
-  // em aberto: os dois valores, o do Pix (com desconto) e o do cartão
+  // em aberto: os dois valores. Em português, o do Pix (com desconto) e depois o do cartão, como sempre; em espanhol e
+  // inglês, primeiro o da forma que a tela de pagar traz marcada, e o do cartão fora do pagamento online, com o Pix depois
+  // dizendo o desconto ("con Pix (−10%)"): o mesmo número do checkout (formaEmDestaque, revisão do Pacote 29)
+  const primeiraForma = formaEmDestaque(idioma, online ? pagamento : null);
+  const pixDepois = primeiraForma !== 'pix';
+  const rotulos = {
+    pix: pixDepois ? rotuloPixComDesconto(textos.noPixComDesconto ?? textos.noPix) : textos.noPix,
+    cartao: textos.noCartao,
+  };
   const brl = r.totalPixCentavos
-    ? `${formatarCentavos(r.totalPixCentavos, locale)} ${textos.noPix} · ${formatarCentavos(r.totalCentavos, locale)} ${textos.noCartao}`
+    ? partesDoTotal(r.totalCentavos, r.totalPixCentavos, undefined, primeiraForma)
+        .map((parte) => (parte.forma ? `${formatarCentavos(parte.centavos, locale)} ${rotulos[parte.forma]}` : formatarCentavos(parte.centavos, locale)))
+        .join(' · ')
     : formatarCentavos(r.totalCentavos, locale);
   // na tela, cada valor ganha o aproximado em dólar (espanhol e inglês), que nunca quebra no meio da linha;
   // as mensagens vão só em real. O valor e o rótulo ("R$ 138,60" e "no Pix") ficam juntos, como na faixa da página do
@@ -157,14 +168,15 @@ export function StatusReserva({
   // rótulo desce inteiro para a linha de baixo (Inteiro). Antes o rótulo se partia: "R$ 138,60 no" numa linha e "Pix" na
   // outra, em 320 px com a letra em 150% (reteste de 17-18/11, defeito 5). O valor nunca se parte: entre "R$" e o número,
   // a formatação põe um espaço que não quebra (no inglês, nenhum)
-  const valorTela = (centavos: number, rotulo?: string) => {
+  // o Pix que vem depois do cartão (espanhol e inglês) tem o rótulo em destaque, como no checkout e na página do pedido
+  const valorTela = (centavos: number, rotulo?: string, rotuloEmDestaque = false) => {
     const valor = (
       <Inteiro>
         {formatarCentavos(centavos, locale)}
         {rotulo && (
           <>
             {' '}
-            <span className="whitespace-nowrap">{rotulo}</span>
+            <span className={rotuloEmDestaque ? 'whitespace-nowrap text-(--color-d2)' : 'whitespace-nowrap'}>{rotulo}</span>
           </>
         )}
       </Inteiro>
@@ -182,20 +194,19 @@ export function StatusReserva({
   // Pix, o do Pix: o já gerado continua valendo com o pagamento desligado às pressas ou depois do prazo do Pix (pendente),
   // e o vencido sem forma que valha mostra o valor que o cliente escolheu (formasDaFaixa, src/lib/partes-do-total.ts)
   const formasNaFaixa = formasDaFaixa(r.status, online ? pagamento : undefined);
-  const rotulos = { pix: textos.noPix, cartao: textos.noCartao };
   // cada valor é um bloco, que desce inteiro para a linha de baixo quando os dois não cabem lado a lado. O "·" fica
   // na folga à esquerda de cada valor a partir do segundo (0.626em é a largura de " · " nesta fonte) e só aparece
   // quando os dois couberam na mesma linha: no começo de uma linha ele fica fora do recorte da faixa (mais abaixo). O
   // bloco nunca passa da largura da faixa (max-w-full): sem isso, o Inteiro de dentro, que pede a largura dele inteiro,
   // não chegaria a quebrar e o recorte cortaria o rótulo
-  const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa).map((parte, n) => (
+  const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa, primeiraForma).map((parte, n) => (
     <span key={parte.forma ?? 'total'} className="relative max-w-full pl-[0.626em]">
       {n > 0 && (
         <span aria-hidden="true" className="absolute top-0 left-0 w-[0.626em] text-center">
           ·
         </span>
       )}
-      {valorTela(parte.centavos, parte.forma && rotulos[parte.forma])}
+      {valorTela(parte.centavos, parte.forma && rotulos[parte.forma], parte.forma === 'pix' && pixDepois)}
     </span>
   ));
   const dataTexto = formatarDataIso(r.data, locale);

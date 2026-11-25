@@ -8,20 +8,26 @@ export interface ParteDoTotal {
 }
 
 /**
- * Os valores que a tela mostra enquanto o pagamento está em aberto, na ordem: o do Pix (com desconto) e o do cartão.
+ * Os valores que a tela mostra enquanto o pagamento está em aberto, na ordem: o da forma `primeiro` e o da outra. Sem
+ * `primeiro`, o do Pix (com desconto) e depois o do cartão, como sempre; em espanhol e inglês as páginas do pedido e da
+ * reserva passam a forma de formaEmDestaque (src/lib/preco-destaque.ts), em geral o cartão (revisão do Pacote 29).
  * Sem `formas` (o pedido fechado pelo WhatsApp), os dois continuam valendo. No pagamento online, `formas` são as
  * que a faixa mostra (formasDaFaixa): as que ainda dão tempo e, no pedido de Pix, o Pix da sessão que ele já tem
  * (pendente) ou o que o cliente escolheu (vencido, sem forma que valha); passado o prazo do Pix, sobra só o valor do
  * cartão; sem forma nenhuma, ou num pedido sem valor no Pix, o total vai sozinho.
  * Só contas, sem rede nem ambiente: serve às páginas do servidor e ao navegador.
  */
-export function partesDoTotal(totalCentavos: number, totalPixCentavos?: number, formas?: readonly FormaPagamento[]): ParteDoTotal[] {
+export function partesDoTotal(
+  totalCentavos: number,
+  totalPixCentavos?: number,
+  formas?: readonly FormaPagamento[],
+  primeiro: FormaPagamento = 'pix',
+): ParteDoTotal[] {
   const vale = (forma: FormaPagamento) => !formas || formas.includes(forma);
-  const partes: ParteDoTotal[] = [];
-  if (totalPixCentavos) {
-    if (vale('pix')) partes.push({ centavos: totalPixCentavos, forma: 'pix' });
-    if (vale('cartao')) partes.push({ centavos: totalCentavos, forma: 'cartao' });
-  }
+  const ordem: readonly FormaPagamento[] = primeiro === 'cartao' ? ['cartao', 'pix'] : ['pix', 'cartao'];
+  const partes: ParteDoTotal[] = totalPixCentavos
+    ? ordem.filter(vale).map((forma) => ({ centavos: forma === 'pix' ? totalPixCentavos : totalCentavos, forma }))
+    : [];
   return partes.length ? partes : [{ centavos: totalCentavos }];
 }
 

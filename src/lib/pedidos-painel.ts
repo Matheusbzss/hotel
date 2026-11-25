@@ -192,6 +192,8 @@ export const ERROS_DO_PAINEL = {
     'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
   // Pacote 29: o campo "Gravar o hotel" do pedido com o hotel a informar
   'hotel-invalido': 'Escreva o nome do hotel ou da pousada (até 120 letras). Nada foi gravado.',
+  // segunda revisão do Pacote 29: outra pessoa da equipe (ou outra aba) gravou outro nome no meio-tempo
+  'hotel-ja-informado': 'Este pedido já tem um hotel gravado no painel (veja o histórico do pedido). Nada foi mudado.',
 } as const;
 
 export type ErroDoPainel = keyof typeof ERROS_DO_PAINEL;

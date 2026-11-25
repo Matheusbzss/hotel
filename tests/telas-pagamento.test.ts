@@ -98,10 +98,11 @@ test('a faixa do total do pedido: o valor e o rótulo só se separam quando nem 
     const caixa = classesDe(faixa, new RegExp(`<span className="([^"]*)">\\s*<ComDolar dolar=\\{usd\\(${parte}\\.centavos\\)\\}`), parte);
     assert.ok(caixa.includes('max-w-full'), `${parte}: ${caixa.join(' ')}`);
   }
-  // o valor com o rótulo num Inteiro; o rótulo ("no Pix", "con tarjeta") nunca se parte por dentro
+  // o valor com o rótulo num Inteiro; o rótulo ("no Pix", "con tarjeta") nunca se parte por dentro. Desde a segunda
+  // revisão do Pacote 29, o Pix que vem depois do cartão (espanhol e inglês) tem o rótulo em destaque, também sem se partir
   assert.match(
     pedido,
-    /const valorDaFaixa = \(p: ParteDoTotal\) => \(\s*<Inteiro>\s*\{brl\(p\.centavos\)\}\s*\{p\.forma && \(\s*<>\s*\{' '\}\s*<span className="whitespace-nowrap">\{rotulo\[p\.forma\]\}<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
+    /const valorDaFaixa = \(p: ParteDoTotal\) => \(\s*<Inteiro>\s*\{brl\(p\.centavos\)\}\s*\{p\.forma && \(\s*<>\s*\{' '\}\s*<span className=\{p\.forma === 'pix' && pixDepois \? 'whitespace-nowrap font-semibold text-\(--color-d2\)' : 'whitespace-nowrap'\}>\s*\{rotulo\[p\.forma\]\}\s*<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
   );
   assert.match(pedido, /^import \{[^}]*(?<!\w)Inteiro(?!\w)[^}]*\} from '@\/components\/ComDolar';$/m);
   // o Inteiro (src/components/ComDolar.tsx) só quebra abaixo de 14rem da caixa com @container: com a letra normal, nada muda
@@ -365,9 +366,10 @@ test('a faixa da reserva: o valor e o rótulo juntos (Inteiro e @container), e o
   for (const c of ['@container', 'tom-campo', 'flex', 'flex-wrap', 'justify-between', 'px-6', 'py-5', 'md:px-8'])
     assert.ok(faixa.includes(c), `${c}: ${faixa.join(' ')}`);
   // o valor com o rótulo num Inteiro; o rótulo ("no Pix", "con tarjeta") num whitespace-nowrap, depois de um espaço comum
+  // (desde a segunda revisão do Pacote 29, o Pix que vem depois do cartão tem o rótulo em destaque, também sem se partir)
   assert.match(
     reserva,
-    /const valorTela = \(centavos: number, rotulo\?: string\) => \{\s*const valor = \(\s*<Inteiro>\s*\{formatarCentavos\(centavos, locale\)\}\s*\{rotulo && \(\s*<>\s*\{' '\}\s*<span className="whitespace-nowrap">\{rotulo\}<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
+    /const valorTela = \(centavos: number, rotulo\?: string, rotuloEmDestaque = false\) => \{\s*const valor = \(\s*<Inteiro>\s*\{formatarCentavos\(centavos, locale\)\}\s*\{rotulo && \(\s*<>\s*\{' '\}\s*<span className=\{rotuloEmDestaque \? 'whitespace-nowrap text-\(--color-d2\)' : 'whitespace-nowrap'\}>\{rotulo\}<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
   );
   // o texto de antes (o valor e o rótulo colados numa frase só) não volta; o dólar continua um pedaço à parte, que desce
   // inteiro para a linha de baixo

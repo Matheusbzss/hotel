@@ -2,7 +2,7 @@
 
 import { useId } from 'react';
 import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
-import { fmt, type Idioma } from '@/i18n/config';
+import { fmt } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
@@ -46,16 +46,10 @@ export interface TotaisDasFormas {
 export const valorDaForma = (totais: TotaisDasFormas, forma: FormaPagamento): number =>
   forma === 'pix' ? totais.pixCentavos : totais.cartaoCentavos;
 
-/**
- * A forma que já vem marcada: a que o pedido tinha, se ainda estiver disponível; senão, o Pix para quem lê em
- * português (tem o desconto e todo banco brasileiro paga) e o cartão para quem lê nos outros idiomas (o Pix de
- * fora depende do app do banco). Null sem nenhuma forma disponível.
- */
-export function formaPadrao(formas: FormaPagamento[], idioma: Idioma, atual?: FormaPagamento): FormaPagamento | null {
-  if (atual && formas.includes(atual)) return atual;
-  const preferida: FormaPagamento = idioma === 'pt' ? 'pix' : 'cartao';
-  return formas.includes(preferida) ? preferida : (formas[0] ?? null);
-}
+// a forma que já vem marcada (a que o pedido tinha, se ainda vale; senão o Pix em português e o cartão nos outros
+// idiomas): mora em src/lib/preco-destaque.ts desde a revisão do Pacote 29, para as páginas do servidor usarem a mesma
+// regra na ordem dos totais (formaEmDestaque)
+export { formaPadrao } from '@/lib/preco-destaque';
 
 /**
  * Cartão ou Pix, cada um com o valor em R$ (e o ≈ US$ nos idiomas que já o mostram). O Pix some quando o servidor
@@ -96,7 +90,8 @@ export function EscolhaPagamento({
 }) {
   const brl = (c: number) => formatarCifra(c, locale);
   const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
-  // o Pix primeiro, como o total no Pix vem em destaque no site inteiro
+  // o Pix primeiro, nos quatro idiomas: a opção D1-A (25/11) mudou o preço grande, não a ordem das opções; em espanhol e
+  // inglês o cartão é que já vem marcado (formaPadrao)
   const opcoes = (['pix', 'cartao'] as const).filter((forma) => formas.includes(forma));
   const desconto = fmt(T.descontoPix, { p: DESCONTO_PIX_PORCENTO });
   const pixMarcado = escolhida === 'pix' && opcoes.includes('pix');

@@ -158,6 +158,16 @@ export function sessoesSubstituidas(lidaNoComeco: string | undefined, naHoraDeGr
   return [...new Set([lidaNoComeco, naHoraDeGravar])].filter((id): id is string => !!id && id !== nova);
 }
 
+/**
+ * As sessões que o cancelamento fecha depois de gravar o pedido como cancelado (segunda revisão do Pacote 29): a que o
+ * pedido tinha na leitura do começo e a que ele tinha dentro da trava, na volta que gravou. Quase sempre é a mesma. São
+ * duas quando o cliente apertou "Pagar de novo" quase junto com o "Cancelar" da equipe: a sessão nova dele, que o
+ * cancelamento não conhecia, ficava aberta e ainda aceitaria um pagamento. Sem repetir.
+ */
+export function sessoesDoCancelamento(lidaNoComeco: string | undefined, naTrava: string | undefined): string[] {
+  return [...new Set([lidaNoComeco, naTrava])].filter((id): id is string => !!id);
+}
+
 /* ------------------------------------------------------------------ */
 /* Com o banco e com a Stripe                                          */
 
@@ -305,9 +315,18 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
 }
 
 /**
- * Cancela um pedido da Stripe que ainda não foi pago (pendente ou expirado): expira a sessão aberta, para o
- * cliente não pagar um pedido cancelado, grava o status e libera as datas de casa presas à sessão. Num pedido
- * em outro status não faz nada e devolve-o como está; null se o pedido não existir.
+ * Cancela um pedido da Stripe que ainda não foi pago (pendente ou expirado): grava o status e, depois, expira a sessão
+ * aberta, para o cliente não pagar um pedido cancelado, e libera as datas de casa presas a ela. Num pedido em outro
+ * status não faz nada e devolve-o como está; null se o pedido não existir.
+ *
+ * A ordem (segunda revisão do Pacote 29): primeiro gravar, depois fechar. Antes a sessão fechava primeiro; se a gravação
+ * falhasse depois disso (erro do banco, tempo esgotado), o aviso da Stripe da sessão fechada virava o pedido para
+ * expirado, e o segundo toque da equipe em "Cancelar" o lia como "já estava vencido": o cliente que esperava para pagar
+ * ficava sem o e-mail "Pedido cancelado". Agora o fechamento daqui só acontece com o pedido já cancelado (o aviso dele não
+ * muda mais nada), e o pedido só fica expirado pelo prazo da própria Stripe. Fecha também a sessão que o pedido tinha
+ * dentro da trava: a de um "Pagar de novo" do cliente quase no mesmo instante ficava aberta. O pagamento que chegar entre
+ * a gravação e o fechamento fica parado na Stripe para a equipe decidir (Pacote 22), como o que chegava, antes, no
+ * instante do fechamento.
  */
 export async function cancelarPedidoAberto(codigo: string, evento: string): Promise<Reserva | null> {
   const { atualizarReserva, obterReservaDoPedido, registrar } = await import('../../../lib/reservas.ts');
@@ -315,20 +334,23 @@ export async function cancelarPedidoAberto(codigo: string, evento: string): Prom
   const alvo = await obterReservaDoPedido(codigo);
   if (!alvo) return null;
   if (!podeAbrirSessao(alvo.status)) return alvo;
-  const sessao = alvo.pagamentoExternoId;
-  if (sessao)
-    await expirarSessao(sessao).catch((e) => console.error(`[pedido] não deu para expirar a sessão do pedido ${codigo}: ${mensagem(e)}`));
+  // a sessão do pedido relido dentro da trava, na volta que gravou
+  let sessaoNaTrava: string | undefined;
   const r = await atualizarReserva(alvo.codigo, (r) => {
+    sessaoNaTrava = undefined;
     if (!podeAbrirSessao(r.status)) return null;
+    sessaoNaTrava = r.pagamentoExternoId;
     // Pacote 29: o pedido que já tinha vencido sem pagamento ganha o final " (já estava vencido)" na linha; cancelado no
     // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11). Vencido é o
-    // que estava expirado na leitura de antes de fechar a sessão (alvo) E continua expirado aqui dentro da trava: fechar a
-    // sessão pode virar para expirado um pedido que esperava o pagamento, e esse cliente ainda recebe o e-mail
+    // que estava expirado na leitura do começo (alvo) E continua expirado aqui dentro da trava: o pedido que o cliente
+    // reabriu no meio-tempo ("Pagar de novo") esperava o pagamento, e esse cliente ainda recebe o e-mail
     const linha = linhaDoCancelamento(evento, alvo.status, r.status);
     r.status = 'cancelado';
     return registrar(r, linha);
   });
-  if (r?.status === 'cancelado' && sessao) {
+  if (r?.status !== 'cancelado') return r;
+  for (const sessao of sessoesDoCancelamento(alvo.pagamentoExternoId, sessaoNaTrava)) {
+    await expirarSessao(sessao).catch((e) => console.error(`[pedido] não deu para expirar a sessão do pedido ${codigo}: ${mensagem(e)}`));
     await liberarBloqueiosDaSessao(sessao).catch((e) =>
       console.error(`[pedido] não deu para liberar as datas do pedido ${codigo}: ${mensagem(e)}`),
     );

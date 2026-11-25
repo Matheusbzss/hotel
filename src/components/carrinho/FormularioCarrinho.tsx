@@ -7,7 +7,7 @@ import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
-import { cartaoEmDestaque } from '@/lib/preco-destaque';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { textoDolar } from '@/lib/dolar';
 import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
@@ -636,6 +636,9 @@ export function FormularioCarrinho({
   const destaque: FormaPagamento = online && forma ? forma : cartaoEmDestaque(locale) ? 'cartao' : 'pix';
   const outra = (['pix', 'cartao'] as const).find((f) => f !== destaque && (!online || formas.includes(f)));
   const rotuloDaForma = (f: FormaPagamento) => (f === 'pix' ? P.noPix : P.noCartao);
+  // o Pix na linha de baixo, em espanhol e inglês: "con Pix (−10%)" em destaque, como no carrinho (ResumoCarrinho) e no
+  // formulário do transfer; em português a linha de baixo fica como sempre (revisão do Pacote 29)
+  const pixEmbaixoComDesconto = outra === 'pix' && cartaoEmDestaque(locale);
   // "Seus dados são tratados conforme a nossa {politica}.": o nome da política vira o link, com os espaços dentro do texto
   const [antesDaPolitica, depoisDaPolitica = ''] = C.privacidadeAviso.split('{politica}');
 
@@ -996,7 +999,12 @@ export function FormularioCarrinho({
                 <span className="grow basis-0">
                   <ComDolar dolar={usd(valorDaForma(totais, outra))}>
                     <span className="whitespace-nowrap">
-                      {C.total} {rotuloDaForma(outra)}
+                      {C.total}{' '}
+                      {pixEmbaixoComDesconto ? (
+                        <span className="font-semibold text-(--color-d2)">{rotuloPixComDesconto(P.noPixComDesconto)}</span>
+                      ) : (
+                        rotuloDaForma(outra)
+                      )}
                     </span>
                   </ComDolar>
                 </span>

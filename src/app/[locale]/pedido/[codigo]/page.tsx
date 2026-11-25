@@ -23,6 +23,7 @@ import { frasesDoReembolso } from '@/lib/frases-do-reembolso';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { formasDaFaixa, partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
 import { recebidoNaPaginaDoCliente } from '@/lib/pedidos-painel';
+import { formaEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { partesDaPagina } from '@/lib/reembolsos-a-resolver';
 import {
   itensPagaveis,
@@ -101,7 +102,6 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // pago no Pix, o cliente vê o que pagou, com o desconto; com um valor recebido pela Stripe diferente do esperado (Pacote
   // 23), o que ela recebeu de verdade, o mesmo número do "Reembolsado" e da frase do reembolso parcial
   const fechado = recebidoNaPaginaDoCliente(primeira) ?? (primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos);
-  const total = emAberto ? `${brl(noPix)} ${d.preco.noPix} · ${brl(pedido.totalCentavos)} ${d.preco.noCartao}` : brl(fechado);
   const reembolso = primeira.reembolsoCentavos ?? 0;
   // o reembolso que falhou na Stripe (partesDaPagina, lido como o cliente lê): o que voltou pela mesma forma de
   // pagamento, o pendente e o que a equipe devolveu de outro jeito. Sem falha, tudo pela mesma forma: o texto de sempre
@@ -137,15 +137,6 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     const v = r.transfer?.volta;
     return v ? fmt(d.carrinho.volta, { quando: dataHora(v.data, v.hora) }) : '';
   };
-  const mensagem = fmt(d.pedido.msgWhatsapp, {
-    codigo,
-    itens: itens
-      .map((r) =>
-        fmt(d.pedido.msgItem, { item: nomeItem(r), data: [quando(r), volta(r)].filter(Boolean).join(' · '), pessoas: r.pessoasTexto }),
-      )
-      .join('\n'),
-    total,
-  });
   const cabecalho: Record<StatusReserva, { titulo: string; texto: string | string[] }> = {
     pago: { titulo: d.pedido.confirmadoTitulo, texto: d.pedido.confirmadoTexto },
     aguardando_whatsapp: { titulo: d.pedido.registradoTitulo, texto: d.pedido.registradoTexto },
@@ -189,24 +180,46 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // do prazo do Pix; o vencido sem forma que valha mostra o valor que o cliente escolheu: formasDaFaixa); fechado, o que
   // foi pago
   const formasAbertas = formasDaFaixa(status, pagamento);
-  const rotulo = { pix: d.preco.noPix, cartao: d.preco.noCartao };
+  // a forma cujo total vem primeiro (o grande da faixa): em português, o Pix, como sempre; em espanhol e inglês, a que a
+  // tela de pagar traz marcada, e o cartão no pedido do WhatsApp (formaEmDestaque, revisão do Pacote 29). O Pix que vem
+  // depois diz o desconto ("con Pix (−10%)"), como no checkout e no carrinho
+  const primeiraForma = formaEmDestaque(locale, pagamento);
+  const pixDepois = primeiraForma !== 'pix';
+  const rotulo = {
+    pix: pixDepois ? rotuloPixComDesconto(d.preco.noPixComDesconto) : d.preco.noPix,
+    cartao: d.preco.noCartao,
+  };
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));
+  // na mensagem do WhatsApp, os dois totais na mesma ordem da página; fechado, o que foi pago
+  const total = emAberto ? partesDoTotal(pedido.totalCentavos, noPix, undefined, primeiraForma).map(valor).join(' · ') : brl(fechado);
+  const mensagem = fmt(d.pedido.msgWhatsapp, {
+    codigo,
+    itens: itens
+      .map((r) =>
+        fmt(d.pedido.msgItem, { item: nomeItem(r), data: [quando(r), volta(r)].filter(Boolean).join(' · '), pessoas: r.pessoasTexto }),
+      )
+      .join('\n'),
+    total,
+  });
   // a faixa do total: o valor e o rótulo ("R$ 5.148,00" e "no Pix") ficam juntos; só quando nem assim cabem (letra
   // grande em tela estreita: a faixa com menos de 14rem, @container), o rótulo desce para a linha de baixo (Inteiro).
-  // O valor nunca se parte: entre "R$" e o número, a formatação põe um espaço que não quebra (no inglês, nenhum)
+  // O valor nunca se parte: entre "R$" e o número, a formatação põe um espaço que não quebra (no inglês, nenhum). O Pix
+  // que vem depois do cartão (espanhol e inglês) tem o rótulo em destaque, como no checkout e no formulário do transfer
   const valorDaFaixa = (p: ParteDoTotal) => (
     <Inteiro>
       {brl(p.centavos)}
       {p.forma && (
         <>
           {' '}
-          <span className="whitespace-nowrap">{rotulo[p.forma]}</span>
+          <span className={p.forma === 'pix' && pixDepois ? 'whitespace-nowrap font-semibold text-(--color-d2)' : 'whitespace-nowrap'}>
+            {rotulo[p.forma]}
+          </span>
         </>
       )}
     </Inteiro>
   );
   const partes = (totalCentavos: number, totalPixCentavos?: number): ParteDoTotal[] =>
-    emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas) : [{ centavos: totalCentavos }];
+    emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma) : [{ centavos: totalCentavos }];
   // cada valor fica inteiro com o rótulo ("R$ 138,60 con Pix") e o "·" só aparece entre dois pedaços da mesma linha
   const linhaDeValores = (lista: ParteDoTotal[]) => {
     const pedacos = lista.flatMap((parte, n) => {

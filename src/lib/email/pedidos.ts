@@ -19,6 +19,7 @@ import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserv
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
+import { stripe } from '../stripe';
 import { formatarDataIso } from '../validacao';
 import { linkWhatsApp } from '../whatsapp';
 import { enderecoCabeNoDia } from './cota';
@@ -28,20 +29,38 @@ import { emailLigado, enviarEmail, responderPara, saiu, type Anexo } from './env
 import {
   AVISO_EMAIL_PAGO_SAINDO,
   MARCA_DO_AVISO_A_EQUIPE,
+  MARCA_DO_AVISO_DO_PEDIDO_PAGO,
   MARCA_DO_EMAIL,
+  MARCA_DO_EMAIL_DO_CANCELAMENTO,
+  avisoDoAvisoDoPedidoPagoQueNaoSaiu,
+  avisoDoEmailDoCancelamentoQueNaoSaiu,
+  avisoDoEmailDoReembolsoQueNaoSaiu,
+  emailDoReembolsoJaSaiu,
   marcaDoAvisoDeReembolsoFalho,
   marcaDoAvisoDoPagamentoRetido,
+  marcaDoEmailDoReembolso,
   type TipoEmailDoPedido,
 } from './marcas';
 import {
+  avisoDoPedidoPagoSai,
+  emailDoCancelamentoSai,
+  linhaDoConcluidoQueFalta,
+  motivoDoEnvioQueNaoSaiu,
+  planoDoEmailDoReembolso,
+  versaoParaMarcar,
+} from './regras-dos-avisos';
+import {
   emailAvisoDaDesistencia,
   emailAvisoDoPagamentoRetido,
+  emailAvisoDoPedidoPago,
   emailAvisoDoReembolsoFalho,
   emailDesistenciaRecebida,
   emailLinkDoPedido,
   emailPagamentoAprovado,
+  emailPedidoCancelado,
   emailPedidoRecebido,
   emailPixVencido,
+  emailReembolso,
   type DadosDoPedido,
   type ItemDoPedido,
   type MensagemEmail,
@@ -422,6 +441,8 @@ export async function enviarAvisoDoReembolsoFalho(codigo: string, reembolsoId: s
     motivo: aviso.motivo,
     contestacao: aviso.contestacao,
     naoDizerOMotivo: aviso.naoDizerOMotivo,
+    // Pacote 28 (achado B4): o cliente já recebeu o e-mail do site sobre este reembolso ("a caminho" ou "confirmado")
+    clienteAvisado: emailDoReembolsoJaSaiu(r.historico, reembolsoId),
     linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
     site: siteDoEmail(),
   });
@@ -482,4 +503,203 @@ export async function enviarAvisoDoPagamentoRetido(codigo: string, paymentIntent
 /** Agenda o aviso à equipe do pagamento parado para depois da resposta (o webhook da Stripe responde na hora). */
 export function agendarAvisoDoPagamentoRetido(codigo: string, paymentIntentId: string): void {
   depoisDaResposta(`pagamento-retido-equipe ${codigo}`, () => enviarAvisoDoPagamentoRetido(codigo, paymentIntentId));
+}
+
+/* ------------------------------------------------------------------ */
+/* Pacote 28: o reembolso, o pedido cancelado e o aviso do pedido pago  */
+
+const idDoCampo = (v: string | { id: string } | null | undefined): string | null => (typeof v === 'string' ? v : (v?.id ?? null));
+
+/**
+ * O e-mail do reembolso ao cliente (Pacote 28), um por reembolso: relê o reembolso na Stripe (a verdade é ela) e o
+ * pedido, e a regra (planoDoEmailDoReembolso, ./regras-dos-avisos.ts) decide se sai e em que versão: "confirmado" (já
+ * concluído), "a caminho" (pendente, sem data) ou "concluído" (o que estava a caminho terminou, depois da linha do
+ * refund.updated). Não sai para o reembolso que falhou ou foi cancelado (a equipe resolve), para a devolução de um
+ * pagamento a mais, para o pedido contestado, nem para o reembolso de parte feito direto na Stripe num pedido de vários
+ * itens enquanto a equipe não disser de qual voucher foi. A marca no histórico (marcaDoEmailDoReembolso) e a chave de
+ * idempotência (`reembolso/<re_…>` ou `reembolso-concluido/<re_…>`) impedem o segundo e-mail do mesmo reembolso. Nunca
+ * muda o pedido, além da marca. Sem a chave do Resend, nada sai e nada é lido.
+ */
+export async function enviarEmailDoReembolso(codigo: string, reembolsoId: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): reembolso ${codigo}`);
+    return;
+  }
+  let lista = await vouchers(codigo);
+  let r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  let re: Awaited<ReturnType<ReturnType<typeof stripe>['refunds']['retrieve']>>;
+  try {
+    re = await stripe().refunds.retrieve(reembolsoId);
+  } catch (e) {
+    // a Stripe não respondeu (o cliente dela já tenta de novo duas vezes): o e-mail não sai, e a equipe fica sabendo
+    // pelo aviso no histórico (achado M1), que fecha sozinho se um envio seguinte deste reembolso sair
+    console.error(`[email] reembolso ${pedido}: a releitura do reembolso na Stripe falhou (${mensagemDeErro(e)})`);
+    await anotar(r.codigo, avisoDoEmailDoReembolsoQueNaoSaiu(reembolsoId, 'a Stripe não respondeu na hora de conferir o reembolso'));
+    return;
+  }
+  // achado B5: o reembolso que estava pendente e já terminou ganha a linha do concluído antes da regra decidir a versão
+  const concluido = linhaDoConcluidoQueFalta(
+    lista.map((v) => v.historico),
+    re,
+  );
+  if (concluido) {
+    await atualizarReserva(r.codigo, (x) => (x.historico.some((h) => h.evento === concluido) ? null : registrar(x, concluido))).catch((e) =>
+      console.error(`[email] reembolso ${pedido}: a linha do reembolso concluído não ficou no histórico (${mensagemDeErro(e)})`),
+    );
+    lista = await vouchers(codigo);
+    r = lista[0] ?? r;
+  }
+  const plano = planoDoEmailDoReembolso(r, lista, {
+    id: re.id,
+    amount: re.amount,
+    status: re.status,
+    referencia: re.metadata?.referencia,
+    paymentIntentId: idDoCampo(re.payment_intent),
+  });
+  if (!plano.sai) {
+    console.log(`[email] reembolso ${pedido}: não enviado (${plano.motivo})`);
+    return;
+  }
+  const idioma = r.idioma;
+  const taxa = idioma === 'pt' ? null : await cotacaoDolar().catch(() => null);
+  const alcance =
+    plano.alcance.tipo === 'voucher'
+      ? (() => {
+          const codigoDoVoucher = plano.alcance.voucher;
+          const v = lista.find((x) => x.codigo === codigoDoVoucher);
+          const nome = v ? itensDoEmail([v], idioma, false)[0]?.nome : undefined;
+          return { tipo: 'voucher' as const, voucher: nome ? `${codigoDoVoucher} (${nome})` : codigoDoVoucher };
+        })()
+      : plano.alcance;
+  const valem = lista.filter((v) => plano.aindaValem.includes(v.codigo));
+  const mensagem = emailReembolso({
+    idioma,
+    nome: r.cliente.nome,
+    codigo: pedido,
+    linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
+    // no pedido inteiro nada continua valendo; nos outros, os vouchers que seguem pagos, com os links
+    itens: plano.alcance.tipo === 'pedido' ? [] : itensDoEmail(valem, idioma, true),
+    site: siteDoEmail(),
+    versao: plano.versao,
+    valor: valorNoIdioma(plano.centavos, idioma, taxa),
+    forma: plano.forma,
+    alcance,
+  });
+  const tipo = plano.versao === 'concluido' ? 'reembolso-concluido' : 'reembolso';
+  const resultado = await enviarEmail({
+    tipo,
+    referencia: pedido,
+    para: r.cliente.email,
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `${tipo}/${re.id}`,
+  });
+  // a mesma chave já usada marca o "a caminho" (achado B3: versaoParaMarcar); o que não saiu vira aviso no painel (M1)
+  if (saiu(resultado)) await anotar(r.codigo, marcaDoEmailDoReembolso(versaoParaMarcar(plano.versao, resultado), re.id));
+  const motivo = motivoDoEnvioQueNaoSaiu(resultado);
+  if (motivo) await anotar(r.codigo, avisoDoEmailDoReembolsoQueNaoSaiu(re.id, motivo, plano.versao));
+}
+
+/** Agenda o e-mail do reembolso para depois da resposta (o webhook e o painel respondem na hora). */
+export function agendarEmailDoReembolso(codigo: string, reembolsoId: string): void {
+  depoisDaResposta(`reembolso ${codigo}`, () => enviarEmailDoReembolso(codigo, reembolsoId));
+}
+
+/**
+ * O e-mail "Pedido cancelado" ao cliente (Pacote 28), quando a equipe cancela no painel um pedido sem dinheiro a
+ * devolver (emailDoCancelamentoSai, ./regras-dos-avisos.ts): o código, os itens, "Nada foi cobrado" no pedido que nunca foi
+ * pago e o link da política de cancelamento, sem nenhuma opção de pedir estorno. Um por pedido (a marca e a chave
+ * `pedido-cancelado/<pedido>`). Os cancelamentos automáticos do site não mandam este e-mail.
+ */
+export async function enviarEmailDoCancelamento(codigo: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): pedido-cancelado ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const regra = emailDoCancelamentoSai(r);
+  if (!regra.sai) {
+    console.log(`[email] pedido-cancelado ${pedido}: não enviado (${regra.motivo})`);
+    return;
+  }
+  const idioma = r.idioma;
+  const mensagem = emailPedidoCancelado({
+    idioma,
+    nome: r.cliente.nome,
+    codigo: pedido,
+    linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
+    itens: itensDoEmail(lista, idioma, false),
+    site: siteDoEmail(),
+    nadaCobrado: regra.nadaCobrado,
+    linkPolitica: `${urlDoSite()}${rota(idioma, '/politica-de-cancelamento')}`,
+  });
+  const resultado = await enviarEmail({
+    tipo: 'pedido-cancelado',
+    referencia: pedido,
+    para: r.cliente.email,
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `pedido-cancelado/${pedido}`,
+  });
+  if (saiu(resultado)) await anotar(r.codigo, MARCA_DO_EMAIL_DO_CANCELAMENTO);
+  const motivo = motivoDoEnvioQueNaoSaiu(resultado);
+  if (motivo) await anotar(r.codigo, avisoDoEmailDoCancelamentoQueNaoSaiu(motivo));
+}
+
+/** Agenda o e-mail do pedido cancelado no painel para depois da resposta. */
+export function agendarEmailDoCancelamento(codigo: string): void {
+  depoisDaResposta(`pedido-cancelado ${codigo}`, () => enviarEmailDoCancelamento(codigo));
+}
+
+/**
+ * O aviso à equipe (EMAIL_RESPOSTA) do pedido que ficou pago (Pacote 28): pela Stripe (pedidoPago, também na reativação
+ * do pagamento parado), marcado como pago no painel, ou recuperado pelo agendamento do e-mail do pagamento que não saiu.
+ * O código, os itens com as datas, o total que entrou (recebidoDoPedido), a forma e o link do painel; nenhum dado do
+ * cartão nem do cliente. Um por pedido (a marca MARCA_DO_AVISO_DO_PEDIDO_PAGO e a chave `pedido-pago-equipe/<pedido>`),
+ * só com o pedido ainda pago na hora do envio. Sem a chave do Resend, não sai.
+ */
+export async function enviarAvisoDoPedidoPago(codigo: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): pedido-pago-equipe ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r || !avisoDoPedidoPagoSai(r)) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const metodo = r.pagamento.metodo;
+  const mensagem = emailAvisoDoPedidoPago({
+    codigo: pedido,
+    valor: formatarCifra(recebidoDoPedido(lista), 'pt-BR'),
+    ...(metodo === 'pix' || metodo === 'cartao' ? { forma: metodo } : {}),
+    origem: provedorDaReserva(r) === 'stripe' ? 'stripe' : 'painel',
+    primeiroServico: primeiroServico(lista),
+    itens: itensDoEmail(lista, 'pt', false),
+    linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
+    site: siteDoEmail(),
+  });
+  const resultado = await enviarEmail({
+    tipo: 'pedido-pago-equipe',
+    referencia: pedido,
+    para: responderPara(),
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `pedido-pago-equipe/${pedido}`,
+  });
+  if (saiu(resultado)) await anotar(r.codigo, MARCA_DO_AVISO_DO_PEDIDO_PAGO);
+  const motivo = motivoDoEnvioQueNaoSaiu(resultado);
+  if (motivo) await anotar(r.codigo, avisoDoAvisoDoPedidoPagoQueNaoSaiu(motivo));
+}
+
+/** Agenda o aviso à equipe do pedido pago para depois da resposta. */
+export function agendarAvisoDoPedidoPago(codigo: string): void {
+  depoisDaResposta(`pedido-pago-equipe ${codigo}`, () => enviarAvisoDoPedidoPago(codigo));
 }

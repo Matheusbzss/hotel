@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { formatarCifra } from '@/lib/cifra';
-import { agendarAvisoDoReembolsoFalho } from '@/lib/email/pedidos';
+import { agendarAvisoDoReembolsoFalho, agendarEmailDoReembolso } from '@/lib/email/pedidos';
+import { reembolsosParaAvisar } from '@/lib/email/regras-dos-avisos';
 import {
   aplicarSessao,
   concluirEventoStripe,
@@ -21,6 +22,7 @@ import {
   aplicarContestacao,
   avisosDeReembolsoSemVoucher,
   codigoDaMetadata,
+  efeitoDoReembolsoAtualizado,
   efeitoDoReembolsoDoSite,
   ehTipoTratado,
   eventoDoItemReembolsado,
@@ -28,6 +30,7 @@ import {
   idDe,
   itensParaMarcar,
   leituraDaContestacao,
+  linhasDosReembolsosPendentes,
   mudancaDoReembolso,
   pagamentoParaDevolver,
   pedidoSemPagamentoProprio,
@@ -138,6 +141,8 @@ async function processar(evento: Stripe.Event, alvo: AlvoDoEvento): Promise<Resu
       return cobrancaReembolsada(evento.data.object);
     case 'refund.failed':
       return reembolsoFalhou(evento.data.object);
+    case 'refund.updated':
+      return reembolsoAtualizado(evento.data.object);
     case 'charge.dispute.created':
     case 'charge.dispute.closed':
       return contestacao(evento.data.object);
@@ -314,6 +319,24 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
       return r;
     });
   }
+  // Pacote 28: o reembolso que a Stripe registrou e ainda não concluiu ganha a linha com o id dele (é por ela que o
+  // refund.updated sabe que estava a caminho), uma vez; nada mais muda no pedido
+  if (linhasDosReembolsosPendentes(alvo.historico, reembolsos.data).length) {
+    await atualizarReserva(alvo.codigo, (r) => {
+      const faltam = linhasDosReembolsosPendentes(r.historico, reembolsos.data);
+      if (!faltam.length) return null;
+      for (const linha of faltam) registrar(r, linha);
+      return r;
+    });
+  }
+  // e o e-mail ao cliente, depois da resposta, um por reembolso (a regra e o envio em src/lib/email/pedidos.ts): só os
+  // reembolsos em vigor criados nas últimas 72 horas (reembolsosParaAvisar)
+  for (const re of reembolsosParaAvisar(
+    reembolsos.data.map((x) => ({ id: x.id, status: x.status, created: x.created, referencia: x.metadata?.referencia })),
+    new Date(),
+  )) {
+    agendarEmailDoReembolso(codigo, re.id);
+  }
   return {
     codigo,
     resultado: plano.total ? 'reembolso total' : `reembolso parcial (${plano.itens.length} item(ns), ${cifra(plano.reembolsadoCentavos)})`,
@@ -365,6 +388,28 @@ async function reembolsoFalhou(reembolso: Stripe.Refund): Promise<Resultado> {
   agendarAvisoDoReembolsoFalho(codigo, atual.id);
   const aplicado = lido.efeito?.pedido ? ' (o aviso do reembolso não tinha chegado: aplicado ao pedido agora)' : '';
   return { codigo, resultado: `aviso de reembolso falho registrado${aplicado}` };
+}
+
+/**
+ * O reembolso mudou na Stripe (Pacote 28): relê o reembolso e aplica efeitoDoReembolsoAtualizado (eventos.ts). O
+ * reembolso pendente que terminou ganha a linha "Reembolso concluído na Stripe" e, depois da resposta, o e-mail ao
+ * cliente; o cancelado, só a linha. A falha continua com o refund.failed. Nada muda no status, no valor nem nos vouchers.
+ * A Stripe manda este aviso também quando só acrescenta a referência do banco a um reembolso já concluído: aí nada muda.
+ */
+async function reembolsoAtualizado(reembolso: Stripe.Refund): Promise<Resultado> {
+  const codigo = codigoDaMetadata(reembolso.metadata) ?? (await codigoDoPagamento(reembolso.payment_intent));
+  if (!codigo) return { codigo, resultado: 'reembolso sem o código do pedido' };
+  const alvo = await obterReservaDoPedido(codigo);
+  if (!alvo) return { codigo, resultado: 'pedido não encontrado' };
+  const [atual, vouchers] = await Promise.all([stripe().refunds.retrieve(reembolso.id), vouchersDoPedido(codigo)]);
+  const historicos = [alvo.historico, ...vouchers.map((v) => v.historico)];
+  const efeito = efeitoDoReembolsoAtualizado(historicos, atual, alvo.paymentIntentId);
+  const { linha } = efeito;
+  if (linha) {
+    await atualizarReserva(alvo.codigo, (r) => (r.historico.some((h) => h.evento === linha) ? null : registrar(r, linha)));
+  }
+  if (efeito.avisar) agendarEmailDoReembolso(codigo, atual.id);
+  return { codigo, resultado: efeito.resultado };
 }
 
 /**

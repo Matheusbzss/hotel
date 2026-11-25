@@ -4,7 +4,7 @@ import { mensagemDoErro } from '../erros.ts';
 import { listarPagosDesde, obterReservaDoPedido } from '../reservas';
 import { emailLigado } from './enviar';
 import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL } from './marcas';
-import { enviarEmailDoPedido } from './pedidos';
+import { enviarAvisoDoPedidoPago, enviarEmailDoPedido } from './pedidos';
 
 /** Quanto tempo uma rodada envia (a rota tem 60 s; sobra folga para responder). */
 const TEMPO_DA_RODADA_MS = 40_000;
@@ -54,6 +54,11 @@ export async function enviarEmailsPendentes(agora: Date = new Date()): Promise<R
       resumo.tentados++;
       try {
         await enviarEmailDoPedido('pagamento-aprovado', p.codigo);
+        // Pacote 28: o pedido sem o e-mail do pagamento também ficou sem o aviso à equipe (pedidoPago não rodou); um por
+        // pedido, pela marca no histórico. Uma falha nele não conta como falha do e-mail ao cliente
+        await enviarAvisoDoPedidoPago(p.codigo).catch((e) =>
+          console.error(`[emails-pendentes] ${p.codigo}: o aviso do pedido pago à equipe falhou (${mensagemDoErro(e)})`),
+        );
         // relido depois do envio: a linha do envio só entra quando o Resend aceitou o e-mail
         const depois = await obterReservaDoPedido(p.codigo);
         const linhas = depois?.historico.map((h) => h.evento) ?? [];

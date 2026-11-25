@@ -86,6 +86,52 @@ export interface TextosEmail {
     naoFoiVoce: string;
     itens: string;
   };
+  /**
+   * Pacote 28: o reembolso, um e-mail por reembolso. O prazo é o da página oficial da Stripe (docs.stripe.com/refunds,
+   * "Trace a refund": o cartão em cerca de 5 a 10 dias úteis, conforme o banco, e o estorno feito logo depois da compra
+   * que some da fatura; docs.stripe.com/payments/pix, "Refunds": o Pix volta para a conta de onde saiu, normalmente em
+   * poucos minutos, sem prazo máximo garantido). O reembolso ainda pendente não promete data.
+   */
+  reembolso: {
+    /** {codigo}: o e-mail do reembolso registrado (já concluído ou a caminho). */
+    assunto: string;
+    /** {codigo}: o e-mail do reembolso que estava a caminho e terminou. */
+    assuntoConcluido: string;
+    preCabecalho: string;
+    preCabecalhoACaminho: string;
+    preCabecalhoConcluido: string;
+    titulo: string;
+    tituloConcluido: string;
+    /** O pedido inteiro voltou (ou o pagamento de um pedido cancelado). */
+    pedidoInteiro: string;
+    /** {voucher}: o código e o nome do voucher que deixou de valer. */
+    voucher: string;
+    /** Parte do valor, sem voucher mudar. */
+    parte: string;
+    concluido: string;
+    prazoCartao: string;
+    prazoPix: string;
+    /** O reembolso ainda pendente na Stripe: a caminho, sem data. */
+    aCaminho: string;
+    /** O rótulo do valor, com a forma entre parênteses. */
+    valor: string;
+    /** O título dos vouchers que continuam valendo. */
+    aindaValem: string;
+  };
+  /** Pacote 28: o pedido cancelado pela equipe no painel, sem dinheiro a devolver (sem opção de pedir estorno). */
+  pedidoCancelado: {
+    assunto: string;
+    preCabecalho: string;
+    titulo: string;
+    texto: string;
+    /** O pedido que nunca foi pago. */
+    nadaCobrado: string;
+    /** O pedido pago (fora da Stripe) cancelado: os vouchers deixam de valer. */
+    semValer: string;
+    itens: string;
+    /** O link da política de cancelamento, no rodapé. */
+    politica: string;
+  };
   lembrete: {
     assunto1: string;
     preCabecalho1: string;
@@ -172,6 +218,36 @@ const PT: TextosEmail = {
     naoFoiVoce: 'Se não foi você que pediu a desistência, responda a este e-mail.',
     itens: 'O pedido',
   },
+  reembolso: {
+    assunto: 'Reembolso do pedido {codigo}',
+    assuntoConcluido: 'Reembolso concluído: pedido {codigo}',
+    preCabecalho: 'O valor volta pela mesma forma de pagamento.',
+    preCabecalhoACaminho: 'O reembolso foi pedido e está a caminho.',
+    preCabecalhoConcluido: 'O reembolso que estava a caminho foi concluído.',
+    titulo: 'Reembolso do seu pedido',
+    tituloConcluido: 'Reembolso concluído',
+    pedidoInteiro: 'O pedido foi cancelado, e o valor abaixo volta pela mesma forma de pagamento.',
+    voucher: 'O voucher {voucher} foi cancelado, e o valor dele volta pela mesma forma de pagamento.',
+    parte: 'Parte do valor do pedido volta pela mesma forma de pagamento.',
+    concluido: 'O reembolso que estava a caminho foi concluído.',
+    prazoCartao:
+      'No cartão, o valor aparece na fatura ou no extrato em cerca de 5 a 10 dias úteis, conforme o banco. Quando o reembolso sai pouco depois da compra, a cobrança pode só sumir da fatura, sem um crédito separado.',
+    prazoPix:
+      'No Pix, o valor volta para a conta de onde o pagamento saiu. Normalmente chega em poucos minutos, mas não há um prazo máximo garantido.',
+    aCaminho: 'O reembolso foi pedido, mas ainda não foi concluído. Ainda não há data para o valor aparecer.',
+    valor: 'Valor do reembolso',
+    aindaValem: 'O que continua valendo',
+  },
+  pedidoCancelado: {
+    assunto: 'Pedido cancelado: {codigo}',
+    preCabecalho: 'O seu pedido foi cancelado pela nossa equipe.',
+    titulo: 'Pedido cancelado',
+    texto: 'O seu pedido foi cancelado pela nossa equipe.',
+    nadaCobrado: 'Nada foi cobrado.',
+    semValer: 'Os vouchers deste pedido não valem mais.',
+    itens: 'O pedido',
+    politica: 'Ver a política de cancelamento',
+  },
   lembrete: {
     assunto1: 'Seu carrinho está guardado',
     preCabecalho1: 'Está tudo guardado, do jeito que você deixou.',
@@ -256,6 +332,36 @@ const EN: TextosEmail = {
       'What happens next: our team will reply by email within 1 business day. If you bought within the last 7 days and the service has not started, you get a full refund to the same payment method. Otherwise, the cancellation policy applies.',
     naoFoiVoce: 'If you did not ask to cancel this purchase, reply to this email.',
     itens: 'Your order',
+  },
+  reembolso: {
+    assunto: 'Refund for order {codigo}',
+    assuntoConcluido: 'Refund completed: order {codigo}',
+    preCabecalho: 'The amount goes back to the same payment method.',
+    preCabecalhoACaminho: 'The refund has been requested and is on its way.',
+    preCabecalhoConcluido: 'The refund that was on its way has been completed.',
+    titulo: 'Refund for your order',
+    tituloConcluido: 'Refund completed',
+    pedidoInteiro: 'Your order has been canceled, and the amount below goes back to the same payment method.',
+    voucher: 'The voucher {voucher} has been canceled, and its amount goes back to the same payment method.',
+    parte: 'Part of the order amount goes back to the same payment method.',
+    concluido: 'The refund that was on its way has been completed.',
+    prazoCartao:
+      'For cards, the amount appears on your statement in about 5 to 10 business days, depending on your bank. When the refund is made shortly after the purchase, the charge may simply disappear from your statement, with no separate credit.',
+    prazoPix:
+      'For Pix, the amount goes back to the account the payment came from. It usually arrives within a few minutes, but there is no guaranteed maximum time.',
+    aCaminho: 'The refund has been requested but is not completed yet. There is no date yet for the amount to appear.',
+    valor: 'Refund amount',
+    aindaValem: 'Still valid',
+  },
+  pedidoCancelado: {
+    assunto: 'Order canceled: {codigo}',
+    preCabecalho: 'Your order has been canceled by our team.',
+    titulo: 'Order canceled',
+    texto: 'Your order has been canceled by our team.',
+    nadaCobrado: 'Nothing was charged.',
+    semValer: 'The vouchers for this order are no longer valid.',
+    itens: 'Your order',
+    politica: 'See the cancellation policy',
   },
   lembrete: {
     assunto1: 'Your cart is saved',
@@ -342,6 +448,36 @@ const ES: TextosEmail = {
     naoFoiVoce: 'Si no fuiste tú quien pidió el desistimiento, escríbenos respondiendo este e-mail.',
     itens: 'Tu pedido',
   },
+  reembolso: {
+    assunto: 'Reembolso del pedido {codigo}',
+    assuntoConcluido: 'Reembolso completado: pedido {codigo}',
+    preCabecalho: 'El monto vuelve por el mismo medio de pago.',
+    preCabecalhoACaminho: 'El reembolso fue solicitado y está en camino.',
+    preCabecalhoConcluido: 'El reembolso que estaba en camino se completó.',
+    titulo: 'Reembolso de tu pedido',
+    tituloConcluido: 'Reembolso completado',
+    pedidoInteiro: 'El pedido fue cancelado, y el monto de abajo vuelve por el mismo medio de pago.',
+    voucher: 'El voucher {voucher} fue cancelado, y su monto vuelve por el mismo medio de pago.',
+    parte: 'Una parte del monto del pedido vuelve por el mismo medio de pago.',
+    concluido: 'El reembolso que estaba en camino se completó.',
+    prazoCartao:
+      'Con tarjeta, el monto aparece en el estado de cuenta de la tarjeta en unos 5 a 10 días hábiles, según el banco. Cuando el reembolso se hace poco después de la compra, el cargo puede simplemente desaparecer, sin un crédito aparte.',
+    prazoPix:
+      'Con Pix, el monto vuelve a la cuenta de la que salió el pago. Normalmente llega en pocos minutos, pero no hay un plazo máximo garantizado.',
+    aCaminho: 'El reembolso fue solicitado, pero todavía no se completó. Todavía no hay fecha para que el monto aparezca.',
+    valor: 'Monto del reembolso',
+    aindaValem: 'Lo que sigue vigente',
+  },
+  pedidoCancelado: {
+    assunto: 'Pedido cancelado: {codigo}',
+    preCabecalho: 'Tu pedido fue cancelado por nuestro equipo.',
+    titulo: 'Pedido cancelado',
+    texto: 'Tu pedido fue cancelado por nuestro equipo.',
+    nadaCobrado: 'No se cobró nada.',
+    semValer: 'Los vouchers de este pedido ya no son válidos.',
+    itens: 'Tu pedido',
+    politica: 'Ver la política de cancelación',
+  },
   lembrete: {
     assunto1: 'Tu carrito sigue guardado',
     preCabecalho1: 'Está todo guardado, tal como lo dejaste.',
@@ -399,6 +535,13 @@ const ES_AR: TextosEmail = {
       'Tu pedido de desistimiento de la compra llegó el {quando} (hora de Brasilia). Guardá este e-mail: es la confirmación de que lo recibimos.',
     naoFoiVoce: 'Si no fuiste vos quien pidió el desistimiento, escribinos respondiendo este e-mail.',
   },
+  reembolso: {
+    ...ES.reembolso,
+    // na Argentina, o "resumen de la tarjeta" (no neutro, el estado de cuenta)
+    prazoCartao:
+      'Con tarjeta, el monto aparece en el resumen de la tarjeta en unos 5 a 10 días hábiles, según el banco. Cuando el reembolso se hace poco después de la compra, el cargo puede simplemente desaparecer, sin un crédito aparte.',
+  },
+  pedidoCancelado: { ...ES.pedidoCancelado },
   lembrete: {
     ...ES.lembrete,
     jaReservou: 'Si ya hiciste la reserva, podés ignorar este e-mail.',

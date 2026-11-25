@@ -296,7 +296,8 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   TEXTOS_GUIA: 1,
   // Etapa 6: os e-mails automáticos e as páginas "Consultar mi pedido" e de sair da lista (as frases com verbo)
   // + 3 da revisão de 13/11: a confirmação da desistência (guardá, escribinos) e o "podés ignorar" do lembrete
-  email: 18,
+  // + 1 do Pacote 28 (25/11): o prazo do reembolso no cartão ("el resumen de la tarjeta"; no neutro, "el estado de cuenta")
+  email: 19,
   consulta: 10,
   // Etapa 7: as comodidades da rede ("hamaca paraguaya") e da lavanderia ("lavarropas")
   casas: 2,

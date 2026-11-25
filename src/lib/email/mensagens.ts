@@ -19,6 +19,10 @@ export type TipoEmail =
   | 'desistencia-equipe'
   | 'reembolso-falho-equipe'
   | 'pagamento-retido-equipe'
+  | 'reembolso'
+  | 'reembolso-concluido'
+  | 'pedido-cancelado'
+  | 'pedido-pago-equipe'
   | 'lembrete-1'
   | 'lembrete-2';
 
@@ -290,18 +294,28 @@ export function emailAvisoDoReembolsoFalho(d: {
   contestacao: boolean;
   /** O cartão dado como perdido ou roubado. */
   naoDizerOMotivo: boolean;
+  /**
+   * Pacote 28 (achado B4): o cliente já recebeu o e-mail do site sobre este reembolso ("a caminho" ou "confirmado") e
+   * não recebe outro agora: a equipe precisa avisá-lo de que o dinheiro não voltou.
+   */
+  clienteAvisado?: boolean;
   linkPainel: string;
   site: SiteDoEmail;
 }): MensagemEmail {
   const falhou = `A Stripe não conseguiu devolver ${d.valor} do pedido ${d.codigo} (motivo: ${d.motivo}).`;
+  const avisado = d.clienteAvisado
+    ? ['O cliente já recebeu o e-mail do site dizendo que este reembolso estava feito ou a caminho: avise-o de que o dinheiro não voltou.']
+    : [];
   const paragrafos = d.contestacao
     ? [
         falhou,
         'Não devolva por outro meio: o cliente abriu uma contestação no banco. Aceite ou responda a contestação no painel da Stripe.',
+        ...avisado,
         ...(d.naoDizerOMotivo ? ['Não diga o motivo ao cliente.'] : []),
       ]
     : [
         `${falhou} O cliente ainda não recebeu. Abra o pedido no painel, devolva por outro meio só para o titular, confirmando antes pelo e-mail ou WhatsApp do pedido, e registre a devolução no painel.`,
+        ...avisado,
         ...(d.naoDizerOMotivo ? ['Não diga o motivo ao cliente.'] : []),
       ];
   return mensagem({
@@ -340,6 +354,98 @@ export function emailAvisoDoPagamentoRetido(d: {
       'Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido (ele fica pago e o cliente recebe o e-mail com os vouchers). O cliente ainda não recebeu nenhum e-mail sobre este pagamento.',
     ],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
+    botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
+    rodape: { linhas: ['Aviso automático do site para a equipe.'] },
+    site: d.site,
+  });
+}
+
+/**
+ * (Pacote 28) O reembolso, um e-mail por reembolso que a Stripe registrou: o código do pedido, o que voltou (o pedido
+ * inteiro, um voucher ou parte do valor), o valor com a forma e o prazo da página oficial da Stripe (no cartão, cerca de
+ * 5 a 10 dias úteis; no Pix, normalmente poucos minutos). Três versões: "confirmado" (já concluído), "a caminho"
+ * (registrado e ainda pendente: sem data) e "concluído" (o que estava a caminho terminou). No reembolso de parte, os
+ * vouchers que continuam valendo, com os links. Sem dado do cartão.
+ */
+export function emailReembolso(
+  d: DadosDoPedido & {
+    versao: 'confirmado' | 'a-caminho' | 'concluido';
+    valor: ValorEmail;
+    forma: 'pix' | 'cartao';
+    /** O que voltou; no voucher, o código e o nome dele ("ON-AB2CD3 (Passeio de Escuna)"). */
+    alcance: { tipo: 'pedido' } | { tipo: 'voucher'; voucher: string } | { tipo: 'parte' };
+  },
+): MensagemEmail {
+  const T = textosEmail(d.idioma);
+  const R = T.reembolso;
+  const concluido = d.versao === 'concluido';
+  const prazo = d.versao === 'a-caminho' ? R.aCaminho : d.forma === 'pix' ? R.prazoPix : R.prazoCartao;
+  const oQue =
+    d.alcance.tipo === 'pedido' ? R.pedidoInteiro : d.alcance.tipo === 'voucher' ? fmt(R.voucher, { voucher: d.alcance.voucher }) : R.parte;
+  const forma = d.forma === 'pix' ? T.comum.formaPix : T.comum.formaCartao;
+  return mensagem({
+    ...basePedido(T, d),
+    assunto: fmt(concluido ? R.assuntoConcluido : R.assunto, { codigo: d.codigo }),
+    preCabecalho: concluido ? R.preCabecalhoConcluido : d.versao === 'a-caminho' ? R.preCabecalhoACaminho : R.preCabecalho,
+    titulo: concluido ? R.tituloConcluido : R.titulo,
+    paragrafos: concluido ? [R.concluido, prazo] : [oQue, prazo],
+    totais: [linhaTotal(`${R.valor} (${forma})`, d.valor)],
+    ...(d.itens.length ? { tituloItens: R.aindaValem, itens: itensDoPedido(T, d.itens) } : {}),
+    botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
+  });
+}
+
+/**
+ * (Pacote 28) O pedido cancelado pela equipe no painel, sem dinheiro a devolver: o código, os itens, "Nada foi cobrado"
+ * no pedido que nunca foi pago e o link da política de cancelamento no rodapé. Nenhuma opção de pedir estorno ou
+ * cancelamento (FASE-5, Etapa 2): nem botão, nem frase.
+ */
+export function emailPedidoCancelado(d: DadosDoPedido & { nadaCobrado: boolean; linkPolitica: string }): MensagemEmail {
+  const T = textosEmail(d.idioma);
+  const C = T.pedidoCancelado;
+  const base = basePedido(T, d);
+  return mensagem({
+    ...base,
+    assunto: fmt(C.assunto, { codigo: d.codigo }),
+    preCabecalho: C.preCabecalho,
+    titulo: C.titulo,
+    paragrafos: [C.texto, d.nadaCobrado ? C.nadaCobrado : C.semValer],
+    tituloItens: C.itens,
+    itens: itensDoPedido(T, d.itens),
+    botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
+    rodape: { ...base.rodape, link: { texto: C.politica, href: d.linkPolitica } },
+  });
+}
+
+/**
+ * (Pacote 28) O aviso à equipe (EMAIL_RESPOSTA, em português) do pedido que ficou pago, pela Stripe ou marcado no painel:
+ * o código, os itens com as datas, o total que entrou, a forma e o link do pedido no painel. Nenhum dado do cartão, nem o
+ * nome, o e-mail ou o telefone do cliente (estão no painel).
+ */
+export function emailAvisoDoPedidoPago(d: {
+  codigo: string;
+  /** O que entrou, já escrito ("R$ 270,00"). */
+  valor: string;
+  forma?: 'pix' | 'cartao';
+  /** Pela Stripe, ou marcado como pago no painel (o pedido do WhatsApp). */
+  origem: 'stripe' | 'painel';
+  primeiroServico: string;
+  itens: ItemDoPedido[];
+  linkPainel: string;
+  site: SiteDoEmail;
+}): MensagemEmail {
+  const forma = d.forma === 'pix' ? ' no Pix' : d.forma === 'cartao' ? ' no cartão' : '';
+  const origem = d.origem === 'stripe' ? 'pela Stripe' : 'marcado como pago no painel';
+  const pago = `O pedido ${d.codigo} foi pago: ${d.valor}${forma}, ${origem}.`;
+  return mensagem({
+    idioma: 'pt',
+    assunto: `Pedido pago: ${d.codigo} (${d.valor})`,
+    preCabecalho: pago,
+    titulo: 'Pedido pago',
+    paragrafos: [pago, `Primeiro serviço: ${d.primeiroServico}.`],
+    codigo: { rotulo: 'Pedido', valor: d.codigo },
+    tituloItens: 'Itens',
+    itens: d.itens.map((i) => ({ nome: i.nome, linhas: i.linhas })),
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
     rodape: { linhas: ['Aviso automático do site para a equipe.'] },
     site: d.site,

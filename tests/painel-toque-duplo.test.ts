@@ -179,13 +179,14 @@ test('a rota das ações manuais: a repetida volta antes de qualquer gravação,
   // a repetida e a gravação, a ação que o painel não oferece naquele status também devolve null (os testes da seção 1b)
   assert.match(
     MANUAIS,
-    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+foraDeHora = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+return null;\s+\}\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.evento\);\s+\}\);/,
+    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+virouCancelado = manual\.status === 'cancelado' && r\.status !== 'cancelado';\s+foraDeHora = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.evento\);\s+\}\);/,
   );
   // o aviso de compra e o e-mail só quando virou pago (a repetida já é pago: virouPago false), e a volta de sempre; a ação
-  // fora de hora volta antes dos dois, com o erro
+  // fora de hora volta antes dos dois, com o erro. Desde o Pacote 28, junto com o e-mail, o aviso do pedido pago à equipe,
+  // e o e-mail do pedido cancelado só quando virou cancelado (a repetida e a fora de hora não)
   assert.match(
     MANUAIS,
-    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+\}\s+return voltar\(\);\s+\}\s*$/,
+    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+agendarAvisoDoPedidoPago\(codigoDoPedido\);\s+\}\s+if \(virouCancelado && atualizada\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s*$/,
   );
   assert.equal(MANUAIS.match(/acaoManualRepetida\(/g)?.length, 1);
   assert.equal(MANUAIS.match(/registrar\(/g)?.length, 1);
@@ -504,7 +505,7 @@ test('no pedido da Stripe a regra dá só o "Cancelar" de sempre, e a rota conti
   // sessão, "reembolsado" só de onde a Stripe deixa), e a regra dos botões só entra fora da Stripe
   assert.match(
     MANUAIS,
-    /if \(daStripe\) \{\s+if \(manual\.status === 'pago'\) return voltar\('so-pelo-aviso'\);\s+if \(manual\.status === 'cancelado'\) \{\s+const r = await cancelarPedidoAberto\(codigoDoPedido, 'Cancelado no admin'\);\s+if \(r && r\.status !== 'cancelado'\) return voltar\('ja-pago'\);\s+return voltar\(\);\s+\}\s+if \(!podeMudar\(alvo\.status, manual\.status\)\) return voltar\('acao-nao-vale'\);\s+\}/,
+    /if \(daStripe\) \{\s+if \(manual\.status === 'pago'\) return voltar\('so-pelo-aviso'\);\s+if \(manual\.status === 'cancelado'\) \{\s+const r = await cancelarPedidoAberto\(codigoDoPedido, 'Cancelado no admin'\);\s+if \(r && r\.status !== 'cancelado'\) return voltar\('ja-pago'\);\s+if \(r\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s+if \(!podeMudar\(alvo\.status, manual\.status\)\) return voltar\('acao-nao-vale'\);\s+\}/,
   );
   assert.match(
     MANUAIS,
@@ -730,7 +731,7 @@ test('a rota do voucher da Stripe: a marca e a linha numa gravação só, com a 
   // conferência relida lá dentro, e só então a marca e a linha de sempre
   assert.match(
     daStripe,
-    /await atualizarReserva\(voucher, \(r\) => \{\s+if \(!voucherDaStripeAindaLiga\(r, id\)\) return null;\s+r\.statusItem = 'reembolsado';\s+return registrar\(r, linhaDoVoucherLigado\(id, voucher\)\);\s+\}\);\s+return voltar\(\);/,
+    /await atualizarReserva\(voucher, \(r\) => \{\s+if \(!voucherDaStripeAindaLiga\(r, id\)\) return null;\s+r\.statusItem = 'reembolsado';\s+return registrar\(r, linhaDoVoucherLigado\(id, voucher\)\);\s+\}\);\s+agendarEmailDoReembolso\(codigoDoPedido, id\);\s+return voltar\(\);/,
   );
   // nada de atualizar_item (sem trava, sempre grava a linha) nesta ação
   assert.doesNotMatch(daStripe, /atualizarItem\(/);

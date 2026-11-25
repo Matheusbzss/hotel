@@ -63,8 +63,9 @@ const SESSAO = {
   payment_intent: 'pi_3Teste1',
 };
 
-test('os nove eventos que o destino assina, e nada mais', () => {
-  assert.equal(TIPOS_TRATADOS.length, 9);
+test('os dez eventos que o destino assina, e nada mais (o refund.updated desde o Pacote 28)', () => {
+  assert.equal(TIPOS_TRATADOS.length, 10);
+  assert.equal(ehTipoTratado('refund.updated'), true);
   for (const t of TIPOS_TRATADOS) assert.equal(ehTipoTratado(t), true, t);
   assert.equal(ehTipoTratado('payment_intent.succeeded'), false);
   assert.equal(ehTipoTratado('charge.succeeded'), false);

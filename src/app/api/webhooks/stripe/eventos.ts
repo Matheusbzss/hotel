@@ -3,6 +3,13 @@ import type Stripe from 'stripe';
 import type { Json } from '../../../../lib/banco-tipos';
 import { formatarCifra } from '../../../../lib/cifra.ts';
 import { codigoValido } from '../../../../lib/codigo-reserva.ts';
+import {
+  linhaDoReembolsoCancelado,
+  linhaDoReembolsoConcluido,
+  linhaDoReembolsoPendente,
+  reembolsoConcluidoNoHistorico,
+  reembolsoFicouPendente,
+} from '../../../../lib/email/regras-dos-avisos.ts';
 import { podeAbrirSessao, podeMudar } from '../../../../lib/pagamento-stripe.ts';
 import { pedidoNuncaPago } from '../../../../lib/pedidos-painel.ts';
 import {
@@ -32,6 +39,9 @@ export const TIPOS_TRATADOS = [
   'payment_intent.payment_failed',
   'charge.refunded',
   'refund.failed',
+  // Pacote 28: o reembolso pendente que termina (succeeded) ou é cancelado. Entra no destino da Stripe depois de publicado;
+  // até lá nada muda. A falha continua sendo tratada pelo refund.failed
+  'refund.updated',
   'charge.dispute.created',
   'charge.dispute.closed',
 ] as const;
@@ -514,6 +524,77 @@ export function efeitoDoReembolsoDoSite(
     };
   }
   return efeito.pedido || efeito.voucher ? efeito : null;
+}
+
+/* ------------------------------------------------------------------ */
+/* O reembolso que muda depois (refund.updated, Pacote 28)              */
+
+/** O reembolso relido na Stripe, com o que o refund.updated usa. */
+type ReembolsoAtualizado = Pick<Stripe.Refund, 'id' | 'amount' | 'status'> & Partial<Pick<Stripe.Refund, 'payment_intent' | 'metadata'>>;
+
+/** O que o refund.updated faz: a linha do histórico (ou nada) e se agenda o e-mail do reembolso ao cliente. */
+export interface EfeitoDoReembolsoAtualizado {
+  linha?: string;
+  avisar: boolean;
+  resultado: string;
+}
+
+/**
+ * O refund.updated com o reembolso relido na Stripe (Pacote 28: o site fica sabendo quando um reembolso pendente
+ * termina). Não muda status, valor nem voucher: o reembolso pendente já contava desde o charge.refunded
+ * (reembolsoEmVigor). Só a linha do histórico, uma vez, e o e-mail ao cliente:
+ * - succeeded, de um reembolso que o pedido registrou como pendente (reembolsoFicouPendente, nos históricos de todos os
+ *   vouchers): a linha "Reembolso concluído na Stripe" e o e-mail (o "concluído", ou o único, se o "a caminho" não saiu);
+ *   já concluído no histórico, ou nunca pendente (o aviso que a Stripe manda depois, com a referência do banco), nada;
+ * - canceled: a linha "Reembolso cancelado na Stripe" (o dinheiro não voltou; nenhum e-mail ao cliente);
+ * - failed: nada aqui, o refund.failed de sempre trata (a linha e o aviso à equipe);
+ * - os outros (pending, requires_action): nada.
+ * O reembolso de outro pagamento (um pagamento a mais do pedido) não muda nada.
+ */
+export function efeitoDoReembolsoAtualizado(
+  historicos: readonly (readonly { evento: string }[])[],
+  reembolso: ReembolsoAtualizado,
+  paymentIntentDoPedido: string | undefined,
+): EfeitoDoReembolsoAtualizado {
+  const pagamento = idDe(reembolso.payment_intent);
+  if (paymentIntentDoPedido && pagamento && pagamento !== paymentIntentDoPedido) {
+    return { avisar: false, resultado: 'reembolso de outro pagamento: ignorado' };
+  }
+  if (reembolso.metadata?.referencia === REFERENCIA_DEVOLUCAO)
+    return { avisar: false, resultado: 'devolução de um pagamento a mais: ignorada' };
+  const todas = historicos.flat().map((h) => h.evento);
+  switch (reembolso.status) {
+    case 'succeeded': {
+      if (!reembolsoFicouPendente(historicos, reembolso.id)) return { avisar: false, resultado: 'reembolso que não ficou pendente: nada' };
+      if (reembolsoConcluidoNoHistorico(historicos, reembolso.id)) return { avisar: false, resultado: 'reembolso já concluído' };
+      return { linha: linhaDoReembolsoConcluido(reembolso.id, reembolso.amount), avisar: true, resultado: 'reembolso concluído' };
+    }
+    case 'canceled': {
+      const linha = linhaDoReembolsoCancelado(reembolso.id, reembolso.amount);
+      return todas.includes(linha)
+        ? { avisar: false, resultado: 'cancelamento já registrado' }
+        : { linha, avisar: false, resultado: 'reembolso cancelado' };
+    }
+    case 'failed':
+      return { avisar: false, resultado: 'falha: tratada pelo refund.failed' };
+    default:
+      return { avisar: false, resultado: `reembolso ${reembolso.status ?? 'sem status'}: nada` };
+  }
+}
+
+/**
+ * As linhas do reembolso ainda pendente que o charge.refunded grava (Pacote 28), uma por reembolso do pagamento do pedido
+ * em vigor e não concluído, que o histórico ainda não tem: é por elas que o refund.updated sabe que o reembolso estava a
+ * caminho. A devolução de um pagamento a mais fica de fora.
+ */
+export function linhasDosReembolsosPendentes(
+  historico: readonly { evento: string }[],
+  reembolsos: readonly Pick<Stripe.Refund, 'id' | 'amount' | 'status' | 'metadata'>[],
+): string[] {
+  return reembolsos
+    .filter((re) => reembolsoEmVigor(re.status) && re.status !== 'succeeded' && re.metadata?.referencia !== REFERENCIA_DEVOLUCAO)
+    .map((re) => linhaDoReembolsoPendente(re.id, re.amount))
+    .filter((linha) => !historico.some((h) => h.evento === linha));
 }
 
 /* ------------------------------------------------------------------ */

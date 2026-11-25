@@ -681,8 +681,10 @@ export async function pedidoPago(reserva: Reserva, dados: LeituraSessao): Promis
  * chave de idempotência do Resend). Sem RESEND_API_KEY, nada sai.
  */
 async function enviarConfirmacaoPorEmail(reserva: Reserva, _dados: LeituraSessao): Promise<void> {
-  const { agendarEmailDoPedido } = await import('./email/pedidos.ts');
+  const { agendarAvisoDoPedidoPago, agendarEmailDoPedido } = await import('./email/pedidos.ts');
   agendarEmailDoPedido('pagamento-aprovado', reserva.pedido?.codigo ?? reserva.codigo);
+  // Pacote 28: o aviso à equipe do pedido pago, um por pedido (src/lib/email/pedidos.ts)
+  agendarAvisoDoPedidoPago(reserva.pedido?.codigo ?? reserva.codigo);
 }
 
 /**

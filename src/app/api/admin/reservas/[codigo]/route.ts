@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
 import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
-import { agendarEmailDoPedido } from '@/lib/email/pedidos';
+import { agendarAvisoDoPedidoPago, agendarEmailDoCancelamento, agendarEmailDoPedido, agendarEmailDoReembolso } from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { interpretarSessao, pedidoPago, podeMudar, reativarPedidoRetido } from '@/lib/pagamento-stripe';
 import {
@@ -450,6 +450,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       r.statusItem = 'reembolsado';
       return registrar(r, linhaDoVoucherLigado(id, voucher));
     });
+    // Pacote 28: agora se sabe de qual voucher foi o reembolso feito direto na Stripe: o e-mail do reembolso ao cliente,
+    // depois da resposta, um por reembolso (o repetido não sai de novo: a marca e a chave de idempotência)
+    agendarEmailDoReembolso(codigoDoPedido, id);
     return voltar();
   }
 
@@ -458,6 +461,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     const id = String(form.get('reembolso') ?? '');
     if (!daStripe || alvo.status !== 'pago' || !semVoucherAberto(alvo, id)) return voltar('acao-nao-vale');
     await atualizarReserva(alvo.codigo, (r) => (semVoucherAberto(r, id) ? registrar(r, linhaDoReembolsoSemMudarVoucher(id)) : null));
+    // Pacote 28: anotado como desconto (nenhum voucher muda): o e-mail do reembolso de parte do valor, uma vez
+    agendarEmailDoReembolso(codigoDoPedido, id);
     return voltar();
   }
 
@@ -497,6 +502,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       const r = await cancelarPedidoAberto(codigoDoPedido, 'Cancelado no admin');
       // já pago: cancelar não devolve o dinheiro; o caminho é o reembolso
       if (r && r.status !== 'cancelado') return voltar('ja-pago');
+      // Pacote 28: o e-mail "Pedido cancelado" ao cliente, depois da resposta e uma vez por pedido. A regra
+      // (emailDoCancelamentoSai) confere na hora do envio que foi o painel que cancelou e que não há dinheiro a devolver
+      if (r) agendarEmailDoCancelamento(codigoDoPedido);
       return voltar();
     }
     // "reembolsado à mão" num pedido da Stripe continua sem botão no painel e só vale depois de pago (antes disso não há
@@ -511,10 +519,12 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   if (!daStripe && manual.status === 'reembolsado' && pedidoNuncaPago(alvo)) return voltar('acao-nao-vale');
 
   let virouPago = false;
+  let virouCancelado = false;
   // a ação que o painel não oferece no estado em que o pedido está: decidida a cada volta da trava, com o pedido relido
   let foraDeHora = false;
   const atualizada = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = manual.status === 'pago' && r.status !== 'pago';
+    virouCancelado = manual.status === 'cancelado' && r.status !== 'cancelado';
     foraDeHora = false;
     // o duplo toque, ou a aba antiga do painel: o pedido relido dentro da trava já está como a ação o deixaria (o status
     // e, quando ela diz a forma, a forma). Nada é gravado: nem a linha de novo, nem o aviso de compra, nem o e-mail
@@ -527,6 +537,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (!daStripe && !acaoManualOferecida(r, acao)) {
       foraDeHora = true;
       virouPago = false;
+      virouCancelado = false;
       return null;
     }
     r.status = manual.status;
@@ -542,6 +553,10 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     await avisarCompra(atualizada);
     // o e-mail do pagamento aprovado, com os vouchers (Etapa 6), depois da resposta; uma vez só por pedido
     agendarEmailDoPedido('pagamento-aprovado', codigoDoPedido);
+    // Pacote 28: o aviso à equipe do pedido pago, uma vez por pedido
+    agendarAvisoDoPedidoPago(codigoDoPedido);
   }
+  // Pacote 28: o pedido cancelado no painel (WhatsApp ou checkout antigo): o e-mail "Pedido cancelado", uma vez por pedido
+  if (virouCancelado && atualizada) agendarEmailDoCancelamento(codigoDoPedido);
   return voltar();
 }

@@ -1,6 +1,12 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
-import { AVISO_EMAIL_PAGO_SAINDO, MARCA_DO_EMAIL, marcaDoAvisoDeReembolsoFalho, marcaDoAvisoDoPagamentoRetido } from './email/marcas.ts';
+import {
+  AVISO_EMAIL_PAGO_SAINDO,
+  MARCA_DO_EMAIL,
+  avisoDoEnvioFechado,
+  marcaDoAvisoDeReembolsoFalho,
+  marcaDoAvisoDoPagamentoRetido,
+} from './email/marcas.ts';
 import { PIX_EXPIRADO, chaveDaRecusa, type ChaveRecusa } from './recusas.ts';
 import {
   avisoDeReembolsoFechado,
@@ -126,7 +132,9 @@ const contestacaoTerminaDepois = (historico: readonly { evento: string }[], indi
  *   na Stripe sem voucher, depois que a equipe diz de qual voucher foi ou que foi um desconto (avisoDeReembolsoFechado,
  *   src/lib/reembolsos-a-resolver.ts);
  * - o reembolso parado por uma contestação, depois que a contestação termina (ganha, perdida, evitada ou o alerta
- *   encerrado): é a mesma regra da faixa do topo (reembolsosParadosPelaContestacao, mais abaixo).
+ *   encerrado): é a mesma regra da faixa do topo (reembolsosParadosPelaContestacao, mais abaixo);
+ * - o e-mail novo do Pacote 28 que não saiu (o reembolso, o pedido cancelado, o aviso do pedido pago), depois que um envio
+ *   seguinte do mesmo e-mail sai (a marca dele vem depois do aviso).
  */
 export function avisoAberto(historico: readonly { evento: string }[], indice: number): boolean {
   const linha = historico[indice]?.evento ?? '';
@@ -144,6 +152,10 @@ export function avisoAberto(historico: readonly { evento: string }[], indice: nu
   const fechado = avisoDeReembolsoFechado(historico, indice);
   if (fechado !== null) return !fechado;
   if (PARADO_PELA_CONTESTACAO.test(linha)) return !contestacaoTerminaDepois(historico, indice);
+  // o e-mail novo do Pacote 28 que não saiu (o reembolso, o pedido cancelado, o pedido pago à equipe): aberto até a marca
+  // do mesmo e-mail aparecer depois dele (avisoDoEnvioFechado, src/lib/email/marcas.ts)
+  const envio = avisoDoEnvioFechado(historico, indice);
+  if (envio !== null) return !envio;
   if (!linha.startsWith(AVISO_EMAIL_PAGO_SAINDO)) return true;
   return !historico.slice(indice + 1).some((h) => h.evento.startsWith(MARCA_DO_EMAIL['pagamento-aprovado']));
 }

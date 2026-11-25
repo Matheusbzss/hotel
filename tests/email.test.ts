@@ -34,8 +34,10 @@ import {
   emailLembrete,
   emailLinkDoPedido,
   emailPagamentoAprovado,
+  emailPedidoCancelado,
   emailPedidoRecebido,
   emailPixVencido,
+  emailReembolso,
   nomeDaSaudacao,
   primeiroNome,
   type DadosDoPedido,
@@ -131,6 +133,32 @@ function todos(idioma: Idioma): [string, MensagemEmail][] {
     ],
     ['Pix vencido', emailPixVencido({ ...pedido(idioma), totais: { pix: VALOR, cartao: VALOR } })],
     ['link do pedido', emailLinkDoPedido(pedido(idioma, true))],
+    // Pacote 28: o reembolso (as três versões e os três alcances) e o pedido cancelado pela equipe
+    ...(['confirmado', 'a-caminho', 'concluido'] as const).map(
+      (versao) =>
+        [
+          `reembolso ${versao}`,
+          emailReembolso({ ...pedido(idioma), itens: [], versao, valor: VALOR, forma: 'cartao', alcance: { tipo: 'pedido' } }),
+        ] as [string, MensagemEmail],
+    ),
+    [
+      'reembolso de um voucher (Pix)',
+      emailReembolso({
+        ...pedido(idioma, true),
+        versao: 'confirmado',
+        valor: VALOR,
+        forma: 'pix',
+        alcance: { tipo: 'voucher', voucher: 'ON-AB2CD3 (Passeio de Escuna em Búzios)' },
+      }),
+    ],
+    [
+      'reembolso de parte',
+      emailReembolso({ ...pedido(idioma, true), versao: 'a-caminho', valor: VALOR, forma: 'pix', alcance: { tipo: 'parte' } }),
+    ],
+    [
+      'pedido cancelado',
+      emailPedidoCancelado({ ...pedido(idioma), nadaCobrado: true, linkPolitica: 'https://orlanativa.online/politica-de-cancelamento' }),
+    ],
     ...([1, 2] as const).map(
       (n) =>
         [

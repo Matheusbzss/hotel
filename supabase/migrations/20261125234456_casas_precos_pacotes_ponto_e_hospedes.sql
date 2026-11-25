@@ -6,10 +6,11 @@
 -- dados novos em src/lib/casa-detalhes.ts; o círculo em src/lib/circulo-casa.ts; o cadastro dos hóspedes em
 -- src/lib/hospedes.ts.
 --
--- NÃO APLICADA no banco ainda. Esta migração só ACRESCENTA: nenhuma coluna, tabela, trava ou função que já existe é
--- apagada, renomeada ou trocada. Nada aqui muda o que o cliente vê (nenhuma casa está no ar), e o código lê as colunas
--- novas como vazias enquanto elas não existem. O agendamento diário (/api/saude) chama apagar_hospedes_vencidos e,
--- enquanto ela não existir, só registra o aviso. Aplicar antes de cadastrar as casas (scripts/cadastrar-casas.ts).
+-- APLICADA no banco em 25/11/2026 (versão 20261125234456; o arquivo se chamava 20261113223000_...), com o dono
+-- presente, depois de um teste numa transação desfeita de propósito. Esta migração só ACRESCENTA: nenhuma coluna,
+-- tabela, trava ou função que já existe é apagada, renomeada ou trocada. Nada aqui muda o que o cliente vê (nenhuma
+-- casa está no ar), e o código lê as colunas novas como vazias enquanto elas não existem. O agendamento diário
+-- (/api/saude) chama apagar_hospedes_vencidos. Aplicada antes de cadastrar as casas (scripts/cadastrar-casas.ts).
 --
 -- Como nas migrações anteriores: só o servidor do site (service_role) lê e grava; RLS ligado sem políticas; as funções
 -- rodam com search_path vazio e execução concedida só ao service_role. Os grants das tabelas novas vêm dos "default

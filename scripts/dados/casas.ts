@@ -1,6 +1,6 @@
 /**
  * AS DUAS CASAS PRONTAS PARA CADASTRAR (Fase 4, Etapa 7, parte J), DESLIGADAS. Quem grava no banco é
- * scripts/cadastrar-casas.ts (depois da migração 20261113223000); quem copia as fotos é scripts/preparar-fotos-casas.ts.
+ * scripts/cadastrar-casas.ts (depois da migração 20261125234456); quem copia as fotos é scripts/preparar-fotos-casas.ts.
  *
  * De onde vem cada dado (nada inventado):
  * - material-recebido/FASE-4.md (Etapa 7, versão de 10/11) e os DADOS.md das duas casas (dono, 06 e 07/11);

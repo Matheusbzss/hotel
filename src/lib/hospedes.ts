@@ -69,7 +69,7 @@ export const STATUS_SEM_ESTADIA: readonly string[] = ['cancelado', 'reembolsado'
  * O cadastro de uma estadia já pode sair do banco hoje (AAAA-MM-DD, em Búzios)? Sim, 30 dias depois da saída, ou
  * logo que o item ou o pedido é cancelado ou devolvido: a finalidade (a portaria) acabou, e esperar 30 dias depois de
  * uma saída que não vai existir guardaria o documento de todos por quase um ano. É a regra da função do banco
- * apagar_hospedes_vencidos (migração 20261113223000), que é quem apaga de fato.
+ * apagar_hospedes_vencidos (migração 20261125234456), que é quem apaga de fato.
  */
 export function cadastroVencido(estadia: { saida: string; statusItem: string; statusPedido: string }, hoje: string): boolean {
   return (

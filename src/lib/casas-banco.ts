@@ -78,7 +78,7 @@ export const linhaDeBloqueioDoSite = (b: BloqueioDoSite, sessaoId: string): Tabl
 });
 
 /**
- * As estadias de um pedido → os argumentos da função do banco prender_datas_casas (migração 20261113223000). Ela trava
+ * As estadias de um pedido → os argumentos da função do banco prender_datas_casas (migração 20261125234456). Ela trava
  * as casas, confere TODOS os bloqueios de cada uma (reserva do site, bloqueio à mão e calendário de fora) e só então
  * grava as estadias, com a sessão de pagamento como referência; tudo ou nada. Devolve false, sem gravar nada, se alguma
  * noite já estiver ocupada. É o único caminho para prender as datas: bloquearCasasDoPedido (src/lib/pedido-carrinho.ts)

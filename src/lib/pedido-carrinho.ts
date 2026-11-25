@@ -116,7 +116,7 @@ export class DatasIndisponiveis extends Error {
 }
 
 /**
- * Reserva as datas das casas do pedido pela função do banco prender_datas_casas (migração 20261113223000), com a
+ * Reserva as datas das casas do pedido pela função do banco prender_datas_casas (migração 20261125234456), com a
  * sessão de pagamento como referência: é o ÚNICO caminho que grava uma estadia do site em casas_bloqueios. A função
  * trava as casas, confere TODOS os bloqueios de cada uma (reserva do site, bloqueio à mão e calendário de fora), e
  * não só os do site, como a trava antiga, e grava tudo ou nada. Se alguma noite já estiver ocupada, ela devolve false

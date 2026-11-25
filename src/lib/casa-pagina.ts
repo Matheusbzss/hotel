@@ -174,7 +174,7 @@ export function regrasDaPagina(c: { capacidade: number; detalhes: Pick<DetalhesC
 /* O mapa                                                              */
 
 /**
- * O centro PÚBLICO do círculo, das colunas casas.centro_lat e casas.centro_lng (migração 20261113223000). Antes da
+ * O centro PÚBLICO do círculo, das colunas casas.centro_lat e casas.centro_lng (migração 20261125234456). Antes da
  * migração, ou enquanto o dono não marca a casa, as colunas faltam ou vêm vazias: null, e a página esconde o mapa. O
  * ponto antigo (lat_aprox, digitado à mão) nunca serve: podia ser o ponto da própria casa.
  */

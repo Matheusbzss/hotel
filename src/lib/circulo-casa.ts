@@ -9,7 +9,7 @@
  *
  * Como o deslocamento máximo (350 m) é menor que o raio (500 m), a casa fica sempre dentro do círculo.
  *
- * A conta do centro é a mesma do gatilho casas_pontos_centro (supabase/migrations/20261113223000_...): o ponto de
+ * A conta do centro é a mesma do gatilho casas_pontos_centro (supabase/migrations/20261125234456_...): o ponto de
  * destino numa esfera, a partir de um ponto, uma direção (graus a partir do norte, no sentido do relógio) e uma
  * distância. tests/circulo-casa.test.ts confere a conta; tests/casas-privado.test.ts confere que a página nunca cita a
  * tabela do ponto nem a função que o lê.

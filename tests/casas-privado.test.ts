@@ -30,7 +30,7 @@ const CODIGO = arquivos('src').filter((a) => a !== 'src/lib/banco-tipos.ts');
 /** O código do painel: as páginas e rotas de /admin e os componentes e módulos dele. */
 const doPainel = (a: string) => /\/admin\//.test(a) || /painel/i.test(path.basename(a));
 
-const MIGRACAO = readFileSync(path.join('supabase', 'migrations', '20261113223000_casas_precos_pacotes_ponto_e_hospedes.sql'), 'utf8');
+const MIGRACAO = readFileSync(path.join('supabase', 'migrations', '20261125234456_casas_precos_pacotes_ponto_e_hospedes.sql'), 'utf8');
 
 test('o ponto exato da casa: nenhum código cita a tabela fechada, e só o painel cita a função que o lê', () => {
   assert.ok(CODIGO.length > 100, `poucos arquivos: ${CODIGO.length}`);

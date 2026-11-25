@@ -92,7 +92,7 @@ function paraOSite(c: CasaPainel, extras: ExtrasDoSite): CasaDoSite {
   return { ...casa, ...extras };
 }
 
-/** Antes da migração 20261113223000, a tabela dos pacotes não existe (o PostgREST responde PGRST205). */
+/** Antes da migração 20261125234456, a tabela dos pacotes não existe (o PostgREST responde PGRST205). */
 const semATabela = (e: { code?: string }) => e.code === 'PGRST205' || e.code === '42P01';
 
 /**
@@ -120,7 +120,7 @@ function extrasDoArquivo(c: CasaPainel): ExtrasDoSite {
 const casasDoSite = unstable_cache(
   async (): Promise<CasaDoSite[]> => {
     if (!usarBanco()) return (await dosArquivos()).filter((c) => c.ativo).map((c) => paraOSite(c, extrasDoArquivo(c)));
-    // com "*", as colunas da migração 20261113223000 vêm quando existem; antes dela, os detalhes ficam vazios
+    // com "*", as colunas da migração 20261125234456 vêm quando existem; antes dela, os detalhes ficam vazios
     const { data, error } = await supabase().from('casas').select(COMPLETA).eq('ativo', true).order('criado_em');
     if (error) throw erroDoBanco(error);
     const linhas = data as unknown as LinhaCompleta[];

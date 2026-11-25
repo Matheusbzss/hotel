@@ -1,5 +1,5 @@
 // Cadastra as casas de scripts/dados/casas.ts no banco (Fase 4, Etapa 7, parte J), SEMPRE DESLIGADAS (ativo = false):
-// a casa, os pacotes de feriado e os bloqueios iniciais. Precisa da migração 20261113223000 já aplicada e das fotos já
+// a casa, os pacotes de feriado e os bloqueios iniciais. Precisa da migração 20261125234456 já aplicada e das fotos já
 // copiadas (scripts/preparar-fotos-casas.ts).
 //
 // Sem opção, só CONFERE os dados e mostra o que seria gravado: nada muda no banco. Com --gravar, grava as casas que
@@ -146,7 +146,7 @@ for (const c of CASAS_PARA_CADASTRAR) {
   }
   const { data: casa, error } = await db.from('casas').insert(linhaDaCasa(c)).select('id').single();
   if (error) {
-    const dica = /column|coluna/i.test(error.message) ? ' A migração 20261113223000 já foi aplicada?' : '';
+    const dica = /column|coluna/i.test(error.message) ? ' A migração 20261125234456 já foi aplicada?' : '';
     throw new Error(`${c.slug}: ${error.message}.${dica}`);
   }
   await gravarPacotesEBloqueios(c, casa.id, c.pacotes, c.bloqueios);

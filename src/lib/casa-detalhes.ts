@@ -17,7 +17,7 @@ import { pacotesSobrepostos, type Pacote, type PeriodoDiaria, type TabelaEstadia
 import { somarDias } from './validacao.ts';
 
 /**
- * OS DETALHES NOVOS DE CADA CASA (Fase 4, Etapa 7, migração 20261113223000): quartos com camas, comodidades da lista
+ * OS DETALHES NOVOS DE CADA CASA (Fase 4, Etapa 7, migração 20261125234456): quartos com camas, comodidades da lista
  * fixa (src/data/comodidades.ts) com a marca "veio da foto", destaques, regras próprias, texto do bairro, lavabos,
  * diária de fim de semana e pacotes de datas fixas. Aqui ficam a forma de cada dado (conferida com zod, a mesma para
  * o painel e para o script de cadastro) e a leitura das colunas do banco, sem tocar no banco: assim dá para testar

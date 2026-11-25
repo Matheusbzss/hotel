@@ -51,7 +51,7 @@ export interface CasaPainel extends Casa {
 
 /**
  * O que a página do site usa: nada do calendário do Airbnb. Com os detalhes da Etapa 7 (vazios antes da migração
- * 20261113223000), os pacotes de datas fixas e o centro PÚBLICO do círculo do mapa (deslocado do ponto da casa, que
+ * 20261125234456), os pacotes de datas fixas e o centro PÚBLICO do círculo do mapa (deslocado do ponto da casa, que
  * fica só no banco): o centro só é lido no servidor, para recortar a foto de satélite; nunca vai para a página.
  */
 export type CasaDoSite = Casa & {

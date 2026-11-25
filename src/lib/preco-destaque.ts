@@ -26,16 +26,27 @@ export function formaPadrao(formas: readonly FormaPagamento[], idioma: string, a
 }
 
 /**
+ * A forma que a tela de pagar de novo (PagarPedido, src/components/pagamento/CheckoutEmbutido.tsx) traz marcada: depois
+ * de uma recusa do cartão, o Pix, se ainda der tempo; senão a de formaPadrao (a do pedido, se ainda vale).
+ */
+export const formaMarcadaAoPagarDeNovo = (
+  formas: readonly FormaPagamento[],
+  idioma: string,
+  formaAtual?: FormaPagamento,
+  cartaoRecusado = false,
+): FormaPagamento | null => formaPadrao(formas, idioma, cartaoRecusado && formas.includes('pix') ? 'pix' : formaAtual);
+
+/**
  * A forma cujo total vem primeiro nas páginas do pedido e da reserva enquanto o pagamento está em aberto (na faixa da
  * página do pedido, o número grande). Em português, o Pix, como sempre. Em espanhol e inglês (revisão do Pacote 29): no
- * pagamento online em aberto, a forma que a tela de pagar já traz marcada (formaPadrao), e o cartão fora dele (o pedido
- * do WhatsApp). O cliente que vem do checkout com o cartão em destaque vê na página seguinte o mesmo número, e o do botão
- * "Pagar" da mesma página.
+ * pagamento online em aberto, a mesma forma que a tela de pagar já traz marcada (formaMarcadaAoPagarDeNovo, também
+ * depois de um cartão recusado), e o cartão fora dele (o pedido do WhatsApp). O cliente que vem do checkout com o cartão
+ * em destaque vê na página seguinte o mesmo número, e o do botão "Pagar" da mesma página.
  */
 export function formaEmDestaque(
   idioma: string,
-  online?: { formas: readonly FormaPagamento[]; formaAtual?: FormaPagamento } | null,
+  online?: { formas: readonly FormaPagamento[]; formaAtual?: FormaPagamento; cartaoRecusado?: boolean } | null,
 ): FormaPagamento {
   if (!cartaoEmDestaque(idioma)) return 'pix';
-  return (online ? formaPadrao(online.formas, idioma, online.formaAtual) : null) ?? 'cartao';
+  return (online ? formaMarcadaAoPagarDeNovo(online.formas, idioma, online.formaAtual, online.cartaoRecusado) : null) ?? 'cartao';
 }

@@ -151,7 +151,7 @@ export function StatusReserva({
   // em aberto: os dois valores. Em português, o do Pix (com desconto) e depois o do cartão, como sempre; em espanhol e
   // inglês, primeiro o da forma que a tela de pagar traz marcada, e o do cartão fora do pagamento online, com o Pix depois
   // dizendo o desconto ("con Pix (−10%)"): o mesmo número do checkout (formaEmDestaque, revisão do Pacote 29)
-  const primeiraForma = formaEmDestaque(idioma, online ? pagamento : null);
+  const primeiraForma = formaEmDestaque(idioma, online && pagamento ? { ...pagamento, cartaoRecusado: Boolean(r.recusa) } : null);
   const pixDepois = primeiraForma !== 'pix';
   const rotulos = {
     pix: pixDepois ? rotuloPixComDesconto(textos.noPixComDesconto ?? textos.noPix) : textos.noPix,

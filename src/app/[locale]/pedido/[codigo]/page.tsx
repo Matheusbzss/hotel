@@ -183,7 +183,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // a forma cujo total vem primeiro (o grande da faixa): em português, o Pix, como sempre; em espanhol e inglês, a que a
   // tela de pagar traz marcada, e o cartão no pedido do WhatsApp (formaEmDestaque, revisão do Pacote 29). O Pix que vem
   // depois diz o desconto ("con Pix (−10%)"), como no checkout e no carrinho
-  const primeiraForma = formaEmDestaque(locale, pagamento);
+  const primeiraForma = formaEmDestaque(locale, pagamento && { ...pagamento, cartaoRecusado: Boolean(itens[0]?.recusa) });
   const pixDepois = primeiraForma !== 'pix';
   const rotulo = {
     pix: pixDepois ? rotuloPixComDesconto(d.preco.noPixComDesconto) : d.preco.noPix,

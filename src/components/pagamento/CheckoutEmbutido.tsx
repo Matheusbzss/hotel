@@ -24,6 +24,7 @@ import {
   type NoLugarDaOfertaDoPix,
 } from '@/lib/espera-do-pagamento';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
+import { formaMarcadaAoPagarDeNovo } from '@/lib/preco-destaque';
 import { escalaDoQuadro, LARGURA_MINIMA_STRIPE } from '@/lib/quadro-stripe';
 import { mostrarDicaInternacional, type ChaveRecusa } from '@/lib/recusas';
 import type { StatusReserva } from '@/lib/reservas';
@@ -571,9 +572,10 @@ export function PagarPedido({
   const [recusa, setRecusa] = useState(recusaInicial);
   // vencido, ou com o cartão recusado: já dá para escolher a forma; pendente sem recusa: o pagamento pode estar a caminho
   const [etapa, setEtapa] = useState<EtapaDePagar>(status === 'expirado' || recusaInicial ? 'escolher' : 'confirmando');
-  // depois de uma recusa do cartão, o Pix já vem marcado (se ainda der tempo)
+  // depois de uma recusa do cartão, o Pix já vem marcado (se ainda der tempo). A mesma regra decide qual total vem primeiro
+  // na faixa das páginas do pedido e da reserva (formaEmDestaque, src/lib/preco-destaque.ts)
   const [forma, setForma] = useState<FormaPagamento | null>(() =>
-    formaPadrao(formas, idioma, recusaInicial && formas.includes('pix') ? 'pix' : formaAtual),
+    formaMarcadaAoPagarDeNovo(formas, idioma, formaAtual, Boolean(recusaInicial)),
   );
   const [segredo, setSegredo] = useState('');
   const [criando, setCriando] = useState(false);

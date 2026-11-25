@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sessoesDoCancelamento } from '../src/app/api/pedido/pedido-stripe.ts';
 import { partesDoTotal } from '../src/lib/partes-do-total.ts';
-import { formaEmDestaque, formaPadrao } from '../src/lib/preco-destaque.ts';
+import { formaEmDestaque, formaMarcadaAoPagarDeNovo, formaPadrao } from '../src/lib/preco-destaque.ts';
 
 // Segunda revisão do Pacote 29 (25/11): o preço do cartão em destaque também nas páginas do pedido e da reserva e na linha
 // de baixo do checkout, e o cancelamento que grava antes de fechar a sessão da Stripe.
@@ -60,20 +60,48 @@ test('o total que vem primeiro nas páginas do pedido e da reserva: o Pix em por
     for (const formas of [['pix', 'cartao'], ['pix'], ['cartao'], []] as const) {
       for (const formaAtual of [undefined, 'pix', 'cartao'] as const) {
         assert.equal(formaEmDestaque(idioma, { formas, formaAtual }), formaPadrao(formas, idioma, formaAtual) ?? 'cartao', idioma);
+        // e sempre a mesma que a tela de pagar de novo traz marcada, com ou sem o cartão recusado
+        for (const cartaoRecusado of [false, true]) {
+          assert.equal(
+            formaEmDestaque(idioma, { formas, formaAtual, cartaoRecusado }),
+            formaMarcadaAoPagarDeNovo(formas, idioma, formaAtual, cartaoRecusado) ?? 'cartao',
+            `${idioma} ${formas.join('+')} ${formaAtual} ${cartaoRecusado}`,
+          );
+        }
       }
     }
+    // o cartão recusado: a tela de pagar de novo marca o Pix (se ainda der tempo), e a faixa põe o Pix primeiro
+    assert.equal(formaEmDestaque(idioma, { formas: ['pix', 'cartao'], formaAtual: 'cartao', cartaoRecusado: true }), 'pix', idioma);
+    assert.equal(formaEmDestaque(idioma, { formas: ['cartao'], formaAtual: 'cartao', cartaoRecusado: true }), 'cartao', idioma);
   }
+  // em português, o Pix primeiro também depois do cartão recusado, como sempre
+  assert.equal(formaEmDestaque('pt', { formas: ['cartao'], formaAtual: 'cartao', cartaoRecusado: true }), 'pix');
+});
+
+test('a forma marcada na tela de pagar de novo: o Pix depois do cartão recusado, se ainda der tempo', () => {
+  assert.equal(formaMarcadaAoPagarDeNovo(['pix', 'cartao'], 'es', 'cartao', true), 'pix');
+  assert.equal(formaMarcadaAoPagarDeNovo(['pix', 'cartao'], 'pt', 'cartao', true), 'pix');
+  assert.equal(formaMarcadaAoPagarDeNovo(['cartao'], 'es', 'cartao', true), 'cartao');
+  assert.equal(formaMarcadaAoPagarDeNovo(['pix', 'cartao'], 'es', 'cartao', false), 'cartao');
+  assert.equal(formaMarcadaAoPagarDeNovo(['pix', 'cartao'], 'es', undefined), 'cartao');
+  assert.equal(formaMarcadaAoPagarDeNovo(['pix', 'cartao'], 'pt', undefined), 'pix');
+  assert.equal(formaMarcadaAoPagarDeNovo([], 'es', 'pix', true), null);
+  // a tela de pagar usa a mesma função (a regra mora num lugar só)
+  assert.match(
+    ler('src/components/pagamento/CheckoutEmbutido.tsx'),
+    /useState<FormaPagamento \| null>\(\(\) =>\s+formaMarcadaAoPagarDeNovo\(formas, idioma, formaAtual, Boolean\(recusaInicial\)\),\s+\);/,
+  );
 });
 
 test('as páginas do pedido e da reserva e a linha de baixo do checkout seguem a regra (só leitura do código)', () => {
   const pedido = ler('src/app/[locale]/pedido/[codigo]/page.tsx');
-  assert.match(pedido, /const primeiraForma = formaEmDestaque\(locale, pagamento\);/);
+  assert.match(pedido, /const primeiraForma = formaEmDestaque\(locale, pagamento && \{ \.\.\.pagamento, cartaoRecusado: Boolean\(itens\[0\]\?\.recusa\) \}\);/);
   assert.match(pedido, /pix: pixDepois \? rotuloPixComDesconto\(d\.preco\.noPixComDesconto\) : d\.preco\.noPix,/);
   assert.match(pedido, /partesDoTotal\(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma\)/);
   // a mensagem do WhatsApp na mesma ordem da página
   assert.match(pedido, /const total = emAberto \? partesDoTotal\(pedido\.totalCentavos, noPix, undefined, primeiraForma\)\.map\(valor\)\.join\(' · '\) : brl\(fechado\);/);
   const reserva = ler('src/components/StatusReserva.tsx');
-  assert.match(reserva, /const primeiraForma = formaEmDestaque\(idioma, online \? pagamento : null\);/);
+  assert.match(reserva, /const primeiraForma = formaEmDestaque\(idioma, online && pagamento \? \{ \.\.\.pagamento, cartaoRecusado: Boolean\(r\.recusa\) \} : null\);/);
   assert.match(reserva, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa, primeiraForma\)/);
   assert.match(reserva, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, undefined, primeiraForma\)/);
   assert.match(ler('src/app/[locale]/reserva/[codigo]/page.tsx'), /noPixComDesconto: d\.preco\.noPixComDesconto,/);

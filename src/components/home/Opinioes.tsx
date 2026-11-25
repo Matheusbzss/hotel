@@ -4,7 +4,7 @@ import { obterPasseio } from '@/data/passeios';
 import type { Dicionario } from '@/i18n';
 import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import { idiomaDeConteudo, texto } from '@/i18n/conteudo';
-import { NOME_DA_ORIGEM, fotoDoCartao, iniciais, type Avaliacao, type Origem } from '@/lib/avaliacao';
+import { fotoDoCartao, iniciais, linkMostravel, type Avaliacao } from '@/lib/avaliacao';
 import { PONTO_PRESO } from '@/lib/ponto';
 import { FaixaFoto, TITULO_NA_FOTO } from './BlocosHome';
 import { TextoOpiniao } from './TextoOpiniao';
@@ -19,11 +19,10 @@ const TAMANHO_FOTO = '(max-width: 767px) 340vw, 100vw';
 
 const ESTRELA = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9L12 2.6z';
 
-/** A nota da agência (notaDaAgencia e origemDaNota, em src/lib/avaliacao.ts). */
+/** A nota da agência (notaDaAgencia, em src/lib/avaliacao.ts): só a nota e a contagem, nunca o nome de um site. */
 export interface NotaDaAgencia {
   media: number;
   total: number;
-  origem?: Origem;
 }
 
 /** A nota em cinco estrelas; para o leitor de tela, "Nota 5 de 5". */
@@ -70,7 +69,6 @@ export function Opinioes({ itens, nota, idioma, d }: { itens: Avaliacao[]; nota:
   const mes = new Intl.DateTimeFormat(intl, { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const media = nota.media.toLocaleString(intl, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const contagem = nota.total === 1 ? d.passeio.opinioesContagemUma : fmt(d.passeio.opinioesContagem, { n: nota.total });
-  const site = nota.origem && NOME_DA_ORIGEM[nota.origem];
   const sobre = (a: Avaliacao) => (a.sobre === 'destino' ? [O.sobreDestino, a.lugar].filter(Boolean).join(PONTO_PRESO) : O.sobreAgencia);
   return (
     <FaixaFoto src={FOTO} alt={altDaFoto(FOTO, idioma)} posicao="28% 50%" veu="cima" sizes={TAMANHO_FOTO} aria-labelledby="opinioes-titulo">
@@ -91,7 +89,7 @@ export function Opinioes({ itens, nota, idioma, d }: { itens: Avaliacao[]; nota:
               </span>
               <span className="text-small">
                 {PONTO_PRESO}
-                {site ? fmt(O.naOrigem, { contagem, origem: site }) : contagem}
+                {contagem}
               </span>
             </span>
           </p>
@@ -124,7 +122,8 @@ export function Opinioes({ itens, nota, idioma, d }: { itens: Avaliacao[]; nota:
                   {[passeio && texto(passeio.nome, idioma), mes.format(new Date(`${a.data}T12:00:00Z`))].filter(Boolean).join(PONTO_PRESO)}
                 </p>
                 {a.idioma && a.idioma !== idiomaDeConteudo(idioma) && <p className="text-small">{O.original[a.idioma]}</p>}
-                {a.origemUrl && (
+                {/* o link da avaliação nunca leva ao Tripadvisor (Pacote 27): nada que o cliente vê cita esse site */}
+                {linkMostravel(a) && (
                   <a href={a.origemUrl} target="_blank" rel="noopener noreferrer nofollow" className="link mt-2 self-start text-small">
                     {O.ver[a.origem]}
                   </a>

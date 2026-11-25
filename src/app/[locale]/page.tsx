@@ -17,7 +17,7 @@ import { TUTORIAL_ATIVO, telaTutorial } from '@/data/tutorial';
 import { dicionario } from '@/i18n';
 import { fmt, isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
-import { avaliacoesDoSite, notaDaAgencia, opinioesDoSite, origemDaNota } from '@/lib/avaliacao';
+import { avaliacoesDoSite, notaDaAgencia, opinioesDoSite } from '@/lib/avaliacao';
 import { caixaMapa, entornoMapa, pinosMapa, praiasMapa } from '@/lib/mapa';
 import { comPromessasOnline } from '@/lib/promessas-online';
 import { alternates, openGraphDaPagina, urlDoSite } from '@/lib/site';
@@ -55,7 +55,7 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
   const publicadas = await avaliacoesDoSite().catch(() => []);
   const opinioes = opinioesDoSite(publicadas, locale);
   // a nota em cima das opiniões conta todas as publicadas da agência, não só as que aparecem na seção
-  const nota = { ...notaDaAgencia(publicadas), origem: origemDaNota(publicadas) };
+  const nota = notaDaAgencia(publicadas);
   const quantos = (n: number) => (n === 1 ? H.destinosUm : fmt(H.destinosQtd, { n }));
   const daCidade = (c: Cidade) => passeios.filter((p) => p.cidade === c);
   const cidades = (Object.keys(CIDADES) as Cidade[])

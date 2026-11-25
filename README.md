@@ -47,6 +47,19 @@ fotos: ['/fotos/buzios/escuna-no-mar.jpg', '/fotos/buzios/escuna-proa.jpg'],
 
 A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next.js otimiza tudo (AVIF/WebP, tamanhos certos para o celular). Enquanto um passeio não tem fotos, o site mostra uma capa desenhada (sol, mar e o nome do passeio nas cores da cidade). Use fotos com pelo menos 1.200 px de largura.
 
+Na galeria do topo do passeio (e no trilho de fotos da casa, no celular), só a primeira foto baixa quando a página abre: as outras entram depois que ela termina de carregar, no primeiro toque ou deslize, ou em 4 segundos (`src/lib/galeria.ts`). Assim a foto principal não disputa a conexão do celular com as vizinhas. As fotos dos veículos do transfer só baixam quando chegam perto da tela (`.adiar`). Das fontes, só a do título (Barlow Condensed) é pré-carregada.
+
+### Opiniões
+
+As avaliações publicadas no painel aparecem na inicial, no cartão de opiniões de cada passeio e, desde o Pacote 27, numa etiqueta no topo do passeio ("★ 5,0 · 5 opiniões", que leva ao cartão). A nota só aparece com pelo menos 3 publicadas e com nota da agência (`notaVisivel`, `src/lib/avaliacao.ts`). Nada que o cliente vê cita o site de onde vieram (decisão do dono de 25/11/2026: sem "do Tripadvisor"); a origem fica só no painel.
+
+### Links para anúncios
+
+- Passeio: o endereço da página do passeio no idioma do anúncio (`/es-ar/paseos/<passeio>` para a Argentina, `/es/paseos/<passeio>` para o Chile).
+- Lista por cidade: `/es-ar/paseos?cidade=buzios`.
+- Transfer com o trajeto já escolhido e os preços à vista: `/es-ar/traslado?saida=galeao&destino=buzios` (`?origem=` também vale para a saída). Os nomes são os da lista do transfer (`galeao`, `santos-dumont`, `aeroporto-cabo-frio`, `rio-de-janeiro`, `buzios`, `cabo-frio`, `arraial-do-cabo`, `outra-cidade`); nome que não existe é ignorado (`trajetoDoLink`, `src/data/transfer.ts`). Saindo de um aeroporto, o cartão já abre em ida e volta (o preço dobra); se o anúncio mostrar o preço só da ida, acrescente `&volta=nao`: `/es-ar/traslado?saida=galeao&destino=buzios&volta=nao`.
+- As etiquetas `utm_…` e o `gclid` podem ir junto: não mudam a página.
+
 ## Casas de temporada
 
 Área separada em `/casas-de-temporada`, **desligada** (`CASAS_ATIVO = false` em `src/data/casas.ts`): mostra "Em breve", um convite para proprietários, fica fora do menu, do sitemap e do Google. Para ativar, cadastre as casas na lista `CASAS` (há um exemplo comentado no arquivo) e mude `CASAS_ATIVO` para `true`. A consulta de datas é sempre por e-mail.
@@ -68,10 +81,13 @@ Veja `.env.example`. Resumo:
 | `EMAIL_REMETENTE`                      | Quem envia os e-mails (padrão `Orla Nativa <reservas@orlanativa.online>`) |
 | `EMAIL_RESPOSTA`                       | Para onde vai a resposta do cliente (padrão, o e-mail da empresa)         |
 | `NEXT_PUBLIC_META_PIXEL_ID`            | ID do Pixel da Meta                                                       |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID`            | ID da tag do Google Ads (`AW-…`)                                          |
 | `BLOB_READ_WRITE_TOKEN`                | Blob Store com as reservas antigas (criada pela Vercel)                   |
 | `NEXT_PUBLIC_SITE_URL`                 | Endereço oficial (sitemap, prévias, link do voucher)                      |
 
 **Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável. Em 11/11/2026 o site passou para `orlanativa.online` e o domínio antigo (`agenciavictorhugo.online`) foi desligado, sem redirecionamento, por decisão do dono.
+
+O Pixel da Meta e a tag do Google só carregam depois do aceite dos cookies e, desde o Pacote 27, só depois de a página terminar de carregar (o evento `load` e um momento livre do navegador, no máximo 2 segundos): no celular, os scripts deles não disputam a conexão com a foto do topo. Os eventos chamados antes esperam na fila e saem depois (`src/lib/pixel.ts`).
 
 Sem as chaves da Stripe, ou com `PAGAMENTO_ONLINE` desligado, o checkout registra o pedido e ele segue pelo WhatsApp. Com as chaves de teste (`rk_test_…` e `pk_test_…`) e `PAGAMENTO_ONLINE=publico` no `.env.local`, o fluxo completo funciona em modo de teste; o passo a passo está em `docs/pagamentos-stripe.md`.
 

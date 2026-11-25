@@ -15,7 +15,7 @@ import { PASSEIOS, horariosDoPasseio, obterPasseio, passeiosAtivos, temTaxaNoLoc
 import { dicionario } from '@/i18n';
 import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { texto, textoOpcional } from '@/i18n/conteudo';
-import { avaliacoesDoSite } from '@/lib/avaliacao';
+import { avaliacoesDoSite, notaDaAgencia, notaVisivel } from '@/lib/avaliacao';
 import { itemBoletim } from '@/lib/boletim';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { formatarCifra } from '@/lib/cifra';
@@ -72,6 +72,8 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
   const cambio = await cambioParaTela(locale);
   // sem banco, a página abre sem o cartão de opiniões: as avaliações nunca derrubam o passeio
   const avaliacoes = await avaliacoesDoSite().catch(() => []);
+  // a nota da etiqueta do topo: só quando o cartão de opiniões aparece (a mesma regra), para o link ter aonde ir
+  const nota = notaVisivel(avaliacoes) ? notaDaAgencia(avaliacoes) : undefined;
   const rotuloHorario = horarios.busca ? d.horario.busca : horarios.horas.length === 1 ? d.horario.saida : d.horario.saidas;
 
   const endereco = `${urlDoSite()}${rota(locale, `/passeios/${p.slug}`)}`;
@@ -134,6 +136,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
           fechar: d.comum.fechar,
           fotoDe: d.passeio.fotoDe,
         }}
+        nota={nota}
       />
 
       <div className="moldura pb-24">

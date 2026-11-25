@@ -179,7 +179,6 @@ const en: Dicionario = {
   opinioes: {
     titulo: 'What travellers say',
     nota: 'Rated {n} out of 5',
-    naOrigem: '{contagem} from {origem}',
     sobreAgencia: 'About Orla Nativa',
     sobreDestino: 'About Búzios',
     lerMais: 'Read more',
@@ -191,7 +190,7 @@ const en: Dicionario = {
     },
     ver: {
       google: 'See on Google',
-      tripadvisor: 'See on TripAdvisor',
+      tripadvisor: 'See the review',
       instagram: 'See on Instagram',
       whatsapp: 'See the message',
       email: 'See the message',

@@ -12,20 +12,47 @@ type Janela = {
   fbq?: ((...a: unknown[]) => void) & { queue?: unknown[][] };
   gtag?: (...a: unknown[]) => void;
   dataLayer?: unknown[];
+  addEventListener?: (evento: string, fn: () => void, opcoes?: unknown) => void;
+  requestIdleCallback?: (fn: () => void, opcoes?: { timeout?: number }) => number;
 };
 
-const mundo = globalThis as unknown as { window?: Janela; document?: unknown };
+const mundo = globalThis as unknown as { window?: Janela; document?: { readyState: string } };
 /** As tags <script> que o módulo pôs na página de mentira. */
 let anexadas: { src?: string }[] = [];
 let documentos = 0;
+/** Quem espera o evento load e quem espera um momento livre do navegador, na página de mentira. */
+let noLoad: (() => void)[] = [];
+let noIdle: { fn: () => void; timeout?: number }[] = [];
 
-/** Abre um documento novo (de mentira) num endereço: o módulo começa do zero, como numa carga inteira da página. */
-async function abrir(caminho: string): Promise<Pixel> {
+/**
+ * Abre um documento novo (de mentira) num endereço: o módulo começa do zero, como numa carga inteira da página.
+ * Por padrão, a página ainda está carregando (readyState 'loading') e o navegador tem requestIdleCallback.
+ */
+async function abrir(caminho: string, { carregada = false, comIdle = true } = {}): Promise<Pixel> {
   anexadas = [];
-  mundo.window = { location: { pathname: caminho } };
-  mundo.document = { createElement: () => ({}), head: { appendChild: (s: { src?: string }) => anexadas.push(s) } };
+  noLoad = [];
+  noIdle = [];
+  mundo.window = {
+    location: { pathname: caminho },
+    addEventListener: (evento, fn) => void (evento === 'load' && noLoad.push(fn)),
+    ...(comIdle
+      ? { requestIdleCallback: (fn: () => void, opcoes?: { timeout?: number }) => noIdle.push({ fn, timeout: opcoes?.timeout }) }
+      : {}),
+  };
+  mundo.document = {
+    readyState: carregada ? 'complete' : 'loading',
+    createElement: () => ({}),
+    head: { appendChild: (s: { src?: string }) => anexadas.push(s) },
+  } as unknown as { readyState: string };
   documentos += 1;
   return import(`../src/lib/pixel.ts?documento=${documentos}`);
+}
+
+/** A página termina de carregar (evento load) e o navegador fica livre: as tags entram. */
+function terminarCarregamento() {
+  mundo.document!.readyState = 'complete';
+  noLoad.splice(0).forEach((fn) => fn());
+  noIdle.splice(0).forEach(({ fn }) => fn());
 }
 
 /** Troca o endereço sem trocar de documento, como faz a navegação interna do site. */
@@ -47,6 +74,7 @@ test('numa página pública as tags carregam e os eventos saem', async () => {
   assert.equal(p.tagsCarregadas(), false);
   p.carregarPixel('123');
   p.carregarGoogle('AW-1');
+  terminarCarregamento();
   assert.deepEqual(
     anexadas.map((s) => s.src),
     ['https://connect.facebook.net/en_US/fbevents.js', 'https://www.googletagmanager.com/gtag/js?id=AW-1'],
@@ -63,6 +91,66 @@ test('o evento de antes das tags espera e sai depois', async () => {
   p.carregarPixel('123');
   p.soltarEventos();
   assert.deepEqual(noPixel(), ['init:123', 'track:InitiateCheckout']);
+});
+
+test('os scripts das tags só entram depois do carregamento da página e de um momento livre, no máximo 2 s (Pacote 27)', async () => {
+  const p = await abrir('/es-ar/paseos/goleta-buzios');
+  p.carregarPixel('123');
+  p.carregarGoogle('AW-1');
+  // a fila já existe: o que for chamado agora espera o script chegar
+  p.rastrear('PageView');
+  p.rastrear('ViewContent', { value: 69.3, currency: 'BRL', content_ids: ['goleta-buzios'] });
+  assert.equal(anexadas.length, 0, 'antes do load, nenhum script na página');
+  assert.equal(noIdle.length, 0, 'o momento livre só é pedido depois do load');
+  assert.equal(noLoad.length, 2);
+  noLoad.splice(0).forEach((fn) => fn());
+  assert.equal(anexadas.length, 0, 'depois do load, ainda espera o momento livre');
+  assert.deepEqual(
+    noIdle.map((i) => i.timeout),
+    [2000, 2000],
+  );
+  noIdle.splice(0).forEach(({ fn }) => fn());
+  assert.deepEqual(
+    anexadas.map((s) => s.src),
+    ['https://connect.facebook.net/en_US/fbevents.js', 'https://www.googletagmanager.com/gtag/js?id=AW-1'],
+  );
+  assert.deepEqual(noPixel(), ['init:123', 'track:PageView', 'track:ViewContent']);
+  assert.equal(mundo.window!.dataLayer!.length, 4, 'js, config, page_view e view_item, na fila do Google');
+});
+
+test('com a página já carregada, a tag espera só o momento livre', async () => {
+  const p = await abrir('/checkout', { carregada: true });
+  p.carregarPixel('123');
+  assert.equal(noLoad.length, 0);
+  assert.equal(anexadas.length, 0);
+  assert.equal(noIdle.length, 1);
+  noIdle.splice(0).forEach(({ fn }) => fn());
+  assert.deepEqual(
+    anexadas.map((s) => s.src),
+    ['https://connect.facebook.net/en_US/fbevents.js'],
+  );
+});
+
+test('sem requestIdleCallback (Safari), a tag entra numa pausa curta depois do load', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const p = await abrir('/', { comIdle: false });
+  p.carregarGoogle('AW-1');
+  noLoad.splice(0).forEach((fn) => fn());
+  assert.equal(anexadas.length, 0);
+  t.mock.timers.tick(250);
+  assert.deepEqual(
+    anexadas.map((s) => s.src),
+    ['https://www.googletagmanager.com/gtag/js?id=AW-1'],
+  );
+});
+
+test('quem foi para o pedido antes de a tag entrar não recebe o script', async () => {
+  const p = await abrir('/checkout');
+  p.carregarPixel('123');
+  p.carregarGoogle('AW-1');
+  navegar('/es/pedido/ABC');
+  terminarCarregamento();
+  assert.equal(anexadas.length, 0);
 });
 
 test('nas páginas do pedido e do voucher as tags não carregam, em nenhum idioma', async () => {

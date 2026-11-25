@@ -3,7 +3,7 @@ import type { IdiomaConteudo } from '@/i18n/conteudo';
 
 /**
  * As avaliações reais (tabela avaliacoes), com o texto igual ao original. A origem fica guardada para o painel; o
- * link é opcional, e o dono decidiu mostrar as do Tripadvisor sem link. Nunca invente avaliação, nota ou cliente
+ * link é opcional, e o dono decidiu mostrar as do Tripadvisor sem link e sem o nome do site (Pacote 27). Nunca invente avaliação, nota ou cliente
  * (PRODUCT.md). As regras são puras (o teste tests/avaliacao.test.ts confere); a leitura do banco fica em
  * ./avaliacoes e entra aqui só pelo cache de avaliacoesDoSite, com os imports adiados, porque este arquivo
  * também roda nos testes (node puro, que não abre next/cache nem 'server-only').
@@ -139,20 +139,20 @@ export function notaDaAgencia(avaliacoes: Avaliacao[]): { media: number; total: 
 }
 
 /**
- * De onde vieram as notas que entram em notaDaAgencia, quando vieram todas do mesmo site ("5,0 · 5 opiniões do
- * Tripadvisor": as publicadas aqui, tiradas de lá, e não o total da página de lá). Com origens misturadas, ou sem
- * nota da agência, nenhuma: o site não diz de onde vieram.
+ * A nota aparece só como "5,0 · 5 opiniões", sem o nome do site de onde as avaliações vieram: o dono decidiu, em
+ * 25/11/2026, que nada que o cliente vê cita o Tripadvisor (Pacote 27). A origem fica guardada só para o painel.
+ * Quem mostra a nota: a seção de opiniões da página inicial, o cartão de opiniões e a etiqueta do topo do passeio.
  */
-export function origemDaNota(avaliacoes: Avaliacao[]): Origem | undefined {
-  const origens = new Set(avaliacoes.flatMap((a) => (daAgencia(a) && a.nota ? [a.origem] : [])));
-  return origens.size === 1 ? [...origens][0] : undefined;
-}
+export const notaVisivel = (avaliacoes: Avaliacao[]): boolean => avaliacoes.length >= MINIMO_NO_SITE && notaDaAgencia(avaliacoes).total > 0;
 
 /**
- * Os sites que dão nota, como aparecem em "5 opiniões do Tripadvisor" (opinioes.naOrigem): na seção de opiniões da
- * página inicial e no cartão de opiniões dos passeios. Origem sem nome aqui (Instagram, WhatsApp...) não aparece.
+ * Se o cartão da avaliação pode mostrar o link para o original: nunca quando ele leva ao Tripadvisor (a origem ou o
+ * endereço), para nada que o cliente vê citar esse site (Pacote 27). O link continua guardado para o painel.
  */
-export const NOME_DA_ORIGEM: Partial<Record<Origem, string>> = { google: 'Google', tripadvisor: 'Tripadvisor' };
+export function linkMostravel(a: Pick<Avaliacao, 'origem' | 'origemUrl'>): boolean {
+  if (!a.origemUrl || a.origem === 'tripadvisor') return false;
+  return !/tripadvisor/i.test(a.origemUrl);
+}
 
 /**
  * As opiniões do cartão do passeio: só as da agência, com as que citam o passeio (produtoSlug) primeiro,

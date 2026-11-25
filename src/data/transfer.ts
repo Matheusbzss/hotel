@@ -66,6 +66,33 @@ export const LUGARES: Record<IdLugar, Lugar> = {
 
 export const IDS_LUGARES = Object.keys(LUGARES) as IdLugar[];
 
+/** O id de um lugar da lista, ou nada quando o texto não é um deles. */
+const lugarDaLista = (v: string | null): IdLugar | undefined => {
+  const id = v?.trim().toLowerCase();
+  return id && (IDS_LUGARES as string[]).includes(id) ? (id as IdLugar) : undefined;
+};
+
+/**
+ * O trajeto que vem no endereço da página do transfer: ?destino= (o cartão da cidade) e, desde o Pacote 27, ?saida=
+ * (ou ?origem=, o apelido), para o link de um anúncio abrir o cartão com as duas listas escolhidas e os preços à
+ * vista: /es-ar/traslado?saida=galeao&destino=buzios. Id que não existe é ignorado, e a saída igual ao destino também
+ * (fica só o destino, como antes). Com ?volta=nao (ou ?volta=no), o cartão abre só com a ida, mesmo saindo de um
+ * aeroporto, para o preço da página bater com o de um anúncio que mostra só a ida. O ?mudar= do carrinho vem depois e
+ * vale mais.
+ */
+export function trajetoDoLink(busca: string): { saida?: IdLugar; destino?: IdLugar; soIda?: true } {
+  const q = new URLSearchParams(busca);
+  const destino = lugarDaLista(q.get('destino'));
+  const saida = lugarDaLista(q.get('saida')) ?? lugarDaLista(q.get('origem'));
+  const volta = q.get('volta')?.trim().toLowerCase();
+  const soIda = volta === 'nao' || volta === 'não' || volta === 'no';
+  return {
+    ...(saida && saida !== destino ? { saida } : {}),
+    ...(destino ? { destino } : {}),
+    ...(soIda ? { soIda: true as const } : {}),
+  };
+}
+
 /**
  * As fotos reais dos veículos, com as placas borradas (scripts/preparar-fotos-transfer.mjs): a do topo
  * da página e as do trilho de fotos (as de cada veículo estão em VEICULOS).

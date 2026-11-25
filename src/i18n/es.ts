@@ -185,7 +185,6 @@ const es: Dicionario = {
   opinioes: {
     titulo: 'Opiniones de quienes ya fueron',
     nota: 'Puntaje {n} de 5',
-    naOrigem: '{contagem} de {origem}',
     sobreAgencia: 'Sobre Orla Nativa',
     sobreDestino: 'Sobre Búzios',
     lerMais: 'Leer más',
@@ -197,7 +196,7 @@ const es: Dicionario = {
     },
     ver: {
       google: 'Ver en Google',
-      tripadvisor: 'Ver en TripAdvisor',
+      tripadvisor: 'Ver la opinión',
       instagram: 'Ver en Instagram',
       whatsapp: 'Ver el mensaje',
       email: 'Ver el mensaje',

@@ -10,6 +10,7 @@ import {
   cabeNaVan,
   cabeNoCarro,
   precoTrecho,
+  trajetoDoLink,
   transferComAntecedencia,
   type IdLugar,
   type Idioma,
@@ -225,11 +226,18 @@ export function WidgetTransfer({
   const idDataVolta = useId();
   const idHoraVolta = useId();
 
-  // o cartão da cidade abre o transfer com o destino escolhido (?destino=buzios)
+  // o cartão da cidade abre o transfer com o destino escolhido (?destino=buzios); o link do anúncio, com a saída
+  // também (?saida=galeao&destino=buzios, ou ?origem=): as duas listas já escolhidas e os preços à vista
   useEffect(() => {
     setHoje(hojeEmBuzios());
-    const d = new URLSearchParams(window.location.search).get('destino');
-    if (d && (IDS_LUGARES as string[]).includes(d)) setDestino({ ...PONTA_VAZIA, lugar: d as IdLugar });
+    const link = trajetoDoLink(window.location.search);
+    if (link.saida) setSaida({ ...PONTA_VAZIA, lugar: link.saida });
+    if (link.destino) setDestino({ ...PONTA_VAZIA, lugar: link.destino });
+    // ?volta=nao: só a ida, e a regra do aeroporto (logo abaixo) não marca a volta sozinha
+    if (link.soIda) {
+      setVoltaMexida(true);
+      setIdaVolta(false);
+    }
   }, []);
 
   // o transfer começa com o grupo e a data escolhidos no site

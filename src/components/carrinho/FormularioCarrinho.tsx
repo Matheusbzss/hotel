@@ -12,6 +12,7 @@ import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
+import { garantiasDoCheckout } from '@/lib/garantias-checkout';
 import { formasChegaram, releituraDoCheckout } from '@/lib/releitura-do-checkout';
 import { respostaDeRobo } from '@/lib/robos';
 import {
@@ -29,6 +30,7 @@ import { Campo, descricao } from '../Campo';
 import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
 import { IconeWhatsApp } from '../IconeWhatsApp';
+import { ICONES } from '../passeio/Confianca';
 import { CheckoutEmbutido, motivoSemPix, type TextosCheckoutEmbutido } from '../pagamento/CheckoutEmbutido';
 import {
   EscolhaPagamento,
@@ -154,6 +156,8 @@ export function FormularioCarrinho({
     robo: string;
     /** O botão do WhatsApp embaixo dessa mensagem, só com ela (whatsappDoRobo, src/lib/whatsapp.ts; Pacote 21). */
     roboWhatsapp: WhatsAppDoRobo;
+    /** As garantias embaixo do botão (passeio.garantiasOnline; garantiasDoCheckout, src/lib/garantias-checkout.ts). */
+    garantias: readonly string[];
   };
   links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
@@ -937,23 +941,6 @@ export function FormularioCarrinho({
       <aside className="lg:col-span-5">
         <div className="space-y-5 lg:sticky lg:top-24">
           <div className="hidden lg:block">{seuPedido}</div>
-          {/* logo acima do total: no celular, as sugestões não empurram os dados do cliente para baixo */}
-          <SugestoesCarrinho
-            className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pb-2 pt-5 sm:px-6"
-            locale={locale}
-            dolar={dolar}
-            soCartao={soCartao}
-            textos={{
-              ...K,
-              noPix: P.noPix,
-              noCartao: P.noCartao,
-              dolar: P.dolar,
-              dataPasseio: textos.dataPasseio,
-              escolhaData: textos.escolhaData,
-              opcao: C.opcao,
-              aPartirDe: textos.aPartirDe,
-            }}
-          />
           <div className="tom-campo px-6 py-5">
             {/* quando o rótulo e o preço não cabem lado a lado (tela estreita, total alto), o preço desce para a linha de
                 baixo, à direita, em vez de empurrar a página para o lado */}
@@ -1012,12 +999,49 @@ export function FormularioCarrinho({
             )}
             {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
             {erroGeral === textos.robo && <BotaoWhatsAppDoRobo whatsapp={textos.roboWhatsapp} />}
+            {/* as garantias do quadro do passeio, perto do botão (Pacote 27): só as que valem para este carrinho */}
+            <ul className="grid gap-y-2 text-small">
+              {garantiasDoCheckout(textos.garantias, { temPasseio, voucherNaHora: online && forma !== null }).map(([icone, frase]) => (
+                <li key={icone} className="flex items-center gap-2.5">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="size-5 shrink-0 text-(--color-turquesa-texto)"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d={ICONES[icone]} />
+                  </svg>
+                  {frase}
+                </li>
+              ))}
+            </ul>
             <p className="text-small">{K.umPagamento}</p>
             <p className="text-small">{C.avisoTotal}</p>
             {/* o total não inclui as taxas pagas no local dos passeios; o transfer já inclui pedágio e estacionamento */}
             {comTaxaNoLocal && <p className="text-small">{K.taxasNoLocal}</p>}
             {online && forma === 'cartao' && <p className="text-small text-(--tinta-suave)">{C.seguro}</p>}
           </div>
+          {/* depois do botão de pagar (Pacote 27): as sugestões não ficam entre o cliente e o pagamento */}
+          <SugestoesCarrinho
+            className="rounded-cartao border border-(--color-borda) bg-(--color-papel) px-5 pb-2 pt-5 sm:px-6"
+            locale={locale}
+            dolar={dolar}
+            soCartao={soCartao}
+            textos={{
+              ...K,
+              noPix: P.noPix,
+              noCartao: P.noCartao,
+              dolar: P.dolar,
+              dataPasseio: textos.dataPasseio,
+              escolhaData: textos.escolhaData,
+              opcao: C.opcao,
+              aPartirDe: textos.aPartirDe,
+            }}
+          />
         </div>
       </aside>
     </form>

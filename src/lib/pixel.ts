@@ -84,6 +84,33 @@ export function soltarEventos() {
   EVENTOS_EM_ESPERA.splice(0).forEach((e) => rastrear(...e));
 }
 
+/** Quanto a tag espera, no máximo, por um momento livre do navegador depois do carregamento da página. */
+export const ESPERA_MAXIMA_DAS_TAGS = 2000;
+/** Sem requestIdleCallback (o Safari do iPhone não tem), a pausa curta depois do carregamento. */
+const PAUSA_SEM_IDLE = 200;
+
+/**
+ * Põe o script da tag na página só depois do carregamento (evento load) e de um momento livre do navegador, com
+ * limite de 2 s: no celular, o fbevents.js e o gtag.js não disputam a conexão com a foto do topo nem com as fontes
+ * (Pacote 27). A fila (fbq.queue, dataLayer) já existe antes, então nenhum evento se perde enquanto isso. Na hora
+ * de inserir, a página é conferida de novo: se o visitante foi para o pedido ou o voucher, o script não entra.
+ */
+function inserirDepoisDoCarregamento(src: string) {
+  const inserir = () => {
+    if (!tagsLiberadas()) return;
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = src;
+    document.head.appendChild(s);
+  };
+  const quandoLivre = () => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(inserir, { timeout: ESPERA_MAXIMA_DAS_TAGS });
+    else setTimeout(inserir, PAUSA_SEM_IDLE);
+  };
+  if (document.readyState === 'complete') quandoLivre();
+  else window.addEventListener('load', quandoLivre, { once: true });
+}
+
 export function carregarPixel(pixelId: string) {
   if (typeof window === 'undefined' || window.fbq || !tagsLiberadas()) return;
   const n = function (...args: unknown[]) {
@@ -96,10 +123,7 @@ export function carregarPixel(pixelId: string) {
   n.loaded = true;
   n.version = '2.0';
   n.queue = [];
-  const s = document.createElement('script');
-  s.async = true;
-  s.src = 'https://connect.facebook.net/en_US/fbevents.js';
-  document.head.appendChild(s);
+  inserirDepoisDoCarregamento('https://connect.facebook.net/en_US/fbevents.js');
   tagsNoDocumento = true;
   n('init', pixelId);
 }
@@ -115,10 +139,7 @@ export function carregarGoogle(id: string) {
   window.gtag('js', new Date());
   // a visita é contada pelo evento PageView, a cada troca de página
   window.gtag('config', id, { send_page_view: false });
-  const s = document.createElement('script');
-  s.async = true;
-  s.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
-  document.head.appendChild(s);
+  inserirDepoisDoCarregamento(`https://www.googletagmanager.com/gtag/js?id=${id}`);
   tagsNoDocumento = true;
 }
 

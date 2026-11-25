@@ -1,15 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { IDIOMAS } from '../src/i18n/config.ts';
+import { dicionario } from '../src/i18n/index.ts';
 import {
   EsquemaAvaliacao,
   MAXIMO_NO_SITE,
+  MINIMO_NO_SITE,
   fotoDoCartao,
   iniciais,
+  linkMostravel,
   notaDaAgencia,
   opinioesDoSite,
   ordenarParaPasseio,
-  origemDaNota,
+  notaVisivel,
   trechoDaAvaliacao,
   trechosDoCartao,
   type Avaliacao,
@@ -109,23 +114,78 @@ test('a nota da agência conta só as avaliações da agência e arredonda para 
   assert.deepEqual(notaDaAgencia([avaliacaoCom({ id: 'so-cidade', nota: 5, sobre: 'destino' })]), { media: 0, total: 0 });
 });
 
-test('a nota da inicial diz de onde vieram as notas só quando vieram todas do mesmo site (Etapa 8)', () => {
-  // as 5 publicadas hoje: todas da agência, com nota, do Tripadvisor → "5,0 · 5 opiniões do Tripadvisor"
+test('a nota aparece só com o mínimo publicado e com nota da agência (seção, cartão e etiqueta do topo do passeio)', () => {
   const hoje = Array.from({ length: 5 }, (_, i) => avaliacaoCom({ id: `t${i}`, sobre: 'agencia' }));
-  assert.equal(origemDaNota(hoje), 'tripadvisor');
+  assert.equal(notaVisivel(hoje), true);
   assert.deepEqual(notaDaAgencia(hoje), { media: 5, total: 5 });
-  // a da cidade não entra na nota, então não muda a origem
-  assert.equal(
-    origemDaNota([...hoje, avaliacaoCom({ id: 'cidade', origem: 'google', sobre: 'destino', lugar: 'Rua das Pedras' })]),
-    'tripadvisor',
-  );
-  // nem a da agência sem nota
-  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'sem-nota', origem: 'google', nota: undefined })]), 'tripadvisor');
-  // com uma do Google que entra na nota, a origem fica de fora: o site não diz "do Tripadvisor"
-  assert.equal(origemDaNota([...hoje, avaliacaoCom({ id: 'google', origem: 'google' })]), undefined);
-  // sem nota da agência, nada
-  assert.equal(origemDaNota([]), undefined);
-  assert.equal(origemDaNota([avaliacaoCom({ id: 'so-cidade', sobre: 'destino' })]), undefined);
+  // abaixo do mínimo, nada (a seção de opiniões nem existiria)
+  assert.equal(notaVisivel(hoje.slice(0, MINIMO_NO_SITE - 1)), false);
+  assert.equal(notaVisivel(hoje.slice(0, MINIMO_NO_SITE)), true);
+  assert.equal(notaVisivel([]), false);
+  // com o mínimo, mas sem nenhuma nota da agência (só da cidade, ou sem nota): nada
+  const semNota = Array.from({ length: 4 }, (_, i) => avaliacaoCom({ id: `s${i}`, nota: undefined }));
+  assert.equal(notaVisivel(semNota), false);
+  const daCidade = Array.from({ length: 4 }, (_, i) => avaliacaoCom({ id: `c${i}`, sobre: 'destino', lugar: 'Rua das Pedras' }));
+  assert.equal(notaVisivel(daCidade), false);
+  // uma nota da agência entre as da cidade já basta
+  assert.equal(notaVisivel([...daCidade, avaliacaoCom({ id: 'agencia' })]), true);
+});
+
+test('o link para o original nunca leva ao Tripadvisor, mesmo cadastrado no painel (Pacote 27)', () => {
+  assert.equal(linkMostravel({ origem: 'google', origemUrl: 'https://g.page/r/exemplo' }), true);
+  assert.equal(linkMostravel({ origem: 'google' }), false);
+  // a origem Tripadvisor, ou um endereço do Tripadvisor com outra origem: sem link
+  assert.equal(linkMostravel({ origem: 'tripadvisor', origemUrl: 'https://exemplo.com/a' }), false);
+  assert.equal(linkMostravel({ origem: 'site', origemUrl: 'https://www.tripadvisor.com.ar/ShowUserReviews-g1' }), false);
+  assert.equal(linkMostravel({ origem: 'google', origemUrl: 'https://www.TripAdvisor.com/x' }), false);
+  // o cartão da inicial usa essa regra
+  const cartao = readFileSync(path.join('src', 'components', 'home', 'Opinioes.tsx'), 'utf8');
+  assert.match(cartao, /\{linkMostravel\(a\) && \(/);
+});
+
+/** Todos os textos de um dicionário, com o caminho de cada um. */
+function textos(v: unknown, caminho = ''): [string, string][] {
+  if (typeof v === 'string') return [[caminho, v]];
+  if (typeof v === 'object' && v !== null) return Object.entries(v).flatMap(([k, x]) => textos(x, caminho ? `${caminho}.${k}` : k));
+  return [];
+}
+
+function arquivos(pasta: string): string[] {
+  return readdirSync(pasta, { withFileTypes: true }).flatMap((e) => {
+    const caminho = path.join(pasta, e.name);
+    return e.isDirectory() ? arquivos(caminho) : [caminho];
+  });
+}
+
+test('nada que o cliente vê cita o Tripadvisor: nem a nota, nem o link da avaliação, nos 4 idiomas (Pacote 27)', () => {
+  // a decisão do dono de 25/11/2026: "5,0 · 5 opiniones", sem "de Tripadvisor"; o painel (src/app/admin) fica como está
+  for (const idioma of IDIOMAS) {
+    const d = dicionario(idioma);
+    const culpados = textos(d).filter(([, t]) => /trip\s*advisor/i.test(t));
+    assert.deepEqual(culpados, [], idioma);
+    assert.equal('naOrigem' in d.opinioes, false, idioma);
+  }
+  assert.equal(dicionario('es-ar').opinioes.ver.tripadvisor, 'Ver la opinión');
+  assert.equal(dicionario('pt').opinioes.ver.tripadvisor, 'Ver a avaliação');
+  assert.equal(dicionario('en').opinioes.ver.tripadvisor, 'See the review');
+  // no código das páginas do cliente, a palavra só pode estar em comentário (o comentário não vai para o site)
+  const COMENTARIO = /^\s*(\/\/|\/?\*|\{\/\*)/;
+  const PAGINAS = [
+    path.join('src', 'components'),
+    path.join('src', 'app', '[locale]'),
+    path.join('src', 'data'),
+    path.join('src', 'content'),
+  ];
+  const linhas = PAGINAS.flatMap(arquivos)
+    .filter((f) => /\.(ts|tsx)$/.test(f))
+    .flatMap((f) =>
+      readFileSync(f, 'utf8')
+        .split('\n')
+        .map((linha, i) => ({ onde: `${f}:${i + 1}`, linha })),
+    );
+  assert.ok(linhas.length > 1000, String(linhas.length));
+  const fora = linhas.filter(({ linha }) => /trip\s*advisor|NOME_DA_ORIGEM|origemDaNota|naOrigem/i.test(linha) && !COMENTARIO.test(linha));
+  assert.deepEqual(fora, []);
 });
 
 test('o cartão nunca mostra a imagem padrão do Tripadvisor como foto da pessoa: mostra as iniciais (Etapa 8)', () => {
@@ -199,4 +259,25 @@ test('no cartão do passeio, frase inteira vem antes de frase cortada (decisão 
   );
   // a cortada continua só cortada, nunca reescrita
   assert.ok(trechoDaAvaliacao(longa).endsWith('…'));
+});
+
+test('a etiqueta da nota no topo do passeio segue a regra do cartão de opiniões e leva até ele (Pacote 27)', () => {
+  const topo = readFileSync(path.join('src', 'components', 'passeio', 'TopoPasseio.tsx'), 'utf8');
+  const cartao = readFileSync(path.join('src', 'components', 'passeio', 'OpinioesPasseio.tsx'), 'utf8');
+  const pagina = readFileSync(path.join('src', 'app', '[locale]', 'passeios', '[slug]', 'page.tsx'), 'utf8');
+  // a página só passa a nota quando o cartão aparece: a mesma regra (notaVisivel) dos dois lados
+  assert.match(pagina, /const nota = notaVisivel\(avaliacoes\) \? notaDaAgencia\(avaliacoes\) : undefined;/);
+  assert.match(pagina, /nota=\{nota\}/);
+  assert.match(cartao, /if \(!notaVisivel\(avaliacoes\)\) return null;/);
+  // o link vai para o título do cartão, que existe com a mesma regra
+  const alvo = topo.match(/href="#([\w-]+)"/)?.[1];
+  assert.equal(alvo, 'opinioes-passeio-titulo');
+  assert.match(cartao, new RegExp(`id="${alvo}"`));
+  // só textos que já existem: a contagem do passeio e a nota para o leitor de tela; nenhum site
+  assert.match(topo, /\{nota && media && \(/);
+  assert.match(topo, /d\.passeio\.opinioesContagemUma : fmt\(d\.passeio\.opinioesContagem, \{ n: nota\.total \}\)/);
+  assert.match(topo, /fmt\(d\.opinioes\.nota, \{ n: media \}\)/);
+  assert.doesNotMatch(topo, /origem|google|trip/i);
+  // o texto do topo deixa o toque passar para as fotos; o link precisa recebê-lo de volta
+  assert.match(topo, /className="etiqueta vidro vidro-foto pointer-events-auto /);
 });

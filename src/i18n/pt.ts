@@ -187,10 +187,6 @@ const pt = {
   opinioes: {
     titulo: 'Opiniões de quem já foi',
     nota: 'Nota {n} de 5',
-    // a nota em cima da seção, só das avaliações da agência publicadas aqui: "5 opiniões do Tripadvisor" quando
-    // vieram todas do mesmo site ({contagem} é o passeio.opinioesContagem). "Do", e não "no": o total da página de
-    // lá é outro (lá há avaliações que ainda não vieram para o site)
-    naOrigem: '{contagem} do {origem}',
     // a etiqueta de cada avaliação: sobre a agência ou sobre a cidade (com o lugar, quando houver)
     sobreAgencia: 'Sobre Orla Nativa',
     sobreDestino: 'Sobre Búzios',
@@ -203,7 +199,8 @@ const pt = {
     },
     ver: {
       google: 'Ver no Google',
-      tripadvisor: 'Ver no TripAdvisor',
+      // sem o nome do site: o dono decidiu, em 25/11/2026, que o site não cita o Tripadvisor (Pacote 27)
+      tripadvisor: 'Ver a avaliação',
       instagram: 'Ver no Instagram',
       whatsapp: 'Ver a mensagem',
       email: 'Ver a mensagem',

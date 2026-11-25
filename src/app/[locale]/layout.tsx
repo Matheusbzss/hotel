@@ -22,9 +22,17 @@ import '../globals.css';
  * Regular no texto, Semi Condensed nos títulos e números, Condensed no gancho.
  * Servida pelo próprio site: o navegador do cliente não chama o Google. Só o alfabeto latino e os pesos em uso:
  * cada arquivo a mais disputa a conexão do celular com a primeira foto. Português, os dois espanhóis e inglês cabem no "latin".
+ * Só a Condensed (a do H1, --font-display) é pré-carregada (Pacote 27): as outras cinco, pedidas junto, com prioridade
+ * alta, faziam a foto do topo terminar depois delas. Elas continuam baixando assim que o CSS pede, com o "swap".
  */
-const barlow = Barlow({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap' });
-const barlowSemi = Barlow_Semi_Condensed({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-barlow-semi', display: 'swap' });
+const barlow = Barlow({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-barlow', display: 'swap', preload: false });
+const barlowSemi = Barlow_Semi_Condensed({
+  subsets: ['latin'],
+  weight: ['500', '600'],
+  variable: '--font-barlow-semi',
+  display: 'swap',
+  preload: false,
+});
 const barlowCond = Barlow_Condensed({ subsets: ['latin'], weight: ['600'], variable: '--font-barlow-cond', display: 'swap' });
 
 // sem "dynamicParams = false" aqui: ele valeria para todas as páginas de baixo, e a casa cadastrada no painel

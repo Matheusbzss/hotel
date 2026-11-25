@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   IDS_LUGARES,
   LUGARES,
@@ -10,6 +12,7 @@ import {
   primeiroDiaTransfer,
   primeiroPassoDoTransfer,
   totalTransfer,
+  trajetoDoLink,
   transferComAntecedencia,
   type IdLugar,
 } from '../src/data/transfer.ts';
@@ -197,4 +200,41 @@ test('os aeroportos estão na lista', () => {
   assert.equal(LUGARES['santos-dumont'].aeroporto, true);
   assert.equal(LUGARES['aeroporto-cabo-frio'].aeroporto, true);
   assert.equal(LUGARES.buzios.aeroporto, undefined);
+});
+
+test('o link do anúncio abre o transfer com a saída e o destino escolhidos (?saida=, ?origem=, ?destino=; Pacote 27)', () => {
+  assert.deepEqual(trajetoDoLink('?saida=galeao&destino=buzios'), { saida: 'galeao', destino: 'buzios' });
+  // ?origem= é o apelido da saída; ?saida= vale mais quando vêm os dois
+  assert.deepEqual(trajetoDoLink('?origem=santos-dumont&destino=arraial-do-cabo'), { saida: 'santos-dumont', destino: 'arraial-do-cabo' });
+  assert.deepEqual(trajetoDoLink('?saida=galeao&origem=santos-dumont&destino=buzios'), { saida: 'galeao', destino: 'buzios' });
+  assert.deepEqual(trajetoDoLink('?saida=xyz&origem=santos-dumont&destino=buzios'), { saida: 'santos-dumont', destino: 'buzios' });
+  // só a saída também vale; o ?destino= sozinho continua como antes (o cartão da cidade)
+  assert.deepEqual(trajetoDoLink('?saida=galeao'), { saida: 'galeao' });
+  assert.deepEqual(trajetoDoLink('?destino=buzios'), { destino: 'buzios' });
+  // maiúscula ou espaço que o editor de anúncio pôs não atrapalham
+  assert.deepEqual(trajetoDoLink('?saida=Galeao%20&destino=BUZIOS'), { saida: 'galeao', destino: 'buzios' });
+  // com as etiquetas do anúncio no meio, nada muda
+  assert.deepEqual(trajetoDoLink('?utm_source=google&gclid=abc&saida=galeao&destino=buzios'), { saida: 'galeao', destino: 'buzios' });
+  // sem os parâmetros, ou com id que não existe, tudo fica como hoje
+  assert.deepEqual(trajetoDoLink(''), {});
+  assert.deepEqual(trajetoDoLink('?saida=aeroporto&destino=praia'), {});
+  assert.deepEqual(trajetoDoLink('?saida=__proto__&destino=constructor'), {});
+  // ?volta=nao (ou no): o cartão abre só com a ida; outro valor não muda nada
+  assert.deepEqual(trajetoDoLink('?saida=galeao&destino=buzios&volta=nao'), { saida: 'galeao', destino: 'buzios', soIda: true });
+  assert.deepEqual(trajetoDoLink('?saida=galeao&destino=buzios&volta=NO'), { saida: 'galeao', destino: 'buzios', soIda: true });
+  assert.deepEqual(trajetoDoLink('?saida=galeao&destino=buzios&volta=n%C3%A3o'), { saida: 'galeao', destino: 'buzios', soIda: true });
+  assert.deepEqual(trajetoDoLink('?saida=galeao&destino=buzios&volta=sim'), { saida: 'galeao', destino: 'buzios' });
+  // a saída igual ao destino é ignorada: fica só o destino
+  assert.deepEqual(trajetoDoLink('?saida=buzios&destino=buzios'), { destino: 'buzios' });
+  // todo id da lista serve
+  for (const id of IDS_LUGARES) assert.deepEqual(trajetoDoLink(`?saida=${id}`), { saida: id });
+});
+
+test('o cartão do transfer lê o trajeto do link antes do ?mudar= do carrinho', () => {
+  const fonte = readFileSync(path.join('src', 'components', 'transfer', 'WidgetTransfer.tsx'), 'utf8');
+  assert.match(fonte, /const link = trajetoDoLink\(window\.location\.search\);/);
+  assert.match(fonte, /if \(link\.saida\) setSaida\(\{ \.\.\.PONTA_VAZIA, lugar: link\.saida \}\);/);
+  assert.match(fonte, /if \(link\.destino\) setDestino\(\{ \.\.\.PONTA_VAZIA, lugar: link\.destino \}\);/);
+  // o ?mudar= continua sendo lido, e depois (o efeito dele espera o carrinho carregar)
+  assert.ok(fonte.indexOf('trajetoDoLink(window') < fonte.indexOf(".get('mudar')"));
 });

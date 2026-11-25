@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import { fotoMontada, liberarDepoisDaEspera } from '@/lib/galeria';
 import { IconeCasa } from './IconeCasa';
 
 export interface TextosGaleriaCasa {
@@ -29,7 +30,8 @@ const TAMANHO_CAPA = '(min-width: 1024px) 50vw, 100vw';
  * As fotos da casa (Etapa 7, parte 1). No celular, de borda a borda por baixo da cápsula do menu, deslizando para o
  * lado, com o contador "1/34" em vidro (tocar abre todas). No computador, uma grande e quatro pequenas, com "Ver as 34
  * fotos". Todas as fotos abrem numa grade, e cada uma, sozinha, em tela cheia, sem passar do tamanho que ela tem (as
- * fotos de 720 px não esticam no computador).
+ * fotos de 720 px não esticam no computador). No trilho do celular, só a 1ª foto baixa no carregamento; as outras
+ * entram depois dela, no primeiro toque ou em 4 s (src/lib/galeria.ts).
  */
 export function GaleriaCasa({ fotos, alts, textos: T }: { fotos: string[]; alts: string[]; textos: TextosGaleriaCasa }) {
   const dialogo = useRef<HTMLDialogElement>(null);
@@ -39,7 +41,11 @@ export function GaleriaCasa({ fotos, alts, textos: T }: { fotos: string[]; alts:
   const [aberta, setAberta] = useState(0);
   // a largura de verdade da foto aberta, em pixels: a tela cheia nunca passa disso
   const [largura, setLargura] = useState<number | null>(null);
+  const [liberadas, setLiberadas] = useState(false);
+  const liberar = () => setLiberadas(true);
   const n = fotos.length;
+
+  useEffect(() => (liberadas || n < 2 ? undefined : liberarDepoisDaEspera(() => setLiberadas(true))), [liberadas, n]);
 
   const mostrar = () => {
     if (dialogo.current?.open) return;
@@ -99,20 +105,28 @@ export function GaleriaCasa({ fotos, alts, textos: T }: { fotos: string[]; alts:
       <div className="galeria-casa-celular">
         <div
           className="galeria-casa-trilho sem-barra"
-          onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+          onScroll={(e) => {
+            liberar();
+            setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth));
+          }}
+          onPointerDown={liberar}
+          onTouchStart={liberar}
         >
           {fotos.map((src, i) => (
             <button key={src} type="button" onClick={() => abrirGrade(i)} className={`galeria-casa-slide ${i > 0 ? 'adiar' : ''}`}>
-              <Image
-                src={src}
-                alt={alts[i]}
-                fill
-                sizes={i === 0 ? TAMANHO_CAPA : '100vw'}
-                preload={i === 0}
-                fetchPriority={i === 0 ? 'high' : undefined}
-                quality={80}
-                className="object-cover"
-              />
+              {fotoMontada(i, liberadas) && (
+                <Image
+                  src={src}
+                  alt={alts[i]}
+                  fill
+                  sizes={i === 0 ? TAMANHO_CAPA : '100vw'}
+                  preload={i === 0}
+                  fetchPriority={i === 0 ? 'high' : undefined}
+                  quality={80}
+                  className="object-cover"
+                  onLoad={i === 0 ? liberar : undefined}
+                />
+              )}
             </button>
           ))}
         </div>

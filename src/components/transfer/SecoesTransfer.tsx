@@ -133,7 +133,8 @@ export function VeiculosTransfer({ d, idioma, className = '' }: { d: Dicionario;
           return (
             <li key={v}>
               <figure>
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[4px]">
+                {/* .adiar: a foto só baixa quando chega perto da tela, sem disputar a conexão com a foto do topo (Pacote 27) */}
+                <div className="adiar relative aspect-[4/3] overflow-hidden rounded-[4px]">
                   <Image
                     src={V.foto}
                     alt={altDaFoto(V.foto, idioma, texto(V.nome, idioma))}

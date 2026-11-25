@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import { fotoMontada, liberarDepoisDaEspera } from '@/lib/galeria';
 
 export interface TextosGaleria {
   galeria: string;
@@ -17,11 +18,16 @@ const preencher = (t: string, v: Record<string, number>) => t.replace(/\{(\w+)\}
 /**
  * As fotos do passeio de borda a borda, no espaço que o pai der (o topo da página do passeio):
  * deslize para ver a próxima; tocar numa foto, ou em "Ver as fotos" no computador, abre a tela cheia.
+ * No carregamento, só a 1ª foto baixa; as outras entram depois dela, no primeiro toque ou em 4 s (src/lib/galeria.ts).
  */
 export function GaleriaPasseio({ fotos, alts, textos: T }: { fotos: string[]; alts: string[]; textos: TextosGaleria }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const [atual, setAtual] = useState(0);
   const [aberta, setAberta] = useState(0);
+  const [liberadas, setLiberadas] = useState(false);
+  const liberar = () => setLiberadas(true);
+
+  useEffect(() => (liberadas || fotos.length < 2 ? undefined : liberarDepoisDaEspera(() => setLiberadas(true))), [liberadas, fotos.length]);
 
   const abrir = (i: number) => {
     setAberta(i);
@@ -57,7 +63,12 @@ export function GaleriaPasseio({ fotos, alts, textos: T }: { fotos: string[]; al
     <section aria-label={T.galeria} className="absolute inset-0">
       <div
         className="sem-barra absolute inset-0 flex snap-x snap-mandatory overflow-x-auto"
-        onScroll={(e) => setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth))}
+        onScroll={(e) => {
+          liberar();
+          setAtual(Math.round(e.currentTarget.scrollLeft / e.currentTarget.clientWidth));
+        }}
+        onPointerDown={liberar}
+        onTouchStart={liberar}
       >
         {fotos.map((src, i) => (
           <button
@@ -66,16 +77,19 @@ export function GaleriaPasseio({ fotos, alts, textos: T }: { fotos: string[]; al
             onClick={() => abrir(i)}
             className={`relative h-full w-full shrink-0 snap-start ${i > 0 ? 'adiar' : ''}`}
           >
-            <Image
-              src={src}
-              alt={alts[i]}
-              fill
-              sizes="100vw"
-              preload={i === 0}
-              fetchPriority={i === 0 ? 'high' : undefined}
-              quality={80}
-              className="object-cover"
-            />
+            {fotoMontada(i, liberadas) && (
+              <Image
+                src={src}
+                alt={alts[i]}
+                fill
+                sizes="100vw"
+                preload={i === 0}
+                fetchPriority={i === 0 ? 'high' : undefined}
+                quality={80}
+                className="object-cover"
+                onLoad={i === 0 ? liberar : undefined}
+              />
+            )}
           </button>
         ))}
       </div>

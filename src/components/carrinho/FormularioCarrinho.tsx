@@ -194,6 +194,8 @@ export function FormularioCarrinho({
   const [telefone, setTelefone] = useState('');
   const [cidadeHosp, setCidadeHosp] = useState<CidadeHospedagem | ''>('');
   const [hotel, setHotel] = useState('');
+  // "Ainda não sei": o pedido vai sem o hotel e a equipe pede depois (src/lib/hospedagem.ts)
+  const [hotelAInformar, setHotelAInformar] = useState(false);
   const [extras, setExtras] = useState<Record<string, ExtrasItem>>({});
   const [observacoes, setObservacoes] = useState('');
   const [aceite, setAceite] = useState(false);
@@ -330,7 +332,7 @@ export function FormularioCarrinho({
     if (!telefoneValido(ddi, telefone)) e.telefone = C.erros.telefone;
     if (temPasseio) {
       if (!cidadeHosp) e.cidadeHosp = C.erros.obrigatorio;
-      if (hotel.trim().length < 2) e.hotel = C.erros.obrigatorio;
+      if (!hotelAInformar && hotel.trim().length < 2) e.hotel = C.erros.obrigatorio;
     }
     for (const i of transfers) {
       extrasDe(i.id).idades.forEach((idade, n) => {
@@ -361,7 +363,13 @@ export function FormularioCarrinho({
           idioma,
           ids: itens.map((i) => i.id),
           cliente: { nome: nome.trim(), email: email.trim(), ddi, telefone },
-          ...(temPasseio ? { hospedagem: { cidade: cidadeHosp, hotel: hotel.trim() } } : {}),
+          ...(temPasseio
+            ? {
+                hospedagem: hotelAInformar
+                  ? { cidade: cidadeHosp, hotel: '', aInformar: true }
+                  : { cidade: cidadeHosp, hotel: hotel.trim() },
+              }
+            : {}),
           transfers: Object.fromEntries(
             transfers.map((i) => {
               const x = extrasDe(i.id);
@@ -785,15 +793,35 @@ export function FormularioCarrinho({
               <Campo id="hotel" rotulo={C.hotel} erro={erros.hotel}>
                 <input
                   id="hotel"
-                  className="campo"
-                  value={hotel}
+                  className="campo disabled:opacity-50"
+                  value={hotelAInformar ? '' : hotel}
                   onChange={(e) => setHotel(e.target.value)}
                   maxLength={120}
+                  disabled={hotelAInformar}
                   aria-invalid={Boolean(erros.hotel)}
                   aria-describedby={descricao('hotel', erros.hotel)}
-                  required
+                  required={!hotelAInformar}
                 />
               </Campo>
+              {/* quem ainda não reservou a hospedagem segue sem o hotel; a equipe pede pelo WhatsApp antes do passeio */}
+              <div className="sm:col-span-2">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    id="hotelAInformar"
+                    type="checkbox"
+                    checked={hotelAInformar}
+                    onChange={(e) => setHotelAInformar(e.target.checked)}
+                    className="mt-1 size-6 shrink-0 accent-[var(--color-mar)]"
+                    aria-describedby={hotelAInformar ? 'hotelAInformar-ajuda' : undefined}
+                  />
+                  <span>{C.hotelNaoSei}</span>
+                </label>
+                {hotelAInformar && (
+                  <p id="hotelAInformar-ajuda" className="ajuda mt-2 pl-9">
+                    {C.hotelNaoSeiAjuda}
+                  </p>
+                )}
+              </div>
             </div>
           </fieldset>
         )}

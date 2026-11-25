@@ -39,7 +39,7 @@ const PROIBIDAS_NO_NEUTRO = new Set(
 
 /** Palavras comuns terminadas em á/é/í(s) que não são "vos" (para a varredura por terminação). */
 const INOCENTES = new Set(
-  'está estás así aquí también café país además quizás inglés portugués interés demás través detrás después más ahí allá qué sí mí tú ya día será habrá podrá leí llegué'.split(
+  'está estás así aquí también café país además quizás inglés portugués interés demás través detrás después más ahí allá qué sí mí tú ya día será habrá podrá leí llegué sé'.split(
     /\s+/,
   ),
 );

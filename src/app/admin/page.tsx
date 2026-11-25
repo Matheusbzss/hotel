@@ -203,9 +203,17 @@ function DetalhesPasseio({ r }: { r: ReservaPasseio }) {
         {textoPessoas(r, ROTULOS_PESSOAS, p ? semFaixas(p) : false)}
         {r.passeio.unidade !== 'pessoa' ? ` · ${r.unidades} ${r.passeio.unidade === 'veiculo' ? 'veículo(s)' : 'embarcação(ões)'}` : ''}
       </p>
-      <p>
-        Hotel: <strong>{r.hospedagem.hotel}</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]})
-      </p>
+      {r.hospedagem.aInformar ? (
+        // o cliente marcou "Ainda não sei" no checkout: a equipe pede o hotel pelo WhatsApp antes do passeio
+        <p>
+          Hotel: <strong className="bg-(--color-acao) px-1">a informar</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]}) — o cliente
+          ainda não sabe; pedir pelo WhatsApp antes do passeio
+        </p>
+      ) : (
+        <p>
+          Hotel: <strong>{r.hospedagem.hotel}</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]})
+        </p>
+      )}
     </>
   );
 }
@@ -243,7 +251,8 @@ function DetalhesTransfer({ r }: { r: ReservaTransfer }) {
 
 /** O que a busca do painel procura além do código e do contato: o passeio e o hotel, ou os endereços do transfer. */
 function textosDaBusca(r: Reserva): string[] {
-  if (!ehTransfer(r)) return [r.hospedagem.hotel, r.passeio.nome];
+  // "a informar" acha os pedidos em que o cliente ainda não sabia o hotel
+  if (!ehTransfer(r)) return [r.hospedagem.aInformar ? 'hotel a informar' : r.hospedagem.hotel, r.passeio.nome];
   const t = r.transfer;
   return ['transfer', t.ida.saida.endereco, t.ida.destino.endereco, t.volta?.saida.endereco, t.volta?.destino.endereco].filter(
     (x): x is string => Boolean(x),

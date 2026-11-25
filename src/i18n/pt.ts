@@ -650,6 +650,9 @@ const pt = {
     cidadeHospedagem: 'Cidade da hospedagem',
     selecione: 'Selecione',
     hotel: 'Nome do hotel ou pousada',
+    // quem ainda não reservou a hospedagem: o pedido vai sem o hotel e a equipe pede depois (src/lib/hospedagem.ts)
+    hotelNaoSei: 'Ainda não sei',
+    hotelNaoSeiAjuda: 'Sem problema: a nossa equipe pede o nome da hospedagem pelo WhatsApp antes do passeio.',
     observacoes: 'Observações (opcional)',
     observacoesAjuda: 'Alergias, mobilidade reduzida, idade das crianças…',
     opcao: 'Opção',
@@ -715,6 +718,8 @@ const pt = {
     nome: 'Nome',
     pessoas: 'Pessoas',
     hotel: 'Hospedagem',
+    // o hotel de quem marcou "Ainda não sei" no checkout
+    hotelAInformar: 'A informar',
     total: 'Total pago',
     baixarPdf: 'Baixar voucher (PDF)',
     whatsappEquipe: 'WhatsApp da equipe',

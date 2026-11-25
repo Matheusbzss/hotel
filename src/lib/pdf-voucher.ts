@@ -6,6 +6,7 @@ import { LOCALE_INTL, fmt } from '@/i18n/config';
 import { texto as noIdioma } from '@/i18n/conteudo';
 import { dicionario, type Dicionario } from '@/i18n';
 import { mostrarWhatsApp } from './formas-pagamento';
+import { nomeDoHotel } from './hospedagem';
 import { formatarHora } from './horarios';
 import { semFaixas } from './passeio-view';
 import { valorRecebido } from './pedidos-painel';
@@ -103,7 +104,10 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
       ...(horario ? [[horario.busca ? d.horario.busca : d.horario.saida, [hora]] as [string, string[]]] : []),
       [d.reserva.nome, [reserva.cliente.nome]],
       [d.reserva.pessoas, [pessoas]],
-      [d.reserva.hotel, [`${reserva.hospedagem.hotel} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`]],
+      [
+        d.reserva.hotel,
+        [`${nomeDoHotel(reserva.hospedagem, d.reserva.hotelAInformar)} — ${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]}`],
+      ],
       [d.reserva.total, [formatarPreco(valorRecebido(reserva), idioma)]],
     ],
     mensagem: fmt(d.reserva.msgVoucher, {
@@ -111,7 +115,7 @@ function conteudoPasseio(reserva: ReservaPasseio, d: Dicionario): ConteudoVouche
       passeio: nomePasseio,
       data: horario ? fmt(d.horario.dataHora, { data: dataTexto, hora }) : dataTexto,
       pessoas,
-      hotel: `${reserva.hospedagem.hotel} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
+      hotel: `${nomeDoHotel(reserva.hospedagem, d.reserva.hotelAInformar)} (${NOME_CIDADE_HOSPEDAGEM[reserva.hospedagem.cidade]})`,
     }),
     // o aviso do horário (busca na hospedagem ou ponto de encontro) vem logo depois do primeiro
     avisos: [

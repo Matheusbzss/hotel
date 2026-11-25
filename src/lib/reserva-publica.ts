@@ -7,6 +7,7 @@ import { obterPasseio } from '@/data/passeios';
 import { dicionario, type Dicionario } from '@/i18n';
 import { fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
+import { nomeDoHotel } from './hospedagem';
 import type { ItemVisivel } from './carrinho';
 import {
   formasDoPagamento,
@@ -367,7 +368,7 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     pessoasTexto: textoPessoas(r, d.comum.rotulos, p ? semFaixas(p) : false),
     opcaoNome: (opcao && texto(opcao.nome, idioma)) ?? r.passeio.opcao?.nome,
     unidades: r.unidades,
-    hotel: r.hospedagem.hotel,
+    hotel: nomeDoHotel(r.hospedagem, d.reserva.hotelAInformar),
     cidadeHospedagem: NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade],
     ...pagamento,
   };

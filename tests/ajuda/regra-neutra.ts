@@ -224,7 +224,8 @@ export function neutroDoArgentino(texto: string): string {
  */
 export const INOCENTES_COM_ACENTO_FINAL = new Set(
   `más qué está estás sí así ahí aquí allí después demás además detrás atrás través país interés café josé geribá maracaná
-  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés sofá sofás`
+  portugués inglés francés cortés quizás jamás resolverá cobrará devolverá llegará tardará leí llegué prevé revés sofá sofás
+  sé`
     .split(/\s+/)
     .filter(Boolean),
 );

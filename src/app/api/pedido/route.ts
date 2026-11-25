@@ -6,6 +6,7 @@ import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
+import { hospedagemDoCheckout } from '@/lib/hospedagem';
 import { FORMAS_PAGAMENTO, formasDoPagamento, type FormaPagamento } from '@/lib/formas-pagamento';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { origemDaVisita } from '@/lib/origem-servidor';
@@ -36,7 +37,13 @@ const Esquema = z.object({
     ddi: z.string().max(4),
     telefone: z.string().max(24),
   }),
-  hospedagem: z.object({ cidade: z.enum(CIDADES_HOSPEDAGEM), hotel: texto(120) }).optional(),
+  /**
+   * A hospedagem dos passeios. O hotel é obrigatório, a não ser que o cliente tenha marcado "Ainda não sei" (aInformar):
+   * aí o pedido vai sem o hotel e a equipe pede pelo WhatsApp (src/lib/hospedagem.ts).
+   */
+  hospedagem: z
+    .object({ cidade: z.enum(CIDADES_HOSPEDAGEM), hotel: z.string().trim().max(120), aInformar: z.boolean().optional() })
+    .optional(),
   /** Por item de transfer: os voos e a idade de cada criança que vai de cadeirinha ou assento de elevação. */
   transfers: z
     .record(
@@ -80,6 +87,9 @@ export async function POST(req: Request) {
   const e = r.data;
   if (!emailValido(e.cliente.email)) return erro('cliente.email');
   if (!telefoneValido(e.cliente.ddi, e.cliente.telefone)) return erro('cliente.telefone');
+  // sem o nome do hotel e sem o "Ainda não sei" marcado, o mesmo erro de antes
+  const hospedagem = e.hospedagem ? hospedagemDoCheckout(e.hospedagem) : undefined;
+  if (hospedagem === null) return erro('hospedagem.hotel');
 
   const loja = await cookies();
   const codigoCarrinho = loja.get(COOKIE_CARRINHO)?.value;
@@ -122,7 +132,7 @@ export async function POST(req: Request) {
         email: e.cliente.email.toLowerCase(),
         telefone: `+${soDigitos(e.cliente.ddi)} ${soDigitos(e.cliente.telefone)}`,
       },
-      hospedagem: e.hospedagem,
+      hospedagem,
       observacoes: e.observacoes || undefined,
       // a campanha guardada no carrinho vale se o cookie da visita já tiver vencido
       origem: { ...carrinho.origem, ...(await origemDaVisita()) },
@@ -130,7 +140,7 @@ export async function POST(req: Request) {
     };
     const novas = [];
     for (const { id, c } of conferidas) {
-      if ('passeio' in c && !e.hospedagem) return erro('hospedagem');
+      if ('passeio' in c && !hospedagem) return erro('hospedagem');
       const extras = e.transfers[id];
       if (!('passeio' in c) && extras && extras.cadeirinhas.length > c.escolha.passageiros) return erro('cadeirinhas');
       novas.push(reservaDoItem(c, dados, extras));

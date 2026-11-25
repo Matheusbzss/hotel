@@ -4,6 +4,7 @@ import type { Dicionario } from '@/i18n';
 import { itemBoletim } from '@/lib/boletim';
 import { formatarCifra } from '@/lib/cifra';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque } from '@/lib/preco-destaque';
 import { CartaoInclinavel } from './Inclinar';
 import { MidiaPasseio } from './MidiaPasseio';
 import { PrecoDuplo } from './PrecoDuplo';
@@ -44,7 +45,10 @@ export function CardPasseio({
   const locale = LOCALE_INTL[idioma];
   const preco = formatarCifra(item.tabela.precoCentavos, locale);
   const pix = formatarCifra(precoPixCentavos(item.tabela.precoCentavos), locale);
-  const rotulo = `${item.nome}, ${item.horas}, ${item.temOpcoes ? `${d.boletim.desde} ` : ''}${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao} ${item.paraQuem}`;
+  const precos = cartaoEmDestaque(idioma)
+    ? `${preco} ${d.preco.noCartao}, ${pix} ${d.preco.noPix}`
+    : `${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao}`;
+  const rotulo = `${item.nome}, ${item.horas}, ${item.temOpcoes ? `${d.boletim.desde} ` : ''}${precos} ${item.paraQuem}`;
   return (
     <CartaoInclinavel href={item.href} rotulo={rotulo}>
       <div className="cartao-foto">

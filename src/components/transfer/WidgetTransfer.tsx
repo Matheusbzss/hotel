@@ -24,6 +24,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { ANTECEDENCIA_TRANSFER_MINUTOS } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { rastrear } from '@/lib/pixel';
 import { hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
@@ -81,6 +82,8 @@ export interface TextosTransfer {
   aumentar: string;
   noPix: string;
   noCartao: string;
+  /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês) */
+  noPixComDesconto: string;
   /** "≈ US$ {v}" */
   dolar: string;
   adicionar: string;
@@ -316,6 +319,8 @@ export function WidgetTransfer({
   const pixEscolhido = veiculo ? totalPix(veiculo) : null;
   const usdCentavos = (centavos: number) => textoDolar(centavos, dolar, T.dolar, locale);
   const usd = (reais: number) => usdCentavos(Math.round(reais * 100));
+  // em espanhol e inglês, o total do cartão é o grande e o do Pix vai embaixo, com o desconto (src/lib/preco-destaque.ts)
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
 
   const nomePonta = (p: Ponta) => {
     if (!p.lugar) return '—';
@@ -570,7 +575,9 @@ export function WidgetTransfer({
                         ? '—'
                         : preco === null || pix === null
                           ? T.sobCotacao
-                          : `${formatarCifra(pix, locale)} ${T.noPix}`}
+                          : cartaoPrimeiro
+                            ? `${formatarCifra(Math.round(preco * 100), locale)} ${T.noCartao}`
+                            : `${formatarCifra(pix, locale)} ${T.noPix}`}
                   </span>
                 </label>
               );
@@ -583,40 +590,73 @@ export function WidgetTransfer({
         <p className="mt-5 border-t border-(--color-borda) pt-4 text-small text-(--color-tinta-suave)">{T.escolhaTrajeto}</p>
       ) : veiculo && precoEscolhido !== null ? (
         <>
-          <div className="mt-5 border-t border-(--color-borda) pt-4">
-            {/* como no cartão do passeio, mas o rótulo é comprido: ele quebra entre as palavras, com o "no Pix" e o
-                "no cartão" inteiros, e o valor só desce para a linha de baixo quando o rótulo ficaria espremido (7.5rem) */}
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <span className="min-w-[7.5rem] flex-1 font-semibold">
-                <ComDolar dolar={usdCentavos(pixEscolhido ?? 0)} className="text-small font-normal text-(--color-tinta-suave)">
-                  {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap text-(--color-sucesso)">{T.noPix}</span>
-                </ComDolar>
+          {cartaoPrimeiro ? (
+            <div className="mt-5 border-t border-(--color-borda) pt-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="min-w-[7.5rem] flex-1 font-semibold">
+                  <ComDolar dolar={usd(precoEscolhido)} className="text-small font-normal text-(--color-tinta-suave)">
+                    {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap">{T.noCartao}</span>
+                  </ComDolar>
+                </span>
+                <span aria-hidden="true" className="ml-auto">
+                  <Cifra centavos={Math.round(precoEscolhido * 100)} locale={locale} className="cifra text-figure-lg" />
+                </span>
+              </div>
+              <p
+                className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)"
+                aria-hidden="true"
+              >
+                <span className="min-w-[7.5rem] flex-1">
+                  <ComDolar dolar={usdCentavos(pixEscolhido ?? 0)}>
+                    {idaVolta ? T.totalIdaVolta : T.total}{' '}
+                    <span className="whitespace-nowrap font-semibold text-(--color-sucesso)">
+                      {rotuloPixComDesconto(T.noPixComDesconto)}
+                    </span>
+                  </ComDolar>
+                </span>
+                <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="numeros ml-auto font-semibold text-(--color-tinta)" />
+              </p>
+              <span className="sr-only" aria-live="polite">
+                {`${T.noCartao}: ${cifra(precoEscolhido)}. ${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}.`}
               </span>
-              <span aria-hidden="true" className="ml-auto">
-                <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="cifra text-figure-lg" />
-              </span>
+              {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
             </div>
-            <p
-              className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)"
-              aria-hidden="true"
-            >
-              <span className="min-w-[7.5rem] flex-1">
-                <ComDolar dolar={usd(precoEscolhido)}>
-                  {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap">{T.noCartao}</span>
-                </ComDolar>
+          ) : (
+            <div className="mt-5 border-t border-(--color-borda) pt-4">
+              {/* como no cartão do passeio, mas o rótulo é comprido: ele quebra entre as palavras, com o "no Pix" e o
+                "no cartão" inteiros, e o valor só desce para a linha de baixo quando o rótulo ficaria espremido (7.5rem) */}
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="min-w-[7.5rem] flex-1 font-semibold">
+                  <ComDolar dolar={usdCentavos(pixEscolhido ?? 0)} className="text-small font-normal text-(--color-tinta-suave)">
+                    {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap text-(--color-sucesso)">{T.noPix}</span>
+                  </ComDolar>
+                </span>
+                <span aria-hidden="true" className="ml-auto">
+                  <Cifra centavos={pixEscolhido ?? 0} locale={locale} className="cifra text-figure-lg" />
+                </span>
+              </div>
+              <p
+                className="mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-small text-(--color-tinta-suave)"
+                aria-hidden="true"
+              >
+                <span className="min-w-[7.5rem] flex-1">
+                  <ComDolar dolar={usd(precoEscolhido)}>
+                    {idaVolta ? T.totalIdaVolta : T.total} <span className="whitespace-nowrap">{T.noCartao}</span>
+                  </ComDolar>
+                </span>
+                <Cifra
+                  centavos={Math.round(precoEscolhido * 100)}
+                  locale={locale}
+                  className="numeros ml-auto font-semibold text-(--color-tinta)"
+                />
+              </p>
+              <span className="sr-only" aria-live="polite">
+                {`${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}. ${T.noCartao}: ${cifra(precoEscolhido)}.`}
               </span>
-              <Cifra
-                centavos={Math.round(precoEscolhido * 100)}
-                locale={locale}
-                className="numeros ml-auto font-semibold text-(--color-tinta)"
-              />
-            </p>
-            <span className="sr-only" aria-live="polite">
-              {`${T.noPix}: ${formatarCifra(pixEscolhido ?? 0, locale)}. ${T.noCartao}: ${cifra(precoEscolhido)}.`}
-            </span>
-            {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
-            {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
-          </div>
+              {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
+              {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}
+            </div>
+          )}
           {erro && (
             <p className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
               {erro}

@@ -7,6 +7,7 @@ import { LOCALE_INTL, rota, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import { cotacaoDolar, textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { ComDolar, Pedaco, Pedacos } from '../ComDolar';
 import { CartaoInclinavel } from '../Inclinar';
 
@@ -32,10 +33,15 @@ export async function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idio
   const cotacao = idioma === 'pt' || centavos === null ? null : await cotacaoDolar();
   const usdPix = centavos === null ? '' : textoDolar(precoPixCentavos(centavos), cotacao, d.preco.dolar, LOCALE_INTL[idioma]);
   const usdCartao = centavos === null ? '' : textoDolar(centavos, cotacao, d.preco.dolar, LOCALE_INTL[idioma]);
+  // em espanhol e inglês, o preço do cartão é o grande e o do Pix vai embaixo, com o desconto (src/lib/preco-destaque.ts)
+  const cartaoPrimeiro = cartaoEmDestaque(idioma);
   const rotulo = [
     T.titulo,
     T.cartaoTexto,
-    preco && `${d.comum.aPartirDe} ${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao} ${T.porVeiculo}`,
+    preco &&
+      (cartaoEmDestaque(idioma)
+        ? `${d.comum.aPartirDe} ${preco} ${d.preco.noCartao}, ${pix} ${d.preco.noPix} ${T.porVeiculo}`
+        : `${d.comum.aPartirDe} ${pix} ${d.preco.noPix}, ${preco} ${d.preco.noCartao} ${T.porVeiculo}`),
   ]
     .filter(Boolean)
     .join(', ');
@@ -62,26 +68,39 @@ export async function CardTransfer({ cidade, idioma, d }: { cidade: Cidade; idio
           <>
             {/* cada pedaço fica inteiro e o "·" do dólar só aparece ao lado de outro pedaço, nunca no começo da linha */}
             <p className="mt-2">
-              <Pedacos folga="justa" comPonto={Boolean(usdPix)}>
+              <Pedacos folga="justa" comPonto={Boolean(cartaoPrimeiro ? usdCartao : usdPix)}>
                 <Pedaco className="text-small text-(--color-tinta-suave)">{d.comum.aPartirDe}</Pedaco>
                 <Pedaco forte className="cifra text-figure">
-                  {pix}
+                  {cartaoPrimeiro ? preco : pix}
                 </Pedaco>
-                <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{d.preco.noPix}</Pedaco>
-                {usdPix && (
+                {cartaoPrimeiro ? (
+                  <Pedaco className="text-small font-semibold whitespace-nowrap">{d.preco.noCartao}</Pedaco>
+                ) : (
+                  <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{d.preco.noPix}</Pedaco>
+                )}
+                {(cartaoPrimeiro ? usdCartao : usdPix) && (
                   <Pedaco ponto className="text-small text-(--color-tinta-suave)">
-                    {usdPix}
+                    {cartaoPrimeiro ? usdCartao : usdPix}
                   </Pedaco>
                 )}
                 <Pedaco className="text-small text-(--color-tinta-suave)">{T.porVeiculo}</Pedaco>
               </Pedacos>
             </p>
             <p className="text-small text-(--color-tinta-suave)">
-              <ComDolar dolar={usdCartao}>
-                <span className="whitespace-nowrap">
-                  <span className="numeros font-semibold text-(--color-tinta)">{preco}</span> {d.preco.noCartao}
-                </span>
-              </ComDolar>
+              {cartaoPrimeiro ? (
+                <ComDolar dolar={usdPix}>
+                  <span className="whitespace-nowrap">
+                    <span className="numeros font-semibold text-(--color-tinta)">{pix}</span>{' '}
+                    <span className="font-semibold text-(--color-sucesso)">{rotuloPixComDesconto(d.preco.noPixComDesconto)}</span>
+                  </span>
+                </ComDolar>
+              ) : (
+                <ComDolar dolar={usdCartao}>
+                  <span className="whitespace-nowrap">
+                    <span className="numeros font-semibold text-(--color-tinta)">{preco}</span> {d.preco.noCartao}
+                  </span>
+                </ComDolar>
+              )}
             </p>
           </>
         )}

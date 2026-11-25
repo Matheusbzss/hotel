@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { semIdioma } from '@/i18n/config';
 import { totaisDoCarrinho } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { cartaoEmDestaque } from '@/lib/preco-destaque';
 import { useBarraOculta } from '../BarraReservaMovel';
 import { useCarrinho } from './CarrinhoContexto';
 import { textoQuantidade, type TextosCarrinho } from './GavetaCarrinho';
@@ -13,13 +14,17 @@ import { IconeSacola } from './IconeSacola';
 const SEM_BARRA = /\/(passeios\/[^/]+|transfer|casas-de-temporada\/[^/]+|checkout|reserva|pedido)(\/|$)/;
 const ALVOS = ['footer'];
 
-/** No celular, com itens no carrinho: a barra de vidro embaixo, com o total no Pix e o "Finalizar". */
+/**
+ * No celular, com itens no carrinho: a barra de vidro embaixo, com o total (no Pix em português; no cartão em espanhol e
+ * inglês, src/lib/preco-destaque.ts) e o "Finalizar".
+ */
 export function BarraCarrinho({ locale, hrefFinalizar, textos: T }: { locale: string; hrefFinalizar: string; textos: TextosCarrinho }) {
   const { itens, abrir } = useCarrinho();
   const caminho = usePathname();
   const oculta = useBarraOculta(ALVOS);
   if (!itens.length || SEM_BARRA.test(semIdioma(caminho))) return null;
-  const { totalPixCentavos } = totaisDoCarrinho(itens);
+  const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
 
   return (
     <div
@@ -42,8 +47,8 @@ export function BarraCarrinho({ locale, hrefFinalizar, textos: T }: { locale: st
           </span>
           <span className="min-w-0 leading-tight">
             <span className="block text-caption text-white/80">{textoQuantidade(T, itens.length)}</span>
-            <strong className="cifra text-lead">{formatarCifra(totalPixCentavos, locale)}</strong>{' '}
-            <span className="text-small">{T.noPix}</span>
+            <strong className="cifra text-lead">{formatarCifra(cartaoPrimeiro ? totalCentavos : totalPixCentavos, locale)}</strong>{' '}
+            <span className="text-small">{cartaoPrimeiro ? T.noCartao : T.noPix}</span>
           </span>
         </button>
         <a href={hrefFinalizar} className="botao shrink-0">

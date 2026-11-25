@@ -4,6 +4,7 @@ import Image from 'next/image';
 import type { ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { ComDolar, Inteiro } from '../ComDolar';
 import { TextoDoItem } from './TextoDoItem';
 
@@ -12,13 +13,16 @@ export interface TextosLista {
   remover: string;
   noPix: string;
   noCartao: string;
+  /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês) */
+  noPixComDesconto: string;
   /** "≈ US$ {v}" */
   dolar: string;
 }
 
 /**
  * Os itens do carrinho: foto, nome, data e quem vai, o preço no Pix e no cartão (com o aproximado em dólar
- * ao lado em espanhol e inglês), mudar e tirar. Com `soCartao` (o checkout sem o Pix, pelo prazo ou pelo limite de
+ * ao lado em espanhol e inglês), mudar e tirar. Em português o Pix vem em cima; em espanhol e inglês, o cartão em cima e
+ * o Pix embaixo, com o desconto (src/lib/preco-destaque.ts). Com `soCartao` (o checkout sem o Pix, pelo prazo ou pelo limite de
  * valor), só o preço no cartão, que é o que o pedido vai cobrar.
  */
 export function ListaCarrinho({
@@ -40,6 +44,7 @@ export function ListaCarrinho({
 }) {
   const brl = (c: number) => formatarCifra(c, locale);
   const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
   return (
     <ul className="divide-y divide-(--color-borda)">
       {itens.map((i) => (
@@ -97,6 +102,33 @@ export function ListaCarrinho({
                   {T.mudar}
                 </a>
               </div>
+            ) : cartaoPrimeiro ? (
+              <>
+                {/* espanhol e inglês: o cartão em cima, com o peso de sempre, e o Pix embaixo com o desconto */}
+                <p className="mt-1.5">
+                  <ComDolar dolar={usd(i.totalCentavos)} className="text-small text-(--color-tinta-suave)">
+                    <Inteiro>
+                      <span className="cifra font-semibold">{brl(i.totalCentavos)}</span>{' '}
+                      <span className="whitespace-nowrap text-small font-semibold">{T.noCartao}</span>
+                    </Inteiro>
+                  </ComDolar>
+                </p>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-small">
+                  <p className="max-w-full flex-1 text-(--color-tinta-suave)">
+                    <ComDolar dolar={usd(i.totalPixCentavos)}>
+                      <Inteiro>
+                        <span className="numeros">{brl(i.totalPixCentavos)}</span>{' '}
+                        <span className="whitespace-nowrap font-semibold text-(--color-sucesso)">
+                          {rotuloPixComDesconto(T.noPixComDesconto)}
+                        </span>
+                      </Inteiro>
+                    </ComDolar>
+                  </p>
+                  <a href={i.href} className="link ml-auto">
+                    {T.mudar}
+                  </a>
+                </div>
+              </>
             ) : (
               <>
                 {/* "R$ 69,30 no Pix" e "≈ US$ 12,46" ficam inteiros: a linha só quebra entre os dois pedaços (o mesmo no

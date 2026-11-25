@@ -123,6 +123,7 @@ const es: Dicionario = {
     pix: 'Pix',
     cartao: 'Tarjeta',
     descontoPix: '{p}% de descuento con Pix',
+    noPixComDesconto: 'con Pix (−{p}%)',
     dolar: '≈ US$ {v}',
     // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
     notaCambio: 'Pagas en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',

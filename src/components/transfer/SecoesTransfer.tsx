@@ -8,6 +8,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { textosCotacao } from '@/lib/cotacao';
 import { textoDolar } from '@/lib/dolar';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { ComDolar } from '../ComDolar';
 
 /** Os textos do cartão de reserva do transfer. */
@@ -19,6 +20,7 @@ export function textosWidgetTransfer(d: Dicionario) {
     aumentar: d.comum.aumentar,
     noPix: d.preco.noPix,
     noCartao: d.preco.noCartao,
+    noPixComDesconto: d.preco.noPixComDesconto,
     dolar: d.preco.dolar,
     adicionar: d.carrinho.adicionar,
     reservarAgora: d.carrinho.reservarAgora,
@@ -71,6 +73,26 @@ export function PrecosTransfer({
     const centavos = Math.round(reais * 100);
     const usdPix = usd(precoPixCentavos(centavos));
     const usdCartao = usd(centavos);
+    // espanhol e inglês: o cartão em cima, com o peso de sempre, e o Pix embaixo com o desconto (src/lib/preco-destaque.ts)
+    if (cartaoEmDestaque(idioma))
+      return (
+        <>
+          <ComDolar dolar={usdCartao} className="text-small text-(--color-tinta-suave)">
+            <span className="whitespace-nowrap">
+              <span className="cifra text-lead font-semibold">{formatarCifra(centavos, locale)}</span>{' '}
+              <span className="text-small font-semibold">{d.preco.noCartao}</span>
+            </span>
+          </ComDolar>
+          <span className="block text-small text-(--color-tinta-suave)">
+            <ComDolar dolar={usdPix}>
+              <span className="whitespace-nowrap">
+                <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(precoPixCentavos(centavos), locale)}</span>{' '}
+                <span className="font-semibold text-(--color-sucesso)">{rotuloPixComDesconto(d.preco.noPixComDesconto)}</span>
+              </span>
+            </ComDolar>
+          </span>
+        </>
+      );
     return (
       <>
         {/* "R$ 297,00 con Pix" e "≈ US$ 53,41" ficam inteiros: a linha só quebra entre os dois pedaços, sem o "·" no

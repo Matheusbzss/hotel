@@ -77,6 +77,7 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
     ...d.carrinho,
     noPix: d.preco.noPix,
     noCartao: d.preco.noCartao,
+    noPixComDesconto: d.preco.noPixComDesconto,
     dolar: d.preco.dolar,
     dataPasseio: d.passeio.data,
     escolhaData: d.grupo.escolhaData,

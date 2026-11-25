@@ -125,6 +125,8 @@ const pt = {
     pix: 'Pix',
     cartao: 'Cartão',
     descontoPix: '{p}% de desconto no Pix',
+    // o preço no Pix na linha de baixo, quando o do cartão é o grande (src/lib/preco-destaque.ts); no português o Pix segue em destaque
+    noPixComDesconto: 'no Pix (−{p}%)',
     dolar: '≈ US$ {v}',
     // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
     notaCambio: 'Você paga em reais. O ≈ US$ é aproximado: cotação do Banco Central do Brasil de {data}.',

@@ -21,6 +21,7 @@ import { cambioParaTela } from '@/lib/cambio-tela';
 import { formatarCifra } from '@/lib/cifra';
 import { textoHorarios } from '@/lib/horarios';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { contadoresPessoas, descricaoParaBusca, nomeCategoria, nomeCidade, regrasCriancas, rotuloUnidade } from '@/lib/passeio-view';
 import { opcoesPasseio, precoAPartirCentavos, precoVendaCentavos, tabelaPreco, temOpcoes } from '@/lib/precos';
 import { comPromessasOnline } from '@/lib/promessas-online';
@@ -112,17 +113,31 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
 
   return (
     <main id="conteudo" className="tom-fundo">
-      {/* barra de vidro no celular com os dois preços (Pix em destaque) e o atalho para a reserva */}
-      <BarraReservaMovel
-        preco={formatarCifra(precoPixCentavos(aPartir), intl)}
-        unidade={item.temOpcoes ? `${d.preco.noPix} · ${d.boletim.desde}` : d.preco.noPix}
-        detalhe={
-          <p className="truncate text-caption text-white/80">
-            {formatarCifra(aPartir, intl)} {d.preco.noCartao} · {item.paraQuem}
-          </p>
-        }
-        textos={{ reservar: d.passeio.reservar }}
-      />
+      {/* barra de vidro no celular com os dois preços e o atalho para a reserva: em português o Pix em destaque; em
+          espanhol e inglês o cartão em destaque e o Pix embaixo, com o desconto (src/lib/preco-destaque.ts) */}
+      {cartaoEmDestaque(locale) ? (
+        <BarraReservaMovel
+          preco={formatarCifra(aPartir, intl)}
+          unidade={item.temOpcoes ? `${d.preco.noCartao} · ${d.boletim.desde}` : d.preco.noCartao}
+          detalhe={
+            <p className="truncate text-caption text-white/80">
+              {formatarCifra(precoPixCentavos(aPartir), intl)} {rotuloPixComDesconto(d.preco.noPixComDesconto)} · {item.paraQuem}
+            </p>
+          }
+          textos={{ reservar: d.passeio.reservar }}
+        />
+      ) : (
+        <BarraReservaMovel
+          preco={formatarCifra(precoPixCentavos(aPartir), intl)}
+          unidade={item.temOpcoes ? `${d.preco.noPix} · ${d.boletim.desde}` : d.preco.noPix}
+          detalhe={
+            <p className="truncate text-caption text-white/80">
+              {formatarCifra(aPartir, intl)} {d.preco.noCartao} · {item.paraQuem}
+            </p>
+          }
+          textos={{ reservar: d.passeio.reservar }}
+        />
+      )}
 
       <TopoPasseio
         passeio={p}
@@ -280,6 +295,7 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   semHorarioHoje: d.checkout.erros.semHorarioHoje,
                   noPix: d.preco.noPix,
                   noCartao: d.preco.noCartao,
+                  noPixComDesconto: d.preco.noPixComDesconto,
                   dolar: d.preco.dolar,
                   rotuloHorario: horarios.busca ? d.horario.busca : d.horario.saida,
                   escolhaHorario: d.carrinho.escolhaHorario,

@@ -41,7 +41,8 @@ export function PrecoGrupo({
     textos.rotulos,
   );
   const pix = { centavos: totalPixCentavos(orc), rotulo: textos.noPix };
-  const cartao = { centavos: orc.totalCentavos, rotulo: modo === 'ambos' ? textos.noCartao : undefined };
+  // no modo 'cartao', o "no cartão" aparece quando vem nos textos (o preço do cartão em destaque, src/lib/preco-destaque.ts)
+  const cartao = { centavos: orc.totalCentavos, rotulo: modo === 'pix' ? undefined : textos.noCartao };
   const valores = modo === 'cartao' ? [cartao] : modo === 'pix' ? [pix] : [pix, cartao];
   // "R$ 138,60 no Pix", inteiro
   const valor = (v: { centavos: number; rotulo?: string }) => (

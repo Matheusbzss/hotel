@@ -3,14 +3,16 @@ import { LOCALE_INTL, type Idioma } from '@/i18n/config';
 import { formatarCifra } from '@/lib/cifra';
 import { cotacaoDolar, textoDolar } from '@/lib/dolar';
 import { precoPixCentavos, type TabelaPreco } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { semQuebraNoPonto } from '@/lib/ponto';
 import { ComDolar, Pedaco, Pedacos } from './ComDolar';
 import { PrecoGrupo } from './grupo/PrecoGrupo';
 
 /**
- * O preço do passeio nos dois jeitos de pagar: o do Pix (com desconto) em destaque, o do cartão embaixo
- * e o total do grupo escolhido no site, no Pix. Nas páginas em espanhol e inglês, os dois preços
- * ganham o aproximado em dólar ao lado.
+ * O preço do passeio nos dois jeitos de pagar e o total do grupo escolhido no site. Em português, o do Pix (com
+ * desconto) em destaque, o do cartão embaixo e o total no Pix. Em espanhol e inglês (src/lib/preco-destaque.ts), o do
+ * cartão em destaque, o do Pix embaixo com o desconto ("con Pix (−10%)") e o total no cartão; os dois preços ganham
+ * o aproximado em dólar ao lado.
  */
 export async function PrecoDuplo({
   tabela,
@@ -38,6 +40,47 @@ export async function PrecoDuplo({
   const usdPix = usd(precoPixCentavos(tabela.precoCentavos));
   const usdCartao = usd(tabela.precoCentavos);
   const suave = 'text-small text-(--color-tinta-suave)';
+  // espanhol e inglês: o do cartão em destaque e o do Pix embaixo, com o desconto
+  if (cartaoEmDestaque(idioma)) {
+    return (
+      <div className={className}>
+        <p>
+          <Pedacos folga="justa" comPonto={Boolean(usdCartao)}>
+            {desde && <Pedaco className={suave}>{d.boletim.desde}</Pedaco>}
+            <Pedaco forte className={`cifra ${tamanho === 'pagina' ? 'text-figure-lg' : 'text-figure'}`}>
+              {formatarCifra(tabela.precoCentavos, locale)}
+            </Pedaco>
+            <Pedaco className="text-small font-semibold whitespace-nowrap">{P.noCartao}</Pedaco>
+            {usdCartao && (
+              <Pedaco ponto className={suave}>
+                {usdCartao}
+              </Pedaco>
+            )}
+            <Pedaco className={suave}>{semQuebraNoPonto(paraQuem)}</Pedaco>
+          </Pedacos>
+        </p>
+        <p className={suave}>
+          <ComDolar dolar={usdPix}>
+            <span className="whitespace-nowrap">
+              <span className="numeros font-semibold text-(--color-tinta)">
+                {formatarCifra(precoPixCentavos(tabela.precoCentavos), locale)}
+              </span>{' '}
+              <span className="font-semibold text-(--color-sucesso)">{rotuloPixComDesconto(P.noPixComDesconto)}</span>
+            </span>
+          </ComDolar>
+        </p>
+        <PrecoGrupo
+          tabela={tabela}
+          locale={locale}
+          modo="cartao"
+          dolar={cotacao}
+          folga={tamanho === 'pagina' ? 'pequeno' : 'legenda'}
+          textos={{ totalPara: d.grupo.totalPara, rotulos: d.comum.rotulos, noCartao: P.noCartao, dolar: P.dolar }}
+          className={tamanho === 'pagina' ? `mt-1 ${suave}` : 'mt-1 text-caption text-(--color-tinta-suave)'}
+        />
+      </div>
+    );
+  }
   // o total do grupo: a classe da letra e a folga do "·" saem juntas, do mesmo tamanho
   const grupo =
     tamanho === 'pagina'

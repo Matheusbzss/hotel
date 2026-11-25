@@ -8,6 +8,7 @@ import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/hor
 import { textoDolar } from '@/lib/dolar';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from './CampoData';
@@ -48,6 +49,8 @@ export interface TextosWidget {
   semHorarioHoje: string;
   noPix: string;
   noCartao: string;
+  /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês) */
+  noPixComDesconto: string;
   /** "≈ US$ {v}" */
   dolar: string;
   /** "Horário de saída" ou "Horário de busca na hospedagem". */
@@ -160,6 +163,13 @@ export function WidgetReserva({
   const brl = (c: number) => formatarCifra(c, locale);
   const menorPreco = Math.min(...opcoes.map((o) => o.tabela.precoCentavos));
   const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
+  // em espanhol e inglês, o preço do cartão é o grande e o do Pix vai embaixo, com o desconto (src/lib/preco-destaque.ts)
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
+  const rotuloPix = rotuloPixComDesconto(T.noPixComDesconto);
+  const [precoGrande, precoEmbaixo] = cartaoPrimeiro
+    ? [menorPreco, precoPixCentavos(menorPreco)]
+    : [precoPixCentavos(menorPreco), menorPreco];
+  const [totalGrande, totalEmbaixo] = cartaoPrimeiro ? [orc.totalCentavos, totalPix] : [totalPix, orc.totalCentavos];
   const totalPessoas = pessoas.adultos + pessoas.criancasMeia + pessoas.criancasGratis;
   // a data do grupo é hoje, mas os horários de hoje já passaram
   const semHorarioHoje = Boolean(primeiroDia) && grupo.data === hoje && hoje < primeiroDia;
@@ -217,24 +227,29 @@ export function WidgetReserva({
         <h2 className="text-lead font-semibold">{T.titulo}</h2>
         {/* cada pedaço fica inteiro e o "·" do dólar só aparece ao lado de outro pedaço, nunca no começo da linha */}
         <p className="mt-1">
-          <Pedacos folga="justa" comPonto={Boolean(usd(precoPixCentavos(menorPreco)))}>
+          <Pedacos folga="justa" comPonto={Boolean(usd(precoGrande))}>
             {mostrarOpcoes && <Pedaco className="text-small text-(--color-tinta-suave)">{T.aPartirDe}</Pedaco>}
             <Pedaco forte className="cifra text-figure">
-              {brl(precoPixCentavos(menorPreco))}
+              {brl(precoGrande)}
             </Pedaco>
-            <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{T.noPix}</Pedaco>
-            {usd(precoPixCentavos(menorPreco)) && (
+            {cartaoPrimeiro ? (
+              <Pedaco className="text-small font-semibold whitespace-nowrap">{T.noCartao}</Pedaco>
+            ) : (
+              <Pedaco className="text-small font-semibold whitespace-nowrap text-(--color-sucesso)">{T.noPix}</Pedaco>
+            )}
+            {usd(precoGrande) && (
               <Pedaco ponto className="text-small text-(--color-tinta-suave)">
-                {usd(precoPixCentavos(menorPreco))}
+                {usd(precoGrande)}
               </Pedaco>
             )}
             <Pedaco className="text-small text-(--color-tinta-suave)">{T.rotuloUnidade}</Pedaco>
           </Pedacos>
         </p>
         <p className="text-small text-(--color-tinta-suave)">
-          <ComDolar dolar={usd(menorPreco)}>
+          <ComDolar dolar={usd(precoEmbaixo)}>
             <span className="whitespace-nowrap">
-              <span className="numeros font-semibold text-(--color-tinta)">{brl(menorPreco)}</span> {T.noCartao}
+              <span className="numeros font-semibold text-(--color-tinta)">{brl(precoEmbaixo)}</span>{' '}
+              {cartaoPrimeiro ? <span className="font-semibold text-(--color-sucesso)">{rotuloPix}</span> : T.noCartao}
             </span>
           </ComDolar>
         </p>
@@ -260,7 +275,8 @@ export function WidgetReserva({
                         fica no alto, para os nomes dos botões lado a lado ficarem na mesma altura quando só um preço desce. O
                         preço pode usar 8 px do recuo antes de descer (-mr-2): em 360 px ele fica numa linha só, como sempre foi */}
                     <span className="numeros -mr-2 text-small font-normal">
-                      {brl(precoPixCentavos(o.tabela.precoCentavos))} <span className="whitespace-nowrap">{T.noPix}</span>
+                      {brl(cartaoPrimeiro ? o.tabela.precoCentavos : precoPixCentavos(o.tabela.precoCentavos))}{' '}
+                      <span className="whitespace-nowrap">{cartaoPrimeiro ? T.noCartao : T.noPix}</span>
                     </span>
                   </button>
                 ))}
@@ -345,15 +361,15 @@ export function WidgetReserva({
               total alto), o valor desce para a linha de baixo, à direita, em vez de alargar o cartão e a página rolar de lado */}
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <span className="flex-1 font-semibold">
-              <ComDolar dolar={usd(totalPix)} className="text-small font-normal text-(--color-tinta-suave)">
+              <ComDolar dolar={usd(totalGrande)} className="text-small font-normal text-(--color-tinta-suave)">
                 <span className="whitespace-nowrap">
-                  {T.total} <span className="text-(--color-sucesso)">{T.noPix}</span>
+                  {T.total} {cartaoPrimeiro ? T.noCartao : <span className="text-(--color-sucesso)">{T.noPix}</span>}
                 </span>
               </ComDolar>
             </span>
             {/* os números rolam na tela; o leitor de tela ouve só os valores finais */}
             <span aria-hidden="true" className="ml-auto">
-              <Cifra centavos={totalPix} locale={locale} className="cifra text-figure-lg" />
+              <Cifra centavos={totalGrande} locale={locale} className="cifra text-figure-lg" />
             </span>
           </div>
           <p
@@ -361,16 +377,18 @@ export function WidgetReserva({
             aria-hidden="true"
           >
             <span className="flex-1">
-              <ComDolar dolar={usd(orc.totalCentavos)}>
+              <ComDolar dolar={usd(totalEmbaixo)}>
                 <span className="whitespace-nowrap">
-                  {T.total} {T.noCartao}
+                  {T.total} {cartaoPrimeiro ? <span className="font-semibold text-(--color-sucesso)">{rotuloPix}</span> : T.noCartao}
                 </span>
               </ComDolar>
             </span>
-            <Cifra centavos={orc.totalCentavos} locale={locale} className="numeros ml-auto font-semibold text-(--color-tinta)" />
+            <Cifra centavos={totalEmbaixo} locale={locale} className="numeros ml-auto font-semibold text-(--color-tinta)" />
           </p>
           <span className="sr-only" aria-live="polite">
-            {`${T.total} ${T.noPix}: ${brl(totalPix)}. ${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}.`}
+            {cartaoPrimeiro
+              ? `${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}. ${T.total} ${T.noPix}: ${brl(totalPix)}.`
+              : `${T.total} ${T.noPix}: ${brl(totalPix)}. ${T.total} ${T.noCartao}: ${brl(orc.totalCentavos)}.`}
           </span>
           {/* a fonte e a data da cotação, só quando o ≈ US$ aparece (espanhol e inglês) */}
           {dolar && notaCambio && <p className="mt-2 text-caption text-(--color-tinta-suave)">{notaCambio}</p>}

@@ -8,6 +8,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { rastrear } from '@/lib/pixel';
+import { cartaoEmDestaque } from '@/lib/preco-destaque';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from '../CampoData';
 import { ComDolar } from '../ComDolar';
@@ -63,9 +64,9 @@ function Sugestao({
   const varias = s.opcoes.length > 1;
   const livres = horasDisponiveis(s.horas, data);
   const brl = (c: number) => formatarCifra(c, locale);
-  // o preço no Pix, como no site inteiro; no checkout sem o Pix (o prazo ou o limite de valor), o do cartão, que é o que
-  // este pedido cobraria pelo passeio sugerido
-  const noCartao = soCartao ? T.noCartao : undefined;
+  // o preço grande do site (src/lib/preco-destaque.ts): o do Pix em português, o do cartão em espanhol e inglês; no checkout
+  // sem o Pix (o prazo ou o limite de valor), sempre o do cartão, que é o que este pedido cobraria pelo passeio sugerido
+  const noCartao = soCartao || cartaoEmDestaque(locale) ? T.noCartao : undefined;
   const valor = (o: OpcaoSugerida) => (noCartao ? o.totalCentavos : o.totalPixCentavos);
   // o aproximado em dólar só no preço "desde"; os botões de opção ficam sem, por decisão do dono
   const usdDesde = textoDolar(valor(s.opcoes[0]), dolar, T.dolar, locale);

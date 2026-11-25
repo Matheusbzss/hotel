@@ -7,7 +7,9 @@ import { ListaCarrinho } from './ListaCarrinho';
 import { ResumoCarrinho } from './ResumoCarrinho';
 import { SugestoesCarrinho, type TextosSugestoes } from './SugestoesCarrinho';
 
-export type TextosCarrinho = Dicionario['carrinho'] & Pick<Dicionario['preco'], 'noPix' | 'noCartao' | 'dolar'> & TextosSugestoes;
+export type TextosCarrinho = Dicionario['carrinho'] &
+  Pick<Dicionario['preco'], 'noPix' | 'noCartao' | 'noPixComDesconto' | 'dolar'> &
+  TextosSugestoes;
 
 export const textoQuantidade = (T: { item: string; itens: string }, n: number) => (n === 1 ? T.item : T.itens.replace('{n}', String(n)));
 

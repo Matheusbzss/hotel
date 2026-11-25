@@ -7,6 +7,7 @@ import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
+import { cartaoEmDestaque } from '@/lib/preco-destaque';
 import { textoDolar } from '@/lib/dolar';
 import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
@@ -489,6 +490,7 @@ export function FormularioCarrinho({
             remover: K.remover,
             noPix: P.noPix,
             noCartao: P.noCartao,
+            noPixComDesconto: P.noPixComDesconto,
             dolar: P.dolar,
           }}
           aoRemover={remover}
@@ -619,9 +621,10 @@ export function FormularioCarrinho({
         dolar: P.dolar,
       }
     : null;
-  // no total em destaque, a forma escolhida (sem pagamento online, o Pix, como no site); a outra embaixo, só se ela também
-  // vale para este pedido (sem o Pix, o quadro mostra só o total no cartão)
-  const destaque: FormaPagamento = online && forma ? forma : 'pix';
+  // no total em destaque, a forma escolhida (sem pagamento online, a do preço grande do site: o Pix em português, o cartão
+  // em espanhol e inglês, src/lib/preco-destaque.ts); a outra embaixo, só se ela também vale para este pedido (sem o Pix,
+  // o quadro mostra só o total no cartão)
+  const destaque: FormaPagamento = online && forma ? forma : cartaoEmDestaque(locale) ? 'cartao' : 'pix';
   const outra = (['pix', 'cartao'] as const).find((f) => f !== destaque && (!online || formas.includes(f)));
   const rotuloDaForma = (f: FormaPagamento) => (f === 'pix' ? P.noPix : P.noCartao);
   // "Seus dados são tratados conforme a nossa {politica}.": o nome da política vira o link, com os espaços dentro do texto

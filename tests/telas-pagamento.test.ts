@@ -102,7 +102,7 @@ test('a faixa do total do pedido: o valor e o rótulo só se separam quando nem 
   // revisão do Pacote 29, o Pix que vem depois do cartão (espanhol e inglês) tem o rótulo em destaque, também sem se partir
   assert.match(
     pedido,
-    /const valorDaFaixa = \(p: ParteDoTotal\) => \(\s*<Inteiro>\s*\{brl\(p\.centavos\)\}\s*\{p\.forma && \(\s*<>\s*\{' '\}\s*<span className=\{p\.forma === 'pix' && pixDepois \? 'whitespace-nowrap font-semibold text-\(--color-d2\)' : 'whitespace-nowrap'\}>\s*\{rotulo\[p\.forma\]\}\s*<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
+    /const valorDaFaixa = \(p: ParteDoTotal\) => \(\s*<Inteiro>\s*\{brl\(p\.centavos\)\}\s*\{p\.forma && \(\s*<>\s*\{' '\}\s*<span className=\{p\.forma === 'pix' && pixDepoisDoCartao\(doPedido\) \? 'whitespace-nowrap font-semibold text-\(--color-d2\)' : 'whitespace-nowrap'\}>\s*\{rotuloNaLista\(doPedido, p\.forma\)\}\s*<\/span>\s*<\/>\s*\)\}\s*<\/Inteiro>\s*\);/,
   );
   assert.match(pedido, /^import \{[^}]*(?<!\w)Inteiro(?!\w)[^}]*\} from '@\/components\/ComDolar';$/m);
   // o Inteiro (src/components/ComDolar.tsx) só quebra abaixo de 14rem da caixa com @container: com a letra normal, nada muda
@@ -110,7 +110,8 @@ test('a faixa do total do pedido: o valor e o rótulo só se separam quando nem 
   // as linhas de valor de cada item ficam como estavam: o conserto planejado para elas quebrava o texto (linha vazia e o
   // começo do valor cortado em 320 px com a letra em 150%; seção 3.6 do desenho das telas)
   const inicio = pedido.indexOf('const linhaDeValores = ');
-  const fim = pedido.indexOf('const doPedido', inicio);
+  // desde a terceira conferência do Pacote 29, a lista do pedido (doPedido) vem antes da faixa; depois das linhas vem a parte grande
+  const fim = pedido.indexOf('const principal', inicio);
   assert.ok(inicio !== -1 && fim > inicio, 'as linhas de valor de cada item');
   const linhas = pedido.slice(inicio, fim);
   assert.doesNotMatch(linhas, /Inteiro/);

@@ -162,12 +162,14 @@ export async function POST(req: Request) {
     const resposta = { ok: true, codigo: pedido.codigo, token: pedido.token, itens: novas.length };
 
     // o cliente refez o pedido a partir do mesmo carrinho (mudou um item, voltou do formulário da Stripe): o anterior,
-    // ainda em aberto, não pode mais ser pago. Só agora, com o novo gravado: se ele falhasse, o anterior continuava valendo
+    // ainda em aberto, não pode mais ser pago. Só agora, com o novo gravado: se ele falhasse, o anterior continuava valendo.
+    // Se a gravação do cancelamento falhar, a sessão do anterior fecha mesmo assim (fecharMesmoSemGravar; terceira
+    // conferência do Pacote 29): o novo é o que vale
     const anterior = carrinho.pedido;
     if (anterior && podeAbrirSessao(anterior.status)) {
-      await cancelarPedidoAberto(anterior.codigo, `Cancelado: o cliente refez o pedido (${pedido.codigo})`).catch((err) =>
-        console.error(`[pedido] falha ao cancelar o pedido anterior ${anterior.codigo}`, mensagem(err)),
-      );
+      await cancelarPedidoAberto(anterior.codigo, `Cancelado: o cliente refez o pedido (${pedido.codigo})`, {
+        fecharMesmoSemGravar: true,
+      }).catch((err) => console.error(`[pedido] falha ao cancelar o pedido anterior ${anterior.codigo}`, mensagem(err)));
     }
 
     if (!forma) {

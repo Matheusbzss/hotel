@@ -5,6 +5,8 @@ import type { EscolhaItem } from '../../../lib/carrinho';
 import { linhaDoCancelamento } from '../../../lib/email/marcas.ts';
 import type { FormaPagamento, ItemAgendado } from '../../../lib/formas-pagamento';
 import {
+  aplicarSessao,
+  interpretarSessao,
   podeAbrirSessao,
   proximaTentativa,
   registrarSessaoCriada,
@@ -14,7 +16,7 @@ import {
 import { provedorDaReserva } from '../../../lib/pedidos-painel.ts';
 import type { ReservaPublica } from '../../../lib/reserva-publica';
 import type { Reserva, StatusReserva } from '../../../lib/reservas';
-import { criarSessaoPagamento, expirarSessao, modoStripe, type ItemDaSessao } from '../../../lib/stripe.ts';
+import { criarSessaoPagamento, expirarSessao, modoStripe, obterSessao, type ItemDaSessao } from '../../../lib/stripe.ts';
 import { formatarDataIso } from '../../../lib/validacao.ts';
 
 /**
@@ -160,12 +162,13 @@ export function sessoesSubstituidas(lidaNoComeco: string | undefined, naHoraDeGr
 
 /**
  * As sessões que o cancelamento fecha depois de gravar o pedido como cancelado (segunda revisão do Pacote 29): a que o
- * pedido tinha na leitura do começo e a que ele tinha dentro da trava, na volta que gravou. Quase sempre é a mesma. São
- * duas quando o cliente apertou "Pagar de novo" quase junto com o "Cancelar" da equipe: a sessão nova dele, que o
- * cancelamento não conhecia, ficava aberta e ainda aceitaria um pagamento. Sem repetir.
+ * pedido tinha dentro da trava, na volta que gravou, e a da leitura do começo. Quase sempre é a mesma. São duas quando o
+ * cliente apertou "Pagar de novo" quase junto com o "Cancelar" da equipe: a sessão nova dele, que o cancelamento não
+ * conhecia, ficava aberta e ainda aceitaria um pagamento. Na ordem em que fecham (a da trava primeiro: é a que o cliente
+ * pode estar usando agora; terceira conferência), sem repetir.
  */
-export function sessoesDoCancelamento(lidaNoComeco: string | undefined, naTrava: string | undefined): string[] {
-  return [...new Set([lidaNoComeco, naTrava])].filter((id): id is string => !!id);
+export function sessoesDoCancelamento(naTrava: string | undefined, lidaNoComeco: string | undefined): string[] {
+  return [...new Set([naTrava, lidaNoComeco])].filter((id): id is string => !!id);
 }
 
 /* ------------------------------------------------------------------ */
@@ -326,34 +329,84 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
  * muda mais nada), e o pedido só fica expirado pelo prazo da própria Stripe. Fecha também a sessão que o pedido tinha
  * dentro da trava: a de um "Pagar de novo" do cliente quase no mesmo instante ficava aberta. O pagamento que chegar entre
  * a gravação e o fechamento fica parado na Stripe para a equipe decidir (Pacote 22), como o que chegava, antes, no
- * instante do fechamento.
+ * instante do fechamento; e o que chegou no mesmo instante, com o aviso da Stripe ainda a caminho, é aplicado aqui mesmo
+ * (fecharSessoes), antes de quem cancelou agendar o e-mail "Pedido cancelado".
+ *
+ * A gravação que falha (terceira conferência do Pacote 29): o pedido é relido. Já cancelado (a gravação entrou e a
+ * resposta do banco se perdeu, ou outro "Cancelar" gravou no meio-tempo), segue como deu certo e as sessões fecham. Ainda
+ * em aberto, o erro segue e nada fecha, a não ser com `fecharMesmoSemGravar` (o cancelamento automático de quem refez o
+ * pedido: o pedido novo é o que vale, e um pagamento neste ainda deixaria dois pedidos pagos do mesmo carrinho). No painel,
+ * a equipe vê o erro e repete, com o pedido ainda esperando o pagamento de verdade.
  */
-export async function cancelarPedidoAberto(codigo: string, evento: string): Promise<Reserva | null> {
+export async function cancelarPedidoAberto(
+  codigo: string,
+  evento: string,
+  { fecharMesmoSemGravar = false }: { fecharMesmoSemGravar?: boolean } = {},
+): Promise<Reserva | null> {
   const { atualizarReserva, obterReservaDoPedido, registrar } = await import('../../../lib/reservas.ts');
-  const { liberarBloqueiosDaSessao } = await import('../../../lib/pedido-carrinho.ts');
   const alvo = await obterReservaDoPedido(codigo);
   if (!alvo) return null;
   if (!podeAbrirSessao(alvo.status)) return alvo;
   // a sessão do pedido relido dentro da trava, na volta que gravou
   let sessaoNaTrava: string | undefined;
-  const r = await atualizarReserva(alvo.codigo, (r) => {
-    sessaoNaTrava = undefined;
-    if (!podeAbrirSessao(r.status)) return null;
-    sessaoNaTrava = r.pagamentoExternoId;
-    // Pacote 29: o pedido que já tinha vencido sem pagamento ganha o final " (já estava vencido)" na linha; cancelado no
-    // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11). Vencido é o
-    // que estava expirado na leitura do começo (alvo) E continua expirado aqui dentro da trava: o pedido que o cliente
-    // reabriu no meio-tempo ("Pagar de novo") esperava o pagamento, e esse cliente ainda recebe o e-mail
-    const linha = linhaDoCancelamento(evento, alvo.status, r.status);
-    r.status = 'cancelado';
-    return registrar(r, linha);
-  });
-  if (r?.status !== 'cancelado') return r;
-  for (const sessao of sessoesDoCancelamento(alvo.pagamentoExternoId, sessaoNaTrava)) {
-    await expirarSessao(sessao).catch((e) => console.error(`[pedido] não deu para expirar a sessão do pedido ${codigo}: ${mensagem(e)}`));
-    await liberarBloqueiosDaSessao(sessao).catch((e) =>
-      console.error(`[pedido] não deu para liberar as datas do pedido ${codigo}: ${mensagem(e)}`),
-    );
+  let r: Reserva | null;
+  try {
+    r = await atualizarReserva(alvo.codigo, (x) => {
+      sessaoNaTrava = undefined;
+      if (!podeAbrirSessao(x.status)) return null;
+      sessaoNaTrava = x.pagamentoExternoId;
+      // Pacote 29: o pedido que já tinha vencido sem pagamento ganha o final " (já estava vencido)" na linha; cancelado no
+      // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11). Vencido é o
+      // que estava expirado na leitura do começo (alvo) E continua expirado aqui dentro da trava: o pedido que o cliente
+      // reabriu no meio-tempo ("Pagar de novo") esperava o pagamento, e esse cliente ainda recebe o e-mail
+      const linha = linhaDoCancelamento(evento, alvo.status, x.status);
+      x.status = 'cancelado';
+      return registrar(x, linha);
+    });
+  } catch (e) {
+    const relido = await obterReservaDoPedido(codigo).catch(() => null);
+    if (relido?.status !== 'cancelado') {
+      if (fecharMesmoSemGravar && (!relido || podeAbrirSessao(relido.status))) {
+        await fecharSessoes(codigo, sessoesDoCancelamento(relido?.pagamentoExternoId, alvo.pagamentoExternoId), false);
+      }
+      throw e;
+    }
+    r = relido;
+    sessaoNaTrava = relido.pagamentoExternoId;
   }
+  if (r?.status !== 'cancelado') return r;
+  await fecharSessoes(codigo, sessoesDoCancelamento(sessaoNaTrava, alvo.pagamentoExternoId), true);
   return r;
+}
+
+/**
+ * Fecha na Stripe as sessões que o cancelamento deixa para trás e, com `liberar` (o pedido cancelado), solta as datas de
+ * casa presas a elas. A sessão que já não estava aberta (expirarSessao devolve false) venceu, ou foi paga no mesmo instante
+ * do "Cancelar" com o aviso da Stripe ainda a caminho: ela é relida na hora e, paga, aplicada pela mesma porta do aviso
+ * (aplicarSessao). No pedido cancelado, o pagamento fica parado (Pacote 22) e a equipe é avisada ANTES de quem cancelou
+ * agendar o e-mail "Pedido cancelado", cuja regra (emailDoCancelamentoSai) já encontra o parado e não escreve "Nada foi
+ * cobrado" (terceira conferência do Pacote 29). Um erro da Stripe só fica no registro do servidor: a sessão vence sozinha,
+ * e um pagamento nela fica parado do mesmo jeito.
+ */
+async function fecharSessoes(codigo: string, sessoes: readonly string[], liberar: boolean): Promise<void> {
+  const { liberarBloqueiosDaSessao } = await import('../../../lib/pedido-carrinho.ts');
+  for (const sessao of sessoes) {
+    const fechou = await expirarSessao(sessao).catch((e) => {
+      console.error(`[pedido] não deu para expirar a sessão do pedido ${codigo}: ${mensagem(e)}`);
+      return 'erro' as const;
+    });
+    if (fechou === false) {
+      try {
+        const lida = await obterSessao(sessao);
+        if (interpretarSessao(lida).status === 'pago') await aplicarSessao(codigo, lida, 'consulta');
+      } catch (e) {
+        console.error(`[pedido] não deu para reler a sessão já fechada do pedido ${codigo}: ${mensagem(e)}`);
+      }
+    }
+    if (liberar) {
+      await liberarBloqueiosDaSessao(sessao).catch((e) =>
+        console.error(`[pedido] não deu para liberar as datas do pedido ${codigo}: ${mensagem(e)}`),
+      );
+    }
+  }
 }

@@ -373,7 +373,7 @@ test('cancelar no painel um pedido que já tinha vencido não manda o e-mail (Pa
   // quem cancela grava a linha com o status de antes de cancelar
   assert.match(
     fonte('app', 'api', 'pedido', 'pedido-stripe.ts'),
-    /const linha = linhaDoCancelamento\(evento, alvo\.status, r\.status\);\s+r\.status = 'cancelado';\s+return registrar\(r, linha\);/,
+    /const linha = linhaDoCancelamento\(evento, alvo\.status, x\.status\);\s+x\.status = 'cancelado';\s+return registrar\(x, linha\);/,
   );
 });
 

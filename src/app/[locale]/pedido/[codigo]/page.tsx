@@ -181,17 +181,22 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // foi pago
   const formasAbertas = formasDaFaixa(status, pagamento);
   // a forma cujo total vem primeiro (o grande da faixa): em português, o Pix, como sempre; em espanhol e inglês, a que a
-  // tela de pagar traz marcada, e o cartão no pedido do WhatsApp (formaEmDestaque, revisão do Pacote 29). O Pix que vem
-  // depois diz o desconto ("con Pix (−10%)"), como no checkout e no carrinho
+  // tela de pagar traz marcada, e o cartão no pedido do WhatsApp (formaEmDestaque, revisão do Pacote 29)
   const primeiraForma = formaEmDestaque(locale, pagamento && { ...pagamento, cartaoRecusado: Boolean(itens[0]?.recusa) });
-  const pixDepois = primeiraForma !== 'pix';
-  const rotulo = {
-    pix: pixDepois ? rotuloPixComDesconto(d.preco.noPixComDesconto) : d.preco.noPix,
-    cartao: d.preco.noCartao,
-  };
+  const rotulo = { pix: d.preco.noPix, cartao: d.preco.noCartao };
+  // o Pix que vem DEPOIS do cartão na mesma lista diz o desconto, "con Pix (−10%)", como no checkout e no carrinho (em
+  // português o Pix vem sempre primeiro; o Pix sozinho, sem o cartão, fica com o rótulo de sempre). Só na faixa e na
+  // mensagem do WhatsApp: nas linhas de cada item, que não quebram, o rótulo comprido passaria do cartão branco em 320 px
+  // com a letra grande (terceira conferência do Pacote 29)
+  const pixDepoisDoCartao = (lista: readonly ParteDoTotal[]) => lista[0]?.forma === 'cartao';
+  const rotuloNaLista = (lista: readonly ParteDoTotal[], forma: FormaPagamento) =>
+    forma === 'pix' && pixDepoisDoCartao(lista) ? rotuloPixComDesconto(d.preco.noPixComDesconto) : rotulo[forma];
   const valor = (p: ParteDoTotal) => (p.forma ? `${brl(p.centavos)} ${rotulo[p.forma]}` : brl(p.centavos));
   // na mensagem do WhatsApp, os dois totais na mesma ordem da página; fechado, o que foi pago
-  const total = emAberto ? partesDoTotal(pedido.totalCentavos, noPix, undefined, primeiraForma).map(valor).join(' · ') : brl(fechado);
+  const doTexto = partesDoTotal(pedido.totalCentavos, noPix, undefined, primeiraForma);
+  const total = emAberto
+    ? doTexto.map((p) => (p.forma ? `${brl(p.centavos)} ${rotuloNaLista(doTexto, p.forma)}` : brl(p.centavos))).join(' · ')
+    : brl(fechado);
   const mensagem = fmt(d.pedido.msgWhatsapp, {
     codigo,
     itens: itens
@@ -201,25 +206,27 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
       .join('\n'),
     total,
   });
+  const partes = (totalCentavos: number, totalPixCentavos?: number): ParteDoTotal[] =>
+    emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma) : [{ centavos: totalCentavos }];
+  const doPedido: ParteDoTotal[] = emAberto ? partes(pedido.totalCentavos, pedido.totalPixCentavos) : [{ centavos: fechado }];
   // a faixa do total: o valor e o rótulo ("R$ 5.148,00" e "no Pix") ficam juntos; só quando nem assim cabem (letra
   // grande em tela estreita: a faixa com menos de 14rem, @container), o rótulo desce para a linha de baixo (Inteiro).
   // O valor nunca se parte: entre "R$" e o número, a formatação põe um espaço que não quebra (no inglês, nenhum). O Pix
-  // que vem depois do cartão (espanhol e inglês) tem o rótulo em destaque, como no checkout e no formulário do transfer
+  // que vem depois do cartão (espanhol e inglês) tem o rótulo com o desconto, em destaque, como no checkout e no
+  // formulário do transfer
   const valorDaFaixa = (p: ParteDoTotal) => (
     <Inteiro>
       {brl(p.centavos)}
       {p.forma && (
         <>
           {' '}
-          <span className={p.forma === 'pix' && pixDepois ? 'whitespace-nowrap font-semibold text-(--color-d2)' : 'whitespace-nowrap'}>
-            {rotulo[p.forma]}
+          <span className={p.forma === 'pix' && pixDepoisDoCartao(doPedido) ? 'whitespace-nowrap font-semibold text-(--color-d2)' : 'whitespace-nowrap'}>
+            {rotuloNaLista(doPedido, p.forma)}
           </span>
         </>
       )}
     </Inteiro>
   );
-  const partes = (totalCentavos: number, totalPixCentavos?: number): ParteDoTotal[] =>
-    emAberto ? partesDoTotal(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma) : [{ centavos: totalCentavos }];
   // cada valor fica inteiro com o rótulo ("R$ 138,60 con Pix") e o "·" só aparece entre dois pedaços da mesma linha
   const linhaDeValores = (lista: ParteDoTotal[]) => {
     const pedacos = lista.flatMap((parte, n) => {
@@ -241,7 +248,6 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     // um valor só, sem dólar (português): o texto de sempre
     return pedacos.length > 1 ? <Pedacos>{pedacos}</Pedacos> : valor(lista[0]);
   };
-  const doPedido: ParteDoTotal[] = emAberto ? partes(pedido.totalCentavos, pedido.totalPixCentavos) : [{ centavos: fechado }];
   const principal = doPedido[0];
   const segunda: ParteDoTotal | undefined = doPedido[1];
 

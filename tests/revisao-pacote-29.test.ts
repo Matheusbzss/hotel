@@ -96,26 +96,47 @@ test('a forma marcada na tela de pagar de novo: o Pix depois do cartão recusado
 test('as páginas do pedido e da reserva e a linha de baixo do checkout seguem a regra (só leitura do código)', () => {
   const pedido = ler('src/app/[locale]/pedido/[codigo]/page.tsx');
   assert.match(pedido, /const primeiraForma = formaEmDestaque\(locale, pagamento && \{ \.\.\.pagamento, cartaoRecusado: Boolean\(itens\[0\]\?\.recusa\) \}\);/);
-  assert.match(pedido, /pix: pixDepois \? rotuloPixComDesconto\(d\.preco\.noPixComDesconto\) : d\.preco\.noPix,/);
   assert.match(pedido, /partesDoTotal\(totalCentavos, totalPixCentavos, formasAbertas, primeiraForma\)/);
+  // o "(−10%)" só no Pix que vem DEPOIS do cartão na mesma lista (o Pix sozinho, ou primeiro, fica com o rótulo de sempre:
+  // terceira conferência), e só na faixa e na mensagem do WhatsApp
+  assert.match(pedido, /const pixDepoisDoCartao = \(lista: readonly ParteDoTotal\[\]\) => lista\[0\]\?\.forma === 'cartao';/);
+  assert.match(
+    pedido,
+    /const rotuloNaLista = \(lista: readonly ParteDoTotal\[\], forma: FormaPagamento\) =>\s+forma === 'pix' && pixDepoisDoCartao\(lista\) \? rotuloPixComDesconto\(d\.preco\.noPixComDesconto\) : rotulo\[forma\];/,
+  );
+  // as linhas de cada item, que não quebram, com o rótulo curto de sempre (o comprido passava do cartão em 320 px com 150%)
+  assert.match(pedido, /const rotulo = \{ pix: d\.preco\.noPix, cartao: d\.preco\.noCartao \};/);
+  assert.match(pedido, /const valor = \(p: ParteDoTotal\) => \(p\.forma \? `\$\{brl\(p\.centavos\)\} \$\{rotulo\[p\.forma\]\}` : brl\(p\.centavos\)\);/);
+  assert.match(pedido, /<Pedaco key=\{`\$\{chave\}-valor`\} ponto=\{n > 0\} className="whitespace-nowrap">\s*\{valor\(parte\)\}/);
   // a mensagem do WhatsApp na mesma ordem da página
-  assert.match(pedido, /const total = emAberto \? partesDoTotal\(pedido\.totalCentavos, noPix, undefined, primeiraForma\)\.map\(valor\)\.join\(' · '\) : brl\(fechado\);/);
+  assert.match(pedido, /const doTexto = partesDoTotal\(pedido\.totalCentavos, noPix, undefined, primeiraForma\);/);
+  assert.match(pedido, /doTexto\.map\(\(p\) => \(p\.forma \? `\$\{brl\(p\.centavos\)\} \$\{rotuloNaLista\(doTexto, p\.forma\)\}` : brl\(p\.centavos\)\)\)\.join\(' · '\)/);
   const reserva = ler('src/components/StatusReserva.tsx');
   assert.match(reserva, /const primeiraForma = formaEmDestaque\(idioma, online && pagamento \? \{ \.\.\.pagamento, cartaoRecusado: Boolean\(r\.recusa\) \} : null\);/);
-  assert.match(reserva, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa, primeiraForma\)/);
-  assert.match(reserva, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, undefined, primeiraForma\)/);
+  assert.match(reserva, /const daFaixa = partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa, primeiraForma\);/);
+  assert.match(reserva, /const doTexto = partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, undefined, primeiraForma\);/);
+  assert.match(reserva, /const pixDepoisDoCartao = \(lista: readonly ParteDoTotal\[\]\) => lista\[0\]\?\.forma === 'cartao';/);
+  assert.match(reserva, /valorTela\(parte\.centavos, parte\.forma && rotuloNaLista\(daFaixa, parte\.forma\), parte\.forma === 'pix' && pixDepoisDoCartao\(daFaixa\)\)/);
   assert.match(ler('src/app/[locale]/reserva/[codigo]/page.tsx'), /noPixComDesconto: d\.preco\.noPixComDesconto,/);
   const checkout = ler('src/components/carrinho/FormularioCarrinho.tsx');
   assert.match(checkout, /const pixEmbaixoComDesconto = outra === 'pix' && cartaoEmDestaque\(locale\);/);
   assert.match(checkout, /\{pixEmbaixoComDesconto \? \(\s+<span className="font-semibold text-\(--color-d2\)">\{rotuloPixComDesconto\(P\.noPixComDesconto\)\}<\/span>/);
 });
 
-test('o cancelamento fecha as duas sessões que o pedido teve, sem repetir', () => {
+test('a recusa que chega com a página aberta redesenha a faixa (terceira conferência do Pacote 29)', () => {
+  const tela = ler('src/components/pagamento/CheckoutEmbutido.tsx');
+  assert.match(
+    tela,
+    /if \(lido\.recusa && lido\.recusa !== recusa\) \{\s+setRecusa\(lido\.recusa\);\s+if \(formas\.includes\('pix'\)\) setForma\('pix'\);\s+setEtapa\('escolher'\);[\s\S]*?router\.refresh\(\);\s+\}/,
+  );
+});
+
+test('o cancelamento fecha as duas sessões que o pedido teve, a da trava primeiro, sem repetir', () => {
   assert.deepEqual(sessoesDoCancelamento('cs_a', 'cs_a'), ['cs_a']);
-  // o "Pagar de novo" do cliente quase junto com o "Cancelar": a sessão nova dele também fecha
-  assert.deepEqual(sessoesDoCancelamento('cs_a', 'cs_b'), ['cs_a', 'cs_b']);
-  assert.deepEqual(sessoesDoCancelamento(undefined, 'cs_b'), ['cs_b']);
-  assert.deepEqual(sessoesDoCancelamento('cs_a', undefined), ['cs_a']);
+  // o "Pagar de novo" do cliente (cs_b, lida na trava) quase junto com o "Cancelar": a sessão nova dele fecha primeiro
+  assert.deepEqual(sessoesDoCancelamento('cs_b', 'cs_a'), ['cs_b', 'cs_a']);
+  assert.deepEqual(sessoesDoCancelamento(undefined, 'cs_a'), ['cs_a']);
+  assert.deepEqual(sessoesDoCancelamento('cs_b', undefined), ['cs_b']);
   assert.deepEqual(sessoesDoCancelamento(undefined, undefined), []);
 });
 
@@ -125,11 +146,46 @@ test('o cancelamento grava o pedido como cancelado antes de fechar a sessão da 
   assert.ok(comeco > 0);
   const corpo = fonte.slice(comeco, fonte.indexOf('\n}\n', comeco));
   const gravar = corpo.indexOf('await atualizarReserva(alvo.codigo');
-  const fechar = corpo.indexOf('await expirarSessao(');
+  const fechar = corpo.lastIndexOf('await fecharSessoes(');
   assert.ok(gravar > 0 && fechar > gravar, 'a gravação vem antes do fechamento');
-  // fecha só com o pedido cancelado, e as sessões da leitura do começo e da trava
-  assert.match(corpo, /sessaoNaTrava = r\.pagamentoExternoId;/);
-  assert.match(corpo, /if \(r\?\.status !== 'cancelado'\) return r;\s+for \(const sessao of sessoesDoCancelamento\(alvo\.pagamentoExternoId, sessaoNaTrava\)\) \{/);
-  // nenhum fechamento antes da trava
-  assert.equal(corpo.slice(0, gravar).includes('expirarSessao('), false);
+  // nenhum fechamento antes da trava, e nenhuma chamada direta à Stripe no corpo (tudo passa por fecharSessoes)
+  assert.equal(corpo.slice(0, gravar).includes('fecharSessoes('), false);
+  assert.equal(corpo.includes('expirarSessao('), false);
+  // fecha só com o pedido cancelado: a sessão da trava primeiro, depois a da leitura do começo, e solta as datas de casa
+  assert.match(corpo, /sessaoNaTrava = x\.pagamentoExternoId;/);
+  assert.match(
+    corpo,
+    /if \(r\?\.status !== 'cancelado'\) return r;\s+await fecharSessoes\(codigo, sessoesDoCancelamento\(sessaoNaTrava, alvo\.pagamentoExternoId\), true\);\s+return r;/,
+  );
+  // a gravação que falha: relida, cancelada segue como deu certo; em aberto, só o cancelamento automático fecha a sessão
+  // (sem soltar as datas: o aviso da sessão vencida faz isso), e o erro segue
+  assert.match(
+    corpo,
+    /\} catch \(e\) \{\s+const relido = await obterReservaDoPedido\(codigo\)\.catch\(\(\) => null\);\s+if \(relido\?\.status !== 'cancelado'\) \{\s+if \(fecharMesmoSemGravar && \(!relido \|\| podeAbrirSessao\(relido\.status\)\)\) \{\s+await fecharSessoes\(codigo, sessoesDoCancelamento\(relido\?\.pagamentoExternoId, alvo\.pagamentoExternoId\), false\);\s+\}\s+throw e;\s+\}\s+r = relido;\s+sessaoNaTrava = relido\.pagamentoExternoId;\s+\}/,
+  );
+  // só o "cliente refez o pedido" pede para fechar mesmo sem gravar; o painel e a sessão que não pôde ser criada, não
+  const rota = ler('src/app/api/pedido/route.ts');
+  assert.match(rota, /cancelarPedidoAberto\(anterior\.codigo, `Cancelado: o cliente refez o pedido \(\$\{pedido\.codigo\}\)`, \{\s+fecharMesmoSemGravar: true,\s+\}\)/);
+  assert.equal(rota.match(/fecharMesmoSemGravar/g)?.length, 2); // o comentário e a chamada
+  assert.doesNotMatch(ler('src/app/api/admin/reservas/[codigo]/route.ts'), /fecharMesmoSemGravar/);
+});
+
+test('a sessão que já não estava aberta é relida e, paga, aplicada antes do e-mail "Pedido cancelado" (só leitura do código)', () => {
+  const fonte = ler('src/app/api/pedido/pedido-stripe.ts');
+  const comeco = fonte.indexOf('async function fecharSessoes(');
+  assert.ok(comeco > 0);
+  const corpo = fonte.slice(comeco, fonte.indexOf('\n}\n', comeco));
+  // fechou: nada mais; erro da Stripe: só o registro; já fechada (false): relida e, paga, pela porta do aviso da Stripe
+  assert.match(corpo, /const fechou = await expirarSessao\(sessao\)\.catch\(\(e\) => \{[\s\S]*?return 'erro' as const;\s+\}\);/);
+  assert.match(
+    corpo,
+    /if \(fechou === false\) \{\s+try \{\s+const lida = await obterSessao\(sessao\);\s+if \(interpretarSessao\(lida\)\.status === 'pago'\) await aplicarSessao\(codigo, lida, 'consulta'\);/,
+  );
+  assert.match(corpo, /if \(liberar\) \{\s+await liberarBloqueiosDaSessao\(sessao\)/);
+  // a rota do painel agenda o e-mail só depois de cancelarPedidoAberto voltar: o parado já está gravado quando a regra
+  // do e-mail (emailDoCancelamentoSai) roda
+  const painel = ler('src/app/api/admin/reservas/[codigo]/route.ts');
+  const cancela = painel.indexOf("await cancelarPedidoAberto(codigoDoPedido, 'Cancelado no admin')");
+  const agenda = painel.indexOf('agendarEmailDoCancelamento(codigoDoPedido)', cancela);
+  assert.ok(cancela > 0 && agenda > cancela);
 });

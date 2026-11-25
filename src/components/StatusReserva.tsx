@@ -8,7 +8,7 @@ import { textoDolar } from '@/lib/dolar';
 import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { frasesDoReembolso, type TextosDoReembolso } from '@/lib/frases-do-reembolso';
 import { formatarCentavos } from '@/lib/orcamento';
-import { formasDaFaixa, partesDoTotal } from '@/lib/partes-do-total';
+import { formasDaFaixa, partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
 import { formaEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import type { ReservaPublica } from '@/lib/reserva-publica';
 import { formatarDataIso } from '@/lib/validacao';
@@ -152,14 +152,17 @@ export function StatusReserva({
   // inglês, primeiro o da forma que a tela de pagar traz marcada, e o do cartão fora do pagamento online, com o Pix depois
   // dizendo o desconto ("con Pix (−10%)"): o mesmo número do checkout (formaEmDestaque, revisão do Pacote 29)
   const primeiraForma = formaEmDestaque(idioma, online && pagamento ? { ...pagamento, cartaoRecusado: Boolean(r.recusa) } : null);
-  const pixDepois = primeiraForma !== 'pix';
-  const rotulos = {
-    pix: pixDepois ? rotuloPixComDesconto(textos.noPixComDesconto ?? textos.noPix) : textos.noPix,
-    cartao: textos.noCartao,
-  };
+  const rotulos = { pix: textos.noPix, cartao: textos.noCartao };
+  // o Pix que vem DEPOIS do cartão na mesma lista diz o desconto; o Pix sozinho, ou primeiro, fica com o rótulo de sempre
+  const pixDepoisDoCartao = (lista: readonly ParteDoTotal[]) => lista[0]?.forma === 'cartao';
+  const rotuloNaLista = (lista: readonly ParteDoTotal[], forma: FormaPagamento) =>
+    forma === 'pix' && pixDepoisDoCartao(lista) ? rotuloPixComDesconto(textos.noPixComDesconto ?? textos.noPix) : rotulos[forma];
+  const doTexto = partesDoTotal(r.totalCentavos, r.totalPixCentavos, undefined, primeiraForma);
   const brl = r.totalPixCentavos
-    ? partesDoTotal(r.totalCentavos, r.totalPixCentavos, undefined, primeiraForma)
-        .map((parte) => (parte.forma ? `${formatarCentavos(parte.centavos, locale)} ${rotulos[parte.forma]}` : formatarCentavos(parte.centavos, locale)))
+    ? doTexto
+        .map((parte) =>
+          parte.forma ? `${formatarCentavos(parte.centavos, locale)} ${rotuloNaLista(doTexto, parte.forma)}` : formatarCentavos(parte.centavos, locale),
+        )
         .join(' · ')
     : formatarCentavos(r.totalCentavos, locale);
   // na tela, cada valor ganha o aproximado em dólar (espanhol e inglês), que nunca quebra no meio da linha;
@@ -199,14 +202,15 @@ export function StatusReserva({
   // quando os dois couberam na mesma linha: no começo de uma linha ele fica fora do recorte da faixa (mais abaixo). O
   // bloco nunca passa da largura da faixa (max-w-full): sem isso, o Inteiro de dentro, que pede a largura dele inteiro,
   // não chegaria a quebrar e o recorte cortaria o rótulo
-  const brlTela = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa, primeiraForma).map((parte, n) => (
+  const daFaixa = partesDoTotal(r.totalCentavos, r.totalPixCentavos, formasNaFaixa, primeiraForma);
+  const brlTela = daFaixa.map((parte, n) => (
     <span key={parte.forma ?? 'total'} className="relative max-w-full pl-[0.626em]">
       {n > 0 && (
         <span aria-hidden="true" className="absolute top-0 left-0 w-[0.626em] text-center">
           ·
         </span>
       )}
-      {valorTela(parte.centavos, parte.forma && rotulos[parte.forma], parte.forma === 'pix' && pixDepois)}
+      {valorTela(parte.centavos, parte.forma && rotuloNaLista(daFaixa, parte.forma), parte.forma === 'pix' && pixDepoisDoCartao(daFaixa))}
     </span>
   ));
   const dataTexto = formatarDataIso(r.data, locale);

@@ -690,6 +690,9 @@ export function PagarPedido({
       setRecusa(lido.recusa);
       if (formas.includes('pix')) setForma('pix');
       setEtapa('escolher');
+      // o servidor redesenha a faixa do total com a recusa (formaEmDestaque: em espanhol e inglês o Pix passa a vir
+      // primeiro, como o botão "Pagar" agora). A chave desta tela é o status, que não mudou: a escolha fica como está
+      router.refresh();
     }
   });
 

@@ -48,6 +48,17 @@ export const marcaDoEmailDoReembolso = (versao: VersaoDoEmailDoReembolso, reembo
 /** Pacote 28: o e-mail do pedido cancelado pela equipe no painel, sem dinheiro a devolver (um por pedido). */
 export const MARCA_DO_EMAIL_DO_CANCELAMENTO = 'E-mail ao cliente: pedido cancelado';
 
+/**
+ * Pacote 29 (decisão do dono de 25/11): o pedido que já tinha vencido sem pagamento quando foi cancelado ganha este final
+ * na linha do cancelamento ("Cancelado no admin (já estava vencido)"). Cancelar um pedido vencido é só arrumação do
+ * painel: o e-mail "Pedido cancelado" não sai para ele (emailDoCancelamentoSai, src/lib/email/regras-dos-avisos.ts).
+ */
+export const FINAL_DO_CANCELAMENTO_DO_VENCIDO = ' (já estava vencido)';
+
+/** A linha do cancelamento como fica no histórico: com o final do vencido quando o pedido estava expirado. */
+export const linhaDoCancelamento = (evento: string, statusAntes: string): string =>
+  statusAntes === 'expirado' ? `${evento}${FINAL_DO_CANCELAMENTO_DO_VENCIDO}` : evento;
+
 /** Pacote 28: o aviso à equipe (EMAIL_RESPOSTA) do pedido que ficou pago (um por pedido). Não começa com "Aviso:". */
 export const MARCA_DO_AVISO_DO_PEDIDO_PAGO = 'E-mail à equipe: aviso do pedido pago';
 

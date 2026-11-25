@@ -433,16 +433,23 @@ export function emailAvisoDoPedidoPago(d: {
   itens: ItemDoPedido[];
   linkPainel: string;
   site: SiteDoEmail;
+  /**
+   * Pacote 29: algum passeio do pedido está com o hotel a informar (o cliente marcou "Ainda não sei" no checkout): o
+   * assunto e um parágrafo avisam a equipe para pedir o hotel pelo WhatsApp e gravar no painel.
+   */
+  hotelAInformar?: boolean;
 }): MensagemEmail {
   const forma = d.forma === 'pix' ? ' no Pix' : d.forma === 'cartao' ? ' no cartão' : '';
   const origem = d.origem === 'stripe' ? 'pela Stripe' : 'marcado como pago no painel';
   const pago = `O pedido ${d.codigo} foi pago: ${d.valor}${forma}, ${origem}.`;
+  const hotel =
+    'Atenção: o cliente ainda não sabe o hotel (marcou "Ainda não sei" no checkout). Peça o nome da hospedagem pelo WhatsApp antes do passeio e grave no painel, no campo "Gravar o hotel".';
   return mensagem({
     idioma: 'pt',
-    assunto: `Pedido pago: ${d.codigo} (${d.valor})`,
+    assunto: `Pedido pago: ${d.codigo} (${d.valor})${d.hotelAInformar ? ' · hotel a informar' : ''}`,
     preCabecalho: pago,
     titulo: 'Pedido pago',
-    paragrafos: [pago, `Primeiro serviço: ${d.primeiroServico}.`],
+    paragrafos: [pago, `Primeiro serviço: ${d.primeiroServico}.`, ...(d.hotelAInformar ? [hotel] : [])],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     tituloItens: 'Itens',
     itens: d.itens.map((i) => ({ nome: i.nome, linhas: i.linhas })),

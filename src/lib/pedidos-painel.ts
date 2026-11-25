@@ -190,6 +190,8 @@ export const ERROS_DO_PAINEL = {
   'stripe-fora': 'Não deu para conferir o pagamento na Stripe agora. Nada foi feito. Tente de novo em instantes.',
   'voucher-maior-que-o-resto':
     'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
+  // Pacote 29: o campo "Gravar o hotel" do pedido com o hotel a informar
+  'hotel-invalido': 'Escreva o nome do hotel ou da pousada (até 120 letras). Nada foi gravado.',
 } as const;
 
 export type ErroDoPainel = keyof typeof ERROS_DO_PAINEL;

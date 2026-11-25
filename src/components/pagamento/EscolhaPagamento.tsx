@@ -19,6 +19,8 @@ export interface TextosEscolhaPagamento {
   pixExplicacao: string;
   /** Os apps de fora do Brasil que já pagam Pix (só os confirmados). */
   pixApps: string;
+  /** Pacote 29: em espanhol e inglês, que o Pix pede um app que pague Pix (sem ele, o cartão); vazia em português. */
+  pixDeFora: string;
   /** Antes de pagar: o nome que o app do banco mostra no Pix pode ser o da empresa que processa o pagamento. */
   pixRecebedor: string;
   /** "{p}% de desconto no Pix" (preco.descontoPix). */
@@ -163,6 +165,9 @@ export function EscolhaPagamento({
               </span>
               {forma === 'pix' && (
                 <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
+                  {/* Pacote 29: para quem é de fora, primeiro a frase de que o Pix pede um app que pague Pix, mais escura;
+                      em português ela é vazia e não aparece */}
+                  {T.pixDeFora && <span className="mb-1 block font-semibold text-(--color-tinta)">{T.pixDeFora}</span>}
                   {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
                   {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
                 </span>

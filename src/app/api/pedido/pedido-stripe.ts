@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { LOCALE_INTL, fmt, rota, type Idioma } from '../../../i18n/config.ts';
 import type { EscolhaItem } from '../../../lib/carrinho';
+import { linhaDoCancelamento } from '../../../lib/email/marcas.ts';
 import type { FormaPagamento, ItemAgendado } from '../../../lib/formas-pagamento';
 import {
   podeAbrirSessao,
@@ -319,8 +320,11 @@ export async function cancelarPedidoAberto(codigo: string, evento: string): Prom
     await expirarSessao(sessao).catch((e) => console.error(`[pedido] não deu para expirar a sessão do pedido ${codigo}: ${mensagem(e)}`));
   const r = await atualizarReserva(alvo.codigo, (r) => {
     if (!podeAbrirSessao(r.status)) return null;
+    // Pacote 29: o pedido que já tinha vencido sem pagamento ganha o final " (já estava vencido)" na linha; cancelado no
+    // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11)
+    const linha = linhaDoCancelamento(evento, r.status);
     r.status = 'cancelado';
-    return registrar(r, evento);
+    return registrar(r, linha);
   });
   if (r?.status === 'cancelado' && sessao) {
     await liberarBloqueiosDaSessao(sessao).catch((e) =>

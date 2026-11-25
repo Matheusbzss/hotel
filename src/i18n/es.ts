@@ -637,6 +637,8 @@ const es: Dicionario = {
     // vazio por decisão do dono (11/11): a frase dos apps de fora só volta depois do Pix de R$ 1,00 pago por app de
     // fora (Etapa 5, FASE-4.md), e só com os apps que o teste confirmar. A frase guardada está em docs/pagamentos-stripe.md.
     pixApps: '',
+    // Pacote 29 (decisão do dono de 25/11): quem é de fora pode não ter um app que pague Pix; sem ele, o cartão
+    pixDeFora: 'Pix es el pago instantáneo de Brasil. Si no tienes una app que pague Pix, elige tarjeta.',
     pixRecebedor:
       'En la app de tu banco, el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
     pagar: 'Pagar {valor}',

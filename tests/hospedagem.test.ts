@@ -2,7 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dicionario } from '../src/i18n/index.ts';
-import { hospedagemDoCheckout, nomeDoHotel } from '../src/lib/hospedagem.ts';
+import {
+  MAXIMO_NOME_DO_HOTEL,
+  hospedagemDoCheckout,
+  hospedagemInformada,
+  hotelDoPainel,
+  nomeDoHotel,
+} from '../src/lib/hospedagem.ts';
 
 const ler = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
@@ -50,4 +56,46 @@ test('o servidor, o checkout, o voucher, a página do pedido e o painel usam a m
   const painel = ler('src/app/admin/page.tsx');
   assert.match(painel, /r\.hospedagem\.aInformar \?/);
   assert.match(painel, /pedir pelo WhatsApp antes do passeio/);
+});
+
+test('o hotel gravado depois no painel (Pacote 29): limpo, até 120 letras, só na hospedagem a informar', () => {
+  assert.equal(hotelDoPainel('  Pousada   do\nSol  '), 'Pousada do Sol');
+  assert.equal(hotelDoPainel('Pousada\tdo Sol'), 'Pousada do Sol');
+  assert.equal(hotelDoPainel(''), '');
+  assert.equal(hotelDoPainel('   '), '');
+  assert.equal(hotelDoPainel(null), '');
+  assert.equal(hotelDoPainel('x'.repeat(MAXIMO_NOME_DO_HOTEL)), 'x'.repeat(MAXIMO_NOME_DO_HOTEL));
+  // comprido demais volta vazio (erro no painel), nunca cortado sem a equipe ver
+  assert.equal(hotelDoPainel('x'.repeat(MAXIMO_NOME_DO_HOTEL + 1)), '');
+  assert.deepEqual(hospedagemInformada({ cidade: 'buzios', hotel: '', aInformar: true }, 'Pousada do Sol'), {
+    cidade: 'buzios',
+    hotel: 'Pousada do Sol',
+  });
+  // a que já tem hotel não muda por este caminho
+  assert.equal(hospedagemInformada({ cidade: 'buzios', hotel: 'Outra' }, 'Pousada do Sol'), null);
+  assert.equal(hospedagemInformada(undefined, 'Pousada do Sol'), null);
+  assert.equal(hospedagemInformada({ cidade: 'buzios', hotel: '', aInformar: true }, ''), null);
+});
+
+test('o painel grava o hotel a informar: o campo uma vez por pedido, a rota em todos os passeios, uma linha no histórico', () => {
+  const painel = ler('src/app/admin/page.tsx');
+  assert.match(painel, /name="acao" value="hotel"/);
+  assert.match(painel, /maxLength=\{MAXIMO_NOME_DO_HOTEL\}/);
+  assert.match(painel, /i\.codigo === primeiroAInformar \? \{ filtro, busca \} : undefined/);
+  const rota = ler('src/app/api/admin/reservas/[codigo]/route.ts');
+  assert.match(rota, /if \(acao === 'hotel'\) \{/);
+  assert.match(rota, /if \(!hotel\) return voltar\('hotel-invalido'\);/);
+  assert.match(rota, /return gravados === 0 \? registrar\(x, `\$\{LINHA_DO_HOTEL_INFORMADO\}: \$\{hotel\}`\) : x;/);
+  assert.match(ler('src/lib/pedidos-painel.ts'), /'hotel-invalido': 'Escreva o nome do hotel ou da pousada \(até 120 letras\)\. Nada foi gravado\.'/);
+});
+
+test('a frase do Pix para quem é de fora (Pacote 29, decisão do dono de 25/11): em espanhol e inglês, vazia em português', () => {
+  assert.equal(dicionario('pt').checkout.pixDeFora, '');
+  assert.equal(dicionario('es').checkout.pixDeFora, 'Pix es el pago instantáneo de Brasil. Si no tienes una app que pague Pix, elige tarjeta.');
+  assert.equal(dicionario('es-ar').checkout.pixDeFora, 'Pix es el pago instantáneo de Brasil. Si no tenés una app que pague Pix, elegí tarjeta.');
+  assert.equal(dicionario('en').checkout.pixDeFora, 'Pix is Brazil’s instant payment system. If you don’t have an app that pays with Pix, choose card.');
+  // o checkout e a página do pedido (pagar de novo) levam a frase até a escolha do pagamento, que a mostra em cima da explicação
+  assert.match(ler('src/components/carrinho/FormularioCarrinho.tsx'), /pixDeFora: C\.pixDeFora,/);
+  assert.match(ler('src/lib/reserva-publica.ts'), /pixDeFora: C\.pixDeFora,/);
+  assert.match(ler('src/components/pagamento/EscolhaPagamento.tsx'), /\{T\.pixDeFora && <span className="mb-1 block font-semibold text-\(--color-tinta\)">\{T\.pixDeFora\}<\/span>\}/);
 });

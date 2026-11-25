@@ -193,6 +193,7 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     cartaoAvista: C.cartaoAvista,
     pixExplicacao: C.pixExplicacao,
     pixApps: C.pixApps,
+    pixDeFora: C.pixDeFora,
     pixRecebedor: C.pixRecebedor,
     descontoPix: d.preco.descontoPix,
     semPixPrazo: P.semPixPrazo,

@@ -275,7 +275,8 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // argentina
   // + 1 do Pacote 20 (23/11): a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos por WhatsApp")
   // + 1 do Pacote 22 (23/11): a frase do pagamento que chegou para o pedido cancelado ("se va a comunicar con vos")
-  dicionario: 138,
+  // + 1 do Pacote 29 (25/11): a frase do Pix para quem é de fora ("Si no tenés una app que pague Pix, elegí tarjeta.")
+  dicionario: 139,
   guia: 138,
   passeios: 54,
   transfer: 2,
@@ -335,8 +336,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    112,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 112 (101 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
+    113,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 113 (102 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>

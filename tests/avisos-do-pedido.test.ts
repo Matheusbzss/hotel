@@ -12,6 +12,7 @@ import { EMPRESA } from '../src/config/empresa.ts';
 import { IDIOMAS } from '../src/i18n/config.ts';
 import { emailEssencial } from '../src/lib/email/cota.ts';
 import {
+  FINAL_DO_CANCELAMENTO_DO_VENCIDO,
   MARCA_DO_AVISO_DO_PEDIDO_PAGO,
   MARCA_DO_EMAIL_DO_CANCELAMENTO,
   PREFIXO_DOS_AVISOS_DO_EMAIL_PAGO,
@@ -19,6 +20,7 @@ import {
   avisoDoEmailDoCancelamentoQueNaoSaiu,
   avisoDoEmailDoReembolsoQueNaoSaiu,
   emailDoReembolsoJaSaiu,
+  linhaDoCancelamento,
   marcaDoEmailDoReembolso,
 } from '../src/lib/email/marcas.ts';
 import {
@@ -355,6 +357,26 @@ test('pedido cancelado: nada sai nos cancelamentos automáticos, com pagamento p
   nao({ ...base, status: 'pago', historico: h('Cancelado no admin') } as Pedido, 'não está cancelado');
 });
 
+test('cancelar no painel um pedido que já tinha vencido não manda o e-mail (Pacote 29, decisão do dono de 25/11)', () => {
+  assert.equal(linhaDoCancelamento('Cancelado no admin', 'expirado'), 'Cancelado no admin (já estava vencido)');
+  assert.equal(linhaDoCancelamento('Cancelado no admin', 'pendente'), 'Cancelado no admin');
+  assert.equal(linhaDoCancelamento('Cancelado: o cliente refez o pedido (ON-BBBBBB)', 'expirado').endsWith(FINAL_DO_CANCELAMENTO_DO_VENCIDO), true);
+  const vencido = {
+    status: 'cancelado',
+    historico: h('Pix não pago no prazo (webhook da Stripe)', linhaDoCancelamento('Cancelado no admin', 'expirado')),
+    pagamento: { metodo: 'pix' },
+  } as Pedido;
+  assert.deepEqual(emailDoCancelamentoSai(vencido), { sai: false, motivo: 'o pedido já estava vencido quando a equipe cancelou' });
+  // o pedido que ainda esperava o pagamento (até o que venceu e o cliente reabriu) continua recebendo
+  const aberto = { ...vencido, historico: h('Pix não pago no prazo (webhook da Stripe)', linhaDoCancelamento('Cancelado no admin', 'pendente')) };
+  assert.deepEqual(emailDoCancelamentoSai(aberto), { sai: true, nadaCobrado: true });
+  // quem cancela grava a linha com o status de antes de cancelar
+  assert.match(
+    fonte('app', 'api', 'pedido', 'pedido-stripe.ts'),
+    /const linha = linhaDoCancelamento\(evento, r\.status\);\s+r\.status = 'cancelado';\s+return registrar\(r, linha\);/,
+  );
+});
+
 /* ------------------------------------------------------------------ */
 /* (3) O aviso à equipe do pedido pago                                  */
 
@@ -461,6 +483,28 @@ test('o aviso à equipe do pedido pago: código, total, forma, itens e o painel;
     site: SITE,
   });
   assert.ok(painel.texto.includes('R$ 300,00 no cartão, marcado como pago no painel'));
+});
+
+test('o aviso à equipe do pedido pago avisa do hotel a informar, no assunto e num parágrafo (Pacote 29)', () => {
+  const base = {
+    codigo: 'ON-7K3P9Q',
+    valor: 'R$ 154,00',
+    forma: 'cartao' as const,
+    origem: 'stripe' as const,
+    primeiroServico: '30/11/2026 às 9h00',
+    itens: [{ nome: 'Passeio de Escuna em Búzios', linhas: ['seg., 30 nov. 2026 às 9h', '2 adultos'] }],
+    linkPainel: 'https://orlanativa.online/admin?q=ON-7K3P9Q',
+    site: SITE,
+  };
+  const com = emailAvisoDoPedidoPago({ ...base, hotelAInformar: true });
+  assert.equal(com.assunto, 'Pedido pago: ON-7K3P9Q (R$ 154,00) · hotel a informar');
+  assert.ok(com.texto.includes('o cliente ainda não sabe o hotel'));
+  assert.ok(com.texto.includes('"Gravar o hotel"'));
+  const sem = emailAvisoDoPedidoPago(base);
+  assert.equal(sem.assunto, 'Pedido pago: ON-7K3P9Q (R$ 154,00)');
+  assert.ok(!sem.texto.includes('ainda não sabe o hotel'));
+  // quem envia confere os passeios do pedido
+  assert.match(fonte('lib', 'email', 'pedidos.ts'), /hotelAInformar: lista\.some\(\(v\) => !ehTransfer\(v\) && v\.hospedagem\.aInformar === true\)/);
 });
 
 test('os quatro e-mails novos são essenciais na cota do dia', () => {

@@ -622,6 +622,7 @@ export function FormularioCarrinho({
         cartaoAvista: C.cartaoAvista,
         pixExplicacao: C.pixExplicacao,
         pixApps: C.pixApps,
+        pixDeFora: C.pixDeFora,
         pixRecebedor: pagamentoOnline.textos.pixRecebedor,
         descontoPix: P.descontoPix,
         semPixPrazo: pagamentoOnline.textos.semPixPrazo,

@@ -674,6 +674,9 @@ const pt = {
       'Você paga no app do seu banco, com o QR Code ou o código copia e cola que aparecem na próxima etapa. A confirmação é automática e o voucher sai na hora.',
     // vazio de propósito: em português não se explica o Pix pelos apps de fora (FASE-4, Etapa 5, item 7)
     pixApps: '',
+    // Pacote 29 (decisão do dono de 25/11): em espanhol e inglês, a frase de que o Pix pede um app que pague Pix, em cima
+    // da explicação; vazia em português (o brasileiro já paga Pix)
+    pixDeFora: '',
     // antes de pagar (FASE-4, Etapa 5, item 4): a documentação da Stripe não confirma o nome para conta brasileira, então
     // a frase não promete um nome só; conferir no Pix de teste e ajustar se for preciso
     pixRecebedor:

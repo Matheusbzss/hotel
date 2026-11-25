@@ -265,6 +265,8 @@ export const ajustesAR: AjustesAR = {
     selecione: 'Seleccioná',
     pixExplicacao:
       'Pagás en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
+    // Pacote 29: a frase do Pix para quem é de fora, com o "vos"
+    pixDeFora: 'Pix es el pago instantáneo de Brasil. Si no tenés una app que pague Pix, elegí tarjeta.',
     indisponivelTexto:
       'No pudimos abrir el pago por el sitio en este momento. Tu reserva queda registrada con todos los datos y completás el pago con nuestro equipo por WhatsApp.',
     semStripe:

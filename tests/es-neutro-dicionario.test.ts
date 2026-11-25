@@ -157,8 +157,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    138,
-    `${diferentes} frases diferem entre es e es-ar; esperava 138 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    139,
+    `${diferentes} frases diferem entre es e es-ar; esperava 139 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22, e a frase do Pix para quem é de fora, do Pacote 29). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 

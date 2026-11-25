@@ -5,6 +5,7 @@ import { linhaDoReembolsoSemMudarVoucher, linhaDoVoucherLigado } from '../reembo
 import type { Reserva } from '../reservas';
 import type { ResultadoEnvio } from './enviar';
 import {
+  FINAL_DO_CANCELAMENTO_DO_VENCIDO,
   MARCA_DO_AVISO_DO_PEDIDO_PAGO,
   MARCA_DO_EMAIL_DO_CANCELAMENTO,
   marcaDoEmailDoReembolso,
@@ -216,11 +217,17 @@ export const LINHAS_DO_CANCELAMENTO_NO_PAINEL: readonly string[] = ['Cancelado n
  * valor já devolvido. Os cancelamentos automáticos do site (o cliente refez o pedido, a sessão de pagamento não pôde ser
  * criada) nunca gravam essa linha; o Pix vencido nem é cancelamento (vira expirado, com o e-mail dele). Uma vez por
  * pedido. `nadaCobrado`: o pedido nunca foi pago (o e-mail diz "Nada foi cobrado").
+ * Pacote 29 (decisão do dono de 25/11): o pedido que já tinha vencido sem pagamento quando a equipe cancelou (a linha do
+ * cancelamento com o final " (já estava vencido)", linhaDoCancelamento em src/lib/email/marcas.ts) não recebe o e-mail:
+ * cancelar foi só arrumação do painel. O pedido que ainda esperava o pagamento continua recebendo.
  */
 export function emailDoCancelamentoSai(
   r: Pick<Reserva, 'status' | 'historico' | 'pagamento' | 'reembolsoCentavos'>,
 ): { sai: true; nadaCobrado: boolean } | { sai: false; motivo: string } {
   if (r.status !== 'cancelado') return { sai: false, motivo: `pedido ${r.status}` };
+  if (r.historico.some((h) => LINHAS_DO_CANCELAMENTO_NO_PAINEL.some((l) => h.evento === `${l}${FINAL_DO_CANCELAMENTO_DO_VENCIDO}`))) {
+    return { sai: false, motivo: 'o pedido já estava vencido quando a equipe cancelou' };
+  }
   if (!r.historico.some((h) => LINHAS_DO_CANCELAMENTO_NO_PAINEL.includes(h.evento))) {
     return { sai: false, motivo: 'não foi cancelado no painel' };
   }

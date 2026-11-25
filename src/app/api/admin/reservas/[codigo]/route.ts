@@ -42,9 +42,11 @@ import {
   reembolsosSemVoucher,
   vouchersDevolvidosPorOutroMeio,
 } from '@/lib/reembolsos-a-resolver';
+import { LINHA_DO_HOTEL_INFORMADO, hospedagemInformada, hotelDoPainel } from '@/lib/hospedagem';
 import {
   atualizarItem,
   atualizarReserva,
+  ehTransfer,
   provedorDaReserva,
   registrar,
   type MetodoPagamento,
@@ -491,6 +493,33 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     const erro =
       acao === 'devolver_retido' ? await devolverPagamentoRetido(alvo, codigoDoPedido) : await reativarPagamentoRetido(alvo, vouchers);
     return voltar(erro ?? undefined);
+  }
+
+  // Pacote 29 (decisão do dono de 25/11): o hotel de quem marcou "Ainda não sei" no checkout, gravado depois pela equipe no
+  // campo do painel. Vale para todos os passeios do pedido que estão a informar (a hospedagem é uma só no checkout); o
+  // transfer não entra (o endereço dele é obrigatório no próprio formulário). Uma linha só no histórico do pedido. Não muda
+  // status, pagamento nem voucher; o voucher e a página do pedido passam a mostrar o nome. O segundo toque, com o hotel já
+  // gravado igual, volta como deu certo
+  if (acao === 'hotel') {
+    const hotel = hotelDoPainel(form.get('hotel'));
+    if (!hotel) return voltar('hotel-invalido');
+    let gravados = 0;
+    for (const v of vouchers) {
+      if (ehTransfer(v) || !v.hospedagem.aInformar) continue;
+      let gravou = false;
+      await atualizarReserva(v.codigo, (x) => {
+        gravou = false;
+        if (ehTransfer(x)) return null;
+        const nova = hospedagemInformada(x.hospedagem, hotel);
+        if (!nova) return null;
+        x.hospedagem = nova;
+        gravou = true;
+        return gravados === 0 ? registrar(x, `${LINHA_DO_HOTEL_INFORMADO}: ${hotel}`) : x;
+      });
+      if (gravou) gravados++;
+    }
+    const jaEstava = vouchers.some((v) => !ehTransfer(v) && !v.hospedagem.aInformar && v.hospedagem.hotel === hotel);
+    return voltar(gravados > 0 || jaEstava ? undefined : 'acao-nao-vale');
   }
 
   const manual = ACOES_MANUAIS[acao];

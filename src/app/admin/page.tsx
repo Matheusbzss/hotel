@@ -9,6 +9,7 @@ import { linkPainelStripe, modoStripe } from '@/lib/stripe';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario } from '@/i18n';
 import { formatarHora } from '@/lib/horarios';
+import { MAXIMO_NOME_DO_HOTEL } from '@/lib/hospedagem';
 import { semFaixas } from '@/lib/passeio-view';
 import {
   ACOES_DO_PAGAMENTO_RETIDO,
@@ -182,7 +183,14 @@ function Login({ erro }: { erro?: string }) {
 }
 
 /** O passeio, a data, a hora, as pessoas e a hospedagem. */
-function DetalhesPasseio({ r }: { r: ReservaPasseio }) {
+function DetalhesPasseio({
+  r,
+  gravarHotel,
+}: {
+  r: ReservaPasseio;
+  /** Pacote 29: o campo para gravar o hotel a informar, com o filtro e a busca em que a equipe estava (uma vez por pedido). */
+  gravarHotel?: { filtro: string; busca: string };
+}) {
   const p = obterPasseio(r.passeio.slug);
   return (
     <>
@@ -205,10 +213,33 @@ function DetalhesPasseio({ r }: { r: ReservaPasseio }) {
       </p>
       {r.hospedagem.aInformar ? (
         // o cliente marcou "Ainda não sei" no checkout: a equipe pede o hotel pelo WhatsApp antes do passeio
-        <p>
-          Hotel: <strong className="bg-(--color-acao) px-1">a informar</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]}) — o cliente
-          ainda não sabe; pedir pelo WhatsApp antes do passeio
-        </p>
+        <>
+          <p>
+            Hotel: <strong className="bg-(--color-acao) px-1">a informar</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]}) — o
+            cliente ainda não sabe; pedir pelo WhatsApp antes do passeio
+          </p>
+          {/* Pacote 29: quando o cliente responder, a equipe grava o hotel aqui; vale para todos os passeios do pedido */}
+          {gravarHotel && (
+            <form method="post" action={`/api/admin/reservas/${r.codigo}`} className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="acao" value="hotel" />
+              <input type="hidden" name="filtro" value={gravarHotel.filtro} />
+              {gravarHotel.busca && <input type="hidden" name="q" value={gravarHotel.busca} />}
+              <label className="flex min-w-0 flex-1 flex-col gap-1 text-small">
+                <span>Nome do hotel ou pousada</span>
+                <input
+                  name="hotel"
+                  required
+                  maxLength={MAXIMO_NOME_DO_HOTEL}
+                  autoComplete="off"
+                  className="min-h-10 w-full min-w-0 border border-borda bg-white px-3"
+                />
+              </label>
+              <button type="submit" className="min-h-10 bg-superficie px-4 text-small font-semibold text-mar hover:bg-borda">
+                Gravar o hotel
+              </button>
+            </form>
+          )}
+        </>
       ) : (
         <p>
           Hotel: <strong>{r.hospedagem.hotel}</strong> ({NOME_CIDADE_HOSPEDAGEM[r.hospedagem.cidade]})
@@ -662,6 +693,9 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
   const varios = p.itens.length > 1;
   const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
   const documento = p.itens.find((i) => !ehTransfer(i) && i.cliente.documento) as ReservaPasseio | undefined;
+  // Pacote 29: o campo "Gravar o hotel" aparece uma vez por pedido, no primeiro passeio com o hotel a informar (a rota
+  // grava o mesmo hotel em todos os passeios do pedido que estão a informar)
+  const primeiroAInformar = p.itens.find((i) => !ehTransfer(i) && i.hospedagem.aInformar)?.codigo;
   return (
     <li className="grid grid-cols-1 gap-4 bg-white p-5 lg:grid-cols-12">
       <div className="lg:col-span-3">
@@ -704,7 +738,11 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
                   {statusDoVoucher ? ` · ${statusDoVoucher}` : ''}
                 </p>
               )}
-              {ehTransfer(i) ? <DetalhesTransfer r={i} /> : <DetalhesPasseio r={i} />}
+              {ehTransfer(i) ? (
+                <DetalhesTransfer r={i} />
+              ) : (
+                <DetalhesPasseio r={i} gravarHotel={i.codigo === primeiroAInformar ? { filtro, busca } : undefined} />
+              )}
               {!ehTransfer(i) && i.sugestao && (
                 <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>
               )}

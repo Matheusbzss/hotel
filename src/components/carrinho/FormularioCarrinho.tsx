@@ -198,7 +198,6 @@ export function FormularioCarrinho({
   const [hotelAInformar, setHotelAInformar] = useState(false);
   const [extras, setExtras] = useState<Record<string, ExtrasItem>>({});
   const [observacoes, setObservacoes] = useState('');
-  const [aceite, setAceite] = useState(false);
   const [tentou, setTentou] = useState(false);
   const [erroGeral, setErroGeral] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -339,7 +338,6 @@ export function FormularioCarrinho({
         if (idade === '') e[`idade-${i.id}-${n}`] = C.erros.obrigatorio;
       });
     }
-    if (!aceite) e.aceite = C.erros.aceite;
     return e;
   }
   const erros: Erros = tentou ? validar() : {};
@@ -377,6 +375,8 @@ export function FormularioCarrinho({
             }),
           ),
           observacoes: observacoes.trim(),
+          // Pacote 30 (decisão do dono de 25/11): o aceite é o próprio toque no botão, com a frase dos termos e da política
+          // logo acima dele (aceiteAoPagar ou aceiteAoContinuar); o servidor continua exigindo o aceite
           aceite: true,
           site: isca,
           // a forma escolhida: o servidor cria o pedido pendente e a sessão da Stripe; sem ela, o pedido do WhatsApp
@@ -641,6 +641,22 @@ export function FormularioCarrinho({
   const pixEmbaixoComDesconto = outra === 'pix' && cartaoEmDestaque(locale);
   // "Seus dados são tratados conforme a nossa {politica}.": o nome da política vira o link, com os espaços dentro do texto
   const [antesDaPolitica, depoisDaPolitica = ''] = C.privacidadeAviso.split('{politica}');
+  // "Ao pagar, você aceita os {termos} e a {politica}." (Pacote 30): os dois nomes viram os links, que abrem em outra aba,
+  // e os espaços ficam dentro dos pedaços de texto (soltos entre os pedaços, somem no que o leitor de tela fala)
+  const fraseDoAceite = (modelo: string) =>
+    modelo.split(/(\{termos\}|\{politica\})/).map((pedaco, n) =>
+      pedaco === '{termos}' ? (
+        <Link key={n} href={links.termos} target="_blank" className="link font-semibold">
+          {C.aceiteTermos}
+        </Link>
+      ) : pedaco === '{politica}' ? (
+        <Link key={n} href={links.politica} target="_blank" className="link font-semibold">
+          {C.aceitePolitica}
+        </Link>
+      ) : (
+        pedaco
+      ),
+    );
 
   return (
     <form
@@ -931,38 +947,12 @@ export function FormularioCarrinho({
           </fieldset>
         )}
 
+        {/* Pacote 30 (decisão do dono de 25/11): sem a caixa obrigatória "Li e aceito"; os termos e a política vão numa
+            frase logo acima do botão (fraseDoAceite, no resumo). A Política de Privacidade continua aqui, sempre à mão,
+            com ou sem os e-mails ligados: abre em outra aba, como os links do aceite, para não perder o que já foi
+            preenchido */}
         <div>
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              id="aceite"
-              type="checkbox"
-              checked={aceite}
-              onChange={(e) => setAceite(e.target.checked)}
-              className="mt-1 size-6 shrink-0 accent-[var(--color-mar)]"
-              aria-invalid={Boolean(erros.aceite)}
-              aria-describedby={erros.aceite ? 'aceite-erro' : undefined}
-            />
-            {/* espaços dentro do texto: soltos entre pedaços, somem no que o leitor de tela fala */}
-            <span>
-              {`${C.aceitePre} `}
-              <Link href={links.termos} target="_blank" className="link font-semibold">
-                {C.aceiteTermos}
-              </Link>
-              {` ${C.aceiteMeio} `}
-              <Link href={links.politica} target="_blank" className="link font-semibold">
-                {C.aceitePolitica}
-              </Link>
-              .
-            </span>
-          </label>
-          {erros.aceite && (
-            <span id="aceite-erro" className="erro-campo" role="alert">
-              {erros.aceite}
-            </span>
-          )}
-          {/* a Política de Privacidade sempre à mão, com ou sem os e-mails ligados: abre em outra aba, como os links do
-              aceite, para não perder o que já foi preenchido */}
-          <p className="mt-3 text-small text-(--tinta-suave)">
+          <p className="text-small text-(--tinta-suave)">
             {antesDaPolitica}
             <Link href={links.privacidade} target="_blank" className="link font-semibold">
               {C.emailPrivacidade}
@@ -1015,8 +1005,13 @@ export function FormularioCarrinho({
             {dolar && notaCambio && <p className="mt-2 text-caption text-(--tinta-suave)">{notaCambio}</p>}
           </div>
           <div className="space-y-3">
+            {/* o aceite dos termos e da política, logo acima do botão, antes do toque (Pacote 30): o próprio botão
+                aponta para a frase (aria-describedby), e o leitor de tela a lê junto com ele */}
+            <p id="aceite-frase" className="text-small text-(--tinta-suave)">
+              {fraseDoAceite(online && forma ? C.aceiteAoPagar : C.aceiteAoContinuar)}
+            </p>
             {online && forma ? (
-              <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando}>
+              <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando} aria-describedby="aceite-frase">
                 {enviando ? C.processando : fmt(C.pagar, { valor: brl(valorDaForma(totais, forma)) })}
               </button>
             ) : (
@@ -1026,6 +1021,7 @@ export function FormularioCarrinho({
                 className="botao botao-whats w-full"
                 disabled={enviando || esperandoFormas}
                 aria-busy={enviando || esperandoFormas}
+                aria-describedby="aceite-frase"
               >
                 <IconeWhatsApp className="size-5" />
                 {enviando ? C.processando : C.finalizarWhatsapp}

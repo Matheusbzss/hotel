@@ -276,7 +276,9 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // + 1 do Pacote 20 (23/11): a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos por WhatsApp")
   // + 1 do Pacote 22 (23/11): a frase do pagamento que chegou para o pedido cancelado ("se va a comunicar con vos")
   // + 1 do Pacote 29 (25/11): a frase do Pix para quem é de fora ("Si no tenés una app que pague Pix, elegí tarjeta.")
-  dicionario: 139,
+  // + 1 do Pacote 30 (25/11): sai a caixa dos termos e o erro dela ("Tenés que aceptar…") e entram as duas frases do
+  // aceite junto do botão ("Al pagar, aceptás…" e "Al continuar, aceptás…")
+  dicionario: 140,
   guia: 138,
   passeios: 54,
   transfer: 2,
@@ -336,8 +338,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    113,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 113 (102 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
+    114,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 114 (103 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora), 2 do Pacote 30 (checkout.aceiteAoPagar e aceiteAoContinuar, no lugar de checkout.erros.aceite) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>
@@ -443,7 +445,8 @@ test('(c) o es-ar conserva o vos nas 10 frases aprovadas pelo dono, e o es diz o
     ['4. frase do carrinho', AR.carrinho.semCobranca, 'revisás todo', ES.carrinho.semCobranca, 'revisas todo'],
     ['5. regra da chuva', AR.home.garantias[0].recebe, 'vos elegís', ES.home.garantias[0].recebe, 'tú eliges'],
     ['6. aviso do checkout', AR.checkout.indisponivelTexto, 'completás el pago', ES.checkout.indisponivelTexto, 'completas el pago'],
-    ['7. erro dos termos', AR.checkout.erros.aceite, 'Tenés que aceptar', ES.checkout.erros.aceite, 'Tienes que aceptar'],
+    // Pacote 30 (25/11): a caixa dos termos e o erro dela ("Tenés que aceptar") saíram; o aceite é a frase junto do botão
+    ['7. aceite junto do botão', AR.checkout.aceiteAoPagar, 'Al pagar, aceptás', ES.checkout.aceiteAoPagar, 'Al pagar, aceptas'],
     ['8. FAQ do voucher', faqVoucher(AR), 'Podés descargarlo', faqVoucher(ES), 'Puedes descargarlo'],
     ['9. aviso do transfer', AR.transfer.naoCabe, 'las valijas', ES.transfer.naoCabe, 'las maletas'],
     ['10. termos, regra do quadriciclo', termos('es-ar'), 'un cuatriciclo necesitás', termos('es'), 'una cuatrimoto necesitas'],

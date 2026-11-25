@@ -152,10 +152,11 @@ test('o formulário relê a página uma vez só, pelas formas que vieram do serv
   assert.match(f, /async function enviar\(\) \{\s+if \(esperandoFormas\) return;/);
   assert.match(
     f,
-    /className="botao botao-whats w-full"\s+disabled=\{enviando \|\| esperandoFormas\}\s+aria-busy=\{enviando \|\| esperandoFormas\}\s+>\s+<IconeWhatsApp className="size-5" \/>\s+\{enviando \? C\.processando : C\.finalizarWhatsapp\}/,
+    // (desde o Pacote 30, o botão aponta para a frase do aceite logo acima dele: aria-describedby)
+    /className="botao botao-whats w-full"\s+disabled=\{enviando \|\| esperandoFormas\}\s+aria-busy=\{enviando \|\| esperandoFormas\}\s+aria-describedby="aceite-frase"\s+>\s+<IconeWhatsApp className="size-5" \/>\s+\{enviando \? C\.processando : C\.finalizarWhatsapp\}/,
   );
   // nenhum texto novo: o quadro de hoje continua igual, com as chaves de sempre
   assert.match(f, /<p className="font-bold">\{C\.indisponivelTitulo\}<\/p>\s+<p className="mt-2">\{C\.indisponivelTexto\}<\/p>/);
-  // o botão de pagar não muda
-  assert.match(f, /<button type="submit" className="botao w-full" disabled=\{enviando\} aria-busy=\{enviando\}>/);
+  // o botão de pagar não muda (desde o Pacote 30, ele aponta para a frase do aceite logo acima dele)
+  assert.match(f, /<button type="submit" className="botao w-full" disabled=\{enviando\} aria-busy=\{enviando\} aria-describedby="aceite-frase">/);
 });

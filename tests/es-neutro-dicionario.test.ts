@@ -26,7 +26,7 @@ const tokens = (s: string): string[] => (s.match(new RegExp(`[${LETRA}]+`, 'g'))
  * arribos, médanos, cuatriciclo, acá, seña) mais alguns argentinismos fortes de vigia.
  */
 const PROIBIDAS_NO_NEUTRO = new Set(
-  `abrí alojás armá arrepentís avisá cancelá cancelás compará completá completás cuidá disfrutá elegí elegís embarcá escaneá
+  `abrí aceptás alojás armá arrepentís avisá cancelá cancelás compará completá completás cuidá disfrutá elegí elegís embarcá escaneá
    esperá guardá hablá hacé indicá ingresá intentá llegá llegás llevá necesitás pagá pagás paseás pegá perdés podés
    poné presentás probá querés recibí recibís registrás reservá revisá revisás seleccioná tenés terminás tocá
    avisame avisanos contactanos decinos dejanos envialo escribinos mandanos mostralo mostralos mostraselo
@@ -94,7 +94,9 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
   assert.equal(ar.contato.texto, 'Atención 100% online, en español, portugués e inglés. Escribinos acá y te respondemos.');
   assert.equal(ar.rodape.escreva, 'Escribinos');
   assert.equal(ar.reserva.proximo3, '¿Necesitás cambiar la fecha? Escribinos con al menos 24 h de anticipación.');
-  assert.equal(ar.checkout.erros.aceite, 'Tenés que aceptar los términos y la política de cancelación.');
+  // Pacote 30: o aceite é a frase junto do botão (a caixa e o erro dela saíram)
+  assert.equal(ar.checkout.aceiteAoPagar, 'Al pagar, aceptás los {termos} y la {politica}.');
+  assert.equal(ar.checkout.aceiteAoContinuar, 'Al continuar, aceptás los {termos} y la {politica}.');
   assert.equal(ar.erro404.atalhos, 'O elegí por dónde empezar');
 });
 
@@ -131,7 +133,8 @@ test('o espanhol neutro traz o "tú" nas mesmas frases, com os acentos do impera
   assert.equal(es.transfer.horaAjudaAeroporto, 'Saliendo del aeropuerto, pon el horario de llegada del vuelo.');
   assert.equal(es.home.diaRegras[1], 'El paseo sale a la hora marcada: si llegas después, pierdes el paseo y no hay reembolso.');
   assert.equal(es.home.garantias[2].se, 'Te arrepientes de la compra');
-  assert.equal(es.checkout.erros.aceite, 'Tienes que aceptar los términos y la política de cancelación.');
+  assert.equal(es.checkout.aceiteAoPagar, 'Al pagar, aceptas los {termos} y la {politica}.');
+  assert.equal(es.checkout.aceiteAoContinuar, 'Al continuar, aceptas los {termos} y la {politica}.');
   assert.equal(es.erro404.atalhos, 'O elige por dónde empezar');
 });
 
@@ -157,8 +160,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    139,
-    `${diferentes} frases diferem entre es e es-ar; esperava 139 (as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22, e a frase do Pix para quem é de fora, do Pacote 29). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    140,
+    `${diferentes} frases diferem entre es e es-ar; esperava 140 (a caixa dos termos do Pacote 30 trocou o erro dela pelas duas frases do aceite junto do botão; eas 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22, e a frase do Pix para quem é de fora, do Pacote 29). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 

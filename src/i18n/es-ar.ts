@@ -267,6 +267,9 @@ export const ajustesAR: AjustesAR = {
       'Pagás en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
     // Pacote 29: a frase do Pix para quem é de fora, com o "vos"
     pixDeFora: 'Pix es el pago instantáneo de Brasil. Si no tenés una app que pague Pix, elegí tarjeta.',
+    // Pacote 30: a frase do aceite logo acima do botão, com o "vos"
+    aceiteAoPagar: 'Al pagar, aceptás los {termos} y la {politica}.',
+    aceiteAoContinuar: 'Al continuar, aceptás los {termos} y la {politica}.',
     indisponivelTexto:
       'No pudimos abrir el pago por el sitio en este momento. Tu reserva queda registrada con todos los datos y completás el pago con nuestro equipo por WhatsApp.',
     semStripe:
@@ -276,7 +279,6 @@ export const ajustesAR: AjustesAR = {
       email: 'Revisá el e-mail.',
       telefone: 'Ingresá el teléfono con código de país y de área.',
       semHorarioHoje: 'Para hoy ya no quedan horarios. Elegí otra fecha.',
-      aceite: 'Tenés que aceptar los términos y la política de cancelación.',
       generico: 'No pudimos completarlo ahora. Probá de nuevo en unos minutos.',
       revise: 'Revisá los campos marcados.',
     },

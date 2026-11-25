@@ -300,7 +300,8 @@ const es: Dicionario = {
     ganchoTextoSemCasas: 'Paseos en Búzios, Arraial y Cabo Frio, y traslado privado, con precio cerrado y atención en español.',
     ganchoCta: 'Ver paseos',
     confianca: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela'],
-    confiancaOnline: ['Voucher al instante', 'Reembolso si el clima cancela', 'Pago seguro'],
+    // Pacote 30 (decisão do dono de 25/11, opção A): o cancelamento grátis primeiro, também com o pagamento online
+    confiancaOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher al instante'],
     vitrineTitulo: 'Paseos y precio por persona',
     vitrineTexto: 'Elige la fecha y quiénes van: debajo de cada precio aparece el total de tu grupo.',
     mapaTitulo: 'Tres ciudades en la misma costa',
@@ -619,9 +620,10 @@ const es: Dicionario = {
     observacoes: 'Observaciones (opcional)',
     observacoesAjuda: 'Alergias, movilidad reducida, edad de los niños…',
     opcao: 'Opción',
-    aceitePre: 'Leí y acepto los',
+    // Pacote 30: a frase logo acima do botão, no lugar da caixa obrigatória (o es-ar tem a sua, com o "vos")
+    aceiteAoPagar: 'Al pagar, aceptas los {termos} y la {politica}.',
+    aceiteAoContinuar: 'Al continuar, aceptas los {termos} y la {politica}.',
     aceiteTermos: 'Términos de Uso',
-    aceiteMeio: 'y la',
     aceitePolitica: 'Política de Cancelación y Reembolso',
     // sem verbo em tú ("Tus datos se tratan"): o es-ar lê esta mesma frase
     privacidadeAviso: 'Tus datos se tratan según nuestra {politica}.',
@@ -661,7 +663,6 @@ const es: Dicionario = {
       email: 'Revisa el e-mail.',
       telefone: 'Ingresa el teléfono con código de país y de área.',
       semHorarioHoje: 'Para hoy ya no quedan horarios. Elige otra fecha.',
-      aceite: 'Tienes que aceptar los términos y la política de cancelación.',
       generico: 'No pudimos completarlo ahora. Prueba de nuevo en unos minutos.',
       revise: 'Revisa los campos marcados.',
     },

@@ -48,7 +48,7 @@ test('as descrições para o Google e o texto da página de passeios valem nos d
   }
 });
 
-test('com o pagamento online no ar para o público, voltam o voucher na hora e o pagamento seguro', () => {
+test('com o pagamento online no ar para o público, voltam o voucher na hora e o pagamento seguro (no topo da inicial, desde o Pacote 30, o cancelamento grátis vem primeiro)', () => {
   for (const idioma of IDIOMAS) {
     const d = comPromessasOnline(dicionario(idioma), true);
     assert.deepEqual(d.home.confianca, dicionario(idioma).home.confiancaOnline, idioma);
@@ -63,11 +63,25 @@ test('com o pagamento online no ar para o público, voltam o voucher na hora e o
     assert.equal(d.faq, dicionario(idioma).faq);
     assert.equal(d.home.diaRegras, dicionario(idioma).home.diaRegras);
   }
+  // Pacote 30 (decisão do dono de 25/11, opção A): o cancelamento grátis primeiro também com o pagamento online, e o
+  // "Pagamento seguro" sai do topo (o fim da compra já diz que o cartão é processado pela Stripe)
   assert.deepEqual(comPromessasOnline(dicionario('pt'), true).home.confianca, [
-    'Voucher na hora',
+    'Cancelamento grátis até 24 h antes',
     'Reembolso se o tempo cancelar',
-    'Pagamento seguro',
+    'Voucher na hora',
   ]);
+  assert.deepEqual(comPromessasOnline(dicionario('es-ar'), true).home.confianca, [
+    'Cancelación gratis hasta 24 h antes',
+    'Reembolso si el clima cancela',
+    'Voucher al instante',
+  ]);
+  assert.deepEqual(comPromessasOnline(dicionario('en'), true).home.confianca, [
+    'Free cancellation up to 24 h before',
+    'Refund if weather cancels',
+    'Instant voucher',
+  ]);
+  // sem o pagamento online, o topo continua com as duas de sempre (a primeira é a mesma)
+  for (const idioma of IDIOMAS) assert.equal(dicionario(idioma).home.confianca[0], dicionario(idioma).home.confiancaOnline[0], idioma);
   assert.equal(comPromessasOnline(dicionario('es'), true).passeio.garantias[2], 'Voucher al instante');
   assert.equal(comPromessasOnline(dicionario('en'), true).passeio.pagoSeguro, 'Secure payment by Pix or card');
 });

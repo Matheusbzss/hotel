@@ -308,11 +308,13 @@ const pt = {
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Passeios em Búzios, Arraial e Cabo Frio e transfer privado, com preço fechado.',
     ganchoCta: 'Ver passeios',
-    // as etiquetas de vidro do topo. Hoje o pagamento é fechado pelo WhatsApp e o voucher sai quando a equipe
-    // confirma: nada de "voucher na hora" nem de "pagamento seguro" no site. No deploy que liga o pagamento online
-    // para o público, entram as de confiancaOnline (src/lib/promessas-online.ts); o mesmo vale para as garantias
+    // as etiquetas de vidro do topo. Sem o pagamento online, o pagamento é fechado pelo WhatsApp e o voucher sai quando a
+    // equipe confirma: nada de "voucher na hora" no site. Com o pagamento online para o público, entram as de
+    // confiancaOnline (src/lib/promessas-online.ts); o mesmo vale para as garantias. Pacote 30 (decisão do dono de 25/11,
+    // opção A): o cancelamento grátis vem primeiro também com o pagamento online, e sai o "Pagamento seguro" (o fim da
+    // compra já diz que o cartão é processado pela Stripe)
     confianca: ['Cancelamento grátis até 24 h antes', 'Reembolso se o tempo cancelar'],
-    confiancaOnline: ['Voucher na hora', 'Reembolso se o tempo cancelar', 'Pagamento seguro'],
+    confiancaOnline: ['Cancelamento grátis até 24 h antes', 'Reembolso se o tempo cancelar', 'Voucher na hora'],
     vitrineTitulo: 'Passeios e preço por pessoa',
     vitrineTexto: 'Escolha a data e quem vai: embaixo de cada preço aparece o total do seu grupo.',
     mapaTitulo: 'Três cidades na mesma orla',
@@ -656,11 +658,14 @@ const pt = {
     observacoes: 'Observações (opcional)',
     observacoesAjuda: 'Alergias, mobilidade reduzida, idade das crianças…',
     opcao: 'Opção',
-    aceitePre: 'Li e aceito os',
+    // Pacote 30 (decisão do dono de 25/11): no lugar da caixa obrigatória "Li e aceito", uma frase logo acima do botão.
+    // {termos} e {politica} viram os links (aceiteTermos e aceitePolitica), que abrem em outra aba. aceiteAoPagar vai com
+    // o botão "Pagar"; aceiteAoContinuar, com o do WhatsApp (sem o pagamento online)
+    aceiteAoPagar: 'Ao pagar, você aceita os {termos} e a {politica}.',
+    aceiteAoContinuar: 'Ao continuar, você aceita os {termos} e a {politica}.',
     aceiteTermos: 'Termos de Uso',
-    aceiteMeio: 'e a',
     aceitePolitica: 'Política de Cancelamento e Reembolso',
-    // logo abaixo da caixinha do aceite, com ou sem os e-mails ligados: {politica} é o link (emailPrivacidade, o nome da
+    // no fim dos dados do cliente, com ou sem os e-mails ligados: {politica} é o link (emailPrivacidade, o nome da
     // política), que abre em outra aba, como os do aceite
     privacidadeAviso: 'Seus dados são tratados conforme a nossa {politica}.',
     pagamento: 'Pagamento',
@@ -705,7 +710,6 @@ const pt = {
       email: 'Confira o e-mail.',
       telefone: 'Informe o telefone com código do país e DDD.',
       semHorarioHoje: 'Para hoje não há mais horários. Escolha outra data.',
-      aceite: 'É preciso aceitar os termos e a política de cancelamento.',
       generico: 'Não foi possível concluir agora. Tente de novo em alguns minutos.',
       revise: 'Revise os campos destacados.',
     },

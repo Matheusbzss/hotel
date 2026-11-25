@@ -44,6 +44,11 @@ test('o fim da compra: sem a caixa, com a frase logo acima do botão, que aponta
   );
   // os dois botões apontam para a frase
   assert.equal(f.match(/aria-describedby="aceite-frase"/g)?.length, 2);
+  // o Enter num campo não envia o pedido (revisão do Pacote 30): o envio é só pelo botão, com a frase acima dele
+  assert.match(
+    f,
+    /<form[\s\S]*?onKeyDown=\{\(ev\) => \{\s+if \(ev\.key === 'Enter' && ev\.target instanceof HTMLInputElement\) ev\.preventDefault\(\);\s+\}\}/,
+  );
   // os links dos termos e da política, em outra aba
   assert.match(f, /pedaco === '\{termos\}' \? \(\s+<Link key=\{n\} href=\{links\.termos\} target="_blank" className="link font-semibold">\s+\{C\.aceiteTermos\}/);
   assert.match(f, /pedaco === '\{politica\}' \? \(\s+<Link key=\{n\} href=\{links\.politica\} target="_blank" className="link font-semibold">\s+\{C\.aceitePolitica\}/);

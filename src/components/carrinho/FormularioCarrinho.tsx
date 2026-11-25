@@ -666,6 +666,12 @@ export function FormularioCarrinho({
         ev.preventDefault();
         enviar();
       }}
+      // o Enter (ou o "Ir" do teclado do celular) num campo não envia o pedido: o envio é só pelo botão, com a frase do
+      // aceite logo acima dele (Pacote 30, revisão). Antes, a caixa obrigatória dos termos barrava esse envio sem querer.
+      // A caixa de observações continua pulando linha (é textarea), e o Enter no próprio botão continua enviando
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' && ev.target instanceof HTMLInputElement) ev.preventDefault();
+      }}
       // grid-cols-1: no celular, uma coluna que encolhe com a tela. Sem isto a coluna fica da largura do maior texto
       // que não quebra (o total com o ≈ US$, o item do pedido, as sugestões) e a página rola de lado na tela estreita
       className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-14"

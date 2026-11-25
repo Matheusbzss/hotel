@@ -42,7 +42,8 @@ import {
   reembolsosSemVoucher,
   vouchersDevolvidosPorOutroMeio,
 } from '@/lib/reembolsos-a-resolver';
-import { LINHA_DO_HOTEL_INFORMADO, hospedagemInformada, hotelDoPainel } from '@/lib/hospedagem';
+import { linhaDoCancelamento } from '@/lib/email/marcas';
+import { hotelDoPainel, passoDoHotel } from '@/lib/hospedagem';
 import {
   atualizarItem,
   atualizarReserva,
@@ -499,26 +500,32 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // campo do painel. Vale para todos os passeios do pedido que estão a informar (a hospedagem é uma só no checkout); o
   // transfer não entra (o endereço dele é obrigatório no próprio formulário). Uma linha só no histórico do pedido. Não muda
   // status, pagamento nem voucher; o voucher e a página do pedido passam a mostrar o nome. O segundo toque, com o hotel já
-  // gravado igual, volta como deu certo
+  // gravado igual, volta como deu certo. Tudo é decidido com cada passeio relido dentro da trava de versão (passoDoHotel),
+  // nunca com a lista lida no começo da requisição: no duplo clique, as duas requisições leem antes de a primeira gravar
+  // (revisão do Pacote 29)
   if (acao === 'hotel') {
     const hotel = hotelDoPainel(form.get('hotel'));
     if (!hotel) return voltar('hotel-invalido');
     let gravados = 0;
+    let jaEstava = false;
     for (const v of vouchers) {
-      if (ehTransfer(v) || !v.hospedagem.aInformar) continue;
+      if (ehTransfer(v)) continue;
       let gravou = false;
+      let igual = false;
       await atualizarReserva(v.codigo, (x) => {
         gravou = false;
+        igual = false;
         if (ehTransfer(x)) return null;
-        const nova = hospedagemInformada(x.hospedagem, hotel);
-        if (!nova) return null;
-        x.hospedagem = nova;
+        const passo = passoDoHotel(x.hospedagem, x.historico, hotel);
+        if (passo.tipo === 'ja-estava') igual = true;
+        if (passo.tipo !== 'gravar') return null;
+        x.hospedagem = passo.hospedagem;
         gravou = true;
-        return gravados === 0 ? registrar(x, `${LINHA_DO_HOTEL_INFORMADO}: ${hotel}`) : x;
+        return passo.linha ? registrar(x, passo.linha) : x;
       });
       if (gravou) gravados++;
+      if (igual) jaEstava = true;
     }
-    const jaEstava = vouchers.some((v) => !ehTransfer(v) && !v.hospedagem.aInformar && v.hospedagem.hotel === hotel);
     return voltar(gravados > 0 || jaEstava ? undefined : 'acao-nao-vale');
   }
 
@@ -569,13 +576,16 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       virouCancelado = false;
       return null;
     }
+    // Pacote 29 (revisão): o pedido do checkout antigo que já tinha vencido sem pagamento ganha o final " (já estava
+    // vencido)" na linha do cancelamento, como o da Stripe (cancelarPedidoAberto): o e-mail "Pedido cancelado" não sai
+    const statusAntes = r.status;
     r.status = manual.status;
     // quem cobrou continua sendo a equipe: sem isto, anotar "Pix" ou "cartão" numa reserva do WhatsApp fazia o
     // painel mostrar o checkout antigo, que é o que uma forma online sem provedor gravado quer dizer
     if (provedorDaReserva(r) === 'whatsapp') r.provedor = 'whatsapp';
     if (manual.metodo) r.pagamento.metodo = manual.metodo;
     if (manual.status === 'pago' && !r.pagamento.pagoEm) r.pagamento.pagoEm = new Date().toISOString();
-    return registrar(r, manual.evento);
+    return registrar(r, manual.status === 'cancelado' ? linhaDoCancelamento(manual.evento, statusAntes) : manual.evento);
   });
   if (foraDeHora) return voltar('acao-nao-vale');
   if (virouPago && atualizada) {

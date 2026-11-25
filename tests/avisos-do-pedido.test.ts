@@ -373,8 +373,30 @@ test('cancelar no painel um pedido que já tinha vencido não manda o e-mail (Pa
   // quem cancela grava a linha com o status de antes de cancelar
   assert.match(
     fonte('app', 'api', 'pedido', 'pedido-stripe.ts'),
-    /const linha = linhaDoCancelamento\(evento, r\.status\);\s+r\.status = 'cancelado';\s+return registrar\(r, linha\);/,
+    /const linha = linhaDoCancelamento\(evento, alvo\.status, r\.status\);\s+r\.status = 'cancelado';\s+return registrar\(r, linha\);/,
   );
+});
+
+test('o vencido é o que estava expirado em todas as leituras de quem cancela (Pacote 29, revisão)', () => {
+  // o pedido da Stripe: a leitura de antes de fechar a sessão e a de dentro da trava
+  assert.equal(linhaDoCancelamento('Cancelado no admin', 'expirado', 'expirado'), 'Cancelado no admin (já estava vencido)');
+  // fechar a sessão virou para expirado o pedido que esperava o pagamento: o cliente ainda recebe o e-mail
+  assert.equal(linhaDoCancelamento('Cancelado no admin', 'pendente', 'expirado'), 'Cancelado no admin');
+  // vencido na primeira leitura, mas o cliente reabriu o pagamento antes da trava: esperava o pagamento
+  assert.equal(linhaDoCancelamento('Cancelado no admin', 'expirado', 'pendente'), 'Cancelado no admin');
+  // sem leitura nenhuma, nunca o final
+  assert.equal(linhaDoCancelamento('Cancelado no admin'), 'Cancelado no admin');
+  // o pedido do checkout antigo cancelado pela ação manual ("Cancelada no admin"): a mesma regra, o mesmo e-mail que não sai
+  const antigo = {
+    status: 'cancelado',
+    historico: h('Pix não pago no prazo', linhaDoCancelamento('Cancelada no admin', 'expirado')),
+    pagamento: { metodo: 'pix' },
+  } as Pedido;
+  assert.equal(antigo.historico.at(-1)?.evento, 'Cancelada no admin (já estava vencido)');
+  assert.deepEqual(emailDoCancelamentoSai(antigo), { sai: false, motivo: 'o pedido já estava vencido quando a equipe cancelou' });
+  const rota = fonte('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
+  assert.match(rota, /const statusAntes = r\.status;\s+r\.status = manual\.status;/);
+  assert.match(rota, /registrar\(r, manual\.status === 'cancelado' \? linhaDoCancelamento\(manual\.evento, statusAntes\) : manual\.evento\)/);
 });
 
 /* ------------------------------------------------------------------ */

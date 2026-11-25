@@ -176,10 +176,12 @@ test('a ação manual repetida não muda nada: o mesmo status e, quando a ação
 test('a rota das ações manuais: a repetida volta antes de qualquer gravação, e a primeira grava como antes', () => {
   // dentro da trava: o virouPago calculado primeiro (como antes), a repetida devolve null e, depois dela, o que já era:
   // o status, o provedor do WhatsApp, a forma, a hora do pagamento e a linha. Desde o Pacote 19 (reteste de 22/11), entre
-  // a repetida e a gravação, a ação que o painel não oferece naquele status também devolve null (os testes da seção 1b)
+  // a repetida e a gravação, a ação que o painel não oferece naquele status também devolve null (os testes da seção 1b).
+  // Desde o Pacote 29 (revisão), o cancelamento do pedido que já estava vencido grava a linha com o final " (já estava
+  // vencido)" (linhaDoCancelamento, com o status de antes): o e-mail "Pedido cancelado" não sai para ele
   assert.match(
     MANUAIS,
-    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+virouCancelado = manual\.status === 'cancelado' && r\.status !== 'cancelado';\s+foraDeHora = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.evento\);\s+\}\);/,
+    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+virouCancelado = manual\.status === 'cancelado' && r\.status !== 'cancelado';\s+foraDeHora = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+const statusAntes = r\.status;\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.status === 'cancelado' \? linhaDoCancelamento\(manual\.evento, statusAntes\) : manual\.evento\);\s+\}\);/,
   );
   // o aviso de compra e o e-mail só quando virou pago (a repetida já é pago: virouPago false), e a volta de sempre; a ação
   // fora de hora volta antes dos dois, com o erro. Desde o Pacote 28, junto com o e-mail, o aviso do pedido pago à equipe,

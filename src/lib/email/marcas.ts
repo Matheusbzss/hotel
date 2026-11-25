@@ -55,9 +55,14 @@ export const MARCA_DO_EMAIL_DO_CANCELAMENTO = 'E-mail ao cliente: pedido cancela
  */
 export const FINAL_DO_CANCELAMENTO_DO_VENCIDO = ' (já estava vencido)';
 
-/** A linha do cancelamento como fica no histórico: com o final do vencido quando o pedido estava expirado. */
-export const linhaDoCancelamento = (evento: string, statusAntes: string): string =>
-  statusAntes === 'expirado' ? `${evento}${FINAL_DO_CANCELAMENTO_DO_VENCIDO}` : evento;
+/**
+ * A linha do cancelamento como fica no histórico: com o final do vencido só quando o pedido estava expirado em todas as
+ * leituras que quem cancela fez. No pedido da Stripe são duas: a de antes de fechar a sessão e a de dentro da trava de
+ * versão. Fechar a sessão pode virar para expirado, antes da segunda leitura, um pedido que esperava o pagamento (o aviso
+ * da Stripe ou a consulta da página aberta do cliente), e esse cliente continua recebendo o e-mail (revisão do Pacote 29).
+ */
+export const linhaDoCancelamento = (evento: string, ...statusLidos: string[]): string =>
+  statusLidos.length > 0 && statusLidos.every((s) => s === 'expirado') ? `${evento}${FINAL_DO_CANCELAMENTO_DO_VENCIDO}` : evento;
 
 /** Pacote 28: o aviso à equipe (EMAIL_RESPOSTA) do pedido que ficou pago (um por pedido). Não começa com "Aviso:". */
 export const MARCA_DO_AVISO_DO_PEDIDO_PAGO = 'E-mail à equipe: aviso do pedido pago';

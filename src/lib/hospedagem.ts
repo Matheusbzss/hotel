@@ -52,11 +52,23 @@ export function hotelDoPainel(valor: unknown): string {
   return limpo.length > 0 && limpo.length <= MAXIMO_NOME_DO_HOTEL ? limpo : '';
 }
 
+/** O que "Gravar o hotel" faz num passeio (passoDoHotel). */
+export type PassoDoHotel =
+  | { tipo: 'gravar'; hospedagem: Hospedagem; linha?: string }
+  | { tipo: 'ja-estava' }
+  | { tipo: 'nao-vale' };
+
 /**
- * Pacote 29: grava o hotel informado pela equipe numa hospedagem "a informar"; a que já tem hotel (ou não é de passeio)
- * volta como null, sem mudar. A cidade fica a que o cliente escolheu no checkout.
+ * Pacote 29: o que "Gravar o hotel" faz num passeio, decidido com o passeio relido dentro da trava de versão (a rota do
+ * painel). A hospedagem a informar recebe o hotel, na cidade que o cliente escolheu no checkout; a linha do histórico
+ * ("Hotel informado no painel: …") vai só se o histórico do pedido ainda não a tem: outro passeio do mesmo pedido, ou o
+ * segundo toque, já gravou (revisão do Pacote 29). O passeio que já tem este mesmo hotel é o segundo toque ('ja-estava',
+ * a rota volta como deu certo); com outro hotel, ou sem nome, a ação não vale.
  */
-export function hospedagemInformada(h: Hospedagem | undefined, hotel: string): Hospedagem | null {
-  if (!h?.aInformar || !hotel) return null;
-  return { cidade: h.cidade, hotel };
+export function passoDoHotel(h: Hospedagem, historico: readonly { evento: string }[] | undefined, hotel: string): PassoDoHotel {
+  if (!hotel) return { tipo: 'nao-vale' };
+  if (!h.aInformar) return h.hotel === hotel ? { tipo: 'ja-estava' } : { tipo: 'nao-vale' };
+  const linha = `${LINHA_DO_HOTEL_INFORMADO}: ${hotel}`;
+  const jaTemALinha = (historico ?? []).some((e) => e.evento === linha);
+  return { tipo: 'gravar', hospedagem: { cidade: h.cidade, hotel }, ...(jaTemALinha ? {} : { linha }) };
 }

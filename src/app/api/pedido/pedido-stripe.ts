@@ -321,8 +321,10 @@ export async function cancelarPedidoAberto(codigo: string, evento: string): Prom
   const r = await atualizarReserva(alvo.codigo, (r) => {
     if (!podeAbrirSessao(r.status)) return null;
     // Pacote 29: o pedido que já tinha vencido sem pagamento ganha o final " (já estava vencido)" na linha; cancelado no
-    // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11)
-    const linha = linhaDoCancelamento(evento, r.status);
+    // painel, ele não recebe o e-mail "Pedido cancelado" (emailDoCancelamentoSai, decisão do dono de 25/11). Vencido é o
+    // que estava expirado na leitura de antes de fechar a sessão (alvo) E continua expirado aqui dentro da trava: fechar a
+    // sessão pode virar para expirado um pedido que esperava o pagamento, e esse cliente ainda recebe o e-mail
+    const linha = linhaDoCancelamento(evento, alvo.status, r.status);
     r.status = 'cancelado';
     return registrar(r, linha);
   });

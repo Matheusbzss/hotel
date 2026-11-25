@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dicionario } from '../src/i18n/index.ts';
 import {
+  LINHA_DO_HOTEL_INFORMADO,
   MAXIMO_NOME_DO_HOTEL,
   hospedagemDoCheckout,
-  hospedagemInformada,
   hotelDoPainel,
   nomeDoHotel,
+  passoDoHotel,
 } from '../src/lib/hospedagem.ts';
 
 const ler = (f: string) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
@@ -67,17 +68,33 @@ test('o hotel gravado depois no painel (Pacote 29): limpo, até 120 letras, só 
   assert.equal(hotelDoPainel('x'.repeat(MAXIMO_NOME_DO_HOTEL)), 'x'.repeat(MAXIMO_NOME_DO_HOTEL));
   // comprido demais volta vazio (erro no painel), nunca cortado sem a equipe ver
   assert.equal(hotelDoPainel('x'.repeat(MAXIMO_NOME_DO_HOTEL + 1)), '');
-  assert.deepEqual(hospedagemInformada({ cidade: 'buzios', hotel: '', aInformar: true }, 'Pousada do Sol'), {
-    cidade: 'buzios',
-    hotel: 'Pousada do Sol',
-  });
-  // a que já tem hotel não muda por este caminho
-  assert.equal(hospedagemInformada({ cidade: 'buzios', hotel: 'Outra' }, 'Pousada do Sol'), null);
-  assert.equal(hospedagemInformada(undefined, 'Pousada do Sol'), null);
-  assert.equal(hospedagemInformada({ cidade: 'buzios', hotel: '', aInformar: true }, ''), null);
 });
 
-test('o painel grava o hotel a informar: o campo uma vez por pedido, a rota em todos os passeios, uma linha no histórico', () => {
+test('gravar o hotel num passeio (Pacote 29, revisão): decidido com o passeio relido, uma linha só, o segundo toque sem erro', () => {
+  const aInformar = { cidade: 'buzios' as const, hotel: '', aInformar: true as const };
+  const linha = `${LINHA_DO_HOTEL_INFORMADO}: Pousada do Sol`;
+  assert.equal(linha, 'Hotel informado no painel: Pousada do Sol');
+  // o primeiro passeio do pedido: grava o hotel, na cidade do checkout, com a linha
+  assert.deepEqual(passoDoHotel(aInformar, [{ evento: 'Reserva criada' }], 'Pousada do Sol'), {
+    tipo: 'gravar',
+    hospedagem: { cidade: 'buzios', hotel: 'Pousada do Sol' },
+    linha,
+  });
+  // o segundo passeio do mesmo pedido (o histórico do pedido já tem a linha): grava o hotel, sem outra linha
+  assert.deepEqual(passoDoHotel(aInformar, [{ evento: 'Reserva criada' }, { evento: linha }], 'Pousada do Sol'), {
+    tipo: 'gravar',
+    hospedagem: { cidade: 'buzios', hotel: 'Pousada do Sol' },
+  });
+  // o duplo clique: a segunda requisição relê o passeio já gravado com o mesmo hotel e volta como deu certo
+  assert.deepEqual(passoDoHotel({ cidade: 'buzios', hotel: 'Pousada do Sol' }, [{ evento: linha }], 'Pousada do Sol'), { tipo: 'ja-estava' });
+  // outro hotel já gravado (outra pessoa da equipe, no meio-tempo), ou sem nome: não vale, nada muda
+  assert.deepEqual(passoDoHotel({ cidade: 'buzios', hotel: 'Outra' }, [], 'Pousada do Sol'), { tipo: 'nao-vale' });
+  assert.deepEqual(passoDoHotel(aInformar, [], ''), { tipo: 'nao-vale' });
+  // sem histórico lido (nunca acontece, mas não quebra): grava com a linha
+  assert.equal(passoDoHotel(aInformar, undefined, 'Pousada do Sol').tipo, 'gravar');
+});
+
+test('o painel grava o hotel a informar: o campo uma vez por pedido, a rota decide com o passeio relido dentro da trava', () => {
   const painel = ler('src/app/admin/page.tsx');
   assert.match(painel, /name="acao" value="hotel"/);
   assert.match(painel, /maxLength=\{MAXIMO_NOME_DO_HOTEL\}/);
@@ -85,7 +102,11 @@ test('o painel grava o hotel a informar: o campo uma vez por pedido, a rota em t
   const rota = ler('src/app/api/admin/reservas/[codigo]/route.ts');
   assert.match(rota, /if \(acao === 'hotel'\) \{/);
   assert.match(rota, /if \(!hotel\) return voltar\('hotel-invalido'\);/);
-  assert.match(rota, /return gravados === 0 \? registrar\(x, `\$\{LINHA_DO_HOTEL_INFORMADO\}: \$\{hotel\}`\) : x;/);
+  // nada de decidir pela lista lida no começo da requisição: cada passeio é relido dentro de atualizarReserva
+  assert.match(rota, /const passo = passoDoHotel\(x\.hospedagem, x\.historico, hotel\);/);
+  assert.match(rota, /return passo\.linha \? registrar\(x, passo\.linha\) : x;/);
+  assert.match(rota, /return voltar\(gravados > 0 \|\| jaEstava \? undefined : 'acao-nao-vale'\);/);
+  assert.doesNotMatch(rota, /vouchers\.some\(\(v\) => !ehTransfer\(v\) && !v\.hospedagem\.aInformar/);
   assert.match(ler('src/lib/pedidos-painel.ts'), /'hotel-invalido': 'Escreva o nome do hotel ou da pousada \(até 120 letras\)\. Nada foi gravado\.'/);
 });
 

@@ -145,8 +145,10 @@ test('o cancelamento grava o pedido como cancelado antes de fechar a sessão da 
   const comeco = fonte.indexOf('export async function cancelarPedidoAberto(');
   assert.ok(comeco > 0);
   const corpo = fonte.slice(comeco, fonte.indexOf('\n}\n', comeco));
-  const gravar = corpo.indexOf('await atualizarReserva(alvo.codigo');
+  const gravar = corpo.indexOf('atualizarReserva(alvo.codigo');
   const fechar = corpo.lastIndexOf('await fecharSessoes(');
+  // o cancelamento automático tenta gravar duas vezes antes de desistir (conferência final); o do painel, uma
+  assert.match(corpo, /r = await gravar\(\)\.catch\(\(e\) => \{\s+if \(!fecharMesmoSemGravar\) throw e;\s+return gravar\(\);\s+\}\);/);
   assert.ok(gravar > 0 && fechar > gravar, 'a gravação vem antes do fechamento');
   // nenhum fechamento antes da trava, e nenhuma chamada direta à Stripe no corpo (tudo passa por fecharSessoes)
   assert.equal(corpo.slice(0, gravar).includes('fecharSessoes('), false);

@@ -336,7 +336,10 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
  * resposta do banco se perdeu, ou outro "Cancelar" gravou no meio-tempo), segue como deu certo e as sessões fecham. Ainda
  * em aberto, o erro segue e nada fecha, a não ser com `fecharMesmoSemGravar` (o cancelamento automático de quem refez o
  * pedido: o pedido novo é o que vale, e um pagamento neste ainda deixaria dois pedidos pagos do mesmo carrinho). No painel,
- * a equipe vê o erro e repete, com o pedido ainda esperando o pagamento de verdade.
+ * a equipe vê o erro e repete, com o pedido ainda esperando o pagamento de verdade. O cancelamento automático tenta gravar
+ * duas vezes antes de desistir (conferência final): uma falha do banco costuma ser passageira, e com o pedido cancelado o
+ * aviso da sessão que fecha não muda mais nada. Só se as duas falharem a sessão fecha com o pedido ainda em aberto, e o
+ * aviso dela o deixa vencido (no Pix, com o e-mail do Pix vencido), como antes da ordem nova.
  */
 export async function cancelarPedidoAberto(
   codigo: string,
@@ -349,9 +352,8 @@ export async function cancelarPedidoAberto(
   if (!podeAbrirSessao(alvo.status)) return alvo;
   // a sessão do pedido relido dentro da trava, na volta que gravou
   let sessaoNaTrava: string | undefined;
-  let r: Reserva | null;
-  try {
-    r = await atualizarReserva(alvo.codigo, (x) => {
+  const gravar = () =>
+    atualizarReserva(alvo.codigo, (x) => {
       sessaoNaTrava = undefined;
       if (!podeAbrirSessao(x.status)) return null;
       sessaoNaTrava = x.pagamentoExternoId;
@@ -362,6 +364,12 @@ export async function cancelarPedidoAberto(
       const linha = linhaDoCancelamento(evento, alvo.status, x.status);
       x.status = 'cancelado';
       return registrar(x, linha);
+    });
+  let r: Reserva | null;
+  try {
+    r = await gravar().catch((e) => {
+      if (!fecharMesmoSemGravar) throw e;
+      return gravar();
     });
   } catch (e) {
     const relido = await obterReservaDoPedido(codigo).catch(() => null);

@@ -11,6 +11,7 @@ import type { EscolhaTransfer, TrechoEscolhido } from '@/lib/carrinho';
 import { ANTECEDENCIA_TRANSFER_MINUTOS, formatarHora } from '@/lib/horarios';
 import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
 import { rastrear } from '@/lib/pixel';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { textoMalas } from '@/lib/transfer-view';
 import { formatarDataIso } from '@/lib/validacao';
 import { useCarrinho } from '../carrinho/CarrinhoContexto';
@@ -81,6 +82,20 @@ export function FormularioTransfer({
           (s, t) => s + precoPixCentavos(Math.round((precoTrecho(t.saida.lugar, t.destino.lugar, pedido.veiculo) ?? 0) * 100)),
           0,
         );
+  // o total grande e o de baixo: em português o Pix em cima; em espanhol e inglês o cartão em cima e o Pix embaixo, com o
+  // desconto (src/lib/preco-destaque.ts), como no resto do site
+  const totalCartao = totalReais === null ? null : Math.round(totalReais * 100);
+  const pixDoTotal = { centavos: totalPix, verde: true };
+  const cartaoDoTotal = { centavos: totalCartao, verde: false };
+  const [grande, embaixo] = cartaoEmDestaque(idioma)
+    ? [
+        { ...cartaoDoTotal, rotulo: textos.preco.noCartao },
+        { ...pixDoTotal, rotulo: rotuloPixComDesconto(textos.preco.noPixComDesconto) },
+      ]
+    : [
+        { ...pixDoTotal, rotulo: textos.preco.noPix },
+        { ...cartaoDoTotal, rotulo: textos.preco.noCartao },
+      ];
   const nomePonta = (p: PontaPedido) =>
     p.endereco ? `${texto(LUGARES[p.lugar].nome, idioma)}, ${p.endereco}` : texto(LUGARES[p.lugar].nome, idioma);
   const dataHora = (t: TrechoPedido) => fmt(textos.dataHora, { data: formatarDataIso(t.data, locale), hora: formatarHora(t.hora, idioma) });
@@ -164,16 +179,18 @@ export function FormularioTransfer({
         <div className="bg-[color-mix(in_oklab,white_10%,var(--fundo))] px-6 py-5">
           <div className="flex items-center justify-between gap-4">
             <span className="font-semibold">
-              {pedido.volta ? T.totalIdaVolta : T.total} <span className="text-(--color-d2)">{textos.preco.noPix}</span>
+              {pedido.volta ? T.totalIdaVolta : T.total}{' '}
+              {grande.verde ? <span className="text-(--color-d2)">{grande.rotulo}</span> : grande.rotulo}
             </span>
-            <span className="numeros titulo leading-none">{totalPix === null ? '—' : formatarCentavos(totalPix, locale)}</span>
+            <span className="numeros titulo leading-none">{grande.centavos === null ? '—' : formatarCentavos(grande.centavos, locale)}</span>
           </div>
-          {totalReais !== null && (
+          {embaixo.centavos !== null && (
             <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">
               <span>
-                {pedido.volta ? T.totalIdaVolta : T.total} {textos.preco.noCartao}
+                {pedido.volta ? T.totalIdaVolta : T.total}{' '}
+                {embaixo.verde ? <span className="font-semibold text-(--color-d2)">{embaixo.rotulo}</span> : embaixo.rotulo}
               </span>
-              <span className="numeros font-semibold">{formatarCentavos(Math.round(totalReais * 100), locale)}</span>
+              <span className="numeros font-semibold">{formatarCentavos(embaixo.centavos, locale)}</span>
             </p>
           )}
         </div>

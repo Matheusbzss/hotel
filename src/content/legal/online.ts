@@ -16,10 +16,10 @@ import { ATUALIZADO_EM, type DocumentoLegal, type TextoLegal } from './tipos.ts'
  * minutos; Pix até 2 horas antes do primeiro serviço; cartão até 30 minutos antes num pedido já feito; reembolso pela
  * Stripe). As páginas legais são estáticas: a versão é escolhida no build (textosLegais), e o dono liga com um deploy.
  *
- * Os nomes da Stripe ficam no texto: o recebedor do Pix no app do banco ainda não foi conferido numa conta brasileira
- * (a documentação da Stripe só fala da EBANX no Pix pela Link, de empresas dos EUA), então o texto diz que o nome
- * "pode aparecer" e dá "EBANX ou Stripe" como exemplo, com a mesma frase do checkout (checkout.pixRecebedor) e da FAQ.
- * Conferir no Pix de teste e ajustar os três juntos.
+ * O nome do recebedor do Pix no app do banco: Pacote 31 (25/11), no Pix de verdade de 24/11 o app do banco mostrou
+ * "Stripe", então o item "Recebedor" dos termos diz que o recebedor aparece com o nome da Stripe, a empresa que processa o
+ * pagamento, sem a EBANX (antes, sem esse Pix, o texto dizia que o nome "pode aparecer" e dava "EBANX ou Stripe" como
+ * exemplo). É a mesma frase do checkout (checkout.pixRecebedor) e da FAQ de segurança: mudou uma, mudam as três.
  *
  * A privacidade tem também a versão de hoje com os e-mails ligados (PRIVACIDADE_EMAILS): os e-mails do pedido e os
  * lembretes do carrinho ligam só com a RESEND_API_KEY, sem depender do pagamento online.
@@ -29,20 +29,32 @@ const E = EMPRESA;
 const P = DESCONTO_PIX_PORCENTO;
 
 /**
- * A data da versão do pagamento online, que as páginas dos três textos mostram em "Atualizado em" (os três mudam juntos
- * no dia de ligar): troque para o dia de ligar. Nunca antes de nenhuma das datas de ATUALIZADO_EM
- * (src/content/legal/tipos.ts): esta versão traz também o que os textos de hoje mudaram (em 2026-11-14, os anúncios do
- * Google e da Meta na privacidade).
+ * As datas da versão do pagamento online, uma por texto: a página de cada um mostra a dele em "Atualizado em". Os três
+ * ganharam a versão online juntos, no dia de ligar (2026-11-24, quando o cartão e o Pix abriram para o público); dali em
+ * diante cada um muda sozinho, como em ATUALIZADO_EM (src/content/legal/tipos.ts). Mudou o texto online de um deles?
+ * Troque só a data dele. Nunca antes do dia de ligar nem da data do mesmo texto em ATUALIZADO_EM: esta versão traz também
+ * o que os textos de hoje mudaram (em 2026-11-14, os anúncios do Google e da Meta na privacidade).
+ * - termos: 2026-11-25 (Pacote 31), o item "Recebedor" do Pix passou a dizer que o app do banco mostra o nome da Stripe
+ *   (o que se viu no Pix de verdade de 24/11), sem a EBANX. Até aqui valia uma data só para os três textos: trocar essa
+ *   data levaria o 25/11 também ao cancelamento, que não mudou.
+ * - privacidade: 2026-11-25 (Pacote 31), o idioma da visita nos itens 3 e 5 (o país aproximado e o cookie do idioma),
+ *   que entrou no texto de hoje (ATUALIZADO_EM.privacidade) e vem junto nesta versão. Antes, 2026-11-24, o dia de ligar.
+ * - cancelamento: 2026-11-24, o dia de ligar.
  */
-export const ATUALIZADO_EM_ONLINE = '2026-11-24';
+export const ATUALIZADO_EM_ONLINE: Readonly<Record<TextoLegal, string>> = {
+  termos: '2026-11-25',
+  cancelamento: '2026-11-24',
+  privacidade: '2026-11-25',
+};
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
  * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel (foi em
  * 2026-11-15) ou em que o texto que ela mostra mudar. Em 2026-11-23 a proteção contra robôs foi ligada no ar e a página
- * ganhou a linha da Vercel e da Kasada (privacidadeComRobos, mais abaixo): era esta a versão que estava valendo. Nunca
+ * ganhou a linha da Vercel e da Kasada (privacidadeComRobos, mais abaixo): era esta a versão que estava valendo. Em
+ * 2026-11-25 (Pacote 31), o texto de hoje ganhou o idioma da visita nos itens 3 e 5, e esta versão o traz junto. Nunca
  * antes de ATUALIZADO_EM.privacidade.
  */
-export const ATUALIZADO_EM_EMAILS = '2026-11-23';
+export const ATUALIZADO_EM_EMAILS = '2026-11-25';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */
@@ -77,7 +89,7 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
             'Prazo: o Pix vale até 2 horas antes do início do primeiro serviço do pedido (passeio, transfer ou entrada na casa). Depois disso, só cartão: um pedido já feito pode ser pago com cartão até 30 minutos antes do primeiro serviço.',
             'Código: o QR Code e o código copia e cola valem por 30 minutos, ou menos, quando o prazo do Pix termina antes. Se o código vencer sem pagamento, nada é cobrado, e dá para gerar outro na página do pedido enquanto o prazo permitir.',
             'Confirmação: é automática. A Stripe avisa o site assim que o banco confirma o pagamento, sem precisar de comprovante, e o voucher sai nesse momento.',
-            'Recebedor: no app do seu banco, o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
+            'Recebedor: no app do seu banco, o recebedor do Pix aparece com o nome da Stripe, a empresa que processa o pagamento, e não como Orla Nativa.',
             'Limite: um Pix tem um valor máximo por pagamento, o equivalente a US$ 3.000,00 em reais. Por segurança, num pedido perto desse valor ou acima dele, o site oferece só o cartão.',
             'Reembolso: o que tiver de ser devolvido volta pela Stripe para a conta de onde o Pix saiu. Depois de 90 dias do pagamento, a Stripe não devolve mais por Pix: nesse caso, devolvemos por transferência para uma conta que você indicar.',
           ],
@@ -114,7 +126,7 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
             'Deadline: Pix is available up to 2 hours before the first service in your order starts (tour, transfer or check-in at the home). After that, by card only: an order already placed can be paid by card up to 30 minutes before the first service.',
             'Code: the QR code and the copy-and-paste code are valid for 30 minutes, or less when the Pix deadline ends sooner. If the code expires unpaid, nothing is charged, and you can generate a new one on your order page while the deadline allows.',
             'Confirmation: it is automatic. Stripe tells the website as soon as the bank confirms the payment, with no need to send proof of payment, and your voucher is issued at that moment.',
-            'Recipient: in your bank app, the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
+            'Recipient: in your bank app, the Pix recipient appears under the name of Stripe, the company that processes the payment, not Orla Nativa.',
             'Limit: a Pix has a maximum amount per payment, the equivalent of US$ 3,000.00 in reais. To be safe, for orders close to or above that amount, the website offers card payment only.',
             'Refund: any amount to be returned goes back through Stripe to the account the Pix came from. More than 90 days after the payment, Stripe can no longer refund by Pix: in that case, we refund by bank transfer to an account you give us.',
           ],
@@ -151,7 +163,7 @@ const MUDANCAS_TERMOS: Record<IdiomaConteudo, MudancasDoDocumento> = {
             'Plazo: el Pix vale hasta 2 horas antes del inicio del primer servicio del pedido (paseo, traslado o entrada a la casa). Después, solo con tarjeta: un pedido ya hecho se puede pagar con tarjeta hasta 30 minutos antes del primer servicio.',
             'Código: el código QR y el código copia y pega valen por 30 minutos, o menos, cuando el plazo del Pix termina antes. Si el código vence sin pago, no se cobra nada, y se puede generar otro en la página del pedido mientras el plazo lo permita.',
             'Confirmación: es automática. Stripe avisa al sitio apenas el banco confirma el pago, sin necesidad de comprobante, y el voucher sale en ese momento.',
-            'Destinatario: en la app de tu banco, el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+            'Destinatario: en la app de tu banco, el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
             'Límite: un Pix tiene un monto máximo por pago, el equivalente a US$ 3.000,00 en reales. Por seguridad, en un pedido cercano a ese monto o superior, el sitio ofrece solo la tarjeta.',
             'Reembolso: lo que haya que devolver vuelve por Stripe a la cuenta de la que salió el Pix. Pasados 90 días del pago, Stripe ya no devuelve por Pix: en ese caso, devolvemos por transferencia a una cuenta que nos indiques.',
           ],
@@ -567,7 +579,7 @@ export interface TextosLegais {
 /**
  * Os textos legais que as páginas mostram (lidos no build: as páginas legais são estáticas):
  * - com o pagamento online no ar para o público (pagamentoOnlineNoAr, src/lib/formas-pagamento.ts), a versão dele, que
- *   já traz os e-mails, com a data dela nos três;
+ *   já traz os e-mails, com as datas dela (ATUALIZADO_EM_ONLINE, uma por texto);
  * - sem ele e com os e-mails ligados (emailLigado, src/lib/email/enviar.ts: a RESEND_API_KEY), o texto de hoje com a
  *   privacidade que cita os e-mails, o Resend, o lembrete do carrinho e o prazo do e-mail no carrinho; só a data da
  *   privacidade muda, e os termos e o cancelamento ficam com as deles;
@@ -579,7 +591,7 @@ export function textosLegais(online: boolean, emails: boolean = false): TextosLe
       termos: TERMOS_ONLINE,
       cancelamento: CANCELAMENTO_ONLINE,
       privacidade: PRIVACIDADE_ONLINE,
-      atualizadoEm: { termos: ATUALIZADO_EM_ONLINE, cancelamento: ATUALIZADO_EM_ONLINE, privacidade: ATUALIZADO_EM_ONLINE },
+      atualizadoEm: ATUALIZADO_EM_ONLINE,
     };
   if (emails)
     return {

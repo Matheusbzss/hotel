@@ -10,6 +10,7 @@ import { GrupoProvider } from '@/components/grupo/GrupoContexto';
 import { Rastreamento } from '@/components/Rastreamento';
 import { Revelar } from '@/components/Revelar';
 import { Rodape } from '@/components/Rodape';
+import { SugestaoIdioma } from '@/components/SugestaoIdioma';
 import { EMPRESA } from '@/config/empresa';
 import { dicionario } from '@/i18n';
 import { HREFLANG, IDIOMAS, LOCALE_INTL, OG_LOCALE, isIdioma, rota } from '@/i18n/config';
@@ -112,6 +113,14 @@ export default async function LayoutIdioma({ children, params }: LayoutProps<'/[
         </a>
         <CarrinhoProvider idioma={locale}>
           <Cabecalho idioma={locale} d={d} />
+          {/* Pacote 31 (25/11): a faixa que sugere o espanhol, só nas páginas em português e em inglês (entre os dois
+              espanhóis ela não sugere), com os textos do es e do es-ar */}
+          {locale === 'pt' || locale === 'en' ? (
+            <SugestaoIdioma
+              idioma={locale}
+              textos={{ es: dicionario('es').nav.sugestaoIdioma, 'es-ar': dicionario('es-ar').nav.sugestaoIdioma }}
+            />
+          ) : null}
           <GrupoProvider>{children}</GrupoProvider>
           <Rodape idioma={locale} d={d} />
           <GavetaCarrinho

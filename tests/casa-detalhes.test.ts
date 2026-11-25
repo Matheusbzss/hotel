@@ -93,7 +93,33 @@ test('comodidades da lista fixa, sem repetir; regras próprias com "não informa
     true,
   );
   assert.equal(EsquemaRegrasProprias.safeParse({ ...REGRAS_PROPRIAS_VAZIAS, evento: 'talvez' }).success, false);
+  // só "tem câmeras", sem o lugar nem o "nenhuma dentro", continua sem valer (Pacote 31): quem cadastra tem de saber
+  // onde ficam ou se há alguma dentro da casa
   assert.equal(EsquemaRegrasProprias.safeParse({ ...REGRAS_PROPRIAS_VAZIAS, cameras: { tem: true } }).success, false);
+});
+
+test('as câmeras: sem, com o lugar, ou só do lado de fora e nenhuma dentro (Pacote 31), sem perder o que foi dito', () => {
+  const cameras = (c: unknown) => EsquemaRegrasProprias.safeParse({ ...REGRAS_PROPRIAS_VAZIAS, cameras: c });
+  const onde = { pt: 'na entrada', es: 'en la entrada', en: 'at the entrance' };
+  // os formatos de antes continuam valendo, iguais
+  for (const c of [null, { tem: false }, { tem: true, onde }]) assert.deepEqual(cameras(c).data?.cameras, c);
+  // Pacote 31 (25/11): o dono confirmou câmeras só do lado de fora e nenhuma dentro, sem dizer onde (as duas casas)
+  assert.deepEqual(cameras({ tem: true, dentro: false }).data?.cameras, { tem: true, dentro: false });
+  // o lugar e o "nenhuma dentro" juntos: nenhum dos dois se perde na leitura
+  assert.deepEqual(cameras({ tem: true, onde, dentro: false }).data?.cameras, { tem: true, onde, dentro: false });
+  // câmera dentro da casa não tem formato, e o lugar vazio ou sem os três idiomas não vale (nem some calado quando vem
+  // junto com o "nenhuma dentro")
+  assert.equal(cameras({ tem: true, dentro: true }).success, false);
+  assert.equal(cameras({ tem: true, onde, dentro: true }).success, false);
+  assert.equal(cameras({ tem: true, onde: { pt: 'na entrada' } }).success, false);
+  assert.equal(cameras({ tem: true, onde: { pt: '', es: '', en: '' }, dentro: false }).success, false);
+  // a ida e a volta pelo banco (as colunas novas, em JSON) não perdem o formato
+  const detalhes = {
+    ...detalhesDeLinha({}),
+    regrasProprias: { ...REGRAS_PROPRIAS_VAZIAS, cameras: { tem: true as const, dentro: false as const } },
+  };
+  const linha = JSON.parse(JSON.stringify(colunasDosDetalhes(detalhes))) as Partial<Tables<'casas'>>;
+  assert.deepEqual(detalhesDeLinha(linha).regrasProprias.cameras, { tem: true, dentro: false });
 });
 
 test('o pacote: nome começando com "Pacote", saída depois da entrada e sem dividir noite com outro feriado', () => {

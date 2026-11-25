@@ -46,14 +46,22 @@ test('com o interruptor desligado, os textos legais são os de hoje, os mesmos o
   assert.equal(online.termos, TERMOS_ONLINE);
   assert.equal(online.cancelamento, CANCELAMENTO_ONLINE);
   assert.equal(online.privacidade, PRIVACIDADE_ONLINE);
-  // a data da versão online é a constante a trocar no dia de ligar, a mesma nos três textos (mudam juntos), e nunca antes
-  // da revisão de hoje de nenhum deles: a versão online traz o texto de hoje (em 14/11, a privacidade de hoje ganhou os
-  // anúncios do Google e da Meta, e a versão online também)
-  // 2026-11-24: o dia em que o cartão e o Pix abriram para o público
-  assert.equal(ATUALIZADO_EM_ONLINE, '2026-11-24');
+  // as datas da versão online, uma por texto, nunca antes do dia de ligar (2026-11-24, quando o cartão e o Pix abriram
+  // para o público) nem da revisão de hoje do mesmo texto: a versão online traz o texto de hoje (em 14/11, a privacidade
+  // de hoje ganhou os anúncios do Google e da Meta, e a versão online também)
+  // Pacote 31 (25/11): até aqui era uma data só para os três (a do dia de ligar); o item "Recebedor" dos termos mudou e
+  // a data dos termos foi para 2026-11-25. A privacidade também foi, no mesmo pacote: os itens 3 e 5 ganharam o idioma
+  // da visita (o país aproximado e o cookie do idioma). O cancelamento online não mudou nesse dia
+  assert.equal(ATUALIZADO_EM_ONLINE.termos, '2026-11-25');
+  assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-25');
+  assert.equal(ATUALIZADO_EM_ONLINE.cancelamento, '2026-11-24');
+  assert.deepEqual(Object.keys(ATUALIZADO_EM_ONLINE).sort(), [...NOMES].sort());
   for (const nome of NOMES) {
-    assert.equal(online.atualizadoEm[nome], ATUALIZADO_EM_ONLINE, nome);
-    assert.ok(ATUALIZADO_EM_ONLINE >= ATUALIZADO_EM[nome], `${nome}: ${ATUALIZADO_EM_ONLINE} antes de ${ATUALIZADO_EM[nome]}`);
+    const data = ATUALIZADO_EM_ONLINE[nome];
+    assert.match(data, /^\d{4}-\d{2}-\d{2}$/, nome);
+    assert.equal(online.atualizadoEm[nome], data, nome);
+    assert.ok(data >= '2026-11-24', `${nome}: ${data} antes do dia de ligar`);
+    assert.ok(data >= ATUALIZADO_EM[nome], `${nome}: ${data} antes de ${ATUALIZADO_EM[nome]}`);
   }
 });
 
@@ -80,7 +88,8 @@ test('os termos online: o pagamento pela Stripe no site, a seção do Pix e o Wh
     'até 30 minutos antes do primeiro serviço',
     'valem por 30 minutos',
     'sem precisar de comprovante',
-    'EBANX',
+    // Pacote 31 (25/11): o recebedor é o que o app do banco mostrou no Pix de verdade de 24/11 (era "como EBANX ou Stripe")
+    'o recebedor do Pix aparece com o nome da Stripe',
     'US$ 3.000,00',
     'Depois de 90 dias do pagamento',
     `${DESCONTO_PIX_PORCENTO}% de desconto`,
@@ -93,6 +102,8 @@ test('os termos online: o pagamento pela Stripe no site, a seção do Pix e o Wh
     assert.ok(pt.includes(trecho), trecho);
   // o texto de hoje do pagamento pelo WhatsApp sai
   assert.ok(!pt.includes('Enquanto o pagamento online é ativado'));
+  // e a EBANX não aparece mais em nenhum idioma dos termos (Pacote 31)
+  for (const idioma of IDIOMAS) assert.doesNotMatch(tudo(texto(TERMOS_ONLINE, idioma)), /EBANX/, idioma);
   // a seção nova existe nos três idiomas, no mesmo lugar, e a numeração segue
   for (const idioma of IDIOMAS) {
     const titulos = texto(TERMOS_ONLINE, idioma).secoes.map((s) => s.titulo);
@@ -222,29 +233,55 @@ test('os textos novos do Pix e da desistência: sem "promoção" e sem preço es
       assert.doesNotMatch(t, /promo/i, `${idioma}: ${t}`);
       assert.doesNotMatch(t, /(R\$|US\$)\s*\d/, `${idioma}: ${t}`);
     }
-    // o aviso do recebedor não promete um nome só (a Stripe não confirmou o da conta brasileira) e cita a marca
-    assert.match(d.checkout.pixRecebedor, /EBANX/, idioma);
+    // o aviso do recebedor dá o nome que o app do banco mostrou no Pix de verdade de 24/11, a Stripe, e cita a marca.
+    // Pacote 31 (25/11): antes, sem esse Pix, ele dava "EBANX ou Stripe" como exemplo; a EBANX saiu
+    assert.match(d.checkout.pixRecebedor, /Stripe/, idioma);
+    assert.doesNotMatch(d.checkout.pixRecebedor, /EBANX/, idioma);
     assert.match(d.checkout.pixRecebedor, /Orla Nativa/, idioma);
   }
 });
 
-/** O recebedor do Pix, igual nos termos, no checkout e na FAQ: "pode aparecer", com os dois nomes de exemplo. */
+/**
+ * O recebedor do Pix, igual nos termos, no checkout e na FAQ. Pacote 31 (25/11): no Pix de verdade de 24/11, o app do
+ * banco mostrou "Stripe"; a frase diz o nome dela, sem a EBANX (antes: "pode aparecer ... (como EBANX ou Stripe)"). Sem
+ * verbo na segunda pessoa no espanhol, o es-ar lê a mesma frase do es.
+ */
 const RECEBEDOR: Record<(typeof IDIOMAS)[number], string> = {
-  pt: 'pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
-  en: 'may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
-  es: 'puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
-  'es-ar': 'puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+  pt: 'o recebedor do Pix aparece com o nome da Stripe, a empresa que processa o pagamento, e não como Orla Nativa.',
+  en: 'the Pix recipient appears under the name of Stripe, the company that processes the payment, not Orla Nativa.',
+  es: 'el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
+  'es-ar': 'el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
+};
+
+/** O começo do item do recebedor na seção do Pix dos termos online: o rótulo, como nos outros itens da seção. */
+const ITEM_DO_RECEBEDOR: Record<(typeof IDIOMAS)[number], string> = {
+  pt: 'Recebedor: no app do seu banco, ',
+  en: 'Recipient: in your bank app, ',
+  es: 'Destinatario: en la app de tu banco, ',
+  'es-ar': 'Destinatario: en la app de tu banco, ',
 };
 
 test('o nome do recebedor do Pix é o mesmo nos termos, no checkout e na FAQ de segurança', () => {
   for (const idioma of IDIOMAS) {
     const d = dicionario(idioma);
-    assert.ok(tudo(texto(TERMOS_ONLINE, idioma)).includes(RECEBEDOR[idioma]), `${idioma}: termos`);
-    assert.ok(d.checkout.pixRecebedor.includes(RECEBEDOR[idioma]), `${idioma}: checkout`);
-    assert.ok((d.faq[9].rOnline ?? '').includes(RECEBEDOR[idioma]), `${idioma}: FAQ`);
+    const lugares = {
+      termos: tudo(texto(TERMOS_ONLINE, idioma)),
+      checkout: d.checkout.pixRecebedor,
+      FAQ: d.faq[9].rOnline ?? '',
+    };
+    for (const [onde, t] of Object.entries(lugares)) {
+      assert.ok(t.includes(RECEBEDOR[idioma]), `${idioma}: ${onde}`);
+      // Pacote 31: nada da frase de antes, que não sabia o nome ("pode aparecer", "como EBANX ou Stripe")
+      assert.doesNotMatch(t, /EBANX|pode aparecer com o nome|may show the name|puede aparecer con el nombre/, `${idioma}: ${onde}`);
+    }
+    // nos termos, o item inteiro: o rótulo e a frase
+    assert.ok(lugares.termos.includes(`${ITEM_DO_RECEBEDOR[idioma]}${RECEBEDOR[idioma]}`), `${idioma}: o item dos termos`);
     // nada da frase antiga, que dava a EBANX como a única empresa "para a Stripe"
-    assert.doesNotMatch(tudo(texto(TERMOS_ONLINE, idioma)), /para a Stripe \(como|for Stripe \(such as|para Stripe \(como/, idioma);
+    assert.doesNotMatch(lugares.termos, /para a Stripe \(como|for Stripe \(such as|para Stripe \(como/, idioma);
   }
+  // o es-ar lê a frase do es: o checkout.pixRecebedor não tem entrada própria em src/i18n/es-ar.ts
+  assert.equal(dicionario('es-ar').checkout.pixRecebedor, dicionario('es').checkout.pixRecebedor);
+  assert.equal(dicionario('es-ar').faq[9].rOnline, dicionario('es').faq[9].rOnline);
 });
 
 test('a política online promete o que a equipe cumpre: o estorno em até 1 dia útil e o prazo do Pix pelo banco', () => {
@@ -276,8 +313,10 @@ test('com os e-mails ligados (e o pagamento online desligado), a privacidade de 
   assert.equal(comEmails.privacidade, PRIVACIDADE_EMAILS);
   // só a data da privacidade muda (nunca para antes da de hoje); os termos e o cancelamento ficam com as deles
   assert.deepEqual(comEmails.atualizadoEm, { ...ATUALIZADO_EM, privacidade: ATUALIZADO_EM_EMAILS });
-  // 2026-11-23: o dia em que a proteção contra robôs foi ligada no ar (a linha da Vercel e da Kasada na página)
-  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-23');
+  // 2026-11-23: o dia em que a proteção contra robôs foi ligada no ar (a linha da Vercel e da Kasada na página).
+  // Pacote 31 (25/11): o texto de hoje ganhou o idioma da visita (itens 3 e 5) e esta versão o traz junto; a data dela
+  // nunca fica antes da do texto de hoje, então foi para 2026-11-25
+  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-25');
   assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM.privacidade);
   // com o pagamento online no ar, a versão dele (que já traz os e-mails), com ou sem a chave
   assert.equal(textosLegais(true, true).privacidade, PRIVACIDADE_ONLINE);
@@ -317,8 +356,15 @@ test('item 5 da privacidade: os anúncios do Google e da Meta e como desativar, 
     for (const idioma of IDIOMAS) {
       const item5 = texto(doc, idioma).secoes.find((s) => s.titulo.startsWith('5. Cookies'));
       assert.ok(item5, `${nome}.${idioma}: o item 5`);
-      // logo depois do parágrafo dos cookies do site; as frases novas das outras versões (Stripe, "sair da lista") vêm depois
-      assert.match(item5.paragrafos[1], /Google.*Meta.*adssettings\.google\.com.*facebook\.com\/adpreferences/, `${nome}.${idioma}`);
+      // logo depois dos parágrafos dos cookies do próprio site; as frases novas das outras versões (Stripe, "sair da lista")
+      // vêm depois. Pacote 31 (25/11): o parágrafo do cookie do idioma entrou logo depois do primeiro, junto dos outros
+      // cookies do site, e o dos anúncios passou de paragrafos[1] para paragrafos[2] (tests/chegada.test.ts confere a frase)
+      assert.match(
+        item5.paragrafos[1],
+        /^(Um cookie guarda por 1 ano o idioma|A cookie keeps the website’s language|Una cookie guarda durante 1 año el idioma)/,
+        `${nome}.${idioma}`,
+      );
+      assert.match(item5.paragrafos[2], /Google.*Meta.*adssettings\.google\.com.*facebook\.com\/adpreferences/, `${nome}.${idioma}`);
       // e o "pode mudar sua escolha" continua no fim do item
       assert.match(item5.paragrafos.at(-1) ?? '', /mudar sua escolha|change your choice|cambiar tu elección/, `${nome}.${idioma}`);
     }

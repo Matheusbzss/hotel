@@ -27,6 +27,7 @@ import { AVISOS_VOUCHER, IMPORTANTE_VOUCHER } from '../src/lib/voucher-textos.ts
 import { VERBOS_VOS, neutroDoArgentino, palavras, suspeitasDeVos } from './ajuda/regra-neutra.ts';
 import { CAMAS, COMODIDADES, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR } from '../src/data/comodidades.ts';
 import { CANCELAMENTO_DAS_CASAS, CASAS_PARA_CADASTRAR, regrasDeTodasAsCasas } from '../scripts/dados/casas.ts';
+import { regraDeCameras } from '../src/data/regras-casas.ts';
 
 // Etapa 3, lote 2, a integração: o /es é o espanhol neutro (com "tú") e o /es-ar é o texto argentino que o site
 // tinha antes (com "vos"), palavra por palavra, só nas frases que diferem. Os testes de cada frente
@@ -186,10 +187,15 @@ for (const [fonte, es, ar] of [
 
 // 9. a Etapa 7: as listas fixas das casas (src/data/comodidades.ts) e os textos das duas casas prontas para cadastrar
 // (scripts/dados/casas.ts), que vão para o banco. São neutros (sem tú nem vos); a versão argentina só entra onde a
-// palavra muda (a rede, "hamaca paraguaya", e a lavanderia, "lavarropas")
+// palavra muda (a rede, "hamaca paraguaya", e a lavanderia, "lavarropas"). Pacote 31 (25/11): também as frases fixas
+// das câmeras (src/data/regras-casas.ts), que a página monta e o cadastro grava, sem versão argentina
+const FRASES_DAS_CAMERAS = [regraDeCameras({ tem: false }), regraDeCameras({ tem: true, dentro: false })];
 for (const { trilha, campo } of [
   ...campos({ COMODIDADES, CAMAS, NOMES_GRUPO_COMODIDADE, REGRAS_EVENTO, REGRAS_FUMAR }, 'casas listas'),
-  ...campos({ casas: CASAS_PARA_CADASTRAR, regras: regrasDeTodasAsCasas(12), cancelamento: CANCELAMENTO_DAS_CASAS }, 'casas cadastro'),
+  ...campos(
+    { casas: CASAS_PARA_CADASTRAR, regras: regrasDeTodasAsCasas(12), cancelamento: CANCELAMENTO_DAS_CASAS, cameras: FRASES_DAS_CAMERAS },
+    'casas cadastro',
+  ),
 ]) {
   juntar(trilha, lista(texto(campo, 'es')), lista(texto(campo, 'es-ar')));
 }
@@ -278,7 +284,8 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // + 1 do Pacote 29 (25/11): a frase do Pix para quem é de fora ("Si no tenés una app que pague Pix, elegí tarjeta.")
   // + 1 do Pacote 30 (25/11): sai a caixa dos termos e o erro dela ("Tenés que aceptar…") e entram as duas frases do
   // aceite junto do botão ("Al pagar, aceptás…" e "Al continuar, aceptás…")
-  dicionario: 140,
+  // + 1 do Pacote 31 (25/11): a pergunta da faixa que sugere o espanhol ("¿Querés ver esta página en español?")
+  dicionario: 141,
   guia: 138,
   passeios: 54,
   transfer: 2,
@@ -338,8 +345,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    114,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 114 (103 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora), 2 do Pacote 30 (checkout.aceiteAoPagar e aceiteAoContinuar, no lugar de checkout.erros.aceite) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
+    115,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 115 (104 textos + 11 listas inteiras; 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora), 2 do Pacote 30 (checkout.aceiteAoPagar e aceiteAoContinuar, no lugar de checkout.erros.aceite), 1 do Pacote 31 (nav.sugestaoIdioma.pergunta, a faixa que sugere o espanhol) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>

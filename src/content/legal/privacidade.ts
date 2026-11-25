@@ -47,6 +47,9 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Atender você pelo WhatsApp e por e-mail — execução de contrato e legítimo interesse.',
           'Guardar o seu carrinho e lembrar você de uma reserva que ficou sem terminar — legítimo interesse (art. 7º, IX). Você pode pedir para não receber esse lembrete.',
           'Saber de qual campanha veio cada reserva, para medir o resultado dos anúncios — legítimo interesse (art. 7º, IX).',
+          // Pacote 31 (25/11): a troca automática do espanhol na página inicial e a faixa que sugere o espanhol
+          // (src/i18n/chegada.ts). Entra antes do tópico dos anúncios, que continua o último: é o único com consentimento
+          'Mostrar o site no idioma de quem visita, pelo idioma do celular ou do navegador e pelo país aproximado do acesso — legítimo interesse (art. 7º, IX).',
           'Medir, melhorar e personalizar nossos anúncios no Facebook, no Instagram e no Google (Pixel da Meta, API de Conversões e tag do Google Ads), inclusive mostrar anúncios a quem visitou o site e avisar essas plataformas quando uma reserva é paga, com o valor, o código do clique no anúncio e, para a Meta, o e-mail e o telefone embaralhados (hash) — consentimento (art. 7º, I), que você pode recusar ou revogar a qualquer momento.',
         ],
       },
@@ -69,6 +72,8 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, Pixel da Meta e Google',
         paragrafos: [
           'O site usa um cookie para guardar o seu carrinho, outro para lembrar por 30 dias de qual campanha você veio, armazenamento local para lembrar a sua escolha sobre cookies e, se você aceitar, um cookie que guarda essa escolha por 1 ano. O Pixel da Meta e a tag do Google Ads, que medem o resultado dos nossos anúncios, só são carregados se você clicar em “Aceitar” no aviso de cookies.',
+          // Pacote 31 (25/11): o cookie do idioma (on_idioma, src/i18n/chegada.ts), junto dos outros cookies do próprio site
+          'Um cookie guarda por 1 ano o idioma do site: o escolhido no seletor de idioma ou na faixa que sugere outro idioma, ou, na primeira visita à página inicial, o que o site escolhe pelo idioma do celular ou do navegador e pelo país aproximado do acesso. Esse país vem do endereço IP, serve só para escolher o idioma e não é guardado pelo site.',
           `Com o seu aceite, o Google e a Meta (Facebook e Instagram) também podem usar cookies e identificadores do aparelho para mostrar anúncios da ${E.marca} em outros sites e aplicativos, com base na sua visita a este site. Para desativar os anúncios personalizados, use as Configurações de anúncios do Google (adssettings.google.com), as preferências de anúncios da Meta (facebook.com/adpreferences) ou as páginas aboutads.info/choices e youronlinechoices.eu.`,
           'Você pode mudar sua escolha a qualquer momento pelo botão no fim desta página.',
         ],
@@ -154,6 +159,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'To assist you on WhatsApp and by email — performance of a contract and legitimate interest.',
           'To keep your cart and remind you of a booking you did not finish — legitimate interest (art. 7, IX). You can ask not to receive this reminder.',
           'To know which campaign each booking came from, so we can measure our ads — legitimate interest (art. 7, IX).',
+          'To show the website in the visitor’s language, based on the language of the phone or browser and the approximate country of the connection — legitimate interest (art. 7, IX).',
           'To measure, improve and personalise our ads on Facebook, Instagram and Google (Meta Pixel, Conversions API and Google Ads tag), including showing ads to people who visited the website and telling these platforms when a booking is paid, with the amount, the ad click code and, for Meta, your email and phone number scrambled (hashed) — consent (art. 7, I), which you can refuse or withdraw at any time.',
         ],
       },
@@ -176,6 +182,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, the Meta Pixel and Google',
         paragrafos: [
           'The website uses a cookie to keep your cart, another to remember for 30 days which campaign you came from, local storage to remember your cookie choice, and, if you accept, a cookie that keeps that choice for 1 year. The Meta Pixel and the Google Ads tag, which measure the results of our ads, are loaded only if you click “Accept” on the cookie notice.',
+          'A cookie keeps the website’s language for 1 year: the one chosen in the language menu or in the banner that suggests another language, or, on the first visit to the home page, the one the website picks from the language of the phone or browser and the approximate country of the connection. That country comes from the IP address, is used only to pick the language and is not stored by the website.',
           `With your consent, Google and Meta (Facebook and Instagram) may also use cookies and device identifiers to show ${E.marca} ads on other websites and apps based on your visit to this website. To turn off personalised ads, use Google Ads Settings (adssettings.google.com), Meta’s ad preferences (facebook.com/adpreferences) or the pages aboutads.info/choices and youronlinechoices.eu.`,
           'You can change your choice at any time with the button at the end of this page.',
         ],
@@ -261,6 +268,7 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
           'Atenderte por WhatsApp y e-mail — ejecución de contrato e interés legítimo.',
           'Guardar tu carrito y recordarte una reserva que quedó sin terminar — interés legítimo (art. 7, IX). Puedes pedir no recibir ese recordatorio.',
           'Saber de qué campaña vino cada reserva, para medir el resultado de los anuncios — interés legítimo (art. 7, IX).',
+          'Mostrar el sitio en el idioma de quien lo visita, según el idioma del celular o del navegador y el país aproximado de la conexión — interés legítimo (art. 7, IX).',
           'Medir, mejorar y personalizar nuestros anuncios en Facebook, Instagram y Google (Píxel de Meta, API de Conversiones y etiqueta de Google Ads), incluso mostrar anuncios a quienes visitaron el sitio y avisar a esas plataformas cuando una reserva se paga, con el valor, el código del clic en el anuncio y, para Meta, tu e-mail y tu teléfono cifrados (hash) — consentimiento (art. 7, I), que puedes rechazar o revocar en cualquier momento.',
         ],
       },
@@ -283,6 +291,8 @@ const BASE: Record<IdiomaConteudo, DocumentoLegal> = {
         titulo: '5. Cookies, Píxel de Meta y Google',
         paragrafos: [
           'El sitio usa una cookie para guardar tu carrito, otra para recordar durante 30 días de qué campaña viniste, almacenamiento local para recordar tu elección sobre cookies y, si aceptas, una cookie que guarda esa elección por 1 año. El Píxel de Meta y la etiqueta de Google Ads, que miden el resultado de nuestros anuncios, solo se cargan si haces clic en “Aceptar” en el aviso de cookies.',
+          // sem verbo de "tú": o es-ar lê a mesma frase (nenhum par novo em AJUSTES_AR_PRIVACIDADE)
+          'Una cookie guarda durante 1 año el idioma del sitio: el elegido en el selector de idioma o en la franja que sugiere otro idioma, o, en la primera visita a la página de inicio, el que el sitio elige según el idioma del celular o del navegador y el país aproximado de la conexión. Ese país sale de la dirección IP, sirve solo para elegir el idioma y el sitio no lo guarda.',
           `Con tu aceptación, Google y Meta (Facebook e Instagram) también pueden usar cookies e identificadores del dispositivo para mostrar anuncios de ${E.marca} en otros sitios y aplicaciones, según tu visita a este sitio. Para desactivar los anuncios personalizados, usa la Configuración de anuncios de Google (adssettings.google.com), las preferencias de anuncios de Meta (facebook.com/adpreferences) o las páginas aboutads.info/choices y youronlinechoices.eu.`,
           'Puedes cambiar tu elección en cualquier momento con el botón al final de esta página.',
         ],

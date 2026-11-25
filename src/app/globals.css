@@ -568,6 +568,50 @@ body:has(.cabecalho details[open], #menu-movel) .galeria-contador {
 }
 
 /* ------------------------------------------------------------------ */
+/* A faixa que sugere o espanhol (Pacote 31, 25/11)                    */
+/* ------------------------------------------------------------------ */
+/* Logo abaixo da cápsula do topo e por cima do conteúdo (src/components/SugestaoIdioma.tsx). Ela só aparece depois de a
+   página carregar; fora do fluxo, não empurra nada: a página não pula e a nota de velocidade não piora. Rola com a
+   página e passa por baixo da cápsula, para não tapar a leitura de quem preferiu ficar. Embaixo da tela já ficam o aviso
+   de cookies e a barra do carrinho. A cápsula fica a 0,5rem do topo e tem 3,5rem de altura (4rem a partir do md, 48rem):
+   a faixa começa 0,5rem abaixo dela. Por cima do conteúdo (z-index 30, como as barras de baixo) e por baixo da cápsula
+   (40), da lista de idiomas e do menu, que abrem dentro dela. */
+.sugestao-idioma {
+  position: absolute;
+  inset-inline: 0;
+  top: 4.5rem;
+  z-index: 30;
+  padding-inline: calc(var(--margem) - 0.25rem);
+  pointer-events: none;
+  /* o contorno do foco em dourado, como na cápsula sobre a foto: o escuro do padrão sumiria no mar fundo */
+  --foco: var(--color-acao);
+}
+@media (min-width: 48rem) {
+  .sugestao-idioma {
+    top: 5rem;
+  }
+}
+.sugestao-idioma > * {
+  pointer-events: auto;
+}
+/* a entrada: aparece em 360 ms, sem subir nem descer; com "reduzir movimento", aparece direto */
+@media (prefers-reduced-motion: no-preference) {
+  .sugestao-idioma > * {
+    animation: surgir var(--dur-entrada) var(--ease-padrao) both;
+  }
+}
+/* com a lista de idiomas ou o menu do celular aberto, a faixa sai de cena: os dois abrem no mesmo lugar */
+body:has(.cabecalho details[open], #menu-movel) .sugestao-idioma {
+  visibility: hidden;
+}
+/* enquanto a sugestão está na tela, o contador das fotos do passeio (1/11, no canto de cima da foto) sai de cena: ele
+   fica no mesmo lugar da faixa e aparecia através do vidro dela, no celular e no computador abaixo de uns 1400 px (visto
+   nos prints de 25/11). Volta quando a pessoa fecha a sugestão. O contador das casas fica embaixo da foto e não muda */
+body:has(.sugestao-idioma) .galeria-contador:not(.galeria-casa-contador) {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------------------------ */
 /* Página inicial                                                       */
 /* ------------------------------------------------------------------ */
 @layer components {

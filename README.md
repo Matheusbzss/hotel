@@ -133,6 +133,8 @@ npm run build                # build de produção
 ## Idiomas e endereços
 
 - Português: `/`, `/passeios`, `/passeios/escuna-buzios`…
-- Inglês: `/en/...` · Espanhol: `/es/...`
+- Inglês: `/en/...` · Espanhol neutro: `/es/...` · Espanhol da Argentina: `/es-ar/...`
 
-O seletor de bandeiras troca o idioma mantendo a mesma página. `sitemap.xml` e `robots.txt` são gerados automaticamente.
+O seletor de idioma troca o idioma mantendo a mesma página. `sitemap.xml` e `robots.txt` são gerados automaticamente.
+
+Troca automática do espanhol (Pacote 31, regra em `src/i18n/chegada.ts`): só quem chega de fora na página inicial em português (`/`) com o primeiro idioma do navegador em espanhol vai para `/es-ar` (es-AR, ou "es"/"es-419" com o IP da Argentina pelo cabeçalho `x-vercel-ip-country`) ou para `/es` (o resto). É um 307 com a mesma busca (`?utm_...`), e o cookie `on_idioma` (1 ano) guarda a versão. O cookie manda sempre: o seletor e a faixa gravam a escolha no toque, no navegador e também pelo servidor (`POST /api/idioma?idioma=…`, que devolve o mesmo cookie com o Set-Cookie de 1 ano; no Safari do iPhone, o cookie escrito pelo JavaScript dura só 7 dias). Robôs, quem já navega no site (Sec-Fetch-Site `same-origin` ou o Referer do site), as outras páginas e os endereços dos anúncios nunca trocam. Nas outras páginas em português e inglês, uma faixa abaixo da cápsula do topo sugere o espanhol (`src/components/SugestaoIdioma.tsx`), só quando ela fica por cima de foto (nas páginas sem foto no topo, como a lista de passeios, as políticas e a página de erro, ela taparia o título), e menos no checkout (também o "Finalizar transfer", `/transfer/checkout`), no pedido, no voucher, no consultar pedido, no sair da lista e na futura página de reservar uma casa. Para testar no computador (não há o cabeçalho do país), com GET (o HEAD do `curl -I` nunca troca, de propósito): `curl -s -o /dev/null -D - -H "Accept-Language: es-419" -H "x-vercel-ip-country: AR" http://localhost:3400/`.

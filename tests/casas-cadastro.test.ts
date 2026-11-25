@@ -165,7 +165,8 @@ test('os pacotes dos próximos 12 meses: da véspera ao primeiro dia útil, fora
 
 test('nada de "promoção", exagero, câmera, frente para o mar ou o que o dono não confirmou', () => {
   for (const c of CASAS_PARA_CADASTRAR) {
-    // os textos da casa (sem a lista das fotos e sem o nome do campo das câmeras, que fica vazio)
+    // os textos da casa (sem a lista das fotos e sem o campo das câmeras, que não tem texto: a frase das câmeras é a de
+    // src/data/regras-casas.ts, conferida em tests/casa-pagina.test.ts)
     const tudo = JSON.stringify({ ...c, fotos: [], fotosDeFora: [], regrasProprias: { ...c.regrasProprias, cameras: undefined } });
     for (const proibido of [
       /promo/i,
@@ -180,15 +181,21 @@ test('nada de "promoção", exagero, câmera, frente para o mar ou o que o dono 
       assert.doesNotMatch(tudo, proibido, `${c.slug}: ${proibido}`);
     }
   }
-  // Ferradura: Wi-Fi, vagas, fumar e câmeras ainda não informados; nenhuma praia citada pelo nome a 5 minutos
+  // Ferradura: Wi-Fi, vagas e fumar ainda não informados; nenhuma praia citada pelo nome a 5 minutos
   const idsFerradura = FERRADURA.comodidadesMarcadas.map((m) => m.id);
   for (const id of ['wifi', 'estacionamento'] as const) assert.ok(!idsFerradura.includes(id), id);
   assert.equal(FERRADURA.regrasProprias.fumar, null);
-  for (const c of CASAS_PARA_CADASTRAR) assert.equal(c.regrasProprias.cameras, null, c.slug);
-  // Geribá: sem máquina de lavar, berço ou proteção da piscina (não informados); sem TV na sala (a foto 37 mostra um
-  // abajur, e o dono ainda não disse)
+  // Pacote 31 (25/11): o dono confirmou nas duas casas câmeras de segurança só do lado de fora e nenhuma dentro, sem
+  // dizer onde ficam (antes, null: ainda não informado). O lugar não é inventado
+  for (const c of CASAS_PARA_CADASTRAR) assert.deepEqual(c.regrasProprias.cameras, { tem: true, dentro: false }, c.slug);
+  // Geribá: sem máquina de lavar, berço ou proteção da piscina (não informados)
   assert.ok(!GERIBA.comodidadesMarcadas.some((m) => m.id === 'lavanderia'));
-  assert.ok(!GERIBA.comodidadesMarcadas.some((m) => m.id === 'tv-sala'));
+  // Pacote 31 (25/11): a TV na sala voltou, porque o dono confirmou (não veio da foto). O texto da foto 37 continua sem
+  // TV: tirada de fora, pelo vidro, ela mostra um abajur
+  assert.deepEqual(
+    GERIBA.comodidadesMarcadas.find((m) => m.id === 'tv-sala'),
+    { id: 'tv-sala', veioDaFoto: false },
+  );
   const salaGeriba = ALT_FOTOS[`/fotos/casas/${GERIBA.slug}/sala-vista-pelo-vidro.jpg`];
   assert.doesNotMatch(`${salaGeriba.pt} ${salaGeriba.es} ${salaGeriba.en}`, /\bTV\b|televis/i);
 });

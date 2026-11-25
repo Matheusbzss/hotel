@@ -96,10 +96,22 @@ export const EsquemaRegrasProprias = z.object({
   /** As escadas da casa, sem julgar se servem para idoso ou criança pequena. */
   escadas: z.object({ texto: textoCurto(120), veioDaFoto: z.boolean() }).nullable(),
   /**
-   * Câmeras do lado de fora: a página tem de avisar se houver. null: o dono ainda não disse (não falar de câmeras e
-   * não abrir a venda).
+   * Câmeras de segurança: a página tem de avisar se houver. null: o dono ainda não disse (não falar de câmeras e não
+   * abrir a venda). Com câmeras, a página diz onde ficam do lado de fora (onde) ou, sem o lugar, que ficam só do lado de
+   * fora e que não há nenhuma dentro da casa (dentro: false). Pacote 31 (25/11): o dono confirmou assim as duas casas,
+   * sem dizer o lugar (a frase não inventa onde ficam). Só "tem câmeras", sem o lugar nem o "nenhuma dentro", continua
+   * sem valer: quem cadastra a casa tem de saber onde ficam ou se há alguma dentro. Câmera dentro da casa não tem
+   * formato (dentro: true não vale).
    */
-  cameras: z.union([z.object({ tem: z.literal(false) }), z.object({ tem: z.literal(true), onde: textoCurto(160) })]).nullable(),
+  cameras: z
+    .union([
+      z.object({ tem: z.literal(false) }),
+      // o formato de antes, com o lugar; o "nenhuma dentro" é opcional (a frase ganha o fim "; nenhuma dentro da casa")
+      z.object({ tem: z.literal(true), onde: textoCurto(160), dentro: z.literal(false).optional() }),
+      // sem o lugar: o "nenhuma dentro" é obrigatório. Um lugar fora da forma não vale aqui (sem isso, ele sumiria calado)
+      z.object({ tem: z.literal(true), onde: z.undefined().optional(), dentro: z.literal(false) }),
+    ])
+    .nullable(),
 });
 export type RegrasProprias = z.infer<typeof EsquemaRegrasProprias>;
 export const REGRAS_PROPRIAS_VAZIAS: RegrasProprias = { evento: null, fumar: null, escadas: null, cameras: null };

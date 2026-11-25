@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { CASAS_PARA_CADASTRAR, linhaDaCasa, type CasaParaCadastrar } from '../scripts/dados/casas.ts';
+import { CASAS_PARA_CADASTRAR, linhaDaCasa, listasDaCasa, type CasaParaCadastrar } from '../scripts/dados/casas.ts';
 import { COMODIDADES, GRUPOS_COMODIDADE } from '../src/data/comodidades.ts';
-import { CANCELAMENTO_DAS_CASAS, REGRAS_DAS_CASAS, regraDeCameras } from '../src/data/regras-casas.ts';
+import { CAMERAS_SO_DO_LADO_DE_FORA, CANCELAMENTO_DAS_CASAS, REGRAS_DAS_CASAS, regraDeCameras } from '../src/data/regras-casas.ts';
+import { texto } from '../src/i18n/conteudo.ts';
 import { dicionario } from '../src/i18n/index.ts';
 import { detalhesDeLinha, type DetalhesCasa } from '../src/lib/casa-detalhes.ts';
 import {
@@ -165,8 +166,12 @@ test('regras, chegada e segurança, cancelamento: só o que o dono disse vira fr
     assert.ok(r.chegada.some((t) => t.pt === REGRAS_DAS_CASAS.recepcao.pt));
     assert.ok(r.chegada.some((t) => t.pt === REGRAS_DAS_CASAS.cadastro.pt));
     assert.deepEqual(r.cancelamento, CANCELAMENTO_DAS_CASAS);
-    // sem resposta sobre câmeras, nada se escreve sobre elas
-    assert.ok(![...r.casa, ...r.chegada].some((t) => /c[âá]mera|camera/i.test(`${t.pt} ${t.es} ${t.en}`)));
+    // Pacote 31 (25/11): o dono confirmou as câmeras das duas casas (só do lado de fora, nenhuma dentro, sem o lugar). A
+    // frase fica por último em "Chegada e segurança", e só ali; ela não dá lugar nenhum (nada depois de dois-pontos)
+    assert.deepEqual(r.chegada.at(-1), CAMERAS_SO_DO_LADO_DE_FORA);
+    const comCamera = [...r.casa, ...r.chegada].filter((t) => /c[âá]mera|camera/i.test(`${t.pt} ${t.es} ${t.en}`));
+    assert.deepEqual(comCamera, [CAMERAS_SO_DO_LADO_DE_FORA]);
+    assert.ok(!comCamera.some((t) => [t.pt, t.es, t.en].some((s) => s.includes(':'))));
   }
   // Ferradura: evento só em feriados; fumar ainda não informado (nenhuma regra); a escada que veio da foto
   assert.ok(ferradura.casa.some((t) => t.pt.startsWith('Eventos e festas só em feriados')));
@@ -176,11 +181,63 @@ test('regras, chegada e segurança, cancelamento: só o que o dono disse vira fr
   assert.ok(geriba.casa.some((t) => t.pt === 'Eventos de qualquer tipo só com autorização prévia'));
   assert.ok(geriba.casa.some((t) => t.pt === 'Fumar só na área externa'));
   assert.ok(geriba.chegada.some((t) => t.pt === 'Casa em 3 andares (triplex), com escadas externas'));
-  // quando o dono responder: sem câmeras, ou onde ficam
+  // os outros formatos: sem resposta, sem câmeras, ou onde ficam (como antes)
   assert.equal(regraDeCameras(null), null);
   assert.equal(regraDeCameras({ tem: false })?.pt, 'Sem câmeras do lado de fora');
   const onde = { pt: 'na entrada', es: 'en la entrada', en: 'at the entrance' };
   assert.equal(regraDeCameras({ tem: true, onde })?.es, 'Cámaras exteriores: en la entrada');
+  assert.equal(regraDeCameras({ tem: true, onde: { ...onde, 'es-ar': 'en el ingreso' } })?.['es-ar'], 'Cámaras exteriores: en el ingreso');
+});
+
+test('a frase das câmeras sem o lugar (Pacote 31): só do lado de fora e nenhuma dentro, nos quatro idiomas', () => {
+  const frase = regraDeCameras({ tem: true, dentro: false });
+  assert.deepEqual(frase, {
+    pt: 'Câmeras de segurança só do lado de fora, nenhuma dentro da casa',
+    es: 'Cámaras de seguridad solo en el exterior, ninguna dentro de la casa',
+    en: 'Security cameras outside only, none inside the house',
+  });
+  // neutra no espanhol: sem versão argentina, o /es-ar lê a do es
+  assert.ok(frase && !('es-ar' in frase));
+  assert.equal(texto(frase, 'es-ar'), frase.es);
+  // um "onde" vazio que veio do banco não vira "Câmeras do lado de fora: undefined"
+  assert.deepEqual(regraDeCameras({ tem: true, onde: undefined, dentro: false }), frase);
+  // com o lugar e o "nenhuma dentro" juntos, a frase com o lugar ganha o fim, sem perder nenhum dos dois
+  const onde = { pt: 'na entrada', es: 'en la entrada', en: 'at the entrance' };
+  assert.deepEqual(regraDeCameras({ tem: true, onde, dentro: false }), {
+    pt: 'Câmeras do lado de fora: na entrada; nenhuma dentro da casa',
+    es: 'Cámaras exteriores: en la entrada; ninguna dentro de la casa',
+    en: 'Outdoor cameras: at the entrance; none inside the house',
+  });
+  // as listas antigas (que o painel mostra) levam a mesma frase, depois das escadas, como a página
+  for (const c of [FERRADURA, GERIBA]) {
+    const { regras } = listasDaCasa(c);
+    for (const idioma of ['pt', 'es', 'en'] as const) {
+      assert.equal(regras[idioma].at(-1), CAMERAS_SO_DO_LADO_DE_FORA[idioma], `${c.slug} ${idioma}`);
+      assert.equal(regras[idioma].at(-2), c.regrasProprias.escadas?.texto[idioma], `${c.slug} ${idioma}`);
+    }
+  }
+});
+
+test('a TV na sala nas duas casas (Pacote 31): a Geribá ganha a da lista; a Ferradura já tinha as TVs 4K da sala', () => {
+  const geriba = comodidadesDaPagina(GERIBA.comodidadesMarcadas);
+  const tv = geriba.find((x) => x.id === 'tv-sala');
+  assert.ok(tv);
+  assert.equal(tv.grupo, 'sala');
+  assert.equal(tv.nome.pt, 'TV na sala');
+  // fora das 10 principais (que deixam a vista por último), no grupo da sala do "ver tudo"
+  assert.ok(!geriba.slice(0, PRINCIPAIS_COMODIDADES).includes(tv));
+  assert.ok(
+    comodidadesPorGrupo(geriba)
+      .find((g) => g.grupo === 'sala')
+      ?.itens.includes(tv),
+  );
+  // foi o dono que confirmou, não a foto
+  assert.equal(GERIBA.comodidadesMarcadas.find((m) => m.id === 'tv-sala')?.veioDaFoto, false);
+  // a Ferradura não muda: as TVs 4K ficam no grupo da sala, e a descrição já fala da sala de TV
+  const ferradura = comodidadesPorGrupo(comodidadesDaPagina(FERRADURA.comodidadesMarcadas)).find((g) => g.grupo === 'sala');
+  assert.ok(ferradura?.itens.some((x) => x.id === 'tv-4k'));
+  assert.ok(!FERRADURA.comodidadesMarcadas.some((m) => m.id === 'tv-sala'));
+  assert.match(FERRADURA.descricao.pt, /sala de TV/);
 });
 
 test('a conta da página: o fim de semana e o Réveillon das duas casas, como no plano', () => {

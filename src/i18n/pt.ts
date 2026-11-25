@@ -24,6 +24,10 @@ const pt = {
     fechar: 'Fechar menu',
     pularConteudo: 'Pular para o conteúdo',
     principal: 'Principal',
+    // Pacote 31 (25/11): a faixa que sugere a outra versão do site (src/components/SugestaoIdioma.tsx), escrita no idioma
+    // que ela sugere. Hoje ela só sugere o espanhol, com os textos do es e do es-ar; estes, do português, e os do inglês
+    // deixam o dicionário completo e só aparecem se um dia ela sugerir estes idiomas
+    sugestaoIdioma: { pergunta: 'Quer ver esta página em português?', botao: 'Ver em português', fechar: 'Fechar' },
   },
   comum: {
     aPartirDe: 'a partir de',
@@ -479,7 +483,7 @@ const pt = {
       // hoje o pagamento é fechado com a equipe pelo WhatsApp: a resposta não dá a entender que já dá para pagar aqui
       r: 'Por enquanto o pagamento não é feito no site: você registra a reserva aqui, numa conexão criptografada, e paga por Pix ou cartão com a nossa equipe pelo WhatsApp. O site não recebe os dados do seu cartão.',
       rOnline:
-        'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
+        'Sim. O site usa conexão criptografada, e o cartão e o Pix são processados pela Stripe: os dados do cartão vão direto para ela e não ficam com a gente. No Pix, você paga no app do seu banco, e o recebedor do Pix aparece com o nome da Stripe, a empresa que processa o pagamento, e não como Orla Nativa.',
     },
   ],
   passeios: {
@@ -682,10 +686,12 @@ const pt = {
     // Pacote 29 (decisão do dono de 25/11): em espanhol e inglês, a frase de que o Pix pede um app que pague Pix, em cima
     // da explicação; vazia em português (o brasileiro já paga Pix)
     pixDeFora: '',
-    // antes de pagar (FASE-4, Etapa 5, item 4): a documentação da Stripe não confirma o nome para conta brasileira, então
-    // a frase não promete um nome só; conferir no Pix de teste e ajustar se for preciso
+    // antes de pagar (FASE-4, Etapa 5, item 4). Pacote 31 (25/11): no Pix de verdade de 24/11, o app do banco mostrou o
+    // recebedor como "Stripe", então a frase diz o nome dela, sem a EBANX (a documentação da Stripe só cita a EBANX no Pix
+    // de empresas dos EUA). "Com o nome da Stripe" vale também se outro banco mostrar o nome completo da empresa. A mesma
+    // frase está nos termos online e na FAQ de segurança (tests/textos-online.test.ts confere os três)
     pixRecebedor:
-      'No app do seu banco, o recebedor do Pix pode aparecer com o nome da empresa que processa o pagamento (como EBANX ou Stripe), e não como Orla Nativa.',
+      'No app do seu banco, o recebedor do Pix aparece com o nome da Stripe, a empresa que processa o pagamento, e não como Orla Nativa.',
     pagar: 'Pagar {valor}',
     irParaPagamento: 'Ir para o pagamento',
     processando: 'Processando…',

@@ -48,22 +48,40 @@ export function regrasDeTodasAsCasas(capacidade: number): Texto[] {
 }
 
 /**
- * As câmeras do lado de fora: a página tem de avisar onde ficam, se houver (recortar a foto não dispensa o aviso). Sem
- * resposta do dono (null), nada se escreve sobre câmeras.
+ * Pacote 31 (25/11): as câmeras de segurança das duas casas, como o dono confirmou: só do lado de fora e nenhuma dentro,
+ * sem dizer onde ficam (a frase não inventa o lugar). Neutra no espanhol (sem "tú" nem "vos"): serve às duas versões.
  */
-export function regraDeCameras(cameras: { tem: false } | { tem: true; onde: Texto } | null): Texto | null {
+export const CAMERAS_SO_DO_LADO_DE_FORA: Texto = {
+  pt: 'Câmeras de segurança só do lado de fora, nenhuma dentro da casa',
+  es: 'Cámaras de seguridad solo en el exterior, ninguna dentro de la casa',
+  en: 'Security cameras outside only, none inside the house',
+};
+
+/**
+ * As câmeras de segurança: a página tem de avisar se houver (recortar a foto não dispensa o aviso). Sem resposta do dono
+ * (null), nada se escreve sobre câmeras. Com o lugar (onde), a frase diz onde ficam do lado de fora, como antes. Sem o
+ * lugar, o que só vale com o "nenhuma dentro" confirmado (dentro: false), vai a frase das duas casas,
+ * CAMERAS_SO_DO_LADO_DE_FORA. Os formatos que valem estão em EsquemaRegrasProprias (src/lib/casa-detalhes.ts).
+ */
+export function regraDeCameras(
+  cameras: { tem: false } | { tem: true; onde: Texto; dentro?: false } | { tem: true; onde?: undefined; dentro: false } | null,
+): Texto | null {
   if (!cameras) return null;
   if (!cameras.tem) return { pt: 'Sem câmeras do lado de fora', es: 'Sin cámaras exteriores', en: 'No outdoor cameras' };
-  const { onde } = cameras;
+  const { onde, dentro } = cameras;
+  if (!onde) return CAMERAS_SO_DO_LADO_DE_FORA;
+  // com o lugar e o "nenhuma dentro" juntos, a frase de antes ganha o fim
+  const fim =
+    dentro === false ? { pt: '; nenhuma dentro da casa', es: '; ninguna dentro de la casa', en: '; none inside the house' } : null;
   return {
-    pt: `Câmeras do lado de fora: ${onde.pt}`,
-    es: `Cámaras exteriores: ${onde.es}`,
-    en: `Outdoor cameras: ${onde.en}`,
-    ...(onde['es-ar'] ? { 'es-ar': `Cámaras exteriores: ${onde['es-ar']}` } : {}),
+    pt: `Câmeras do lado de fora: ${onde.pt}${fim?.pt ?? ''}`,
+    es: `Cámaras exteriores: ${onde.es}${fim?.es ?? ''}`,
+    en: `Outdoor cameras: ${onde.en}${fim?.en ?? ''}`,
+    ...(onde['es-ar'] ? { 'es-ar': `Cámaras exteriores: ${onde['es-ar']}${fim?.es ?? ''}` } : {}),
   };
 }
 
-/** A política de cancelamento das casas (decisão recomendada da pendência 3: o dono confirma antes de publicar). */
+/** A política de cancelamento das casas (a decisão recomendada da pendência 3, confirmada pelo dono em 25/11/2026). */
 export const CANCELAMENTO_DAS_CASAS: Texto[] = [
   {
     pt: 'Cancelamento grátis até 30 dias antes da entrada',

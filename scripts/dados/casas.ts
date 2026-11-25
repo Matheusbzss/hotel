@@ -6,10 +6,13 @@
  * - material-recebido/FASE-4.md (Etapa 7, versão de 10/11) e os DADOS.md das duas casas (dono, 06 e 07/11);
  * - as decisões recomendadas de material-recebido/ETAPA-7-PLANO-DAS-CASAS.md (13/11): fim de semana junto, bloqueio
  *   único da Ferradura até 06/12, pacotes de feriado da véspera ao primeiro dia útil (seção 5), sábado 02 e domingo
- *   03/01 no preço de fim de semana, cancelamento (pendência 3, o dono confirma antes de publicar a política);
- * - as fotos: o que aparece claramente nelas entra com veioDaFoto (o dono autorizou em 07/11 e confere antes de ligar).
- * O que o dono ainda não disse fica de fora (Wi-Fi, vagas e fumar na Ferradura; câmeras nas duas; qual quarto da
- * Ferradura é suíte; distância exata até a areia; nome da praia a 5 minutos; TV na sala da Geribá).
+ *   03/01 no preço de fim de semana, cancelamento (pendência 3, confirmada pelo dono em 25/11/2026);
+ * - as fotos: o que aparece claramente nelas entra com veioDaFoto (o dono autorizou em 07/11 e confere antes de ligar);
+ * - as respostas do dono de 25/11 (Pacote 31): as duas casas têm câmeras de segurança só do lado de fora e nenhuma
+ *   dentro, sem dizer onde ficam; as duas têm TV na sala; e a política de cancelamento das casas está confirmada (até
+ *   30 dias antes da entrada, o sinal volta inteiro; depois, a casa fica com o sinal e não cobra o resto).
+ * O que o dono ainda não disse fica de fora (Wi-Fi, vagas e fumar na Ferradura; onde ficam as câmeras; qual quarto da
+ * Ferradura é suíte; distância exata até a areia; nome da praia a 5 minutos).
  *
  * Os textos do cliente são neutros (sem "tú" nem "vos"), então servem às duas versões do espanhol. Onde uma palavra
  * muda na Argentina (hamaca paraguaya, lavarropas, heladera...), o texto leva a versão 'es-ar', como nas listas fixas
@@ -28,7 +31,7 @@ import {
   type RegrasProprias,
 } from '../../src/lib/casa-detalhes.ts';
 import type { Pacote } from '../../src/lib/estadia.ts';
-import { CANCELAMENTO_DAS_CASAS, regrasDeTodasAsCasas } from '../../src/data/regras-casas.ts';
+import { CANCELAMENTO_DAS_CASAS, regraDeCameras, regrasDeTodasAsCasas } from '../../src/data/regras-casas.ts';
 
 // as regras de todas as casas e o cancelamento moram em src/data/regras-casas.ts (a página da casa usa as mesmas frases)
 export { CANCELAMENTO_DAS_CASAS, regrasDeTodasAsCasas };
@@ -252,7 +255,9 @@ const ferradura: CasaParaCadastrar = {
     fumar: null,
     // a foto 32 mostra a escada interna; sem dizer se serve para idoso ou criança pequena
     escadas: { texto: { pt: 'Casa com escada', es: 'Casa con escalera', en: 'The house has stairs' }, veioDaFoto: true },
-    cameras: null,
+    // Pacote 31 (25/11): o dono confirmou câmeras de segurança só do lado de fora e nenhuma dentro, sem dizer onde
+    // ficam; a página escreve a frase sem o lugar (CAMERAS_SO_DO_LADO_DE_FORA, src/data/regras-casas.ts)
+    cameras: { tem: true, dentro: false },
   },
   diariaCentavos: 100000,
   diariaFimDeSemanaCentavos: 130000,
@@ -411,8 +416,9 @@ const geriba: CasaParaCadastrar = {
     { id: 'varandas', veioDaFoto: true },
     { id: 'jardim', veioDaFoto: true },
     { id: 'rede', veioDaFoto: true },
-    // sem 'tv-sala': a única foto da sala (a 37, tirada de fora, pelo vidro) mostra um abajur, não uma TV. Volta só se o
-    // dono confirmar que a sala tem TV
+    // Pacote 31 (25/11): a TV na sala voltou porque o dono confirmou que a sala tem TV (veioDaFoto: false). A única foto
+    // da sala (a 37, tirada de fora, pelo vidro) mostra um abajur, não a TV: o texto dela continua sem TV
+    { id: 'tv-sala', veioDaFoto: false },
     {
       id: 'espaco-trabalho',
       veioDaFoto: true,
@@ -465,11 +471,12 @@ const geriba: CasaParaCadastrar = {
       },
       veioDaFoto: true,
     },
-    // o dono ainda não disse. Atenção: na foto 34 (jardim-e-suite.jpg), embaixo da varanda de cima, à direita, há um
-    // aparelho que parece câmera de segurança voltada para o jardim; na 04 (deck-mesa-e-vista-mar.jpg), embaixo do
-    // beiral, outro (câmera ou refletor). Se for câmera, preencher { tem: true, onde: {...} } com o lugar: recortar a
-    // foto não dispensa o aviso. A venda fica fechada até a resposta.
-    cameras: null,
+    // Pacote 31 (25/11): o dono confirmou câmeras de segurança só do lado de fora e nenhuma dentro, sem dizer onde ficam.
+    // Na foto 34 (jardim-e-suite.jpg), embaixo da varanda de cima, à direita, há um aparelho que parece câmera voltada
+    // para o jardim; na 04 (deck-mesa-e-vista-mar.jpg), embaixo do beiral, outro (câmera ou refletor). A frase sem o
+    // lugar avisa das câmeras (recortar a foto não dispensaria o aviso); se o dono disser onde ficam, vira
+    // { tem: true, onde: {...}, dentro: false }
+    cameras: { tem: true, dentro: false },
   },
   diariaCentavos: 150000,
   diariaFimDeSemanaCentavos: 180000,
@@ -558,10 +565,14 @@ function porIdioma(fazer: (idioma: IdiomaDaLista) => string[]): Lista {
 const juntar: Record<IdiomaDaLista, string> = { pt: ' e ', es: ' y ', en: ' and ', 'es-ar': ' y ' };
 
 export function listasDaCasa(c: CasaParaCadastrar): { camas: Lista; comodidades: Lista; regras: Lista; cancelamento: Lista } {
+  // Pacote 31 (25/11): a frase das câmeras entra também na lista antiga, depois das escadas, como na parte "Chegada e
+  // segurança" da página: assim o painel mostra as mesmas regras que a página
+  const cameras = regraDeCameras(c.regrasProprias.cameras);
   const regrasDaCasa: Texto[] = [
     ...(c.regrasProprias.evento ? [REGRAS_EVENTO[c.regrasProprias.evento]] : []),
     ...(c.regrasProprias.fumar ? [REGRAS_FUMAR[c.regrasProprias.fumar]] : []),
     ...(c.regrasProprias.escadas ? [c.regrasProprias.escadas.texto] : []),
+    ...(cameras ? [cameras] : []),
   ];
   return {
     camas: porIdioma((i) =>

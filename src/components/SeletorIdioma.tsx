@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { gravarIdiomaNoNavegador } from '@/i18n/chegada';
 import { HREFLANG, IDIOMAS, isIdiomaGuia, rota, semIdioma, type Idioma } from '@/i18n/config';
 
 /** Nomes por extenso. Idioma novo entra aqui e em ORDEM quando existir em IDIOMAS. */
@@ -27,6 +28,11 @@ const CODIGO: Record<Idioma, string> = Object.fromEntries(IDIOMAS.map((i) => [i,
  * controle (relatedTarget); com o foco indo para o body ele não fecha. Cada item leva para a MESMA página no outro
  * idioma; os guias só existem nas duas versões do espanhol: entre elas o link vai para o mesmo guia, e nos
  * outros idiomas vai para o início.
+ *
+ * Pacote 31 (25/11): o toque num idioma grava a escolha no cookie do idioma (src/i18n/chegada.ts) antes de ir. A escolha
+ * da pessoa vale mais que a detecção: quem escolheu o português não é mais levado da página inicial para o espanhol, e a
+ * faixa que sugere o espanhol (src/components/SugestaoIdioma.tsx) não volta. O data-seletor-idioma marca o botão do
+ * idioma para os testes e as conferências no navegador.
  */
 export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string }) {
   const caminho = semIdioma(usePathname() || '/');
@@ -65,6 +71,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
     <nav aria-label={rotulo}>
       <details
         ref={detalhes}
+        data-seletor-idioma
         className="group"
         onToggle={(e) => {
           const aberta = e.currentTarget.open;
@@ -112,6 +119,7 @@ export function SeletorIdioma({ atual, rotulo }: { atual: Idioma; rotulo: string
                 hrefLang={HREFLANG[i]}
                 lang={HREFLANG[i]}
                 aria-current={i === atual ? 'true' : undefined}
+                onClick={() => gravarIdiomaNoNavegador(i)}
                 className={`flex min-h-12 items-center whitespace-nowrap rounded-[12px] px-4 font-[family-name:var(--font-semi)] text-[1.0625rem] font-semibold transition-colors duration-200 hover:bg-white/10 ${
                   i === atual ? 'shadow-[inset_0_0_0_2px_currentColor]' : ''
                 }`}

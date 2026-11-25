@@ -28,6 +28,9 @@ const es: Dicionario = {
     fechar: 'Cerrar menú',
     pularConteudo: 'Saltar al contenido',
     principal: 'Principal',
+    // Pacote 31 (25/11): a faixa que sugere o espanhol nas páginas em português e em inglês (src/components/SugestaoIdioma.tsx),
+    // com "tú"; o es-ar tem a própria pergunta, com "vos" (o botão e o "Cerrar" são iguais)
+    sugestaoIdioma: { pergunta: '¿Quieres ver esta página en español?', botao: 'Ver en español', fechar: 'Cerrar' },
   },
   comum: {
     aPartirDe: 'desde',
@@ -447,7 +450,7 @@ const es: Dicionario = {
       p: '¿Es seguro pagar en el sitio?',
       r: 'Por ahora el pago no se hace en el sitio: registras la reserva aquí, con conexión cifrada, y pagas con Pix o tarjeta con nuestro equipo por WhatsApp. El sitio no recibe los datos de tu tarjeta.',
       rOnline:
-        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
     },
   ],
   passeios: {
@@ -641,8 +644,10 @@ const es: Dicionario = {
     pixApps: '',
     // Pacote 29 (decisão do dono de 25/11): quem é de fora pode não ter um app que pague Pix; sem ele, o cartão
     pixDeFora: 'Pix es el pago instantáneo de Brasil. Si no tienes una app que pague Pix, elige tarjeta.',
+    // Pacote 31 (25/11): o recebedor que o app do banco mostrou no Pix de verdade de 24/11, a Stripe (ver o pt.ts). Sem
+    // verbo na segunda pessoa ("tu banco" serve ao tú e ao vos): o es-ar lê a mesma frase
     pixRecebedor:
-      'En la app de tu banco, el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+      'En la app de tu banco, el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
     pagar: 'Pagar {valor}',
     irParaPagamento: 'Ir al pago',
     processando: 'Procesando…',

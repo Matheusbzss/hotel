@@ -28,6 +28,11 @@ export const ajustesAR: AjustesAR = {
       'Hablá con Orla Nativa: atención 100% online, en español, portugués e inglés, para paseos, traslados y reservas en Búzios y la Región de los Lagos.',
     chamadaPasseio: 'Reservá online y cancelá gratis hasta 24 h antes.',
   },
+  nav: {
+    // Pacote 31 (25/11): a pergunta da faixa que sugere o espanhol da Argentina ("¿Querés...?"); o botão e o "Cerrar"
+    // vêm iguais do es
+    sugestaoIdioma: { pergunta: '¿Querés ver esta página en español?' },
+  },
   comum: {
     // Pacote 20: a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos")
     robo: 'No pudimos terminar por el sitio ahora. Escribinos por WhatsApp y lo terminamos por ahí.',
@@ -201,7 +206,7 @@ export const ajustesAR: AjustesAR = {
       // a resposta de hoje (o pagamento com a equipe pelo WhatsApp) tem verbo em vos; a do pagamento online, não
       r: 'Por ahora el pago no se hace en el sitio: registrás la reserva acá, con conexión cifrada, y pagás con Pix o tarjeta con nuestro equipo por WhatsApp. El sitio no recibe los datos de tu tarjeta.',
       rOnline:
-        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix puede aparecer con el nombre de la empresa que procesa el pago (como EBANX o Stripe), y no como Orla Nativa.',
+        'Sí. El sitio usa conexión cifrada, y los pagos con tarjeta y con Pix los procesa Stripe: los datos de la tarjeta van directo a Stripe y no quedan con nosotros. Con Pix, el pago se hace en la app de tu banco, y el destinatario del Pix aparece con el nombre de Stripe, la empresa que procesa el pago, y no como Orla Nativa.',
     },
   ],
   passeio: {

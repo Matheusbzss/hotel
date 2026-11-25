@@ -24,6 +24,8 @@ const en: Dicionario = {
     fechar: 'Close menu',
     pularConteudo: 'Skip to content',
     principal: 'Main',
+    // Pacote 31 (25/11): a faixa que sugere a outra versão, no idioma que ela sugere (hoje só o espanhol; ver pt.ts)
+    sugestaoIdioma: { pergunta: 'Would you like to see this page in English?', botao: 'See it in English', fechar: 'Close' },
   },
   comum: {
     aPartirDe: 'from',
@@ -436,7 +438,7 @@ const en: Dicionario = {
       p: 'Is it safe to pay on the website?',
       r: 'For now, payment is not taken on the website: you register the booking here, over an encrypted connection, and pay by Pix or card with our team on WhatsApp. The website never receives your card details.',
       rOnline:
-        'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
+        'Yes. The website uses an encrypted connection, and card and Pix payments are processed by Stripe: your card details go straight to Stripe and are never stored by us. With Pix, you pay in your bank app, and the Pix recipient appears under the name of Stripe, the company that processes the payment, not Orla Nativa.',
     },
   ],
   passeios: {
@@ -626,8 +628,9 @@ const en: Dicionario = {
     pixApps: '',
     // Pacote 29 (decisão do dono de 25/11): quem é de fora pode não ter um app que pague Pix; sem ele, o cartão
     pixDeFora: 'Pix is Brazil’s instant payment system. If you don’t have an app that pays with Pix, choose card.',
+    // Pacote 31 (25/11): o recebedor que o app do banco mostrou no Pix de verdade de 24/11, a Stripe (ver o pt.ts)
     pixRecebedor:
-      'In your bank app, the Pix recipient may show the name of the company that processes the payment (such as EBANX or Stripe), not Orla Nativa.',
+      'In your bank app, the Pix recipient appears under the name of Stripe, the company that processes the payment, not Orla Nativa.',
     pagar: 'Pay {valor}',
     irParaPagamento: 'Continue to payment',
     processando: 'Processing…',

@@ -6,7 +6,9 @@ import { GraficoColunas, type Coluna } from '@/components/admin/GraficoColunas';
 import { CIDADES } from '@/data/passeios';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { carrinhosDoFunil } from '@/lib/carrinho-servidor';
+import { ARQUIVO_GOOGLE_COM_SENHA, USUARIO_DO_ARQUIVO_GOOGLE } from '@/lib/conversoes';
 import { emailLigado, remetente, responderPara } from '@/lib/email/enviar';
+import { fraseDosEmails } from '@/lib/email/lista-dos-emails';
 import {
   PERIODOS,
   calcularEstatisticas,
@@ -247,9 +249,11 @@ function Emails() {
           ? `Saem de ${remetente()}. As respostas dos clientes vão para ${responderPara()}.`
           : 'Falta a chave RESEND_API_KEY na Vercel. Sem ela, nenhum e-mail sai e o site segue normal.'}
       </p>
+      {/* Pacote 33, D4: todos os e-mails automáticos, pela lista de src/lib/email/lista-dos-emails.ts (um tipo de e-mail
+          novo não passa no tsc sem entrar nela) */}
+      <p className="mt-1 text-small text-tinta-suave">Ao cliente, no idioma da compra: {fraseDosEmails('cliente', LEMBRETES_POR_DIA)}.</p>
       <p className="mt-1 text-small text-tinta-suave">
-        Pedido recebido, pagamento aprovado com os vouchers, Pix vencido, link do pedido e até {LEMBRETES_POR_DIA} lembretes de carrinho por
-        dia.
+        À equipe, em português, no e-mail das respostas: {fraseDosEmails('equipe', LEMBRETES_POR_DIA)}.
       </p>
     </>
   );
@@ -277,17 +281,24 @@ function Medicao() {
         ))}
       </ul>
       {segredo && (
-        <div className="mt-3">
-          <p className="text-small text-tinta-suave">Endereço do arquivo, para colar no Google Ads:</p>
-          <div className="mt-1 flex gap-2">
-            <input
-              readOnly
-              aria-label="Endereço do arquivo"
-              value={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`}
-              className="campo min-w-0 flex-1"
-            />
-            <BotaoCopiar texto={`${urlDoSite()}/api/anuncios/compras-google/${segredo}.csv`} />
-          </div>
+        <div className="mt-3 space-y-2">
+          {/* o Data Manager do Google Ads pede endereço, usuário e senha (src/app/api/anuncios/compras-google/[arquivo]) */}
+          <p className="text-small text-tinta-suave">Para colar no Google Ads (Data Manager, origem HTTPS):</p>
+          {(
+            [
+              ['Endereço do arquivo', `${urlDoSite()}/api/anuncios/compras-google/${ARQUIVO_GOOGLE_COM_SENHA}`],
+              ['Usuário', USUARIO_DO_ARQUIVO_GOOGLE],
+              ['Senha', segredo],
+            ] as const
+          ).map(([rotulo, valor]) => (
+            <div key={rotulo}>
+              <p className="text-small font-semibold">{rotulo}</p>
+              <div className="mt-1 flex gap-2">
+                <input readOnly aria-label={rotulo} value={valor} className="campo min-w-0 flex-1" />
+                <BotaoCopiar texto={valor} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </>
@@ -534,7 +545,7 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
         >
           <BlocoLembretes l={e.lembretes} anterior={e.lembretesAnterior} />
         </Cartao>
-        <Cartao titulo="E-mails automáticos" nota="O que sai sozinho para o cliente, no idioma da compra">
+        <Cartao titulo="E-mails automáticos" nota="O que sai sozinho para o cliente e para a equipe">
           <Emails />
         </Cartao>
       </div>

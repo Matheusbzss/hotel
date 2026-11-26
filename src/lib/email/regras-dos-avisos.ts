@@ -3,12 +3,16 @@ import { formatarCifra } from '../cifra.ts';
 import { pedidoNuncaPago, provedorDaReserva, voucherPago } from '../pedidos-painel.ts';
 import { linhaDoReembolsoSemMudarVoucher, linhaDoVoucherLigado } from '../reembolsos-a-resolver.ts';
 import type { Reserva } from '../reservas';
+import { cancelamentosSemReembolso, type CancelamentoSemReembolso } from '../sem-reembolso.ts';
+import type { AlcanceDoEmailSemReembolso } from '../cancelar-sem-reembolso';
 import type { ResultadoEnvio } from './enviar';
 import {
   FINAL_DO_CANCELAMENTO_DO_VENCIDO,
   MARCA_DO_AVISO_DO_PEDIDO_PAGO,
   MARCA_DO_EMAIL_DO_CANCELAMENTO,
+  MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO,
   marcaDoEmailDoReembolso,
+  marcaDoEmailDoVoucherCancelado,
   type VersaoDoEmailDoReembolso,
 } from './marcas.ts';
 
@@ -236,6 +240,45 @@ export function emailDoCancelamentoSai(
   if (r.historico.some((h) => h.evento.startsWith(MARCA_DO_EMAIL_DO_CANCELAMENTO))) return { sai: false, motivo: 'já saiu' };
   return { sai: true, nadaCobrado: pedidoNuncaPago(r) };
 }
+
+/* ------------------------------------------------------------------ */
+/* O e-mail do cancelamento sem reembolso (Pacote 33)                   */
+
+/**
+ * O e-mail do cancelamento sem reembolso sai agora? O do pedido inteiro ("Pedido cancelado") lê o cancelamento do pedido
+ * inteiro; o de um voucher ("Voucher cancelado"), o cancelamento que lista aquele voucher (src/lib/sem-reembolso.ts). Só no
+ * pedido ainda pago (reembolsado ou contestado no meio-tempo: o e-mail do reembolso cobre, ou o banco decide), com os
+ * vouchers do cancelamento já 'cancelado' (a gravação que ficou pela metade espera o toque que completa) e uma vez por
+ * cancelamento (a marca no histórico; a chave de idempotência também). `cancelados`: os vouchers do cancelamento (a lista do
+ * e-mail do pedido inteiro); `aindaValem`: os vouchers que continuam pagos (o "O que continua valendo" do e-mail do voucher).
+ */
+export function emailSemReembolsoSai(
+  r: Pick<Reserva, 'status' | 'historico' | 'pagamento'>,
+  vouchers: readonly Pick<Reserva, 'codigo' | 'statusItem'>[],
+  alcance: AlcanceDoEmailSemReembolso,
+):
+  | { sai: true; cancelamento: CancelamentoSemReembolso; cancelados: string[]; aindaValem: string[] }
+  | { sai: false; motivo: string } {
+  const lista = cancelamentosSemReembolso(r.pagamento);
+  const cancelamento =
+    alcance.tipo === 'pedido'
+      ? lista.find((c) => c.alcance === 'pedido')
+      : lista.find((c) => c.alcance === 'voucher' && c.vouchers.includes(alcance.voucher));
+  if (!cancelamento) return { sai: false, motivo: 'nenhum cancelamento sem reembolso gravado' };
+  if (r.status !== 'pago') return { sai: false, motivo: `pedido ${r.status}` };
+  const marca = alcance.tipo === 'pedido' ? MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO : marcaDoEmailDoVoucherCancelado(alcance.voucher);
+  if (r.historico.some((h) => h.evento.startsWith(marca))) return { sai: false, motivo: 'já saiu' };
+  const cancelados = cancelamento.vouchers.filter((c) => vouchers.some((v) => v.codigo === c && v.statusItem === 'cancelado'));
+  if (cancelados.length !== cancelamento.vouchers.length) return { sai: false, motivo: 'os vouchers ainda não ficaram todos cancelados' };
+  return { sai: true, cancelamento, cancelados, aindaValem: vouchers.filter(voucherPago).map((v) => v.codigo) };
+}
+
+/**
+ * O e-mail do pagamento aprovado (com os vouchers) ainda faz sentido: algum voucher do pedido continua valendo. O pedido
+ * cancelado sem reembolso inteiro continua pago (Pacote 33), mas não tem mais voucher: o e-mail de "pagamento aprovado"
+ * que nunca tinha saído (o agendamento do e-mail que não saiu, src/lib/email/pendentes.ts) não sai mais para ele.
+ */
+export const pagamentoAprovadoAindaVale = (vouchers: readonly Pick<Reserva, 'statusItem'>[]): boolean => vouchers.some(voucherPago);
 
 /* ------------------------------------------------------------------ */
 /* O aviso à equipe do pedido pago                                      */

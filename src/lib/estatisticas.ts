@@ -1,5 +1,6 @@
 import { agruparPedidos, valorRecebido, voucherPago, type PedidoPainel } from './pedidos-painel.ts';
 import type { MetodoPagamento, Reserva } from './reservas';
+import { canceladoSemReembolso } from './sem-reembolso.ts';
 import { DDIS, hojeEmBuzios, somarDias } from './validacao.ts';
 
 /**
@@ -18,8 +19,11 @@ import { DDIS, hojeEmBuzios, somarDias } from './validacao.ts';
 
 /** O que ficou do pedido: o que entrou, menos o que já voltou para o cliente (a conta da página de pedidos). */
 const liquido = (p: PedidoPainel) => p.recebidoCentavos - p.reembolsoCentavos;
-/** O voucher devolvido ou cancelado sozinho não é item vendido (a mesma regra do voucher ainda pago do painel). */
-const itemVendido = (i: Reserva) => voucherPago(i);
+/**
+ * O voucher devolvido ou cancelado sozinho não é item vendido (a mesma regra do voucher ainda pago do painel). O cancelado
+ * pela equipe sem reembolso (Pacote 33) é: o dinheiro ficou, e ele continua contando como venda (decisão do dono de 25/11, P3).
+ */
+const itemVendido = (i: Reserva) => voucherPago(i) || canceladoSemReembolso(i);
 /** Os itens vendidos de um pedido. */
 const itensVendidos = (p: PedidoPainel) => p.itens.filter(itemVendido);
 /** O que entrou por estes itens. */

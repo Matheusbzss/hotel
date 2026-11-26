@@ -266,6 +266,17 @@ const es: Dicionario = {
       'Recibimos tu pedido de desistimiento. El equipo responde por e-mail en un plazo máximo de 1 día hábil, y el reembolso sigue la política de cancelación.',
     desistirRepetido:
       'Tu pedido de desistimiento ya fue recibido. El equipo responde por e-mail en un plazo máximo de 1 día hábil, y el reembolso sigue la política de cancelación.',
+    // Pacote 33: o pedido que a equipe cancelou sem reembolso, com o motivo e a regra da política (punto 6). Sem verbo em
+    // "tú": as mesmas frases servem ao es-ar
+    canceladoSemReembolsoTexto: 'Tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    canceladoSemReembolsoComParteTexto: 'El resto de tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    voucherCanceladoSemReembolso: 'Cancelado, sin reembolso',
+    motivoForaDaPolitica: 'Motivo: la cancelación se pidió con menos de 24 horas de anticipación al servicio.',
+    motivoNaoCompareceu: 'Motivo: inasistencia en el horario y lugar acordados.',
+    motivoOutro: 'Motivo: {texto}',
+    regraSemReembolso:
+      'Según nuestra política de cancelación (punto 6), fuera de las situaciones de los puntos 2, 4 y 5, las cancelaciones con menos de 24 horas de anticipación y la inasistencia en el horario y lugar acordados no dan derecho a reembolso, porque el lugar ya fue reservado y pagado al operador.',
+    regraGeralSemReembolso: 'Las reglas de cancelación y reembolso están en nuestra política de cancelación.',
   },
   boletim: {
     titulo: 'Paseos y el total de tu grupo',
@@ -701,6 +712,7 @@ const es: Dicionario = {
     expiradoTexto: 'El plazo para pagar este Pix terminó. Haz una nueva reserva o escríbenos.',
     canceladoTitulo: 'Reserva cancelada',
     canceladoTexto: 'Esta reserva fue cancelada. Si tienes dudas, escríbenos.',
+    canceladoSemReembolsoTexto: 'Esta reserva fue cancelada por nuestro equipo, sin reembolso.',
     whatsappTitulo: 'Reserva registrada',
     whatsappTexto:
       'Tu reserva quedó registrada. Completa el pago con nuestro equipo por WhatsApp; el voucher se libera apenas se confirma el pago.',

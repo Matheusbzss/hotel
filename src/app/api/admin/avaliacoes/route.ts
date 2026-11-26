@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { obterPasseio } from '@/data/passeios';
-import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
+import { pedidoRecusado } from '@/lib/admin-auth';
 import { EsquemaAvaliacao } from '@/lib/avaliacao';
 import { criarAvaliacao } from '@/lib/avaliacoes';
 import { hojeEmBuzios } from '@/lib/validacao';
@@ -10,10 +9,9 @@ export const runtime = 'nodejs';
 
 /** Cadastra uma avaliação real, com a origem. Ela começa escondida. */
 export async function POST(req: Request) {
-  const loja = await cookies();
-  if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value)) return NextResponse.json({ ok: false }, { status: 401 });
-  const origem = req.headers.get('origin');
-  if (origem && new URL(origem).host !== new URL(req.url).host) return NextResponse.json({ ok: false }, { status: 403 });
+  // a proteção de todas as rotas do painel: o próprio site e a sessão (sem ela, o formulário volta à entrada do painel)
+  const recusado = await pedidoRecusado(req);
+  if (recusado) return recusado;
 
   const volta = new URL('/admin/avaliacoes', req.url);
   const r = EsquemaAvaliacao.safeParse(Object.fromEntries(await req.formData()));

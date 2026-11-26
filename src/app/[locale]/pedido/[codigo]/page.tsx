@@ -38,6 +38,7 @@ import {
   type ReservaPublica,
 } from '@/lib/reserva-publica';
 import { obterPedido, provedorDaReserva, type StatusReserva } from '@/lib/reservas';
+import { pedidoCanceladoSemReembolso } from '@/lib/sem-reembolso';
 import { textoDoContestado } from '@/lib/texto-do-contestado';
 import { formatarDataIso } from '@/lib/validacao';
 import { linkWhatsApp } from '@/lib/whatsapp';
@@ -89,6 +90,27 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const provedor = provedorDaReserva(primeira);
   const itens = reservas.map((r) => paraPublico(r, locale));
   const pago = status === 'pago';
+  // Pacote 33: o pedido que a equipe cancelou sem reembolso inteiro. Ele continua pago (o dinheiro ficou), mas a página
+  // diz "Pedido cancelado", com o motivo e a regra da política, sem o WhatsApp da equipe e sem nenhuma opção de pedir
+  // estorno ou cancelamento (o "Desistir da compra" já some: nenhum voucher vale, estadoDaDesistencia)
+  const canceladoSemReembolso = pedidoCanceladoSemReembolso(reservas);
+  const estado: StatusReserva = canceladoSemReembolso ? 'cancelado' : status;
+  // o que já voltou ao cliente (o pedido inteiro: num pedido com vários itens, soma os reembolsos)
+  const reembolso = primeira.reembolsoCentavos ?? 0;
+  // o motivo de cada cancelamento (um, quase sempre), sem repetir a mesma frase, e a regra da política uma vez: a do item 6
+  // quando algum motivo é um dos dois da política; senão (só "outro"), a de que as regras estão na política. No alto, o
+  // motivo só quando há um só: com mais de um, cada voucher mostra o seu na linha dele. Com uma parte do pedido já devolvida
+  // (um voucher reembolsado, por exemplo), a primeira frase diz que o restante foi cancelado sem reembolso: a caixa do
+  // reembolso parcial vem logo embaixo
+  const motivosDoSemReembolso = [...new Set(itens.flatMap((r) => (r.semReembolso ? [r.semReembolso.motivo] : [])))];
+  const regraDaPolitica = itens.some((r) => r.semReembolso?.regra === d.pedido.regraSemReembolso);
+  const frasesDoSemReembolso = canceladoSemReembolso
+    ? [
+        reembolso > 0 ? d.pedido.canceladoSemReembolsoComParteTexto : d.pedido.canceladoSemReembolsoTexto,
+        ...(motivosDoSemReembolso.length === 1 ? motivosDoSemReembolso : []),
+        regraDaPolitica ? d.pedido.regraSemReembolso : d.pedido.regraGeralSemReembolso,
+      ]
+    : [];
   const esperando = status === 'aguardando_whatsapp';
   // em aberto (WhatsApp, pendente ou expirado), as duas formas continuam valendo: os dois totais aparecem
   const emAberto = pagamentoEmAberto(status);
@@ -102,7 +124,6 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // pago no Pix, o cliente vê o que pagou, com o desconto; com um valor recebido pela Stripe diferente do esperado (Pacote
   // 23), o que ela recebeu de verdade, o mesmo número do "Reembolsado" e da frase do reembolso parcial
   const fechado = recebidoNaPaginaDoCliente(primeira) ?? (primeira.pagamento.metodo === 'pix' ? noPix : pedido.totalCentavos);
-  const reembolso = primeira.reembolsoCentavos ?? 0;
   // o reembolso que falhou na Stripe (partesDaPagina, lido como o cliente lê): o que voltou pela mesma forma de
   // pagamento, o pendente e o que a equipe devolveu de outro jeito. Sem falha, tudo pela mesma forma: o texto de sempre
   const partesDoReembolso = partesDaPagina({ voucherDePedido: false, codigo }, reembolso, primeira.historico) ?? {
@@ -115,11 +136,14 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   const frasesDoReembolsoDoPedido = (inteiro: boolean) => frasesDoReembolso(partesDoReembolso, inteiro, textosDoReembolso(d), brl);
   // no pedido pago, a caixa do reembolso de parte (sem nada devolvido, nenhuma)
   const frasesDoPago = pago ? frasesDoReembolsoDoPedido(false) : [];
-  // a palavra da faixa escura do resumo: com um reembolso que falhou e ainda não voltou, "Reembolso pendente"
-  const palavraDaFaixa = status === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[status];
+  // a palavra da faixa escura do resumo: com um reembolso que falhou e ainda não voltou, "Reembolso pendente"; no
+  // cancelado sem reembolso, "Cancelado" (estado)
+  const palavraDaFaixa = estado === 'reembolsado' && reembolsoPendente ? d.pedido.reembolsoPendenteTitulo : d.status[estado];
   // o voucher reembolsado sozinho cujo dinheiro ainda não voltou: "Reembolso pendente" no lugar de "Reembolsado"
   const statusDoItem = (r: ReservaPublica) =>
     r.status === 'reembolsado' && (r.reembolsoPartes?.pendenteCentavos ?? 0) > 0 ? d.pedido.reembolsoPendenteTitulo : d.status[r.status];
+  // o link da página de um voucher, que diz o estado dele (no cancelado sem reembolso: o motivo e a regra da política)
+  const linkDoVoucher = (r: ReservaPublica) => `${rota(locale, `/reserva/${r.codigo}`)}?t=${encodeURIComponent(token)}`;
 
   const nomeItem = (r: ReservaPublica) =>
     r.transfer
@@ -142,8 +166,12 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     aguardando_whatsapp: { titulo: d.pedido.registradoTitulo, texto: d.pedido.registradoTexto },
     pendente: { titulo: d.pedido.confirmando, texto: d.pedido.confirmandoTexto },
     expirado: { titulo: d.pedido.tempoEsgotado, texto: d.pedido.tempoEsgotadoTexto },
-    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto
-    cancelado: { titulo: d.pedido.canceladoTitulo, texto: itens[0]?.pagamentoRetido ? d.pedido.pagamentoRetido : d.pedido.canceladoTexto },
+    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto;
+    // o pedido cancelado sem reembolso (Pacote 33): o que aconteceu, o motivo e a regra da política
+    cancelado: {
+      titulo: d.pedido.canceladoTitulo,
+      texto: itens[0]?.pagamentoRetido ? d.pedido.pagamentoRetido : canceladoSemReembolso ? frasesDoSemReembolso : d.pedido.canceladoTexto,
+    },
     // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; uma frase por
     // parágrafo; sem falha, a frase de sempre
     reembolsado: {
@@ -155,7 +183,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     contestado: { titulo: d.pedido.contestadoTitulo, texto: textoDoContestado(d.pedido, reservas.length) },
     recusado: { titulo: d.reserva.recusadoTitulo, texto: d.reserva.recusadoTexto },
   };
-  const { titulo, texto } = cabecalho[status];
+  const { titulo, texto } = cabecalho[estado];
   const urlPagina = linkDoPedido(locale, codigo, token);
   // sem pagamento aprovado não há WhatsApp: a dúvida vai por e-mail
   const contato = { href: linkEmail(d.contato.assunto, `${d.contato.msg} (${codigo})`), rotulo: d.contato.botao };
@@ -300,6 +328,15 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   {frase}
                 </p>
               ))}
+              {/* Pacote 33: o pedido cancelado sem reembolso leva à política, onde está a regra (só leitura: nenhuma opção de
+                  pedir estorno ou cancelamento nesta página) */}
+              {canceladoSemReembolso && (
+                <p className="mt-4">
+                  <a href={rota(locale, '/politica-de-cancelamento')} className="link inline-flex min-h-11 items-center font-semibold">
+                    {d.pedido.desistirPolitica}
+                  </a>
+                </p>
+              )}
               {/* pago, com uma parte devolvida: quanto voltou; com um reembolso que falhou, quanto ainda não voltou ou
                   voltou de outro jeito, uma frase por parágrafo na mesma caixa */}
               {frasesDoPago.length > 0 && (
@@ -321,7 +358,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   <IconeWhatsApp className="size-5" />
                   {d.reserva.whatsappBotao}
                 </a>
-              ) : mostrarWhatsApp(status) ? (
+              ) : mostrarWhatsApp(estado) ? (
                 // o WhatsApp da equipe só depois do pagamento aprovado
                 <a
                   href={linkWhatsApp(`${d.contato.msg} (${codigo})`)}
@@ -348,7 +385,7 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
               {/* os códigos nunca quebram no hífen de "ON-" (só junto com o grid-cols-1 da página: sem ele, um código largo
                   alargaria a coluna e a página voltaria a rolar de lado) */}
               <p className="display numeros mt-1 whitespace-nowrap text-[clamp(2rem,1.2rem+3.4vw,3.5rem)]">{codigo}</p>
-              <h2 className="mt-6 font-semibold">{pago ? d.pedido.vouchers : d.pedido.itens}</h2>
+              <h2 className="mt-6 font-semibold">{pago && !canceladoSemReembolso ? d.pedido.vouchers : d.pedido.itens}</h2>
             </div>
             <ul className="divide-y divide-(--color-borda) px-6 pb-2 md:px-8">
               {itens.map((r) => (
@@ -358,20 +395,32 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   {volta(r) && <p className="text-small">{volta(r)}</p>}
                   <p className="text-small">{r.pessoasTexto}</p>
                   {pago && r.status !== 'pago' ? (
-                    // um item cancelado ou reembolsado sozinho, num pedido pago: o voucher dele não vale mais
-                    <p className="mt-1.5 text-small font-semibold">
-                      {d.reserva.voucher} <span className="numeros whitespace-nowrap">{r.codigo}</span> · {statusDoItem(r)}
-                    </p>
+                    // um item cancelado ou reembolsado sozinho, num pedido pago: o voucher dele não vale mais. O cancelado
+                    // pela equipe sem reembolso (Pacote 33) diz isso, com o motivo embaixo e o link da página dele (o motivo
+                    // e a regra da política); nada de PDF
+                    <>
+                      <p className="mt-1.5 text-small font-semibold">
+                        {d.reserva.voucher} <span className="numeros whitespace-nowrap">{r.codigo}</span> ·{' '}
+                        {r.semReembolso ? d.pedido.voucherCanceladoSemReembolso : statusDoItem(r)}
+                      </p>
+                      {r.semReembolso && (
+                        <>
+                          <p className="mt-1 text-small">{r.semReembolso.motivo}</p>
+                          <p className="mt-1">
+                            <a href={linkDoVoucher(r)} className="link inline-flex min-h-11 items-center font-semibold">
+                              {d.pedido.verVoucher}
+                            </a>
+                          </p>
+                        </>
+                      )}
+                    </>
                   ) : pago ? (
                     <>
                       <p className="mt-1.5 text-small">
                         {d.reserva.voucher} <span className="numeros whitespace-nowrap font-semibold">{r.codigo}</span>
                       </p>
                       <p className="mt-2 flex flex-wrap gap-x-5">
-                        <a
-                          href={`${rota(locale, `/reserva/${r.codigo}`)}?t=${encodeURIComponent(token)}`}
-                          className="link inline-flex min-h-11 items-center font-semibold"
-                        >
+                        <a href={linkDoVoucher(r)} className="link inline-flex min-h-11 items-center font-semibold">
                           {d.pedido.verVoucher}
                         </a>
                         {/* sem o atributo download: o voucher que deixou de valer com a página aberta leva à página

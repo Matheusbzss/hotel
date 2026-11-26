@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { CONVERSAO_GOOGLE, arquivoDoGoogle, eventoDeCompra } from '../src/lib/conversoes.ts';
+import { readFileSync } from 'node:fs';
+import { ARQUIVO_GOOGLE_COM_SENHA, CONVERSAO_GOOGLE, arquivoDoGoogle, eventoDeCompra, senhaDoBasic } from '../src/lib/conversoes.ts';
 import { agruparPedidos } from '../src/lib/pedidos-painel.ts';
 import type { Reserva, ReservaPasseio } from '../src/lib/reservas.ts';
 
@@ -86,11 +87,38 @@ test('o arquivo do Google traz só as vendas pagas com o clique, dos últimos 90
   const linhas = texto.trim().split('\n');
   assert.equal(linhas[0], 'Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency,Order ID');
   assert.deepEqual(linhas.slice(1).sort(), [
-    `Cj0KCQiA-abc_123,${CONVERSAO_GOOGLE},2026-11-02T15:00:30Z,90.00,BRL,ON-PAGO`,
-    `Cj0KCQiA-outro,${CONVERSAO_GOOGLE},2026-11-03T15:00:00Z,100.00,BRL,ON-CARTAO`,
+    `Cj0KCQiA-abc_123,${CONVERSAO_GOOGLE},2026-11-02T15:00:30+0000,90.00,BRL,ON-PAGO`,
+    `Cj0KCQiA-outro,${CONVERSAO_GOOGLE},2026-11-03T15:00:00+0000,100.00,BRL,ON-CARTAO`,
   ]);
 });
 
 test('sem venda do Google, o arquivo só tem o cabeçalho', () => {
   assert.equal(arquivoDoGoogle([], AGORA).trim().split('\n').length, 1);
+});
+
+test('a hora do arquivo vai com o fuso escrito como o Google documenta (+0000), nunca com o "Z"', () => {
+  const texto = arquivoDoGoogle(pedidos(passeio({ codigo: 'ON-PAGO', origem: { gclid: 'Cj0K-x', medicao: true } })), AGORA);
+  const hora = texto.trim().split('\n')[1].split(',')[2];
+  assert.match(hora, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0000$/);
+});
+
+test('a senha do Basic (o Data Manager do Google pede usuário e senha): só a senha conta', () => {
+  const basic = (u: string, s: string) => `Basic ${Buffer.from(`${u}:${s}`).toString('base64')}`;
+  assert.equal(senhaDoBasic(basic('orlanativa', 'segredo-longo:com-dois-pontos')), 'segredo-longo:com-dois-pontos');
+  assert.equal(senhaDoBasic(basic('qualquer', 'abc')), 'abc');
+  assert.equal(senhaDoBasic(null), null);
+  assert.equal(senhaDoBasic('Bearer abc'), null);
+  assert.equal(senhaDoBasic(`Basic ${Buffer.from('sem-dois-pontos').toString('base64')}`), null);
+  assert.equal(senhaDoBasic('Basic !!!'), null);
+});
+
+test('a rota do arquivo: sem o segredo na Vercel, 404; compras.csv pede a senha (401 com o pedido de usuário e senha)', () => {
+  const rota = readFileSync(new URL('../src/app/api/anuncios/compras-google/[arquivo]/route.ts', import.meta.url), 'utf8');
+  assert.equal(ARQUIVO_GOOGLE_COM_SENHA, 'compras.csv');
+  assert.match(rota, /if \(!segredo\) return naoExiste\(\);/);
+  assert.match(rota, /segredoConfere\(senhaDoBasic\(req\.headers\.get\('authorization'\)\), segredo\)/);
+  assert.match(rota, /status: 401/);
+  assert.match(rota, /'WWW-Authenticate': 'Basic realm="compras", charset="UTF-8"'/);
+  // o jeito de antes (o segredo no endereço) continua valendo
+  assert.match(rota, /segredoConfere\(arquivo\.replace\(\/\\\.csv\$\/, ''\), segredo\)/);
 });

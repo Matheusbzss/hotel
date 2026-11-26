@@ -23,6 +23,9 @@ export type TipoEmail =
   | 'reembolso-concluido'
   | 'pedido-cancelado'
   | 'pedido-pago-equipe'
+  // Pacote 33: o cancelamento sem reembolso pela equipe, o pedido inteiro e um voucher só
+  | 'pedido-cancelado-sem-reembolso'
+  | 'voucher-cancelado'
   | 'lembrete-1'
   | 'lembrete-2';
 
@@ -414,6 +417,79 @@ export function emailPedidoCancelado(d: DadosDoPedido & { nadaCobrado: boolean; 
     itens: itensDoPedido(T, d.itens),
     botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
     rodape: { ...base.rodape, link: { texto: C.politica, href: d.linkPolitica } },
+  });
+}
+
+/**
+ * O motivo do cancelamento sem reembolso (Pacote 33): um dos dois da política, ou "outro", com o texto que a equipe
+ * escreveu (vai ao cliente do jeito que foi escrito: decisão do dono de 25/11, P4).
+ */
+export interface MotivoDoEmail {
+  tipo: 'fora-da-politica' | 'nao-compareceu' | 'outro';
+  texto?: string;
+}
+
+/** O motivo e a regra da política: o item 6 nos dois motivos dela; no "outro", que as regras estão na política. */
+function frasesDoMotivo(T: TextosEmail, m: MotivoDoEmail): string[] {
+  const S = T.semReembolso;
+  const motivo =
+    m.tipo === 'outro' ? fmt(S.motivoOutro, { texto: m.texto ?? '' }) : m.tipo === 'nao-compareceu' ? S.motivoNaoCompareceu : S.motivoForaDaPolitica;
+  return [motivo, m.tipo === 'outro' ? S.regraGeral : S.regra];
+}
+
+/**
+ * (Pacote 33) O pedido inteiro cancelado pela equipe no painel, SEM reembolso: o pedido continua pago (o dinheiro ficou) e
+ * os vouchers deixam de valer. O código, que foi sem reembolso, o motivo, a regra da política, os vouchers cancelados agora
+ * (sem link: não valem mais) e o link da política no rodapé. Com uma parte do pedido já devolvida antes (`parteDevolvida`:
+ * um voucher reembolsado, por exemplo), a primeira frase diz que o restante foi cancelado sem reembolso: o pedido inteiro
+ * não foi "sem reembolso". Nenhuma opção de pedir estorno ou cancelamento (FASE-5, Etapa 2): nem botão, nem frase.
+ */
+export function emailPedidoCanceladoSemReembolso(
+  d: DadosDoPedido & { motivo: MotivoDoEmail; linkPolitica: string; parteDevolvida?: boolean },
+): MensagemEmail {
+  const T = textosEmail(d.idioma);
+  const S = T.semReembolso;
+  const base = basePedido(T, d);
+  return mensagem({
+    ...base,
+    assunto: fmt(S.assuntoPedido, { codigo: d.codigo }),
+    preCabecalho: d.parteDevolvida ? S.preCabecalhoPedidoComParte : S.preCabecalhoPedido,
+    titulo: S.tituloPedido,
+    paragrafos: [d.parteDevolvida ? S.textoPedidoComParte : S.textoPedido, ...frasesDoMotivo(T, d.motivo), S.semValer],
+    tituloItens: S.itens,
+    itens: itensDoPedido(T, d.itens),
+    botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
+    rodape: { ...base.rodape, link: { texto: T.pedidoCancelado.politica, href: d.linkPolitica } },
+  });
+}
+
+/**
+ * (Pacote 33) Um voucher de um pedido com vários itens cancelado pela equipe, SEM reembolso: o pedido continua pago com os
+ * outros vouchers. O voucher (o código e o nome), que foi sem reembolso, o motivo, a regra da política e "O que continua
+ * valendo", com os links dos outros vouchers (o mesmo modelo do e-mail do reembolso de um voucher); sem nenhum valendo,
+ * sem a lista. O link da política no rodapé, e nenhuma opção de pedir estorno ou cancelamento.
+ */
+export function emailVoucherCancelado(
+  d: DadosDoPedido & {
+    /** O voucher cancelado: o código (o assunto) e o nome do passeio ou do transfer, quando há. */
+    voucher: { codigo: string; nome?: string };
+    motivo: MotivoDoEmail;
+    linkPolitica: string;
+  },
+): MensagemEmail {
+  const T = textosEmail(d.idioma);
+  const S = T.semReembolso;
+  const base = basePedido(T, d);
+  const voucher = d.voucher.nome ? `${d.voucher.codigo} (${d.voucher.nome})` : d.voucher.codigo;
+  return mensagem({
+    ...base,
+    assunto: fmt(S.assuntoVoucher, { voucher: d.voucher.codigo, codigo: d.codigo }),
+    preCabecalho: S.preCabecalhoVoucher,
+    titulo: S.tituloVoucher,
+    paragrafos: [fmt(S.textoVoucher, { voucher }), ...frasesDoMotivo(T, d.motivo)],
+    ...(d.itens.length ? { tituloItens: T.reembolso.aindaValem, itens: itensDoPedido(T, d.itens) } : {}),
+    botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
+    rodape: { ...base.rodape, link: { texto: T.pedidoCancelado.politica, href: d.linkPolitica } },
   });
 }
 

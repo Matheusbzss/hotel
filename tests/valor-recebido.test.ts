@@ -29,6 +29,7 @@ import {
   valorRecebido,
 } from '../src/lib/pedidos-painel.ts';
 import type { Reserva, ReservaPasseio } from '../src/lib/reservas.ts';
+import { opcoesDoReembolso } from '../src/lib/resumo-do-painel.ts';
 
 /**
  * Pacote 23 (retestes de dinheiro de 23/11): o valor que a Stripe recebeu de verdade. Quando ela recebeu um valor diferente
@@ -225,9 +226,17 @@ test('o painel: o valor pago, "Reembolsar tudo" e a caixa "Confirmo" dizem o que
   assert.equal(m.restanteCentavos, 10000);
   // antes: "Reembolsar tudo (R$ 154,00)" e "Confirmo: devolver R$ 154,00 ao cliente. Não dá para desfazer."
   assert.equal(confirmacaoDoReembolso(m.restanteCentavos), `Confirmo: devolver ${cifra(10000)} ao cliente. Não dá para desfazer.`);
+  // desde o Pacote 33, o botão e a caixa ficam na tela de resumo (src/lib/resumo-do-painel.ts), com o mesmo número
+  const [tudo] = opcoesDoReembolso(p);
+  assert.equal(tudo.botao, `Reembolsar tudo (${cifra(10000)})`);
+  assert.equal(tudo.confirmacao, confirmacaoDoReembolso(m.restanteCentavos));
+  assert.equal(tudo.centavos, 10000);
+  const resumo = fonte('lib', 'resumo-do-painel.ts');
+  assert.match(
+    resumo,
+    /botao: `Reembolsar tudo \(\$\{cifra\(m\.restanteCentavos\)\}\)`,\s+confirmacao: confirmacaoDoReembolso\(m\.restanteCentavos\),/,
+  );
   const pagina = fonte('app', 'admin', 'page.tsx');
-  assert.match(pagina, /rotulo=\{`Reembolsar tudo \(\$\{formatarPreco\(restante\)\}\)`\}/);
-  assert.match(pagina, /confirmacao=\{confirmacaoDoReembolso\(restante\)\}/);
   assert.match(pagina, /\{formatarPreco\(p\.recebidoCentavos\)\}/);
   // depois do reembolso total (a Stripe devolveu R$ 100,00): o cartão diz R$ 100,00 e "Reembolsado R$ 100,00", nada a mais
   const [depois] = agruparPedidos([comAvisoNoHistorico({ status: 'reembolsado', reembolsoCentavos: 10000 })]);

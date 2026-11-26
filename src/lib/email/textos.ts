@@ -132,6 +132,41 @@ export interface TextosEmail {
     /** O link da política de cancelamento, no rodapé. */
     politica: string;
   };
+  /**
+   * Pacote 33: o cancelamento sem reembolso pela equipe no painel (o pedido continua pago e os vouchers deixam de valer),
+   * o pedido inteiro ("Pedido cancelado") ou um voucher só ("Voucher cancelado"), com o motivo e a regra da política (o
+   * item 6 da política de cancelamento, com a ressalva do começo dele: fora das situações dos itens 2, 4 e 5, menos de 24
+   * horas e não comparecimento não dão direito a reembolso). Nenhuma opção de pedir estorno ou cancelamento (FASE-5). Os
+   * mesmos textos da página do pedido (src/i18n, pedido.motivo*, regra* e canceladoSemReembolso*).
+   */
+  semReembolso: {
+    /** {codigo}: o pedido inteiro. */
+    assuntoPedido: string;
+    preCabecalhoPedido: string;
+    tituloPedido: string;
+    textoPedido: string;
+    /** O pedido inteiro com uma parte já devolvida antes (um voucher reembolsado, por exemplo): só o restante foi sem reembolso. */
+    preCabecalhoPedidoComParte: string;
+    textoPedidoComParte: string;
+    /** O pedido inteiro: os vouchers deixam de valer. */
+    semValer: string;
+    /** O título dos vouchers cancelados agora, no pedido inteiro. */
+    itens: string;
+    /** {voucher}: o código do voucher cancelado; {codigo}: o do pedido (todo e-mail do pedido leva o código no assunto). */
+    assuntoVoucher: string;
+    preCabecalhoVoucher: string;
+    tituloVoucher: string;
+    /** {voucher}: o código e o nome do voucher ("ON-AB2CD3 (Passeio de Escuna)"). */
+    textoVoucher: string;
+    motivoForaDaPolitica: string;
+    motivoNaoCompareceu: string;
+    /** {texto}: o motivo como a equipe escreveu. */
+    motivoOutro: string;
+    /** A regra do item 6 da política, com a ressalva do começo dele, nos dois motivos dela. */
+    regra: string;
+    /** No motivo "outro": as regras estão na política (o link do rodapé). */
+    regraGeral: string;
+  };
   lembrete: {
     assunto1: string;
     preCabecalho1: string;
@@ -248,6 +283,26 @@ const PT: TextosEmail = {
     itens: 'O pedido',
     politica: 'Ver a política de cancelamento',
   },
+  semReembolso: {
+    assuntoPedido: 'Pedido cancelado: {codigo}',
+    preCabecalhoPedido: 'O seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    tituloPedido: 'Pedido cancelado',
+    textoPedido: 'O seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    preCabecalhoPedidoComParte: 'O restante do seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    textoPedidoComParte: 'O restante do seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    semValer: 'Os vouchers deste pedido não valem mais.',
+    itens: 'O que foi cancelado',
+    assuntoVoucher: 'Voucher cancelado: {voucher} (pedido {codigo})',
+    preCabecalhoVoucher: 'Um voucher do seu pedido foi cancelado, sem reembolso.',
+    tituloVoucher: 'Voucher cancelado',
+    textoVoucher: 'O voucher {voucher} foi cancelado pela nossa equipe, sem reembolso.',
+    motivoForaDaPolitica: 'Motivo: o cancelamento foi pedido com menos de 24 horas de antecedência do serviço.',
+    motivoNaoCompareceu: 'Motivo: não houve comparecimento no horário e no local combinados.',
+    motivoOutro: 'Motivo: {texto}',
+    regra:
+      'Pela nossa política de cancelamento (item 6), fora das situações dos itens 2, 4 e 5, cancelamentos feitos com menos de 24 horas de antecedência e o não comparecimento no horário e local combinados não dão direito a reembolso, porque a vaga já foi reservada e paga ao operador.',
+    regraGeral: 'As regras de cancelamento e reembolso estão na nossa política de cancelamento.',
+  },
   lembrete: {
     assunto1: 'Seu carrinho está guardado',
     preCabecalho1: 'Está tudo guardado, do jeito que você deixou.',
@@ -362,6 +417,26 @@ const EN: TextosEmail = {
     semValer: 'The vouchers for this order are no longer valid.',
     itens: 'Your order',
     politica: 'See the cancellation policy',
+  },
+  semReembolso: {
+    assuntoPedido: 'Order canceled: {codigo}',
+    preCabecalhoPedido: 'Your order has been canceled by our team, without a refund.',
+    tituloPedido: 'Order canceled',
+    textoPedido: 'Your order has been canceled by our team, without a refund.',
+    preCabecalhoPedidoComParte: 'The rest of your order has been canceled by our team, without a refund.',
+    textoPedidoComParte: 'The rest of your order has been canceled by our team, without a refund.',
+    semValer: 'The vouchers for this order are no longer valid.',
+    itens: 'What was canceled',
+    assuntoVoucher: 'Voucher canceled: {voucher} (order {codigo})',
+    preCabecalhoVoucher: 'A voucher in your order has been canceled, without a refund.',
+    tituloVoucher: 'Voucher canceled',
+    textoVoucher: 'The voucher {voucher} has been canceled by our team, without a refund.',
+    motivoForaDaPolitica: 'Reason: the cancellation was requested less than 24 hours before the service.',
+    motivoNaoCompareceu: 'Reason: no-show at the agreed time and place.',
+    motivoOutro: 'Reason: {texto}',
+    regra:
+      'Under our cancellation policy (item 6), except in the situations described in items 2, 4 and 5, cancellations made less than 24 hours in advance and failing to show up at the agreed time and place are not refundable, because the place has already been booked and paid to the operator.',
+    regraGeral: 'The cancellation and refund rules are in our cancellation policy.',
   },
   lembrete: {
     assunto1: 'Your cart is saved',
@@ -478,6 +553,27 @@ const ES: TextosEmail = {
     itens: 'Tu pedido',
     politica: 'Ver la política de cancelación',
   },
+  // sem verbo em "tú": o es-ar usa as mesmas frases
+  semReembolso: {
+    assuntoPedido: 'Pedido cancelado: {codigo}',
+    preCabecalhoPedido: 'Tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    tituloPedido: 'Pedido cancelado',
+    textoPedido: 'Tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    preCabecalhoPedidoComParte: 'El resto de tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    textoPedidoComParte: 'El resto de tu pedido fue cancelado por nuestro equipo, sin reembolso.',
+    semValer: 'Los vouchers de este pedido ya no son válidos.',
+    itens: 'Lo que se canceló',
+    assuntoVoucher: 'Voucher cancelado: {voucher} (pedido {codigo})',
+    preCabecalhoVoucher: 'Un voucher de tu pedido fue cancelado, sin reembolso.',
+    tituloVoucher: 'Voucher cancelado',
+    textoVoucher: 'El voucher {voucher} fue cancelado por nuestro equipo, sin reembolso.',
+    motivoForaDaPolitica: 'Motivo: la cancelación se pidió con menos de 24 horas de anticipación al servicio.',
+    motivoNaoCompareceu: 'Motivo: inasistencia en el horario y lugar acordados.',
+    motivoOutro: 'Motivo: {texto}',
+    regra:
+      'Según nuestra política de cancelación (punto 6), fuera de las situaciones de los puntos 2, 4 y 5, las cancelaciones con menos de 24 horas de anticipación y la inasistencia en el horario y lugar acordados no dan derecho a reembolso, porque el lugar ya fue reservado y pagado al operador.',
+    regraGeral: 'Las reglas de cancelación y reembolso están en nuestra política de cancelación.',
+  },
   lembrete: {
     assunto1: 'Tu carrito sigue guardado',
     preCabecalho1: 'Está todo guardado, tal como lo dejaste.',
@@ -542,6 +638,7 @@ const ES_AR: TextosEmail = {
       'Con tarjeta, el monto aparece en el resumen de la tarjeta en unos 5 a 10 días hábiles, según el banco. Cuando el reembolso se hace poco después de la compra, el cargo puede simplemente desaparecer, sin un crédito aparte.',
   },
   pedidoCancelado: { ...ES.pedidoCancelado },
+  semReembolso: { ...ES.semReembolso },
   lembrete: {
     ...ES.lembrete,
     jaReservou: 'Si ya hiciste la reserva, podés ignorar este e-mail.',

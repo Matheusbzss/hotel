@@ -1,15 +1,39 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
-import { pedidoRecusado } from '@/lib/admin-auth';
+import { pedidoRecusado, segredoDoPainelCriado } from '@/lib/admin-auth';
 import { avisarCompra } from '@/lib/avisar-compra';
+import {
+  alcanceDoEmail,
+  aplicarCancelamento,
+  cancelamentoJaFeito,
+  cancelamentosDosVouchers,
+  conferirNaTrava,
+  linhaDaTravaDosSeteDias,
+  motivoCombinaComAData,
+  motivoDoFormulario,
+  planoDoCancelamento,
+  registroDoCancelamento,
+  travaDaDesistencia,
+  voucherACompletar,
+  vouchersACompletar,
+  type ConferenciaNaTrava,
+  type EscolhaDoCancelamento,
+} from '@/lib/cancelar-sem-reembolso';
 import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
-import { agendarAvisoDoPedidoPago, agendarEmailDoCancelamento, agendarEmailDoPedido, agendarEmailDoReembolso } from '@/lib/email/pedidos';
+import {
+  agendarAvisoDoPedidoPago,
+  agendarEmailDoCancelamento,
+  agendarEmailDoPedido,
+  agendarEmailDoReembolso,
+  agendarEmailSemReembolso,
+} from '@/lib/email/pedidos';
 import { valorDoItem } from '@/lib/formas-pagamento';
 import { interpretarSessao, pedidoPago, podeMudar, reativarPedidoRetido } from '@/lib/pagamento-stripe';
 import {
   acaoDoRetidoOferecida,
   acaoDoRetidoRepetida,
   acaoManualOferecida,
+  acaoManualPedeConfirmacao,
   acaoManualRepetida,
   buscaDoPainel,
   concluirDevolucaoDoRetido,
@@ -21,6 +45,7 @@ import {
   pagoPeloRetidoReativado,
   pedidoNuncaPago,
   recebidoDoPedido,
+  ultimoVoucherDoPedido,
   valorDoVoucherPorFora,
   voltaAoPainel,
   voucherAtivo,
@@ -44,6 +69,7 @@ import {
 } from '@/lib/reembolsos-a-resolver';
 import { linhaDoCancelamento } from '@/lib/email/marcas';
 import { hotelDoPainel, passoDoHotel } from '@/lib/hospedagem';
+import { transferenciaDoPixOferecida } from '@/lib/resumo-do-painel';
 import {
   atualizarItem,
   atualizarReserva,
@@ -194,7 +220,9 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
  * DEPOIS da gravação: com o pedido ainda cancelado o banco não devolve o statusItem; com ele pago, o irmão parado aparece
  * com 'cancelado'. Nos arquivos nenhum irmão tem statusItem 'cancelado' (o cancelamento só muda o status) e o laço não faz
  * nada. Uma falha não desfaz a reativação: o voucher que não voltou continua 'cancelado' e volta no toque repetido em
- * "Reativar o pedido (fica pago)" (Pacote 25, achado B3), que roda este mesmo laço; só o irmão ainda cancelado muda.
+ * "Reativar o pedido (fica pago)" (Pacote 25, achado B3), que roda este mesmo laço; só o irmão ainda cancelado muda. O
+ * voucher que a equipe cancelou sem reembolso depois da reativação (Pacote 33) nunca volta por aqui: irmaosAindaCancelados
+ * o deixa de fora, e o formulário antigo de "Reativar" não o faz valer de novo.
  */
 async function religarIrmaos(alvo: Reserva): Promise<void> {
   const releitura = await vouchersDoPedido(alvo.pedido?.codigo ?? alvo.codigo);
@@ -205,6 +233,31 @@ async function religarIrmaos(alvo: Reserva): Promise<void> {
       console.error(`[admin] o voucher ${v.codigo} não voltou a valer na reativação do pedido: ${mensagem(e)}`);
     }
   }
+}
+
+/**
+ * O cancelamento sem reembolso (Pacote 33), depois da primeira gravação: cada voucher que o cancelamento gravado lista e
+ * que ainda vale fica 'cancelado', numa gravação do próprio voucher, com a trava de versão do pedido e a conferência de novo
+ * lá dentro (voucherACompletar: o pedido ainda pago, o voucher ainda valendo e listado). O pedido continua pago (no banco,
+ * atualizar_reserva só leva o status de um item aos outros quando o pedido inteiro é cancelado ou reembolsado). O voucher
+ * já cancelado, ou o pedido que mudou no meio-tempo, não grava nada. false: algum voucher não ficou cancelado (a rede, o
+ * banco): o cancelamento gravado espera o toque seguinte, que completa sem gravar outro.
+ */
+async function completarCancelados(lista: readonly Reserva[], codigoDoPedido: string): Promise<boolean> {
+  let completou = true;
+  for (const v of lista) {
+    try {
+      await atualizarReserva(v.codigo, (x) => {
+        if (!voucherACompletar(x)) return null;
+        x.statusItem = 'cancelado';
+        return x;
+      });
+    } catch (e) {
+      completou = false;
+      console.error(`[admin] o voucher ${v.codigo} do cancelamento sem reembolso do pedido ${codigoDoPedido} não ficou cancelado: ${mensagem(e)}`);
+    }
+  }
+  return completou;
 }
 
 /**
@@ -223,8 +276,10 @@ async function religarIrmaos(alvo: Reserva): Promise<void> {
  *   pagamento contestado (charge_disputed: o aviso da contestação ainda não chegou) volta como contestado-nao-reembolsa;
  * - os reembolsos que a equipe resolve sem chamar a Stripe (16/11), nenhum devolve dinheiro: 'devolvido_por_fora' (o
  *   reembolso que falhou já foi devolvido por outro meio: só a linha que fecha o aviso), 'voucher_por_fora' (depois de
- *   uma falha, um voucher ainda pago devolvido por outro meio: o valor entra no que voltou, o voucher deixa de valer e,
- *   sem voucher pago sobrando, o pedido vira reembolsado), 'voucher_da_stripe' (o reembolso feito direto na Stripe sem
+ *   uma falha, ou, desde o Pacote 33, no Pix pago há mais de 90 dias que a Stripe não devolve mais e a equipe devolveu
+ *   por transferência: transferenciaDoPixOferecida, src/lib/resumo-do-painel.ts; um voucher ainda pago devolvido por
+ *   outro meio: o valor entra no que voltou, o voucher deixa de valer e, sem voucher pago nem cancelado sem reembolso
+ *   sobrando, o pedido vira reembolsado), 'voucher_da_stripe' (o reembolso feito direto na Stripe sem
  *   voucher era deste voucher: ele deixa de valer, sem novo reembolso) e 'reembolso_sem_voucher' (era um desconto: só
  *   a linha). As três primeiras pedem a caixa "Confirmo";
  * - num pedido da Stripe, marcar pago é recusado, cancelar só vale enquanto ninguém pagou (a sessão é
@@ -272,6 +327,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // a caixa "Confirmo" dos botões que devolvem dinheiro ou tiram a validade de um voucher (decisão do dono de 16/11): o
   // navegador não envia o formulário sem ela marcada, e a rota confere de novo
   const confirmou = form.get('confirmo') === 'sim';
+  // Pacote 33: a segunda caixa, "Estou ciente", da trava dos 7 dias do arrependimento (o cancelamento sem reembolso e a
+  // desistência respondida sem reembolso); a rota confere de novo se a trava vale, com o pedido lido agora
+  const ciente = form.get('ciente') === 'sim';
   // a volta ao painel, com sucesso ou com erro: o filtro de status e a busca voltam juntos (voltaAoPainel, que escreve
   // tudo pelo URLSearchParams), e o pedido continua na tela depois da ação
   const voltar = (erro?: ErroDoPainel) =>
@@ -371,9 +429,81 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // linha leva o valor já devolvido relido dentro da trava; repetir não grava de novo
   if (acao === 'desistencia_respondida') {
     if (!desistenciaParaResponder(vouchers)) return voltar('acao-nao-vale');
-    await atualizarReserva(alvo.codigo, (r) =>
-      desistenciaRespondida(r) ? null : registrar(r, linhaDaDesistenciaRespondida(r.reembolsoCentavos ?? 0)),
+    // Pacote 33: a trava dos 7 dias. A desistência que chegou dentro dos 7 dias do arrependimento, respondida sem reembolso
+    // nenhum, pede a caixa "Estou ciente" (o painel avisa em vermelho que o cliente tem direito ao dinheiro de volta), e a
+    // linha da trava fica no histórico, junto com a da resposta. Relida dentro da trava de versão: o valor devolvido só
+    // cresce, então a trava só pode sumir no meio-tempo, nunca aparecer
+    if (travaDaDesistencia(alvo) && !ciente) return voltar('falta-ciente');
+    await atualizarReserva(alvo.codigo, (r) => {
+      if (desistenciaRespondida(r)) return null;
+      registrar(r, linhaDaDesistenciaRespondida(r.reembolsoCentavos ?? 0));
+      const trava = travaDaDesistencia(r);
+      return trava ? registrar(r, linhaDaTravaDosSeteDias(trava, 'desistencia')) : r;
+    });
+    return voltar();
+  }
+
+  // Pacote 33 (FASE-5, Etapa 2, passos 2 e 3 do plano de 25/11): cancelar SEM reembolso o pedido inteiro
+  // ('cancelar_sem_reembolso') ou um voucher só de um pedido com vários itens ('cancelar_item_sem_reembolso', o campo
+  // `voucher`), pela tela de resumo do painel. Nenhum dinheiro sai: nada da Stripe é chamado, e o caminho do dinheiro de
+  // sempre não muda. O pedido continua 'pago' e só os vouchers ficam 'cancelado', com o motivo no JSON do pagamento
+  // (src/lib/sem-reembolso.ts): com o pedido 'cancelado', a reentrega do aviso do pagamento faria o site devolver o
+  // dinheiro sozinho. A regra é a da tela (planoDoCancelamento, src/lib/cancelar-sem-reembolso.ts), conferida aqui e de
+  // novo dentro da trava de versão; a caixa "Confirmo", o motivo (o texto só no "outro", até 200 letras; os dois da política
+  // só quando combinam com a data do serviço) e, dentro dos 7 dias do arrependimento com o serviço ainda por começar, ou
+  // com a desistência pedida pelo site dentro dos 7 dias, a caixa "Estou ciente", com a linha da trava no histórico.
+  // Primeiro, o que um cancelamento já gravado deixou pela metade (a função cortada entre as gravações, ou outro toque
+  // ainda gravando) é completado, sem gravar outro; o toque repetido volta como o que deu certo. A primeira gravação é a
+  // do primeiro voucher a cancelar (o cancelamento, as linhas e o voucher, juntos); depois, os outros vouchers, um por um.
+  // Por fim, o e-mail ao cliente ("Pedido cancelado" ou "Voucher cancelado", sem reembolso), depois da resposta, uma vez
+  if (acao === 'cancelar_sem_reembolso' || acao === 'cancelar_item_sem_reembolso') {
+    // só com o segredo do painel criado na Vercel (decisão P14 do dono: antes dos botões novos de dinheiro); sem ele, o
+    // painel nem mostra o botão, e o formulário antigo ou montado à mão volta sem gravar nada
+    if (!segredoDoPainelCriado()) return voltar('acao-nao-vale');
+    const agora = new Date();
+    const escolha: EscolhaDoCancelamento =
+      acao === 'cancelar_item_sem_reembolso' ? { acao, voucher: String(form.get('voucher') ?? '').trim().toUpperCase() } : { acao };
+    // o que ficou pela metade: completado (com a caixa, como toda gravação), e o e-mail de cada cancelamento completado
+    const pendentes = vouchersACompletar(vouchers);
+    if (pendentes.length) {
+      if (!confirmou) return voltar('falta-confirmar');
+      if (!(await completarCancelados(pendentes, codigoDoPedido))) return voltar('cancelamento-pela-metade');
+      for (const c of cancelamentosDosVouchers(alvo, pendentes)) agendarEmailSemReembolso(codigoDoPedido, alcanceDoEmail(c));
+    }
+    // o toque repetido (o duplo toque, a aba antiga): a escolha já está gravada
+    if (cancelamentoJaFeito(alvo, escolha)) return voltar();
+    const depois = vouchers.map((v) => (pendentes.includes(v) ? { ...v, statusItem: 'cancelado' as const } : v));
+    const plano = planoDoCancelamento(depois, escolha, agora);
+    if (!plano.ok) return voltar(plano.erro);
+    if (!confirmou) return voltar('falta-confirmar');
+    const motivo = motivoDoFormulario(form.get('motivo'), form.get('texto'));
+    if (!motivo.ok) return voltar(motivo.erro);
+    // o motivo que a data do serviço não deixa (o "fora da política" a mais de 24 horas do início, o "não compareceu"
+    // antes dele): a tela não mostra, e o formulário antigo ou montado à mão também não passa
+    if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora)) return voltar('motivo-fora-da-data');
+    if (plano.trava && !ciente) return voltar('falta-ciente');
+    const registro = registroDoCancelamento(
+      escolha,
+      plano.cancelar.map((v) => v.codigo),
+      motivo,
+      agora,
+      Boolean(plano.trava),
     );
+    const [primeiro, ...resto] = plano.cancelar;
+    // num objeto, e não numa variável solta (ele muda lá dentro): a cada volta da trava a conferência recomeça
+    const lido: { conferencia?: ConferenciaNaTrava } = {};
+    await atualizarReserva(primeiro.codigo, (r) => {
+      const conferencia = conferirNaTrava(r, depois, escolha, registro, agora, ciente);
+      lido.conferencia = conferencia;
+      if (conferencia.resultado !== 'gravar') return null;
+      for (const linha of aplicarCancelamento(r, registro, conferencia.trava)) registrar(r, linha);
+      return r;
+    });
+    const resultado = lido.conferencia?.resultado ?? 'nao-encontrado';
+    if (resultado === 'repetida') return voltar();
+    if (resultado !== 'gravar') return voltar(resultado);
+    if (!(await completarCancelados(resto, codigoDoPedido))) return voltar('cancelamento-pela-metade');
+    agendarEmailSemReembolso(codigoDoPedido, alcanceDoEmail(registro));
     return voltar();
   }
 
@@ -393,12 +523,20 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
 
   // depois de um reembolso que falhou o site não pede outro à Stripe: um voucher ainda pago que a equipe devolveu por
   // outro meio deixa de valer aqui. Primeiro a gravação com trava, que soma o valor uma vez só (o do voucher, nunca mais
-  // do que resta do pagamento) com a linha e, sem voucher pago sobrando, leva o pedido a reembolsado; depois o voucher,
+  // do que resta do pagamento) com a linha e, sem voucher pago nem cancelado sem reembolso sobrando, leva o pedido a
+  // reembolsado; depois o voucher,
   // só por quem gravou a linha: o duplo toque e a aba antiga acham a linha já gravada e não gravam nada (atualizar_item
   // sempre grava a linha dele). Se a função for cortada entre as duas, outro clique completa sem somar de novo, quando a
   // linha já tem mais de um minuto (marcaOVoucherPorFora)
   if (acao === 'voucher_por_fora') {
-    if (!daStripe || alvo.status !== 'pago' || !reembolsosFalhos(alvo.historico).length) return voltar('acao-nao-vale');
+    // vale depois de um reembolso que falhou e, desde o Pacote 33 (D1), no Pix pago há mais de 90 dias, que a Stripe não
+    // devolve mais: a política promete devolver por transferência, e a tela de resumo oferece este mesmo botão pela mesma
+    // regra (transferenciaDoPixOferecida), conferida de novo dentro da trava, abaixo
+    const agora = new Date();
+    // com os vouchers do pedido: um reembolso pedido à Stripe e ainda sem a confirmação dela tira a transferência (dentro
+    // da trava, o pedido é relido; um voucher lido aqui e ainda 'ativo' só segura mais, nunca menos)
+    const porForaVale = (r: Reserva) => reembolsosFalhos(r.historico).length > 0 || transferenciaDoPixOferecida(r, agora, vouchers);
+    if (!daStripe || alvo.status !== 'pago' || !porForaVale(alvo)) return voltar('acao-nao-vale');
     const voucher = String(form.get('voucher') ?? '').trim();
     const item = vouchers.find((v) => v.codigo === voucher);
     if (!item) return voltar('voucher-de-fora');
@@ -411,15 +549,21 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     const jaGravado = vouchersDevolvidosPorOutroMeio(alvo.historico).some((v) => v.voucher === voucher);
     if (!jaGravado && valorDoVoucherPorFora(valor, recebido - (alvo.reembolsoCentavos ?? 0)) <= 0) return voltar('acao-nao-vale');
     if (!confirmou) return voltar('falta-confirmar');
-    const ultimo = !vouchers.some((v) => v.codigo !== voucher && voucherPago(v));
+    // o último: nenhum outro voucher pago e nenhum cancelado sem reembolso (Pacote 33: o dinheiro dele ficou, o pedido
+    // continua pago e conta como venda, decisão P3, como pelo reembolso da Stripe de um voucher só)
+    const ultimo = ultimoVoucherDoPedido(vouchers, voucher);
     // num objeto, e não numa variável solta, para o TypeScript não achar que o valor nunca muda (ele muda lá dentro). A
     // cada volta da trava (a gravação que esbarra noutra relê o pedido) a leitura recomeça: `escreveu` só fica na volta
     // que gravou a linha, e `linhaEm` é a hora da linha que outra requisição já gravou
-    const gravado: { escreveu?: boolean; linhaEm?: string } = {};
+    const gravado: { escreveu?: boolean; linhaEm?: string; foraDaRegra?: boolean } = {};
     await atualizarReserva(alvo.codigo, (r) => {
       gravado.escreveu = false;
       gravado.linhaEm = horaDoVoucherDevolvidoPorOutroMeio(r.historico, voucher);
       if (gravado.linhaEm !== undefined || r.status !== 'pago') return null;
+      // relido (Pacote 33): um reembolso pedido à Stripe no meio-tempo tira a transferência do Pix fora do prazo, e nada é
+      // gravado
+      gravado.foraDaRegra = !porForaVale(r);
+      if (gravado.foraDaRegra) return null;
       const centavos = valorDoVoucherPorFora(valor, recebido - (r.reembolsoCentavos ?? 0));
       if (centavos <= 0) return null;
       r.reembolsoCentavos = (r.reembolsoCentavos ?? 0) + centavos;
@@ -427,6 +571,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       gravado.escreveu = true;
       return registrar(r, linhaDoVoucherDevolvidoPorOutroMeio(voucher, centavos));
     });
+    if (gravado.foraDaRegra) return voltar('acao-nao-vale');
     if (marcaOVoucherPorFora(gravado, new Date(), item)) {
       await atualizarItem(voucher, 'reembolsado', `Item ${voucher} marcado como devolvido no painel (por outro meio)`);
     }
@@ -567,15 +712,22 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // que ainda o mostra, volta com acao-nao-vale e nada é gravado (reteste de 17-18/11, pergunta 11). O pedido pago, mesmo
   // cancelado depois, continua podendo ser marcado
   if (!daStripe && manual.status === 'reembolsado' && pedidoNuncaPago(alvo)) return voltar('acao-nao-vale');
+  // Pacote 33 (D2; decisão do dono de 16/11): "Cancelar" no pedido que já foi pago e "Marcar reembolsado" pedem a caixa
+  // "Confirmo" (os vouchers deixam de valer); só o cancelamento do pedido que ninguém pagou fica com um toque. Conferida
+  // aqui e de novo dentro da trava (o pedido que virou pago no meio-tempo, por outra aba, passa a pedir a caixa)
+  if (acaoManualPedeConfirmacao(alvo, acao) && !confirmou) return voltar('falta-confirmar');
 
   let virouPago = false;
   let virouCancelado = false;
   // a ação que o painel não oferece no estado em que o pedido está: decidida a cada volta da trava, com o pedido relido
   let foraDeHora = false;
+  // a ação que, com o pedido relido, passou a pedir a caixa "Confirmo" e veio sem ela (Pacote 33, D2)
+  let semConfirmar = false;
   const atualizada = await atualizarReserva(alvo.codigo, (r) => {
     virouPago = manual.status === 'pago' && r.status !== 'pago';
     virouCancelado = manual.status === 'cancelado' && r.status !== 'cancelado';
     foraDeHora = false;
+    semConfirmar = false;
     // o duplo toque, ou a aba antiga do painel: o pedido relido dentro da trava já está como a ação o deixaria (o status
     // e, quando ela diz a forma, a forma). Nada é gravado: nem a linha de novo, nem o aviso de compra, nem o e-mail
     // (virouPago já é false: o status é o da ação), e a volta é a de sempre
@@ -586,6 +738,12 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // com o voucher) e a volta é acao-nao-vale. Só fora da Stripe: no pedido dela valem as conferências de cima, como antes
     if (!daStripe && !acaoManualOferecida(r, acao)) {
       foraDeHora = true;
+      virouPago = false;
+      virouCancelado = false;
+      return null;
+    }
+    if (acaoManualPedeConfirmacao(r, acao) && !confirmou) {
+      semConfirmar = true;
       virouPago = false;
       virouCancelado = false;
       return null;
@@ -602,6 +760,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     return registrar(r, manual.status === 'cancelado' ? linhaDoCancelamento(manual.evento, statusAntes) : manual.evento);
   });
   if (foraDeHora) return voltar('acao-nao-vale');
+  if (semConfirmar) return voltar('falta-confirmar');
   if (virouPago && atualizada) {
     await avisarCompra(atualizada);
     // o e-mail do pagamento aprovado, com os vouchers (Etapa 6), depois da resposta; uma vez só por pedido

@@ -35,9 +35,11 @@ import {
   emailLinkDoPedido,
   emailPagamentoAprovado,
   emailPedidoCancelado,
+  emailPedidoCanceladoSemReembolso,
   emailPedidoRecebido,
   emailPixVencido,
   emailReembolso,
+  emailVoucherCancelado,
   nomeDaSaudacao,
   primeiroNome,
   type DadosDoPedido,
@@ -158,6 +160,24 @@ function todos(idioma: Idioma): [string, MensagemEmail][] {
     [
       'pedido cancelado',
       emailPedidoCancelado({ ...pedido(idioma), nadaCobrado: true, linkPolitica: 'https://orlanativa.online/politica-de-cancelamento' }),
+    ],
+    // Pacote 33: o cancelamento sem reembolso pela equipe, o pedido inteiro e um voucher só (com o que continua valendo)
+    [
+      'pedido cancelado sem reembolso',
+      emailPedidoCanceladoSemReembolso({
+        ...pedido(idioma),
+        motivo: { tipo: 'nao-compareceu' },
+        linkPolitica: 'https://orlanativa.online/politica-de-cancelamento',
+      }),
+    ],
+    [
+      'voucher cancelado sem reembolso',
+      emailVoucherCancelado({
+        ...pedido(idioma, true),
+        voucher: { codigo: 'ON-XY7ZK2', nome: 'City Tour em Búzios' },
+        motivo: { tipo: 'outro', texto: 'A <b>lancha</b> & o mar' },
+        linkPolitica: 'https://orlanativa.online/politica-de-cancelamento',
+      }),
     ],
     ...([1, 2] as const).map(
       (n) =>

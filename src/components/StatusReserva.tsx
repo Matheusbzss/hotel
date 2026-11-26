@@ -95,6 +95,7 @@ export function StatusReserva({
   urlPagina,
   pagamento,
   desistencia,
+  politica,
 }: {
   inicial: ReservaPublica;
   token: string;
@@ -123,6 +124,11 @@ export function StatusReserva({
   pagamento?: PagamentoDaReserva;
   /** Só no pedido pago pela Stripe, de um item, antes do serviço: o link de desistir da compra. */
   desistencia?: DesistenciaDaReserva;
+  /**
+   * Pacote 33: o link da política de cancelamento, que a reserva cancelada sem reembolso mostra embaixo do motivo e da
+   * regra (só leitura: nenhuma opção de pedir estorno ou cancelamento).
+   */
+  politica?: { href: string; texto: string };
 }) {
   const router = useRouter();
   const online = pagamento !== undefined && (r.status === 'pendente' || r.status === 'expirado');
@@ -486,8 +492,16 @@ export function StatusReserva({
     pendente: { titulo: statusTextos.pendente, texto: textos.atualizaSozinho },
     recusado: { titulo: textos.recusadoTitulo, texto: textos.recusadoTexto },
     expirado: { titulo: textos.expiradoTitulo, texto: textos.expiradoTexto },
-    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto
-    cancelado: { titulo: textos.canceladoTitulo, texto: r.pagamentoRetido ? textos.pagamentoRetido : textos.canceladoTexto },
+    // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22): a frase dele no lugar do texto;
+    // a reserva que a equipe cancelou sem reembolso (Pacote 33): o que aconteceu, o motivo e a regra da política
+    cancelado: {
+      titulo: textos.canceladoTitulo,
+      texto: r.pagamentoRetido
+        ? textos.pagamentoRetido
+        : r.semReembolso
+          ? [textos.canceladoSemReembolsoTexto, r.semReembolso.motivo, r.semReembolso.regra]
+          : textos.canceladoTexto,
+    },
     // com um reembolso que falhou na Stripe e ainda não voltou, "Reembolso pendente" e a frase com o valor; depois que a
     // equipe devolve de outro jeito, a frase diz isso. Uma frase por parágrafo; sem falha, a frase de sempre
     reembolsado: {
@@ -509,6 +523,13 @@ export function StatusReserva({
             {frase}
           </p>
         ))}
+        {r.status === 'cancelado' && r.semReembolso && politica && (
+          <p className="mt-4">
+            <a href={politica.href} className="link inline-flex min-h-11 items-center font-semibold">
+              {politica.texto}
+            </a>
+          </p>
+        )}
         <div className="mt-8 flex flex-wrap gap-3">
           {r.status === 'aguardando_whatsapp' ? (
             // o caminho do WhatsApp (o pagamento combinado com a equipe): o botão é a própria forma de pagar

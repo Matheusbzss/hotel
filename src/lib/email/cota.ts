@@ -38,6 +38,9 @@ const ESSENCIAIS: ReadonlySet<TipoEmail> = new Set<TipoEmail>([
   'reembolso-concluido',
   'pedido-cancelado',
   'pedido-pago-equipe',
+  // Pacote 33: o cancelamento sem reembolso pela equipe (o pedido inteiro e um voucher só)
+  'pedido-cancelado-sem-reembolso',
+  'voucher-cancelado',
 ]);
 
 export const emailEssencial = (tipo: TipoEmail): boolean => ESSENCIAIS.has(tipo);

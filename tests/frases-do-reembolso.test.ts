@@ -120,7 +120,10 @@ test('as duas páginas do cliente: "Reembolso pendente" e as frases dentro das c
   assert.match(status, /\{reembolsoPendente \? textos\.reembolsoPendenteTitulo : statusTextos\[r\.status\]\}/);
   assert.match(status, /titulo: reembolsoPendente \? textos\.reembolsoPendenteTitulo : statusTextos\.reembolsado,/);
   assert.match(pedido, /titulo: reembolsoPendente \? d\.pedido\.reembolsoPendenteTitulo : d\.status\.reembolsado,/);
-  assert.match(pedido, /status === 'reembolsado' && reembolsoPendente \? d\.pedido\.reembolsoPendenteTitulo : d\.status\[status\]/);
+  // a palavra da faixa do pedido sai do estado da tela (desde o Pacote 33: o status do pedido, ou "cancelado" no pedido
+  // cancelado sem reembolso inteiro, que continua pago)
+  assert.match(pedido, /estado === 'reembolsado' && reembolsoPendente \? d\.pedido\.reembolsoPendenteTitulo : d\.status\[estado\]/);
+  assert.match(pedido, /const estado: StatusReserva = canceladoSemReembolso \? 'cancelado' : status;/);
   assert.match(
     pedido,
     /r\.status === 'reembolsado' && \(r\.reembolsoPartes\?\.pendenteCentavos \?\? 0\) > 0 \? d\.pedido\.reembolsoPendenteTitulo/,

@@ -46,6 +46,24 @@ export function eventoDeCompra(p: PedidoPainel, site: string, agora: Date) {
   };
 }
 
+/** O usuário que o painel mostra para o Google entrar no arquivo (qualquer um serve: só a senha é conferida). */
+export const USUARIO_DO_ARQUIVO_GOOGLE = 'orlanativa';
+/** O nome fixo do arquivo quando o Google entra com usuário e senha, como o Data Manager pede. */
+export const ARQUIVO_GOOGLE_COM_SENHA = 'compras.csv';
+
+/**
+ * A senha do cabeçalho "Authorization: Basic …" que o Google manda ao buscar o arquivo pelo Data Manager, que pede
+ * usuário e senha (support.google.com/google-ads-data-manager/answer/14605515, lido em 26/11). O usuário pode ser
+ * qualquer um; só a senha conta. Sem o cabeçalho, ou com ele mal formado, null.
+ */
+export function senhaDoBasic(cabecalho: string | null): string | null {
+  const m = /^Basic\s+([A-Za-z0-9+/=]+)\s*$/i.exec(cabecalho ?? '');
+  if (!m) return null;
+  const texto = Buffer.from(m[1], 'base64').toString('utf8');
+  const doisPontos = texto.indexOf(':');
+  return doisPontos < 0 ? null : texto.slice(doisPontos + 1);
+}
+
 /**
  * O arquivo que o Google busca todo dia: as vendas pagas que vieram de um clique no Google, com o valor que
  * entrou. O código do pedido evita contar a mesma venda duas vezes, e o arquivo traz sempre os últimos 90 dias.
@@ -56,7 +74,9 @@ export function arquivoDoGoogle(pedidos: PedidoPainel[], agora: Date): string {
     const gclid = p.itens[0].origem?.gclid;
     const pagoEm = p.pagoEm ?? p.criadoEm;
     if (p.status !== 'pago' || !gclid || Date.parse(pagoEm) < limite) return [];
-    const quando = new Date(pagoEm).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    // a hora em UTC com o fuso escrito como o Google documenta ("2026-11-02T15:00:30+0000"); o "Z" no fim não está na
+    // lista de formatos aceitos da importação de cliques (support.google.com/google-ads/answer/7014069, lido em 26/11)
+    const quando = new Date(pagoEm).toISOString().replace(/\.\d{3}Z$/, '+0000');
     return [[gclid, CONVERSAO_GOOGLE, quando, (p.recebidoCentavos / 100).toFixed(2), 'BRL', p.codigo].join(',')];
   });
   return [['Google Click ID', 'Conversion Name', 'Conversion Time', 'Conversion Value', 'Conversion Currency', 'Order ID'].join(','), ...linhas, ''].join('\n');

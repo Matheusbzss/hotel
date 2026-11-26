@@ -32,23 +32,29 @@ import {
   MARCA_DO_AVISO_DO_PEDIDO_PAGO,
   MARCA_DO_EMAIL,
   MARCA_DO_EMAIL_DO_CANCELAMENTO,
+  MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO,
   avisoDoAvisoDoPedidoPagoQueNaoSaiu,
   avisoDoEmailDoCancelamentoQueNaoSaiu,
   avisoDoEmailDoReembolsoQueNaoSaiu,
+  avisoDoEmailSemReembolsoQueNaoSaiu,
   emailDoReembolsoJaSaiu,
   marcaDoAvisoDeReembolsoFalho,
   marcaDoAvisoDoPagamentoRetido,
   marcaDoEmailDoReembolso,
+  marcaDoEmailDoVoucherCancelado,
   type TipoEmailDoPedido,
 } from './marcas';
 import {
   avisoDoPedidoPagoSai,
   emailDoCancelamentoSai,
+  emailSemReembolsoSai,
   linhaDoConcluidoQueFalta,
   motivoDoEnvioQueNaoSaiu,
+  pagamentoAprovadoAindaVale,
   planoDoEmailDoReembolso,
   versaoParaMarcar,
 } from './regras-dos-avisos';
+import type { AlcanceDoEmailSemReembolso } from '../cancelar-sem-reembolso';
 import {
   emailAvisoDaDesistencia,
   emailAvisoDoPagamentoRetido,
@@ -58,9 +64,11 @@ import {
   emailLinkDoPedido,
   emailPagamentoAprovado,
   emailPedidoCancelado,
+  emailPedidoCanceladoSemReembolso,
   emailPedidoRecebido,
   emailPixVencido,
   emailReembolso,
+  emailVoucherCancelado,
   type DadosDoPedido,
   type ItemDoPedido,
   type MensagemEmail,
@@ -248,6 +256,11 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
   const pedido = r.pedido?.codigo ?? r.codigo;
   if (!cabeNoStatus(tipo, r)) {
     console.log(`[email] ${tipo} ${pedido}: não enviado (o pedido está ${r.status})`);
+    return;
+  }
+  // Pacote 33: o pedido cancelado sem reembolso inteiro continua pago, mas não tem mais voucher valendo
+  if (tipo === 'pagamento-aprovado' && !pagamentoAprovadoAindaVale(lista)) {
+    console.log(`[email] ${tipo} ${pedido}: não enviado (nenhum voucher do pedido vale mais)`);
     return;
   }
   const sessao = opcoes.sessaoId ?? r.pagamentoExternoId ?? '';
@@ -656,6 +669,83 @@ export async function enviarEmailDoCancelamento(codigo: string): Promise<void> {
 /** Agenda o e-mail do pedido cancelado no painel para depois da resposta. */
 export function agendarEmailDoCancelamento(codigo: string): void {
   depoisDaResposta(`pedido-cancelado ${codigo}`, () => enviarEmailDoCancelamento(codigo));
+}
+
+/**
+ * Pacote 33: o e-mail do cancelamento sem reembolso pela equipe no painel, no idioma do pedido: o do pedido inteiro
+ * ("Pedido cancelado", sem reembolso: o motivo, a regra da política e os vouchers cancelados agora) ou o de um voucher só
+ * ("Voucher cancelado": o motivo, a regra e "O que continua valendo", com os links dos outros vouchers). Nenhuma opção de
+ * pedir estorno ou cancelamento. A regra (emailSemReembolsoSai, ./regras-dos-avisos.ts) é conferida na hora do envio, com
+ * o pedido relido; um por cancelamento (a marca e a chave `pedido-cancelado-sem-reembolso/<pedido>` ou
+ * `voucher-cancelado/<voucher>`). Essencial na cota. O que não sai fica como aviso no painel, fechado pelo envio seguinte.
+ */
+export async function enviarEmailSemReembolso(codigo: string, alcance: AlcanceDoEmailSemReembolso): Promise<void> {
+  const tipo = alcance.tipo === 'pedido' ? 'pedido-cancelado-sem-reembolso' : 'voucher-cancelado';
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): ${tipo} ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const regra = emailSemReembolsoSai(r, lista, alcance);
+  if (!regra.sai) {
+    console.log(`[email] ${tipo} ${pedido}: não enviado (${regra.motivo})`);
+    return;
+  }
+  const idioma = r.idioma;
+  const base = {
+    idioma,
+    nome: r.cliente.nome,
+    codigo: pedido,
+    linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
+    site: siteDoEmail(),
+  };
+  const motivo = { tipo: regra.cancelamento.motivo, ...(regra.cancelamento.texto ? { texto: regra.cancelamento.texto } : {}) };
+  const linkPolitica = `${urlDoSite()}${rota(idioma, '/politica-de-cancelamento')}`;
+  let mensagem: MensagemEmail;
+  if (alcance.tipo === 'pedido') {
+    // os vouchers cancelados agora, sem link (não valem mais); com uma parte já devolvida, "o restante do seu pedido"
+    const cancelados = lista.filter((v) => regra.cancelados.includes(v.codigo));
+    mensagem = emailPedidoCanceladoSemReembolso({
+      ...base,
+      itens: itensDoEmail(cancelados, idioma, false),
+      motivo,
+      linkPolitica,
+      parteDevolvida: (r.reembolsoCentavos ?? 0) > 0,
+    });
+  } else {
+    const v = lista.find((x) => x.codigo === alcance.voucher);
+    const nome = v ? itensDoEmail([v], idioma, false)[0]?.nome : undefined;
+    const valem = lista.filter((x) => regra.aindaValem.includes(x.codigo));
+    mensagem = emailVoucherCancelado({
+      ...base,
+      voucher: { codigo: alcance.voucher, ...(nome ? { nome } : {}) },
+      itens: itensDoEmail(valem, idioma, true),
+      motivo,
+      linkPolitica,
+    });
+  }
+  const resultado = await enviarEmail({
+    tipo,
+    referencia: pedido,
+    para: r.cliente.email,
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: alcance.tipo === 'pedido' ? `${tipo}/${pedido}` : `${tipo}/${alcance.voucher}`,
+  });
+  const marca = alcance.tipo === 'pedido' ? MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO : marcaDoEmailDoVoucherCancelado(alcance.voucher);
+  if (saiu(resultado)) await anotar(r.codigo, marca);
+  const naoSaiu = motivoDoEnvioQueNaoSaiu(resultado);
+  if (naoSaiu) await anotar(r.codigo, avisoDoEmailSemReembolsoQueNaoSaiu(naoSaiu, alcance.tipo === 'voucher' ? alcance.voucher : undefined));
+}
+
+/** Agenda o e-mail do cancelamento sem reembolso para depois da resposta (o painel responde na hora). */
+export function agendarEmailSemReembolso(codigo: string, alcance: AlcanceDoEmailSemReembolso): void {
+  const nome = alcance.tipo === 'pedido' ? `pedido-cancelado-sem-reembolso ${codigo}` : `voucher-cancelado ${alcance.voucher}`;
+  depoisDaResposta(nome, () => enviarEmailSemReembolso(codigo, alcance));
 }
 
 /**

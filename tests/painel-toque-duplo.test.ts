@@ -178,17 +178,20 @@ test('a rota das ações manuais: a repetida volta antes de qualquer gravação,
   // o status, o provedor do WhatsApp, a forma, a hora do pagamento e a linha. Desde o Pacote 19 (reteste de 22/11), entre
   // a repetida e a gravação, a ação que o painel não oferece naquele status também devolve null (os testes da seção 1b).
   // Desde o Pacote 29 (revisão), o cancelamento do pedido que já estava vencido grava a linha com o final " (já estava
-  // vencido)" (linhaDoCancelamento, com o status de antes): o e-mail "Pedido cancelado" não sai para ele
+  // vencido)" (linhaDoCancelamento, com o status de antes): o e-mail "Pedido cancelado" não sai para ele. Desde o Pacote 33
+  // (D2), depois da ação fora de hora, a que passou a pedir a caixa "Confirmo" com o pedido relido (o pedido que virou pago
+  // numa outra aba) e veio sem ela também devolve null, sem gravar nada
   assert.match(
     MANUAIS,
-    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+virouCancelado = manual\.status === 'cancelado' && r\.status !== 'cancelado';\s+foraDeHora = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+const statusAntes = r\.status;\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.status === 'cancelado' \? linhaDoCancelamento\(manual\.evento, statusAntes\) : manual\.evento\);\s+\}\);/,
+    /const atualizada = await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+virouPago = manual\.status === 'pago' && r\.status !== 'pago';\s+virouCancelado = manual\.status === 'cancelado' && r\.status !== 'cancelado';\s+foraDeHora = false;\s+semConfirmar = false;\s+if \(acaoManualRepetida\(r, manual\)\) return null;\s+if \(!daStripe && !acaoManualOferecida\(r, acao\)\) \{\s+foraDeHora = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+if \(acaoManualPedeConfirmacao\(r, acao\) && !confirmou\) \{\s+semConfirmar = true;\s+virouPago = false;\s+virouCancelado = false;\s+return null;\s+\}\s+const statusAntes = r\.status;\s+r\.status = manual\.status;\s+if \(provedorDaReserva\(r\) === 'whatsapp'\) r\.provedor = 'whatsapp';\s+if \(manual\.metodo\) r\.pagamento\.metodo = manual\.metodo;\s+if \(manual\.status === 'pago' && !r\.pagamento\.pagoEm\) r\.pagamento\.pagoEm = new Date\(\)\.toISOString\(\);\s+return registrar\(r, manual\.status === 'cancelado' \? linhaDoCancelamento\(manual\.evento, statusAntes\) : manual\.evento\);\s+\}\);/,
   );
   // o aviso de compra e o e-mail só quando virou pago (a repetida já é pago: virouPago false), e a volta de sempre; a ação
   // fora de hora volta antes dos dois, com o erro. Desde o Pacote 28, junto com o e-mail, o aviso do pedido pago à equipe,
-  // e o e-mail do pedido cancelado só quando virou cancelado (a repetida e a fora de hora não)
+  // e o e-mail do pedido cancelado só quando virou cancelado (a repetida e a fora de hora não). Desde o Pacote 33 (D2), a
+  // que veio sem a caixa volta com falta-confirmar, também antes dos dois
   assert.match(
     MANUAIS,
-    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+agendarAvisoDoPedidoPago\(codigoDoPedido\);\s+\}\s+if \(virouCancelado && atualizada\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s*$/,
+    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(semConfirmar\) return voltar\('falta-confirmar'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+agendarAvisoDoPedidoPago\(codigoDoPedido\);\s+\}\s+if \(virouCancelado && atualizada\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s*$/,
   );
   assert.equal(MANUAIS.match(/acaoManualRepetida\(/g)?.length, 1);
   assert.equal(MANUAIS.match(/registrar\(/g)?.length, 1);
@@ -954,9 +957,18 @@ test('o botão do painel manda a busca num campo escondido, e a rota a devolve e
   );
   // todo botão do painel leva a busca, e ela desce da página até ele por todos os componentes do pedido
   const botoes = [...pagina.matchAll(/<BotaoAcao\b[^>]*?\/>/g)].map((m) => m[0]);
-  // 7 + 1 do Pacote 22 (os dois botões do pagamento parado de um pedido cancelado, num BotaoAcao só, de uma lista)
-  assert.equal(botoes.length, 8);
+  // 7 + 1 do Pacote 22 (os dois botões do pagamento parado de um pedido cancelado, num BotaoAcao só, de uma lista), menos
+  // os 2 do reembolso pela Stripe, que desde o Pacote 33 ficam na tela de resumo (o cartão leva a ela, com o filtro e a busca)
+  assert.equal(botoes.length, 6);
   for (const b of botoes) assert.match(b, /\sfiltro=\{filtro\}\s+busca=\{busca\}/, b);
+  assert.match(pagina, /href=\{enderecoDoResumo\(p\.codigo, \{ acao: 'reembolsar' \}, \{ filtro, busca \}\)\}/);
+  // a tela de resumo manda o filtro e a busca nos mesmos campos escondidos dos botões do painel
+  const tela = codigo('app', 'admin', 'resumo', '[codigo]', 'page.tsx');
+  assert.match(
+    tela,
+    /<input type="hidden" name="acao" value=\{f\.acao\} \/>\s+<input type="hidden" name="filtro" value=\{volta\.filtro \?\? ''\} \/>\s+\{volta\.busca && <input type="hidden" name="q" value=\{volta\.busca\} \/>\}/,
+  );
+  assert.match(tela, /const volta: VoltaDoPainel = \{ filtro: filtroDoPainel\(q\.status\), busca: buscaDoPainel\(q\.q\) \};/);
   for (const componente of ['Acoes', 'ReembolsoStripe', 'ReembolsoQueFalhou', 'ReembolsoSemVoucherNoPainel'])
     assert.match(pagina, new RegExp(`<${componente} p=\\{p\\} filtro=\\{filtro\\} busca=\\{busca\\}`), componente);
   assert.match(pagina, /<CartaoPedido key=\{p\.codigo\} p=\{p\} filtro=\{filtro\.valor\} busca=\{busca\} \/>/);

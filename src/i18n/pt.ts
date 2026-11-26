@@ -276,6 +276,21 @@ const pt = {
       'Recebemos o seu pedido de desistência. A equipe responde por e-mail em até 1 dia útil, e o reembolso segue a política de cancelamento.',
     desistirRepetido:
       'O seu pedido de desistência já foi recebido. A equipe responde por e-mail em até 1 dia útil, e o reembolso segue a política de cancelamento.',
+    // Pacote 33: o pedido que a equipe cancelou sem reembolso (o pedido continua pago e os vouchers deixam de valer), com
+    // o motivo e a regra da política (o item 6 dela, com a ressalva do começo dele, nas palavras da política); sem nenhuma
+    // opção de pedir estorno ou cancelamento. Os mesmos textos do e-mail (src/lib/email/textos.ts, semReembolso)
+    canceladoSemReembolsoTexto: 'O seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    // o mesmo pedido com uma parte já devolvida antes (um voucher reembolsado, por exemplo): só o restante foi sem reembolso
+    canceladoSemReembolsoComParteTexto: 'O restante do seu pedido foi cancelado pela nossa equipe, sem reembolso.',
+    // a linha do voucher cancelado sem reembolso na página do pedido (o motivo vem embaixo)
+    voucherCanceladoSemReembolso: 'Cancelado, sem reembolso',
+    motivoForaDaPolitica: 'Motivo: o cancelamento foi pedido com menos de 24 horas de antecedência do serviço.',
+    motivoNaoCompareceu: 'Motivo: não houve comparecimento no horário e no local combinados.',
+    // {texto}: o motivo como a equipe escreveu (decisão do dono de 25/11, P4)
+    motivoOutro: 'Motivo: {texto}',
+    regraSemReembolso:
+      'Pela nossa política de cancelamento (item 6), fora das situações dos itens 2, 4 e 5, cancelamentos feitos com menos de 24 horas de antecedência e o não comparecimento no horário e local combinados não dão direito a reembolso, porque a vaga já foi reservada e paga ao operador.',
+    regraGeralSemReembolso: 'As regras de cancelamento e reembolso estão na nossa política de cancelamento.',
   },
   boletim: {
     titulo: 'Passeios e o total do seu grupo',
@@ -750,6 +765,8 @@ const pt = {
     expiradoTexto: 'O prazo para pagar este Pix terminou. Faça uma nova reserva ou fale com a gente.',
     canceladoTitulo: 'Reserva cancelada',
     canceladoTexto: 'Esta reserva foi cancelada. Se tiver dúvidas, fale com a gente.',
+    // Pacote 33: o voucher que a equipe cancelou sem reembolso (o motivo e a regra vêm de pedido.motivo* e pedido.regra*)
+    canceladoSemReembolsoTexto: 'Esta reserva foi cancelada pela nossa equipe, sem reembolso.',
     whatsappTitulo: 'Reserva registrada',
     whatsappTexto:
       'Sua reserva foi registrada. Finalize o pagamento com a nossa equipe pelo WhatsApp; o voucher é liberado assim que o pagamento for confirmado.',

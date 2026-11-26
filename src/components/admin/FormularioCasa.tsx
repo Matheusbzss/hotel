@@ -104,6 +104,14 @@ export function FormularioCasa({ casa, cidades }: { casa?: DadosCasa & { id: str
     }).catch(() => null);
     const r = (await resposta?.json().catch(() => null)) as { ok: boolean; id?: string; erro?: string } | null;
     setEnviando(false);
+    // Pacote 33, D3: a sessão do painel venceu (o 401 de pedidoRecusado): entrar de novo, e não "tente de novo"
+    if (resposta?.status === 401) {
+      setAviso({
+        ok: false,
+        texto: 'Sua sessão venceu. Entre de novo no painel, numa outra aba para não perder o que foi digitado, e salve outra vez.',
+      });
+      return;
+    }
     if (!r?.ok) {
       setAviso({ ok: false, texto: r?.erro ?? 'Não deu para salvar. Tente de novo.' });
       return;

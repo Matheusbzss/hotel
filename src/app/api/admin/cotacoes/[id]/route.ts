@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
+import { pedidoRecusado } from '@/lib/admin-auth';
 import { STATUS_COTACAO } from '@/lib/cotacao';
 import { mudarStatusCotacao } from '@/lib/cotacoes';
 
@@ -9,10 +8,9 @@ export const runtime = 'nodejs';
 /** Muda o status da cotação (nova, respondida, fechada ou perdida) e volta para a lista. */
 export async function POST(req: Request, ctx: RouteContext<'/api/admin/cotacoes/[id]'>) {
   const { id } = await ctx.params;
-  const loja = await cookies();
-  if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value)) return NextResponse.json({ ok: false }, { status: 401 });
-  const origem = req.headers.get('origin');
-  if (origem && new URL(origem).host !== new URL(req.url).host) return NextResponse.json({ ok: false }, { status: 403 });
+  // a proteção de todas as rotas do painel: o próprio site e a sessão (sem ela, o formulário volta à entrada do painel)
+  const recusado = await pedidoRecusado(req);
+  if (recusado) return recusado;
 
   const form = await req.formData();
   const status = STATUS_COTACAO.find((s) => s === form.get('status'));

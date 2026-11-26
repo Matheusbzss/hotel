@@ -109,9 +109,11 @@ test('as duas faixas usam a palavra: na reserva com o pedido do voucher, no pedi
     /<p className="font-semibold">\s+\{statusOnline \? \(\s+<PalavraDoStatus key=\{status\} codigo=\{codigo\} texto=\{palavraDaFaixa\} textoPendente=\{d\.status\.pendente\} \/>\s+\) : \(\s+palavraDaFaixa\s+\)\}\s+<\/p>/,
   );
   assert.match(pedido, /<PagarPedido\s+key=\{status\}\s+codigoPedido=\{codigo\}/);
+  // desde o Pacote 33, pelo estado da tela: o status do pedido, ou "cancelado" no pedido cancelado sem reembolso inteiro (a
+  // tela de pagar nunca aparece nele: ele está pago)
   assert.match(
     pedido,
-    /const palavraDaFaixa = status === 'reembolsado' && reembolsoPendente \? d\.pedido\.reembolsoPendenteTitulo : d\.status\[status\];/,
+    /const palavraDaFaixa = estado === 'reembolsado' && reembolsoPendente \? d\.pedido\.reembolsoPendenteTitulo : d\.status\[estado\];/,
   );
   assert.match(pedido, /^import \{ PalavraDoStatus \} from '@\/components\/pagamento\/PalavraDoStatus';$/m);
   assert.equal(pedido.split('<PalavraDoStatus').length, 2);

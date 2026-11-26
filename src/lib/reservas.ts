@@ -18,6 +18,7 @@ import {
   type LinhaItem,
   type LinhaPedido,
 } from './reservas-banco';
+import type { CancelamentoSemReembolso } from './sem-reembolso';
 import type { CidadeHospedagem } from './validacao';
 import { mensagemDoErro } from './erros.ts';
 
@@ -123,6 +124,12 @@ interface ReservaBase {
      * (pagamentoParaReter, src/lib/pagamento-stripe.ts). Sem migração: mora no JSON `pagamento`, nos arquivos e no banco.
      */
     retido?: PagamentoRetido;
+    /**
+     * Os cancelamentos sem reembolso feitos pela equipe no painel (Pacote 33): o pedido continua pago e os vouchers
+     * listados ficam 'cancelado', com o motivo aqui. Sem migração: mora no JSON `pagamento`, nos arquivos e no banco. Quem
+     * lê é src/lib/sem-reembolso.ts.
+     */
+    semReembolso?: CancelamentoSemReembolso[];
   };
   historico: { em: string; evento: string }[];
 }

@@ -656,16 +656,17 @@ test('a página do cliente: a frase nos 4 idiomas enquanto a equipe decide; depo
   // paraPublico marca só o cancelado à espera da decisão (a regra do painel), sem valor nem id
   const publica = fonte('lib', 'reserva-publica.ts');
   assert.match(publica, /\.\.\.\(status === 'cancelado' && pagamentoRetidoADecidir\(r\) \? \{ pagamentoRetido: true as const \} : \{\}\),/);
-  // a página do pedido e a da reserva trocam o texto do cancelado pela frase; o título continua o do cancelado
+  // a página do pedido e a da reserva trocam o texto do cancelado pela frase; o título continua o do cancelado. Desde o
+  // Pacote 33, o cancelado sem reembolso (um pedido pago, nunca com o pagamento parado) tem as frases dele, depois desta
   const pedido = fonte('app', '[locale]', 'pedido', '[codigo]', 'page.tsx');
   assert.match(
     pedido,
-    /cancelado: \{ titulo: d\.pedido\.canceladoTitulo, texto: itens\[0\]\?\.pagamentoRetido \? d\.pedido\.pagamentoRetido : d\.pedido\.canceladoTexto \},/,
+    /cancelado: \{\s+titulo: d\.pedido\.canceladoTitulo,\s+texto: itens\[0\]\?\.pagamentoRetido \? d\.pedido\.pagamentoRetido : canceladoSemReembolso \? frasesDoSemReembolso : d\.pedido\.canceladoTexto,\s+\},/,
   );
   const status = fonte('components', 'StatusReserva.tsx');
   assert.match(
     status,
-    /cancelado: \{ titulo: textos\.canceladoTitulo, texto: r\.pagamentoRetido \? textos\.pagamentoRetido : textos\.canceladoTexto \},/,
+    /cancelado: \{\s+titulo: textos\.canceladoTitulo,\s+texto: r\.pagamentoRetido\s+\? textos\.pagamentoRetido\s+: r\.semReembolso\s+\? \[textos\.canceladoSemReembolsoTexto, r\.semReembolso\.motivo, r\.semReembolso\.regra\]\s+: textos\.canceladoTexto,\s+\},/,
   );
   assert.match(fonte('app', '[locale]', 'reserva', '[codigo]', 'page.tsx'), /pagamentoRetido: d\.pedido\.pagamentoRetido,/);
   // depois da devolução, o pedido continua cancelado sem a marca (o texto do cancelado); reativado, é o pago

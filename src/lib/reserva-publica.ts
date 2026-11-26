@@ -25,6 +25,8 @@ import { textoPessoas } from './pessoas';
 import { partesDaPagina, type PartesDoReembolso } from './reembolsos-a-resolver';
 import { recusaParaOCliente, type ChaveRecusa } from './recusas';
 import { ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type StatusReserva } from './reservas';
+import { frasesDoCancelamentoSemReembolso } from './cancelar-sem-reembolso';
+import { canceladoSemReembolso, cancelamentoDoVoucher } from './sem-reembolso';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
 import { whatsappDoRobo } from './whatsapp';
@@ -95,6 +97,12 @@ export interface ReservaPublica {
    * do pagamento nem o que a equipe vai decidir.
    */
   pagamentoRetido?: true;
+  /**
+   * Só no voucher que a equipe cancelou sem reembolso (Pacote 33, src/lib/sem-reembolso.ts): o motivo e a regra da política
+   * de cancelamento, já no idioma da página (o texto do motivo "outro" vai como a equipe escreveu). Nada do painel além disso:
+   * nem a hora, nem a trava dos 7 dias.
+   */
+  semReembolso?: { motivo: string; regra: string };
 }
 
 /**
@@ -120,8 +128,13 @@ export function tokenConfere(reserva: Reserva, token: string | undefined | null)
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** O status que o cliente vê neste voucher: um item cancelado ou reembolsado sozinho mostra o próprio status. */
+/**
+ * O status que o cliente vê neste voucher: um item cancelado ou reembolsado sozinho mostra o próprio status. No pedido
+ * reembolsado inteiro, todo voucher é reembolsado (Pacote 33): também o que a equipe tinha cancelado sem reembolso antes e
+ * depois devolveu com "Reembolsar tudo" (todo o dinheiro voltou).
+ */
 export function statusDoVoucher(r: Pick<Reserva, 'status' | 'statusItem'>): StatusReserva {
+  if (r.status === 'reembolsado') return r.status;
   return r.statusItem === 'cancelado' || r.statusItem === 'reembolsado' ? r.statusItem : r.status;
 }
 
@@ -313,6 +326,8 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
   const emAberto = pagamentoEmAberto(status);
   // o reembolso que falhou (ou já devolvido por outro meio) que diz respeito a esta página: só os três valores
   const reembolsoPartes = partesDaPagina({ voucherDePedido: Boolean(r.pedido), codigo: r.codigo }, r.reembolsoCentavos ?? 0, r.historico);
+  // Pacote 33: o voucher cancelado pela equipe sem reembolso (o cancelamento que o lista, src/lib/sem-reembolso.ts)
+  const semReembolso = canceladoSemReembolso(r) ? cancelamentoDoVoucher(r.pagamento, r.codigo) : undefined;
   const pagamento = {
     status,
     // em aberto, os dois totais (a forma ainda não está fechada); pago no Pix, o cliente vê o que pagou, com o desconto. No
@@ -336,6 +351,8 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     ...(reembolsoPartes ? { reembolsoPartes } : {}),
     // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22)
     ...(status === 'cancelado' && pagamentoRetidoADecidir(r) ? { pagamentoRetido: true as const } : {}),
+    // o voucher que a equipe cancelou sem reembolso (Pacote 33): o motivo e a regra, no idioma da página
+    ...(semReembolso ? { semReembolso: frasesDoCancelamentoSemReembolso(d.pedido, semReembolso) } : {}),
   };
   if (ehTransfer(r)) {
     const transfer = transferVisivel(r, idioma, d);

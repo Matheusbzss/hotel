@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { EMPRESA } from '@/config/empresa';
-import { COOKIE_ADMIN, adminConfigurado, sessaoValida } from '@/lib/admin-auth';
+import { COOKIE_ADMIN, adminConfigurado, segredoDoPainelCriado, sessaoValida } from '@/lib/admin-auth';
+import { CIENTE_DOS_SETE_DIAS, avisoDaDesistenciaNosSeteDias, planoDoCancelamento, travaDaDesistencia } from '@/lib/cancelar-sem-reembolso';
 import { contarCotacoesNovas } from '@/lib/cotacoes';
 import { avisoDasDesistencias, desistenciaParaResponder, rotuloDaDesistenciaRespondida } from '@/lib/desistencia';
 import { modoPagamentoOnline } from '@/lib/formas-pagamento';
@@ -30,11 +31,10 @@ import {
   avisosDeReembolso,
   botaoDevolverRetido,
   botaoDevolvidoPorFora,
-  botaoReembolsoDoVoucher,
   botaoVoucherDaStripe,
   botaoVoucherPorFora,
   buscaDoPainel,
-  confirmacaoDoReembolso,
+  confirmacaoDaAcaoManual,
   contarPagamentosRetidos,
   contarReembolsosAResolver,
   contestacoesAbertas,
@@ -51,6 +51,7 @@ import {
   reembolsoNoPainel,
   reembolsoParaResolver,
   seloDoPedidoNoPainel,
+  statusDoSelo,
   statusDoVoucherNoPainel,
   valorDoVoucherPorFora,
   valorRecebido,
@@ -60,6 +61,9 @@ import {
   type ReembolsoNoPainel,
 } from '@/lib/pedidos-painel';
 import type { ReembolsoSemVoucher } from '@/lib/reembolsos-a-resolver';
+import { enderecoDoResumo } from '@/lib/resumo-do-painel';
+import { pedidoCanceladoSemReembolso } from '@/lib/sem-reembolso';
+import { AVISO_DA_SESSAO_VENCIDA } from '@/lib/sessao-do-painel';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
@@ -91,7 +95,17 @@ const COR: Record<StatusReserva, string> = {
 const DICIONARIO_PT = dicionario('pt');
 const ROTULOS_PESSOAS = DICIONARIO_PT.comum.rotulos;
 
-const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (p: PedidoPainel) => boolean }[] = [
+/**
+ * Os filtros da barra. `status`: os status do pedido que entram; `ou`: mais os pedidos que esta regra aceita, em qualquer
+ * status; `so`: só os pedidos que esta regra aceita.
+ */
+const FILTROS: {
+  valor: string;
+  rotulo: string;
+  status?: StatusReserva[];
+  ou?: (p: PedidoPainel) => boolean;
+  so?: (p: PedidoPainel) => boolean;
+}[] = [
   { valor: '', rotulo: 'Todos' },
   { valor: 'pagas', rotulo: 'Pagos', status: ['pago'] },
   { valor: 'abertas', rotulo: 'Em aberto', status: ['pendente', 'aguardando_whatsapp'] },
@@ -101,7 +115,13 @@ const FILTROS: { valor: string; rotulo: string; status?: StatusReserva[]; so?: (
   // os reembolsos que pedem uma ação da equipe: o que falhou, o feito direto na Stripe sem voucher, o parado por uma
   // contestação (as três faixas do topo levam para cá)
   { valor: 'reembolsos', rotulo: 'Reembolsos a resolver', so: (p) => reembolsoParaResolver(p) },
-  { valor: 'outras', rotulo: 'Recusados / cancelados', status: ['recusado', 'cancelado', 'expirado', 'reembolsado'] },
+  // Pacote 33: também o pedido pago que a equipe cancelou sem reembolso inteiro (continua pago, e conta como venda: P3)
+  {
+    valor: 'outras',
+    rotulo: 'Recusados / cancelados',
+    status: ['recusado', 'cancelado', 'expirado', 'reembolsado'],
+    ou: (p) => pedidoCanceladoSemReembolso(p.itens),
+  },
 ];
 
 /**
@@ -152,6 +172,12 @@ function Login({ erro }: { erro?: string }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo/orla-nativa-horizontal.svg" alt={EMPRESA.marca} width={711} height={172} className="h-14 w-auto self-start" />
       <h1 className="mt-8 text-2xl font-bold text-mar">Área administrativa</h1>
+      {/* Pacote 33, D3: o botão de um formulário do painel com a sessão vencida volta para cá (pedidoRecusado) */}
+      {erro === 'sessao' && (
+        <p role="status" className="mt-4 bg-sol px-4 py-3 text-small font-semibold">
+          {AVISO_DA_SESSAO_VENCIDA}
+        </p>
+      )}
       {!adminConfigurado() && (
         <p className="mt-4 bg-sol px-4 py-3 text-small">
           Defina a variável de ambiente <strong>ADMIN_PASSWORD</strong> na Vercel para liberar o acesso.
@@ -310,6 +336,8 @@ function BotaoAcao({
   item,
   reembolso,
   confirmacao,
+  aviso,
+  ciente,
 }: {
   voucher: string;
   acao: string;
@@ -321,18 +349,32 @@ function BotaoAcao({
   item?: string;
   reembolso?: string;
   confirmacao?: string;
+  /** Pacote 33: a frase vermelha da trava dos 7 dias, em cima das caixas. */
+  aviso?: string;
+  /** Pacote 33: a segunda caixa obrigatória, "Estou ciente" (o campo `ciente`), da trava dos 7 dias. */
+  ciente?: string;
 }) {
   return (
-    <form method="post" action={`/api/admin/reservas/${voucher}`}>
+    // com uma caixa (ou o aviso da trava), o formulário ocupa uma linha inteira só dele (w-full; o texto fica em até
+    // max-w-xl): a caixa fica junto do botão dela, e os botões de antes e de depois ficam nas linhas de cima e de baixo,
+    // em vez de ficar ao lado do texto da caixa (Pacote 33)
+    <form method="post" action={`/api/admin/reservas/${voucher}`} className={confirmacao || ciente || aviso ? 'w-full' : undefined}>
       <input type="hidden" name="acao" value={acao} />
       <input type="hidden" name="filtro" value={filtro} />
       {busca && <input type="hidden" name="q" value={busca} />}
       {item && <input type="hidden" name="voucher" value={item} />}
       {reembolso && <input type="hidden" name="reembolso" value={reembolso} />}
+      {aviso && <p className="mb-2 max-w-xl bg-erro-claro px-3 py-2 text-small font-semibold text-[#7a1f12]">{aviso}</p>}
       {confirmacao && (
-        <label className="mb-2 flex cursor-pointer items-start gap-3 text-small">
+        <label className="mb-2 flex max-w-xl cursor-pointer items-start gap-3 text-small">
           <input type="checkbox" name="confirmo" value="sim" required className="size-6 shrink-0 accent-[var(--color-mar)]" />
           <span>{confirmacao}</span>
+        </label>
+      )}
+      {ciente && (
+        <label className="mb-2 flex max-w-xl cursor-pointer items-start gap-3 text-small">
+          <input type="checkbox" name="ciente" value="sim" required className="size-6 shrink-0 accent-[var(--color-mar)]" />
+          <span>{ciente}</span>
         </label>
       )}
       <button type="submit" className={`min-h-10 px-4 text-small font-semibold text-mar hover:bg-borda ${cor}`}>
@@ -343,66 +385,40 @@ function BotaoAcao({
 }
 
 /**
- * Devolver o dinheiro pela Stripe: tudo, ou um voucher só (a chuva num passeio de um pedido de três). Fica atrás
- * de um "abrir" porque não dá para desfazer, e cada botão pede a caixa "Confirmo" marcada. O status do pedido só muda
- * quando a Stripe confirmar (webhook charge.refunded): até lá o painel mostra o pedido como está. Os vouchers vêm de
- * reembolsoNoPainel: nenhum no pedido de um item, nem enquanto um reembolso feito direto na Stripe não disser de qual
- * voucher foi. Cada voucher sai pelo valor inteiro dele, e só quando cabe no que ainda resta do pagamento
- * (botaoReembolsoDoVoucher). O que vale mais do que resta fica sem botão: devolver só ele levaria tudo o que resta, a
- * Stripe trataria como reembolso total e todos os vouchers deixariam de valer; o "Reembolsar tudo (R$ …)" diz esse efeito.
+ * Devolver o dinheiro pela Stripe: tudo, ou um voucher só (a chuva num passeio de um pedido de três). Desde o Pacote 33
+ * (FASE-5, Etapa 2: o resumo e o segundo toque), o botão leva à tela de resumo (/admin/resumo/<pedido>,
+ * src/app/admin/resumo/[codigo]/page.tsx), que mostra o que volta, os vouchers que deixam de valer, a forma de
+ * pagamento, o prazo da Stripe, o e-mail que o cliente recebe e o saldo da Stripe lido na hora, e só então pede a caixa
+ * "Confirmo" e o botão, que mandam para as mesmas ações de antes ('reembolsar' e 'reembolsar_item', com as mesmas
+ * frases). O que a tela oferece sai das regras de sempre (reembolsoNoPainel e botaoReembolsoDoVoucher): o voucher que
+ * vale mais do que resta continua sem a opção dele. O filtro e a busca vão junto e voltam ao painel depois da ação.
  */
-function ReembolsoStripe({
-  p,
-  filtro,
-  busca,
-  restante,
-  vouchers,
-}: {
-  p: PedidoPainel;
-  filtro: string;
-  busca: string;
-  restante: number;
-  vouchers: Reserva[];
-}) {
-  const r = p.itens[0];
+function ReembolsoStripe({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: string }) {
   return (
-    <details className="text-small">
-      <summary className="inline-flex min-h-10 cursor-pointer items-center bg-superficie px-4 font-semibold text-mar hover:bg-borda">
-        Reembolsar na Stripe…
-      </summary>
-      <div className="mt-2 space-y-3 border border-borda bg-white p-3">
-        <p className="text-tinta-suave">
-          Devolve o dinheiro pela Stripe (cartão: 5 a 10 dias úteis; Pix: o prazo depende do banco do cliente). Não dá para desfazer. O
-          status muda quando a Stripe confirmar.
-        </p>
-        <BotaoAcao
-          voucher={r.codigo}
-          acao="reembolsar"
-          rotulo={`Reembolsar tudo (${formatarPreco(restante)})`}
-          filtro={filtro}
-          busca={busca}
-          cor="bg-erro-claro"
-          confirmacao={confirmacaoDoReembolso(restante)}
-        />
-        {vouchers.map((i) => {
-          const botao = botaoReembolsoDoVoucher(i.codigo, valorRecebido(i), restante);
-          return (
-            botao && (
-              <BotaoAcao
-                key={i.codigo}
-                voucher={i.codigo}
-                item={i.codigo}
-                acao="reembolsar_item"
-                rotulo={botao.rotulo}
-                filtro={filtro}
-                busca={busca}
-                confirmacao={botao.confirmacao}
-              />
-            )
-          );
-        })}
-      </div>
-    </details>
+    <a
+      href={enderecoDoResumo(p.codigo, { acao: 'reembolsar' }, { filtro, busca })}
+      className="inline-flex min-h-10 items-center bg-superficie px-4 text-small font-semibold text-mar hover:bg-borda"
+    >
+      Reembolsar na Stripe…
+    </a>
+  );
+}
+
+/**
+ * Cancelar SEM reembolso (Pacote 33; FASE-5, Etapa 2, passos 2 e 3): no pedido pago pela Stripe, sem contestação e sem
+ * reembolso a resolver ou a caminho (planoDoCancelamento, src/lib/cancelar-sem-reembolso.ts), o link para a tela de resumo
+ * (/admin/resumo/<pedido>?acao=cancelar_sem_reembolso): os vouchers que deixam de valer, "nada é devolvido", o motivo, a
+ * trava dos 7 dias, o idioma da compra e o e-mail que o cliente recebe; no pedido com vários itens, também um voucher só.
+ * O pedido do WhatsApp continua com o "Cancelar" de sempre.
+ */
+function CancelarSemReembolso({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: string }) {
+  return (
+    <a
+      href={enderecoDoResumo(p.codigo, { acao: 'cancelar_sem_reembolso' }, { filtro, busca })}
+      className="inline-flex min-h-10 items-center bg-superficie px-4 text-small font-semibold text-mar hover:bg-borda"
+    >
+      Cancelar sem reembolso…
+    </a>
   );
 }
 
@@ -516,6 +532,9 @@ function ReembolsoSemVoucherNoPainel({
   );
 }
 
+/** Um botão das ações do cartão: a ação, o rótulo e, quando pedem, a caixa "Confirmo", o aviso vermelho e a caixa "Estou ciente". */
+type AcaoDoCartao = { acao: string; rotulo: string; confirmacao?: string; aviso?: string; ciente?: string };
+
 /**
  * O status é do pedido inteiro, com todos os vouchers: um pagamento só. O que o pedido mostra sobre reembolso vem de
  * reembolsoNoPainel (src/lib/pedidos-painel.ts): os botões da Stripe de sempre, nenhum no pedido contestado (a frase no
@@ -523,7 +542,8 @@ function ReembolsoSemVoucherNoPainel({
  * na Stripe. As ações manuais ("Pago no Pix", "Pago no cartão", "Marcar como pago", os dois "Corrigir", "Cancelar" e
  * "Marcar reembolsado") aparecem pela regra única acaoManualOferecida (src/lib/pedidos-painel.ts), com o voucher que
  * representa o pedido: é a mesma que a rota do painel confere de novo antes de gravar, e a aba antiga do painel não faz
- * o que esta tela não oferece mais (reteste de 22/11).
+ * o que esta tela não oferece mais (reteste de 22/11). Desde o Pacote 33, o "Cancelar sem reembolso…" do pedido pago pela
+ * Stripe (planoDoCancelamento) fica ao lado do "Reembolsar na Stripe…".
  */
 function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: string }) {
   const r = p.itens[0];
@@ -538,16 +558,27 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
     cancelar: 'Cancelar',
     reembolsado: 'Marcar reembolsado',
   };
-  const acoes: { acao: string; rotulo: string }[] = ACOES_MANUAIS_DO_PAINEL.filter((acao) => acaoManualOferecida(r, acao)).map((acao) => ({
-    acao,
-    rotulo: rotulos[acao],
-  }));
+  // Pacote 33 (D2; decisão do dono de 16/11): "Cancelar" no pedido que já foi pago e "Marcar reembolsado" ganham a caixa
+  // "Confirmo" (confirmacaoDaAcaoManual, a mesma regra que a rota confere); o "Cancelar" de quem nunca pagou fica com um toque
+  const acoes: AcaoDoCartao[] = ACOES_MANUAIS_DO_PAINEL.filter((acao) => acaoManualOferecida(r, acao)).map((acao) => {
+    const confirmacao = confirmacaoDaAcaoManual(r, acao);
+    return { acao, rotulo: rotulos[acao], ...(confirmacao ? { confirmacao } : {}) };
+  });
   // o pedido de desistência respondido pela equipe, sem reembolso (a política não devolve) ou com o resto do pedido
   // seguindo pago depois do reembolso de uma parte: sai da faixa do topo. Só o reembolso do pedido inteiro tira o pedido
-  // de lá sozinho (o status deixa de ser pago)
+  // de lá sozinho (o status deixa de ser pago). Pacote 33: a desistência que chegou dentro dos 7 dias do arrependimento,
+  // respondida sem reembolso, ganha o aviso vermelho e a caixa "Estou ciente" (travaDaDesistencia; a rota confere de novo)
   if (desistenciaParaResponder(p.itens)) {
-    acoes.push({ acao: 'desistencia_respondida', rotulo: rotuloDaDesistenciaRespondida(p.reembolsoCentavos) });
+    const trava = travaDaDesistencia(r);
+    acoes.push({
+      acao: 'desistencia_respondida',
+      rotulo: rotuloDaDesistenciaRespondida(p.reembolsoCentavos),
+      ...(trava ? { aviso: avisoDaDesistenciaNosSeteDias(trava), ciente: CIENTE_DOS_SETE_DIAS } : {}),
+    });
   }
+  // Pacote 33: o "Cancelar sem reembolso…" do pedido pago pela Stripe, pela regra da tela de resumo e da rota, só com
+  // o segredo do painel criado na Vercel (segredoDoPainelCriado, decisão P14 do dono)
+  const semReembolso = segredoDoPainelCriado() && planoDoCancelamento(p.itens, { acao: 'cancelar_sem_reembolso' }, new Date()).ok;
   // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ou reativar, cada um
   // com a sua caixa "Confirmo", pela mesma regra que a rota confere de novo dentro da trava (acaoDoRetidoOferecida)
   const retido = r.pagamento.retido;
@@ -576,14 +607,23 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
           ))}
         </div>
       )}
-      {(acoes.length > 0 || reembolso.tipo === 'stripe') && (
+      {(acoes.length > 0 || reembolso.tipo === 'stripe' || semReembolso) && (
         <div className="flex flex-wrap items-start gap-2">
           {acoes.map((a) => (
-            <BotaoAcao key={a.acao} voucher={r.codigo} acao={a.acao} rotulo={a.rotulo} filtro={filtro} busca={busca} />
+            <BotaoAcao
+              key={a.acao}
+              voucher={r.codigo}
+              acao={a.acao}
+              rotulo={a.rotulo}
+              confirmacao={a.confirmacao}
+              aviso={a.aviso}
+              ciente={a.ciente}
+              filtro={filtro}
+              busca={busca}
+            />
           ))}
-          {reembolso.tipo === 'stripe' && (
-            <ReembolsoStripe p={p} filtro={filtro} busca={busca} restante={reembolso.restanteCentavos} vouchers={reembolso.vouchers} />
-          )}
+          {reembolso.tipo === 'stripe' && <ReembolsoStripe p={p} filtro={filtro} busca={busca} />}
+          {semReembolso && <CancelarSemReembolso p={p} filtro={filtro} busca={busca} />}
         </div>
       )}
       {/* no contestado, a frase no lugar da caixa "Reembolsar na Stripe…" (o que fazer fica na frase vermelha de cima) */}
@@ -702,7 +742,7 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
         <p className="text-xl font-bold tracking-tight">{p.codigo}</p>
         {/* o status do pedido inteiro; no reembolsado cujo reembolso falhou na Stripe e ainda não voltou ao cliente,
             "Reembolso pendente", como as linhas dos vouchers e a página do cliente (seloDoPedidoNoPainel) */}
-        <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[p.status]}`}>{seloDoPedidoNoPainel(p)}</span>
+        <span className={`mt-1 inline-block px-3 py-1 text-small font-semibold ${COR[statusDoSelo(p)]}`}>{seloDoPedidoNoPainel(p)}</span>
         {p.status === 'contestado' && <p className="mt-2 text-small font-semibold text-[#7a1f12]">{oQueFazerNaContestacao(p.metodo)}</p>}
         {/* o pagamento que chegou com o pedido cancelado, à espera da decisão (Pacote 22) */}
         {r.pagamento.retido && pagamentoRetidoADecidir(r) && (
@@ -829,7 +869,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
   const pedidos = agruparPedidos(todas);
   const lista = pedidos.filter(
     (p) =>
-      (!filtro.status || filtro.status.includes(p.status)) &&
+      (!filtro.status || filtro.status.includes(p.status) || Boolean(filtro.ou?.(p))) &&
       (!filtro.so || filtro.so(p)) &&
       (!busca ||
         p.itens.some((r) =>

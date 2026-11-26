@@ -42,6 +42,7 @@ import {
   reembolsoParaResolver,
   reembolsosParadosPelaContestacao,
   seloDoPedidoNoPainel,
+  statusDoSelo,
   statusDoVoucherNoPainel,
   valorADevolver,
   valorDoVoucherPorFora,
@@ -1103,16 +1104,25 @@ test('a página do painel: a caixa "Confirmo" nos botões de devolver, nenhuma c
     assert.notEqual(inicio, -1, acao);
     return pagina.slice(pagina.lastIndexOf('<BotaoAcao', inicio), pagina.indexOf('/>', inicio));
   };
-  assert.match(botao('reembolsar'), /confirmacao=\{confirmacaoDoReembolso\(restante\)\}/);
-  // o voucher: o rótulo e a caixa saem de botaoReembolsoDoVoucher, com o mesmo valor (o inteiro do voucher), e o botão não
-  // aparece quando o voucher não cabe no que resta do pagamento (16/11, depois do ON-4KPC6F; Pacote 11)
-  assert.match(botao('reembolsar_item'), /rotulo=\{botao\.rotulo\}/);
-  assert.match(botao('reembolsar_item'), /confirmacao=\{botao\.confirmacao\}/);
+  // desde o Pacote 33, "Reembolsar tudo" e "Reembolsar só o voucher …" ficam na tela de resumo (o segundo toque): o
+  // cartão do pedido só leva a ela, e nenhum botão de devolver pela Stripe sobra no cartão
+  assert.doesNotMatch(pagina, /acao="reembolsar"|acao="reembolsar_item"/);
+  assert.match(pagina, /href=\{enderecoDoResumo\(p\.codigo, \{ acao: 'reembolsar' \}, \{ filtro, busca \}\)\}/);
+  // na tela, a caixa do "tudo" é confirmacaoDoReembolso(o que resta) e a do voucher, a de botaoReembolsoDoVoucher, com o
+  // mesmo valor (o inteiro do voucher); a opção do voucher não aparece quando ele não cabe no que resta do pagamento (16/11,
+  // depois do ON-4KPC6F; Pacote 11)
+  const resumo = codigo('lib', 'resumo-do-painel.ts');
+  assert.match(resumo, /confirmacao: confirmacaoDoReembolso\(m\.restanteCentavos\),/);
   assert.match(
-    pagina,
-    /const botao = botaoReembolsoDoVoucher\(i\.codigo, valorRecebido\(i\), restante\);\s+return \(\s+botao && \(\s+<BotaoAcao\s[^>]*?acao="reembolsar_item"/,
+    resumo,
+    /const botao = botaoReembolsoDoVoucher\(v\.codigo, valorRecebido\(v\), m\.restanteCentavos\);\s+return botao\s+\? \[/,
   );
-  assert.doesNotMatch(pagina, /Reembolsar só o voucher \$\{/);
+  assert.match(resumo, /botao: botao\.rotulo,\s+confirmacao: botao\.confirmacao,/);
+  assert.doesNotMatch(resumo, /Reembolsar só o voucher \$\{/);
+  // e o formulário da tela é o de sempre: a caixa obrigatória com o valor que a rota confere
+  const tela = codigo('app', 'admin', 'resumo', '[codigo]', 'page.tsx');
+  assert.match(tela, /<input type="checkbox" name=\{c\.nome\} value="sim" required/);
+  assert.match(resumo, /confirmacoes: \[\{ nome: 'confirmo', texto: opcao\.confirmacao \}\],/);
   // o rótulo mais comprido quebra a linha dentro do botão no celular: nada no botão impede a quebra
   const botaoAcao = pagina.slice(pagina.indexOf('function BotaoAcao('), pagina.indexOf('function ReembolsoStripe('));
   assert.match(botaoAcao, /<button type="submit" className=\{`min-h-10 px-4 text-small font-semibold/);
@@ -1123,7 +1133,7 @@ test('a página do painel: a caixa "Confirmo" nos botões de devolver, nenhuma c
   // a caixa é obrigatória no formulário (o navegador não envia sem ela) e manda o valor que a rota confere
   assert.match(pagina, /<input type="checkbox" name="confirmo" value="sim" required/);
   // o contestado não tem a caixa "Reembolsar na Stripe…": só o tipo "stripe" de reembolsoNoPainel a mostra
-  assert.match(pagina, /reembolso\.tipo === 'stripe' && \(\s*<ReembolsoStripe /);
+  assert.match(pagina, /reembolso\.tipo === 'stripe' && \(?\s*<ReembolsoStripe /);
   assert.doesNotMatch(pagina, /pagoNaStripe && <ReembolsoStripe/);
   assert.match(pagina, /reembolso\.tipo === 'contestado' && <p [^>]*>\{SEM_REEMBOLSO_NA_CONTESTACAO\}<\/p>/);
   // o filtro e as faixas, todas levando a ele
@@ -1154,6 +1164,10 @@ test('o voucher no painel mostra o status de verdade: num pedido todo reembolsad
   // usado: aparece enquanto o pedido vale; no pedido reembolsado inteiro, o dinheiro voltou (como a página do cliente diz)
   assert.equal(statusDoVoucherNoPainel(voucher('pago', 'usado')), 'Usado');
   assert.equal(statusDoVoucherNoPainel(voucher('reembolsado', 'usado')), 'Reembolsado');
+  // Pacote 33: no pedido reembolsado inteiro, também o voucher que tinha sido cancelado (sem reembolso, e depois a equipe
+  // usou "Reembolsar tudo"): todo o dinheiro voltou. No banco, o reembolso total leva o status do item que representa o
+  // pedido a todos os itens, e esse item pode ser o cancelado: sem esta regra, todos apareceriam "Cancelado"
+  assert.equal(statusDoVoucherNoPainel(voucher('reembolsado', 'cancelado')), 'Reembolsado');
   // nos outros, nada ao lado do voucher: o status do pedido, no alto do cartão, já diz
   for (const status of ['pago', 'pendente', 'expirado', 'contestado', 'aguardando_whatsapp', 'recusado'] as StatusReserva[]) {
     assert.equal(statusDoVoucherNoPainel(voucher(status)), undefined, status);
@@ -1162,7 +1176,7 @@ test('o voucher no painel mostra o status de verdade: num pedido todo reembolsad
   // a mesma regra da página do cliente (statusDoVoucher): se ela mudar, o painel tem de ser revisto junto
   assert.match(
     codigo('lib', 'reserva-publica.ts'),
-    /export function statusDoVoucher\(r: Pick<Reserva, 'status' \| 'statusItem'>\): StatusReserva \{\s*return r\.statusItem === 'cancelado' \|\| r\.statusItem === 'reembolsado' \? r\.statusItem : r\.status;\s*\}/,
+    /export function statusDoVoucher\(r: Pick<Reserva, 'status' \| 'statusItem'>\): StatusReserva \{\s*if \(r\.status === 'reembolsado'\) return r\.status;\s*return r\.statusItem === 'cancelado' \|\| r\.statusItem === 'reembolsado' \? r\.statusItem : r\.status;\s*\}/,
   );
   // e a página do painel escreve o status de cada voucher por esta função, nunca mais só o status do item
   const pagina = codigo('app', 'admin', 'page.tsx');
@@ -1224,7 +1238,8 @@ test('o voucher cujo reembolso falhou na Stripe: "Reembolso pendente" no painel,
   assert.deepEqual(rotulos(osDois(linhaDoVoucherDevolvidoPorOutroMeio('ON-BBB234', 15400))), ['Reembolso pendente', 'Reembolsado']);
 
   // o reembolso do pedido inteiro falhou: os dois vouchers ficam pendentes (a página de cada um diz o mesmo), até a
-  // devolução por outro meio; o voucher cancelado continua "Cancelado", como na página do cliente
+  // devolução por outro meio. Desde o Pacote 33, também o voucher cancelado: no pedido reembolsado inteiro, todo o dinheiro
+  // é do reembolso, e a página do cliente diz o mesmo (statusDoVoucher)
   const falhoDoPedido = { id: 're_tudo', centavos: 39600, motivo: 'expired_or_canceled_card' };
   const inteiro = (statusItens: [Reserva['statusItem'], Reserva['statusItem']], ...depois: string[]) =>
     doisItens(
@@ -1243,7 +1258,7 @@ test('o voucher cujo reembolso falhou na Stripe: "Reembolso pendente" no painel,
   assert.deepEqual(rotulos(inteiro([undefined, undefined])), ['Reembolso pendente', 'Reembolso pendente']);
   assert.deepEqual(rotulos(inteiro([undefined, 'ativo'])), ['Reembolso pendente', 'Reembolso pendente']);
   assert.deepEqual(rotulos(inteiro([undefined, undefined], linhaDaDevolucaoPorOutroMeio(falhoDoPedido))), ['Reembolsado', 'Reembolsado']);
-  assert.deepEqual(rotulos(inteiro([undefined, 'cancelado'])), ['Reembolso pendente', 'Cancelado']);
+  assert.deepEqual(rotulos(inteiro([undefined, 'cancelado'])), ['Reembolso pendente', 'Reembolso pendente']);
 
   // sem falha, como antes: o pago sem nada, o cancelado, o reembolsado e o usado
   const semFalha = (status: Reserva['status'], statusItens: [Reserva['statusItem'], Reserva['statusItem']]) =>
@@ -1384,12 +1399,14 @@ test('o selo do pedido reembolsado cujo reembolso falhou: "Reembolso pendente", 
     assert.equal(seloDoPedidoNoPainel(doisItens({ status })), ROTULO_DO_STATUS[status], status);
   }
 
-  // a página do painel escreve o selo por esta regra, com a cor do status de sempre; a tabela de antes saiu da página
+  // a página do painel escreve o selo por esta regra, com a cor do status de sempre (desde o Pacote 33, statusDoSelo: o do
+  // pedido, ou a do cancelado no pedido cancelado sem reembolso inteiro, que continua pago); a tabela de antes saiu da página
   const pagina = codigo('app', 'admin', 'page.tsx');
   assert.match(
     pagina,
-    /<span className=\{`mt-1 inline-block px-3 py-1 text-small font-semibold \$\{COR\[p\.status\]\}`\}>\{seloDoPedidoNoPainel\(p\)\}<\/span>/,
+    /<span className=\{`mt-1 inline-block px-3 py-1 text-small font-semibold \$\{COR\[statusDoSelo\(p\)\]\}`\}>\{seloDoPedidoNoPainel\(p\)\}<\/span>/,
   );
+  for (const status of Object.keys(ROTULO_DO_STATUS) as StatusReserva[]) assert.equal(statusDoSelo(umItem({ status })), status, status);
   assert.doesNotMatch(pagina, /ROTULO\[|const ROTULO\b/);
 });
 

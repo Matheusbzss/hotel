@@ -120,6 +120,8 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         urlPagina={urlPagina}
         pagamento={pagamento}
         desistencia={desistencia}
+        // Pacote 33: a reserva cancelada sem reembolso leva à política (o link só aparece nela)
+        politica={publica.semReembolso ? { href: rota(locale, '/politica-de-cancelamento'), texto: d.pedido.desistirPolitica } : undefined}
         statusTextos={d.status}
         textos={{
           ...d.reserva,

@@ -1,7 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
+import { pedidoRecusado } from '@/lib/admin-auth';
 import { TAG_AVALIACOES } from '@/lib/avaliacao';
 import { publicarAvaliacao } from '@/lib/avaliacoes';
 
@@ -10,10 +9,9 @@ export const runtime = 'nodejs';
 /** Publica ou esconde a avaliação. As páginas são refeitas na próxima visita, já com a mudança, sem novo deploy. */
 export async function POST(req: Request, ctx: RouteContext<'/api/admin/avaliacoes/[id]'>) {
   const { id } = await ctx.params;
-  const loja = await cookies();
-  if (!sessaoValida(loja.get(COOKIE_ADMIN)?.value)) return NextResponse.json({ ok: false }, { status: 401 });
-  const origem = req.headers.get('origin');
-  if (origem && new URL(origem).host !== new URL(req.url).host) return NextResponse.json({ ok: false }, { status: 403 });
+  // a proteção de todas as rotas do painel: o próprio site e a sessão (sem ela, o formulário volta à entrada do painel)
+  const recusado = await pedidoRecusado(req);
+  if (recusado) return recusado;
 
   const form = await req.formData();
   if (!/^[0-9a-f-]{36}$/.test(id)) return NextResponse.json({ ok: false }, { status: 400 });

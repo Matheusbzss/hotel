@@ -68,6 +68,14 @@ export const linhaDoCancelamento = (evento: string, ...statusLidos: string[]): s
 export const MARCA_DO_AVISO_DO_PEDIDO_PAGO = 'E-mail à equipe: aviso do pedido pago';
 
 /**
+ * Pacote 33: o e-mail do cancelamento sem reembolso pela equipe: o do pedido inteiro ("Pedido cancelado", um por pedido) e o
+ * de um voucher só ("Voucher cancelado", um por voucher). Não começam com a marca do "Pedido cancelado" de antes ("E-mail ao
+ * cliente: pedido cancelado"): cada uma só fecha o aviso dela.
+ */
+export const MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO = 'E-mail ao cliente: cancelamento sem reembolso do pedido';
+export const marcaDoEmailDoVoucherCancelado = (voucher: string): string => `E-mail ao cliente: cancelamento sem reembolso do voucher ${voucher}`;
+
+/**
  * Pacote 28 (revisão, achado M1): o e-mail novo que não saiu (o Resend fora do ar ou recusando, a cota do dia, a Stripe
  * que não respondeu na hora de conferir o reembolso) fica como aviso no histórico, destacado no painel: hoje ele é a única
  * notícia que o cliente reembolsado recebe. O aviso fecha sozinho quando a marca do mesmo e-mail aparece depois dele (um
@@ -79,8 +87,12 @@ export const avisoDoEmailDoCancelamentoQueNaoSaiu = (motivo: string): string =>
   `Aviso: o e-mail ao cliente do pedido cancelado não saiu (${motivo}): avisar o cliente pelo e-mail ou WhatsApp do pedido`;
 export const avisoDoAvisoDoPedidoPagoQueNaoSaiu = (motivo: string): string =>
   `Aviso: o e-mail à equipe do pedido pago não saiu (${motivo}): o pedido está pago, conferir os itens no painel`;
+/** Pacote 33: o e-mail do cancelamento sem reembolso que não saiu (o do pedido inteiro, ou o de um voucher). */
+export const avisoDoEmailSemReembolsoQueNaoSaiu = (motivo: string, voucher?: string): string =>
+  `Aviso: o e-mail ao cliente do cancelamento sem reembolso ${voucher ? `do voucher ${voucher}` : 'do pedido'} não saiu (${motivo}): avisar o cliente pelo e-mail ou WhatsApp do pedido`;
 
 const AVISO_DO_REEMBOLSO_QUE_NAO_SAIU = /^Aviso: o e-mail ao cliente do reembolso[^(]* não saiu \(reembolso ([^;\s]+);/;
+const AVISO_SEM_REEMBOLSO_QUE_NAO_SAIU = /^Aviso: o e-mail ao cliente do cancelamento sem reembolso (?:do voucher (\S+)|do pedido) não saiu /;
 
 /**
  * As marcas que fecham o aviso de um e-mail novo que não saiu (a linha `linha`), ou null quando a linha não é um desses
@@ -91,6 +103,8 @@ export function marcasQueFechamOAviso(linha: string): string[] | null {
   if (reembolso) return (['confirmado', 'a-caminho', 'concluido'] as const).map((v) => marcaDoEmailDoReembolso(v, reembolso[1]));
   if (linha.startsWith('Aviso: o e-mail ao cliente do pedido cancelado não saiu')) return [MARCA_DO_EMAIL_DO_CANCELAMENTO];
   if (linha.startsWith('Aviso: o e-mail à equipe do pedido pago não saiu')) return [MARCA_DO_AVISO_DO_PEDIDO_PAGO];
+  const semReembolso = AVISO_SEM_REEMBOLSO_QUE_NAO_SAIU.exec(linha);
+  if (semReembolso) return [semReembolso[1] ? marcaDoEmailDoVoucherCancelado(semReembolso[1]) : MARCA_DO_EMAIL_DO_PEDIDO_SEM_REEMBOLSO];
   return null;
 }
 

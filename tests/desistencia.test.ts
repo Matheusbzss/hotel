@@ -284,9 +284,11 @@ test('o painel e a rota do painel usam a mesma regra da faixa, com os vouchers d
   // a rota: a mesma regra, com os vouchers do pedido; a linha gravada dentro da trava, com o valor relido nela, uma vez
   const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
   assert.match(rota, /if \(!desistenciaParaResponder\(vouchers\)\) return voltar\('acao-nao-vale'\);/);
+  // desde o Pacote 33, com a trava dos 7 dias: a caixa "Estou ciente" antes da gravação e, dentro da trava (relida), a
+  // linha da trava junto da linha da resposta
   assert.match(
     rota,
-    /atualizarReserva\(alvo\.codigo, \(r\) =>\s*desistenciaRespondida\(r\) \? null : registrar\(r, linhaDaDesistenciaRespondida\(r\.reembolsoCentavos \?\? 0\)\),?\s*\)/,
+    /if \(travaDaDesistencia\(alvo\) && !ciente\) return voltar\('falta-ciente'\);\s+await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+if \(desistenciaRespondida\(r\)\) return null;\s+registrar\(r, linhaDaDesistenciaRespondida\(r\.reembolsoCentavos \?\? 0\)\);\s+const trava = travaDaDesistencia\(r\);\s+return trava \? registrar\(r, linhaDaTravaDosSeteDias\(trava, 'desistencia'\)\) : r;\s+\}\);/,
   );
   assert.doesNotMatch(rota, /registrar\(r, DESISTENCIA_RESPONDIDA\)/);
 });

@@ -20,6 +20,7 @@ import {
   type ReembolsoSemVoucher,
 } from './reembolsos-a-resolver.ts';
 import type { MetodoPagamento, Provedor, Reserva, StatusReserva } from './reservas';
+import { canceladoSemReembolso, cancelamentoDoVoucher, pedidoCanceladoSemReembolso } from './sem-reembolso.ts';
 
 /**
  * O pedido como o painel mostra: um pagamento e um voucher para cada item. Aqui só se agrupa e se soma,
@@ -194,6 +195,25 @@ export const ERROS_DO_PAINEL = {
   'hotel-invalido': 'Escreva o nome do hotel ou da pousada (até 120 letras). Nada foi gravado.',
   // segunda revisão do Pacote 29: outra pessoa da equipe (ou outra aba) gravou outro nome no meio-tempo
   'hotel-ja-informado': 'Este pedido já tem um hotel gravado no painel (veja o histórico do pedido). Nada foi mudado.',
+  // Pacote 33: o "Cancelar sem reembolso…" (passos 2 e 3 do plano) e a trava dos 7 dias do arrependimento
+  'falta-ciente':
+    'Marque também a caixa "Estou ciente" antes de continuar: dentro dos 7 dias do arrependimento, o cliente tem direito ao dinheiro de volta. Nada foi feito.',
+  'falta-motivo': 'Escolha o motivo do cancelamento sem reembolso. Nada foi feito.',
+  'falta-texto-do-motivo': 'Com "Outro motivo", escreva o motivo (até 200 letras): é o texto que o cliente lê. Nada foi feito.',
+  'texto-sem-outro':
+    'O texto escrito só vai ao cliente com "Outro motivo". Escolha "Outro motivo" ou deixe o texto vazio. Nada foi feito.',
+  // revisão do Pacote 33: o motivo que a data do serviço não deixa (motivosQueCombinam, src/lib/cancelar-sem-reembolso.ts)
+  'motivo-fora-da-data':
+    'Este motivo não combina com a data do serviço: "Fora da política" vale só a menos de 24 horas do início ou depois dele, e "Não compareceu", só depois do início. Abra de novo "Cancelar sem reembolso…" e escolha outro motivo. Nada foi feito.',
+  'cancelamento-nao-vale':
+    'Este pedido não pode ser cancelado sem reembolso no status em que está: só o pedido pago pela Stripe, sem contestação. Nada foi feito.',
+  'reembolso-a-resolver':
+    'Este pedido tem um reembolso a resolver (veja a frase vermelha no pedido). Resolva antes de cancelar sem reembolso. Nada foi feito.',
+  'reembolso-a-caminho':
+    'Este pedido tem um reembolso pedido à Stripe que ela ainda não confirmou. Espere a confirmação antes de cancelar sem reembolso. Nada foi feito.',
+  'nada-a-cancelar': 'Este pedido não tem mais nenhum voucher valendo: não há o que cancelar. Nada foi feito.',
+  'cancelamento-pela-metade':
+    'O cancelamento sem reembolso foi gravado, mas algum voucher ainda não ficou cancelado. Abra de novo "Cancelar sem reembolso…" e confirme para terminar: nada é cancelado duas vezes, e o e-mail ao cliente sai uma vez só.',
 } as const;
 
 export type ErroDoPainel = keyof typeof ERROS_DO_PAINEL;
@@ -392,6 +412,18 @@ export const voucherPago = (v: Pick<Reserva, 'statusItem'>): boolean => v.status
 export const voucherAtivo = (v: Pick<Reserva, 'statusItem'>): boolean => (v.statusItem ?? 'ativo') === 'ativo';
 
 /**
+ * O voucher devolvido por outro meio ('voucher_por_fora' da rota do painel) é o último que segura o pedido pago: nenhum
+ * outro voucher ainda pago e nenhum cancelado sem reembolso (Pacote 33: o dinheiro dele ficou). Só então o pedido inteiro
+ * vira reembolsado. Com um voucher cancelado sem reembolso, o pedido continua pago e conta como venda (decisão do dono de
+ * 25/11, P3), como no reembolso de um voucher só pela Stripe, que não é total. Cada voucher traz o que é do pedido
+ * (o status e o pagamento), como a rota lê.
+ */
+export const ultimoVoucherDoPedido = (
+  vouchers: readonly Pick<Reserva, 'codigo' | 'status' | 'statusItem' | 'pagamento'>[],
+  voucher: string,
+): boolean => !vouchers.some((v) => v.codigo !== voucher && (voucherPago(v) || canceladoSemReembolso(v)));
+
+/**
  * Os status de um voucher que o painel escreve ao lado dele. "Reembolso pendente" é a mesma palavra que o cliente lê
  * (pedido.reembolsoPendenteTitulo, em português: o painel é só em português).
  */
@@ -399,15 +431,22 @@ const ROTULO_DO_VOUCHER = {
   reembolsado: 'Reembolsado',
   reembolsoPendente: 'Reembolso pendente',
   cancelado: 'Cancelado',
+  // Pacote 33: o voucher que a equipe cancelou sem reembolso (o pedido continua pago)
+  canceladoSemReembolso: 'Cancelado sem reembolso',
   usado: 'Usado',
 } as const;
 
 /**
  * O voucher como o painel lê para escrever o status dele: o status do pedido e o do item e, para o reembolso que falhou,
  * o que a página do cliente usa (o código, o pedido, o valor devolvido e o histórico; sem eles, nenhum reembolso falhou).
+ * Com o pagamento (o JSON dele), o voucher cancelado sem reembolso (Pacote 33) diz isso.
  */
 export type VoucherNoPainel = Pick<Reserva, 'status' | 'statusItem'> &
-  Partial<Pick<Reserva, 'codigo' | 'pedido' | 'reembolsoCentavos' | 'historico'>>;
+  Partial<Pick<Reserva, 'codigo' | 'pedido' | 'reembolsoCentavos' | 'historico' | 'pagamento'>>;
+
+/** O voucher cancelado pela equipe sem reembolso (src/lib/sem-reembolso.ts), quando o painel sabe o código e o pagamento. */
+const semReembolsoNoPainel = (v: VoucherNoPainel): boolean =>
+  v.codigo !== undefined && v.pagamento !== undefined && canceladoSemReembolso({ ...v, codigo: v.codigo, pagamento: v.pagamento });
 
 /**
  * O dinheiro deste voucher ainda não voltou ao cliente: um reembolso que falhou na Stripe e diz respeito a ele (o do
@@ -431,16 +470,21 @@ const reembolsoPendente = (v: VoucherNoPainel): boolean =>
  * mostra "Reembolso pendente", como a página do cliente (reembolsoPendente): antes o painel escrevia "Reembolsado" ao
  * lado do "Falta devolver R$ …: o reembolso falhou na Stripe" do mesmo cartão (o ON-A8RVZN do reteste de 17/11). O voucher
  * usado num pedido que continua valendo mostra "Usado". Nos outros casos, nada: o status do pedido, no alto do cartão, já
- * diz.
+ * diz. Desde o Pacote 33: o voucher que a equipe cancelou sem reembolso mostra "Cancelado sem reembolso", e no pedido
+ * reembolsado inteiro todo voucher é reembolsado (também o cancelado sem reembolso antes: a equipe mudou de ideia e usou
+ * "Reembolsar tudo"), como a página do cliente (statusDoVoucher).
  */
 export function statusDoVoucherNoPainel(v: VoucherNoPainel): string | undefined {
   const status =
-    v.statusItem === 'reembolsado' || v.statusItem === 'cancelado'
-      ? v.statusItem
-      : v.status === 'reembolsado' || v.status === 'cancelado'
-        ? v.status
-        : undefined;
+    v.status === 'reembolsado'
+      ? v.status
+      : v.statusItem === 'reembolsado' || v.statusItem === 'cancelado'
+        ? v.statusItem
+        : v.status === 'cancelado'
+          ? v.status
+          : undefined;
   if (status === 'reembolsado' && reembolsoPendente(v)) return ROTULO_DO_VOUCHER.reembolsoPendente;
+  if (status === 'cancelado' && semReembolsoNoPainel(v)) return ROTULO_DO_VOUCHER.canceladoSemReembolso;
   if (status) return ROTULO_DO_VOUCHER[status];
   return v.statusItem === 'usado' ? ROTULO_DO_VOUCHER.usado : undefined;
 }
@@ -464,14 +508,21 @@ export const ROTULO_DO_STATUS: Record<StatusReserva, string> = {
  * pendente". Antes o selo dizia "Reembolsado" ao lado de "Falta devolver R$ …: o reembolso falhou na Stripe", e o cliente
  * lia "Reembolso pendente" (o ON-SZA5W6 do reteste de 17-18/11, defeito 6: o Pacote 15 tinha consertado só as linhas dos
  * vouchers). Quando a falha deixa de estar pendente (a devolução por outro meio registrada, ou a contestação aberta depois
- * dela perdida), o selo volta a "Reembolsado". A cor do selo continua a do status do pedido.
+ * dela perdida), o selo volta a "Reembolsado". A cor do selo continua a do status do pedido. Desde o Pacote 33, o pedido
+ * pago que a equipe cancelou sem reembolso inteiro (pedidoCanceladoSemReembolso: continua pago, nenhum voucher valendo)
+ * diz "Cancelado sem reembolso", com a cor do cancelado (statusDoSelo).
  */
 export function seloDoPedidoNoPainel(p: Pick<PedidoPainel, 'status' | 'itens'>): string {
   if (p.status === 'reembolsado' && p.itens.some((i) => statusDoVoucherNoPainel(i) === ROTULO_DO_VOUCHER.reembolsoPendente)) {
     return ROTULO_DO_VOUCHER.reembolsoPendente;
   }
+  if (pedidoCanceladoSemReembolso(p.itens)) return ROTULO_DO_VOUCHER.canceladoSemReembolso;
   return ROTULO_DO_STATUS[p.status];
 }
+
+/** O status cuja cor o selo usa: o do pedido; no pedido cancelado sem reembolso inteiro (ainda pago), o do cancelado. */
+export const statusDoSelo = (p: Pick<PedidoPainel, 'status' | 'itens'>): StatusReserva =>
+  pedidoCanceladoSemReembolso(p.itens) ? 'cancelado' : p.status;
 
 /**
  * As linhas do histórico que dizem que o dinheiro do pedido entrou: as das ações manuais do painel ("Marcada como paga no
@@ -958,6 +1009,30 @@ export function acaoManualOferecida(r: Pick<Reserva, 'status' | 'provedor' | 'pa
   }
 }
 
+/**
+ * Pacote 33 (D2 do painel de 25/11; decisão do dono de 16/11: a caixa "Confirmo" em todo botão que tira a validade de um
+ * voucher, e só o cancelamento de pedido que ninguém pagou fica com um toque): a ação manual que pede a caixa. "Marcar
+ * reembolsado", sempre (o voucher deixa de valer e o pedido registra dinheiro devolvido); "Cancelar", no pedido que chegou a
+ * ser pago (pedidoNuncaPago: o do WhatsApp pago, também o cancelado depois de pago). O "Cancelar" do pedido que ninguém pagou
+ * (em aberto, vencido) continua com um toque. A página mostra a caixa por esta regra, e a rota a confere de novo, também
+ * dentro da trava (o pedido que virou pago numa outra aba no meio-tempo passa a pedir a caixa).
+ */
+export function acaoManualPedeConfirmacao(r: Pick<Reserva, 'status' | 'pagamento' | 'historico'>, acao: string): boolean {
+  if (acao === 'reembolsado') return true;
+  if (acao === 'cancelar') return !pedidoNuncaPago(r);
+  return false;
+}
+
+/** As caixas "Confirmo" dos dois botões manuais que tiram a validade dos vouchers (acaoManualPedeConfirmacao). */
+export const CONFIRMACAO_DA_ACAO_MANUAL: Readonly<Record<'cancelar' | 'reembolsado', string>> = {
+  cancelar: 'Confirmo: cancelar o pedido, que já foi pago. Os vouchers deixam de valer, e o site não devolve dinheiro nenhum.',
+  reembolsado: 'Confirmo: o cliente já recebeu o dinheiro de volta por fora do site. Os vouchers deixam de valer.',
+};
+
+/** A frase da caixa "Confirmo" do botão manual, quando a regra pede a caixa; senão, nenhuma (o botão de um toque). */
+export const confirmacaoDaAcaoManual = (r: Pick<Reserva, 'status' | 'pagamento' | 'historico'>, acao: string): string | undefined =>
+  (acao === 'cancelar' || acao === 'reembolsado') && acaoManualPedeConfirmacao(r, acao) ? CONFIRMACAO_DA_ACAO_MANUAL[acao] : undefined;
+
 /* ------------------------------------------------------------------ */
 /* O pagamento que chega para um pedido cancelado (Pacote 22, 23/11)    */
 
@@ -1038,10 +1113,19 @@ export const pagoPeloRetidoReativado = (r: Pick<Reserva, 'status' | 'paymentInte
 /**
  * Os vouchers do pedido reativado que ainda estão 'cancelado' (relidos depois de o pedido ficar pago): no banco, cancelar
  * levou todos os itens a 'cancelado' e gravar o pedido como pago só muda o item do voucher gravado. Os outros voltam a
- * valer na reativação, um por um; o que falhou continua aqui e volta no toque repetido.
+ * valer na reativação, um por um; o que falhou continua aqui e volta no toque repetido. Fica de fora o voucher que a
+ * equipe cancelou sem reembolso depois da reativação (Pacote 33: o cancelamento gravado no JSON do pagamento o lista):
+ * um formulário antigo de "Reativar o pedido (fica pago)" não o faz voltar a valer.
  */
-export const irmaosAindaCancelados = <T extends Pick<Reserva, 'codigo' | 'statusItem'>>(releitura: readonly T[], gravado: string): T[] =>
-  releitura.filter((v) => v.codigo !== gravado && v.statusItem === 'cancelado');
+export const irmaosAindaCancelados = <
+  T extends Pick<Reserva, 'codigo' | 'statusItem'> & { pagamento?: Pick<Reserva['pagamento'], 'semReembolso'> },
+>(
+  releitura: readonly T[],
+  gravado: string,
+): T[] =>
+  releitura.filter(
+    (v) => v.codigo !== gravado && v.statusItem === 'cancelado' && cancelamentoDoVoucher(v.pagamento, v.codigo) === undefined,
+  );
 
 /**
  * "Devolver R$ … ao cliente", passo 1, dentro da trava de versão e ANTES de pedir à Stripe: marca a decisão de devolver

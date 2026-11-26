@@ -255,6 +255,16 @@ const en: Dicionario = {
       'We have received your cancellation request. Our team will reply by email within 1 business day, and the refund follows the cancellation policy.',
     desistirRepetido:
       'Your cancellation request has already been received. Our team will reply by email within 1 business day, and the refund follows the cancellation policy.',
+    // Pacote 33: o pedido que a equipe cancelou sem reembolso, com o motivo e a regra da política (item 6)
+    canceladoSemReembolsoTexto: 'Your order has been cancelled by our team, without a refund.',
+    canceladoSemReembolsoComParteTexto: 'The rest of your order has been cancelled by our team, without a refund.',
+    voucherCanceladoSemReembolso: 'Cancelled, without a refund',
+    motivoForaDaPolitica: 'Reason: the cancellation was requested less than 24 hours before the service.',
+    motivoNaoCompareceu: 'Reason: no-show at the agreed time and place.',
+    motivoOutro: 'Reason: {texto}',
+    regraSemReembolso:
+      'Under our cancellation policy (item 6), except in the situations described in items 2, 4 and 5, cancellations made less than 24 hours in advance and failing to show up at the agreed time and place are not refundable, because the place has already been booked and paid to the operator.',
+    regraGeralSemReembolso: 'The cancellation and refund rules are in our cancellation policy.',
   },
   boletim: {
     titulo: 'Tours and your group’s total',
@@ -684,6 +694,7 @@ const en: Dicionario = {
     expiradoTexto: 'The time to pay this Pix is over. Make a new booking or talk to us.',
     canceladoTitulo: 'Booking cancelled',
     canceladoTexto: 'This booking has been cancelled. If you have any questions, talk to us.',
+    canceladoSemReembolsoTexto: 'This booking has been cancelled by our team, without a refund.',
     whatsappTitulo: 'Booking saved',
     whatsappTexto:
       'Your booking has been saved. Complete the payment with our team on WhatsApp; your voucher is released as soon as the payment is confirmed.',

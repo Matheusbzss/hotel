@@ -43,7 +43,7 @@ export function MarcarCasaNoMapa({
         </span>
       </div>
       <p className="mt-2 max-w-[70ch] text-small text-tinta-suave">
-        O site nunca mostra este ponto: a página da casa mostra só uma área de cerca de 1 km em volta de um ponto sorteado perto da casa. A
+        O site nunca mostra este ponto: a página da casa mostra só uma área de cerca de 1 km em volta de um ponto sorteado perto dele. A
         localização exata vai para o cliente depois da reserva, pela equipe, no WhatsApp.
       </p>
       {ponto && (

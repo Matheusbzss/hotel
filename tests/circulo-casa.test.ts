@@ -13,7 +13,7 @@ import {
 // Um ponto qualquer em Búzios, só para a conta (não é o de nenhuma casa).
 const PONTO = { lat: -22.7612, lng: -41.8853 };
 
-test('o deslocamento máximo é menor que o raio: a casa fica sempre dentro do círculo', () => {
+test('o deslocamento máximo é menor que o raio: o ponto marcado fica sempre dentro do círculo', () => {
   assert.equal(RAIO_CIRCULO_M, 500);
   assert.ok(DESLOCAMENTO_MINIMO_M === 150 && DESLOCAMENTO_MAXIMO_M === 350);
   assert.ok(DESLOCAMENTO_MAXIMO_M < RAIO_CIRCULO_M);

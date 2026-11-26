@@ -852,7 +852,7 @@ const es: Dicionario = {
     avisemeMensagem: 'Fechas y cantidad de personas (opcional)',
     metaDiaria: 'Precio por noche desde {pix} con Pix o {cartao} con tarjeta.',
     verCasas: 'Ver las casas',
-    mapaCirculo: 'La casa está dentro del círculo, de {m} m de radio.',
+    mapaCirculo: 'El círculo, de {m} m de radio, muestra la zona, no el lugar exacto de la casa.',
     chegadaSeguranca: 'Llegada y seguridad',
   },
   contato: {

@@ -7,7 +7,9 @@
  * pelo próprio banco, quando o ponto é marcado, e a linha do ponto não se apaga. Se o dono mudar o alfinete, o centro
  * anda junto, com o mesmo deslocamento: um sorteio novo a cada vez deixaria cruzar os círculos e achar a casa.
  *
- * Como o deslocamento máximo (350 m) é menor que o raio (500 m), a casa fica sempre dentro do círculo.
+ * Como o deslocamento máximo (350 m) é menor que o raio (500 m), o ponto marcado fica sempre dentro do círculo. A
+ * página não promete que a CASA está dentro dele (mapaCirculo, em src/i18n): o dono marcou as duas casas de hoje pelo
+ * ponto do bairro, e não pelo da casa (decisão de 25/11/2026).
  *
  * A conta do centro é a mesma do gatilho casas_pontos_centro (supabase/migrations/20261125234456_...): o ponto de
  * destino numa esfera, a partir de um ponto, uma direção (graus a partir do norte, no sentido do relógio) e uma

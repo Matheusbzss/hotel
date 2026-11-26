@@ -10,7 +10,7 @@ import type { Cidade, Lista, Texto } from './passeios';
  * 1. Fotos em /public/fotos/casas/<slug>/ (a primeira é a capa).
  * 2. Preencha o cadastro. Não invente nada: o que o dono não mandou, pergunte.
  * 3. O dono marca a casa no mapa do painel, colando as coordenadas do Google Maps (Pacote 32). O ponto fica só numa
- *    tabela fechada do banco; a página mostra um círculo em volta de um centro sorteado perto da casa, na foto de
+ *    tabela fechada do banco; a página mostra um círculo em volta de um centro sorteado perto do ponto, na foto de
  *    satélite do site (/mapa/casas/<slug>). O endereço exato não é cadastrado: a equipe manda a localização pelo
  *    WhatsApp depois da reserva.
  * Sem casa no ar, a página mostra "Em breve", e "Casas" fica fora do menu e do Google.

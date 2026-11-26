@@ -835,7 +835,7 @@ const en: Dicionario = {
     avisemeMensagem: 'Dates and how many people (optional)',
     metaDiaria: 'Nightly rate from {pix} with Pix or {cartao} by card.',
     verCasas: 'See the homes',
-    mapaCirculo: 'The house is inside the circle, {m} m in radius.',
+    mapaCirculo: 'The circle, {m} m in radius, shows the area, not the exact location of the house.',
     chegadaSeguranca: 'Arrival and safety',
   },
   contato: {

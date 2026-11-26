@@ -901,7 +901,8 @@ const pt = {
     avisemeMensagem: 'Datas e quantas pessoas (opcional)',
     metaDiaria: 'Diária a partir de {pix} no Pix ou {cartao} no cartão.',
     verCasas: 'Ver as casas',
-    mapaCirculo: 'A casa fica dentro do círculo, de {m} m de raio.',
+    // não promete a casa dentro do círculo: o dono marcou as casas pelo ponto do bairro (decisão de 25/11/2026)
+    mapaCirculo: 'O círculo, de {m} m de raio, mostra a região, não o lugar exato da casa.',
     chegadaSeguranca: 'Chegada e segurança',
   },
   contato: {

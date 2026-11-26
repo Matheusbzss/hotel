@@ -53,10 +53,13 @@ const doTransfer = (e: EscolhaTransfer) => SUGESTOES_TRANSFER[e.ida.destino.luga
 
 /**
  * As sugestões do carrinho, em ordem: primeiro as do último item adicionado, depois as dos anteriores, sem
- * repetir e sem o que já está no carrinho.
+ * repetir e sem o que já está no carrinho. A casa de temporada não gera sugestão (a venda cruzada casa ↔ passeios fica
+ * para depois) e não atrapalha as dos outros itens.
  */
 export function sugestoesDoCarrinho(escolhas: EscolhaItem[]): string[] {
   const noCarrinho = escolhas.flatMap((e) => (e.tipo === 'passeio' ? [e.slug] : []));
-  const lista = [...escolhas].reverse().flatMap((e) => (e.tipo === 'passeio' ? (SUGESTOES_PASSEIO[e.slug] ?? []) : doTransfer(e)));
+  const lista = [...escolhas]
+    .reverse()
+    .flatMap((e) => (e.tipo === 'passeio' ? (SUGESTOES_PASSEIO[e.slug] ?? []) : e.tipo === 'transfer' ? doTransfer(e) : []));
   return [...new Set(lista)].filter((s) => !noCarrinho.includes(s));
 }

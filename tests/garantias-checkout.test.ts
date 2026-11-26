@@ -76,7 +76,7 @@ test('no resumo do checkout, a ordem é: total, botão de pagar, garantias e só
     resumo.indexOf('fmt(C.pagar,'),
     resumo.indexOf('C.finalizarWhatsapp'),
     resumo.indexOf('garantiasDoCheckout(textos.garantias'),
-    resumo.indexOf('{C.umPagamentoTotal}'),
+    resumo.indexOf('{umPagamento}'),
     resumo.indexOf('<SugestoesCarrinho'),
     resumo.indexOf('</aside>'),
   ];
@@ -92,7 +92,7 @@ test('no resumo do checkout, a ordem é: total, botão de pagar, garantias e só
   // o voucher na hora e o pagamento seguro só com o botão "Pagar" (o mesmo "online && forma" que escolhe o botão)
   assert.match(
     fonte,
-    /garantiasDoCheckout\(textos\.garantias, \{\s+temPasseio,\s+voucherNaHora: online && forma !== null,\s+pagoSeguro: textos\.pagoSeguro,\s+\}\)/,
+    /garantiasDoCheckout\(textos\.garantias, \{\s+temPasseio,\s+voucherNaHora: online && forma !== null,\s+pagoSeguro: textos\.pagoSeguro,\s+comCasa,\s+\}\)/,
   );
   // Pacote 34 (P7): "um pagamento só" e "o valor total" numa linha só; as duas frases separadas saíram dali
   assert.doesNotMatch(resumo, /\{K\.umPagamento\}|\{C\.avisoTotal\}/);

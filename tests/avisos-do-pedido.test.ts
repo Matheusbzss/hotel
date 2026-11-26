@@ -526,7 +526,8 @@ test('o aviso à equipe do pedido pago avisa do hotel a informar, no assunto e n
   assert.equal(sem.assunto, 'Pedido pago: ON-7K3P9Q (R$ 154,00)');
   assert.ok(!sem.texto.includes('ainda não sabe o hotel'));
   // quem envia confere os passeios do pedido
-  assert.match(fonte('lib', 'email', 'pedidos.ts'), /hotelAInformar: lista\.some\(\(v\) => !ehTransfer\(v\) && v\.hospedagem\.aInformar === true\)/);
+  // só os passeios têm hotel: desde a Etapa 7 o pedido também pode ter casa, por isso ehPasseio e não "não é transfer"
+  assert.match(fonte('lib', 'email', 'pedidos.ts'), /hotelAInformar: lista\.some\(\(v\) => ehPasseio\(v\) && v\.hospedagem\.aInformar === true\)/);
 });
 
 test('os quatro e-mails novos são essenciais na cota do dia', () => {

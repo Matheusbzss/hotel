@@ -8,6 +8,7 @@ import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
 import type { ItemCarrinho, ItemVisivel } from './carrinho';
 import { PASTA_CARRINHOS, itemVisivel, novoCodigoCarrinho, type CarrinhoGuardado, type LembretesDoCarrinho } from './carrinho-servidor';
+import { SEM_CASAS } from './casa-no-carrinho';
 import { cotacaoDolar } from './dolar';
 import { emailLigado, enviarEmail, falhaDaConta, saiu } from './email/enviar';
 import { cabecalhosDeSair, chaveDosLinks, decifrarEmail, idiomaDoLink, lerLink, linkDeSair, linkDeVoltar } from './email/links';
@@ -473,9 +474,11 @@ export async function enviarLembretes(agora: Date = new Date()): Promise<ResumoD
         pular('limite-do-dia');
         continue;
       }
-      // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida)
+      // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida). Sem o contexto das
+      // casas (SEM_CASAS), o carrinho com casa não recebe lembrete no pacote 1 da reserva das casas: a casa volta null e o
+      // carrinho cai em 'item-fora-do-site' (o lembrete com o sinal da casa fica para o pacote 2)
       const d = dicionario(c.idioma);
-      const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, agora));
+      const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, SEM_CASAS, agora));
       if (visiveis.some((v) => v === null)) {
         pular('item-fora-do-site');
         continue;

@@ -139,9 +139,12 @@ test('o Pix vale até 2 horas antes do primeiro serviço; o cartão, até 30 min
   const ontem = [...ok, transfer('2026-11-01', '23:00')];
   assert.equal(pixDisponivel(ontem, AGORA), false);
   assert.equal(cartaoDisponivel(ontem, AGORA), false);
-  // casa com entrada hoje às 15h: faltam 40 minutos, só o cartão
+  // a casa não se paga no dia da entrada (decisão do dono de 26/11/2026): com a entrada hoje, nem Pix nem cartão, mesmo
+  // faltando 40 minutos para as 15h; a de amanhã, as duas
   assert.equal(pixDisponivel([casa('2026-11-02')], AGORA), false);
-  assert.equal(cartaoDisponivel([casa('2026-11-02')], AGORA), true);
+  assert.equal(cartaoDisponivel([casa('2026-11-02')], AGORA), false);
+  assert.equal(pixDisponivel([casa('2026-11-03')], AGORA), true);
+  assert.equal(cartaoDisponivel([casa('2026-11-03')], AGORA), true);
   // sem itens não há o que pagar
   assert.equal(pixDisponivel([], AGORA), false);
   assert.equal(cartaoDisponivel([], AGORA), false);
@@ -224,9 +227,11 @@ test('o cartão conta os segundos: com os 30 minutos cravados ainda vale; um seg
   // num pedido com vários itens, o que começa primeiro decide (os outros longe não seguram o cartão)
   assert.equal(cartaoDisponivel([passeio('2026-11-03', '09:00'), ...servico], asSeg('2026-11-02T11:30:00')), true);
   assert.equal(cartaoDisponivel([passeio('2026-11-03', '09:00'), ...servico], asSeg('2026-11-02T11:30:01')), false);
-  // a casa entra às 15h: às 14h30min00s ainda; às 14h30min01s, não
-  assert.equal(cartaoDisponivel([casa('2026-11-02')], asSeg('2026-11-02T14:30:00')), true);
-  assert.equal(cartaoDisponivel([casa('2026-11-02')], asSeg('2026-11-02T14:30:01')), false);
+  // a casa não se paga no dia da entrada (decisão do dono de 26/11/2026): o prazo é a meia-noite que começa o dia da entrada,
+  // e o cartão dela vale até as 23h30min00s da véspera; às 23h30min01s, não. No dia da entrada, nunca
+  assert.equal(cartaoDisponivel([casa('2026-11-03')], asSeg('2026-11-02T23:30:00')), true);
+  assert.equal(cartaoDisponivel([casa('2026-11-03')], asSeg('2026-11-02T23:30:01')), false);
+  assert.equal(cartaoDisponivel([casa('2026-11-02')], asSeg('2026-11-02T08:00:00')), false);
   // uma data que não dá para ler nunca libera o cartão
   assert.equal(cartaoDisponivel([passeio('amanhã', '12:00')], asSeg('2026-11-02T09:00:00')), false);
   // escolherFormas, a regra das telas e das rotas (formasDoPagamento: o checkout, as páginas do pedido e da reserva, a
@@ -388,8 +393,11 @@ test('o QR do Pix: 30 minutos longe do prazo, só até o prazo perto dele, nunca
   // num pedido com vários itens, vale o que começa primeiro
   const pedido = [passeio('2026-11-03', '09:00'), transfer('2026-11-02', '17:00'), casa('2026-11-04')];
   assert.equal(validadeDoPix(pedido, as('2026-11-02T14:45:00')), 15 * 60);
-  // a casa conta pela entrada às 15h
-  assert.equal(validadeDoPix([casa('2026-11-02')], as('2026-11-02T12:40:00')), 20 * 60);
+  // a casa conta pela meia-noite do dia da entrada (decisão do dono de 26/11/2026): o Pix vale até as 22h da véspera
+  assert.equal(validadeDoPix([casa('2026-11-03')], as('2026-11-02T21:40:00')), 20 * 60);
+  assert.equal(validadeDoPix([casa('2026-11-03')], as('2026-11-02T22:00:00')), 10 * 60);
+  assert.equal(validadeDoPix([casa('2026-11-03')], as('2026-11-02T22:00:01')), null);
+  assert.equal(validadeDoPix([casa('2026-11-02')], as('2026-11-02T08:00:00')), null);
   // atravessa a meia-noite: às 22h15, o transfer da 0h30 de amanhã tem o prazo do Pix às 22h30
   assert.equal(validadeDoPix([transfer('2026-11-03', '00:30')], as('2026-11-02T22:15:00')), 15 * 60);
   // sem itens, ou com uma data que não dá para ler, nunca

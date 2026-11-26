@@ -340,23 +340,30 @@ test('casa sem preço não vende: nenhuma noite sai por R$ 0,00 (motivo "preco",
   );
 });
 
-test('o primeiro dia de entrada: depois das 13h (2 horas antes das 15h), a noite de hoje já não vende e conta como passada', () => {
-  // sexta, 11/12/2026, no fuso de Búzios
-  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T12:00:00-03:00')), '2026-12-11');
-  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T13:00:00-03:00')), '2026-12-11');
+test('o primeiro dia de entrada: só a partir de amanhã (decisão do dono de 26/11/2026); depois das 22h, de depois de amanhã', () => {
+  // sexta, 11/12/2026, no fuso de Búzios: a entrada de hoje nunca vende, a qualquer hora
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T00:00:00-03:00')), '2026-12-12');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T08:00:00-03:00')), '2026-12-12');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T12:00:00-03:00')), '2026-12-12');
   assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T13:01:00-03:00')), '2026-12-12');
   assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T18:00:00-03:00')), '2026-12-12');
+  // a casa não se paga no dia da entrada: o prazo é a meia-noite, e todo pedido novo pede 2 horas até ele (até as 22h)
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T22:00:00-03:00')), '2026-12-12');
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T22:01:00-03:00')), '2026-12-13');
   // 23h30 em Búzios já é o dia seguinte em UTC: a conta usa o fuso de Búzios
-  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T23:30:00-03:00')), '2026-12-12');
-  // sexta às 18h: sábado a segunda passa (a sexta ficou para trás); ao meio-dia, ainda pede a sexta
+  assert.equal(primeiraEntradaPossivel(new Date('2026-12-11T23:30:00-03:00')), '2026-12-13');
+  // na sexta, sábado a segunda passa (a sexta é de hoje e ficou para trás, a qualquer hora)
+  const sextaCedo = primeiraEntradaPossivel(new Date('2026-12-11T08:00:00-03:00'));
+  assert.equal(contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: sextaCedo }).ok, true);
   const sextaTarde = primeiraEntradaPossivel(new Date('2026-12-11T18:00:00-03:00'));
   assert.equal(contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: sextaTarde }).ok, true);
-  const sextaCedo = primeiraEntradaPossivel(new Date('2026-12-11T12:00:00-03:00'));
-  const cedo = contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: sextaCedo });
-  assert.equal(cedo.motivo, 'fim-de-semana');
-  assert.deepEqual(cedo.faltam, ['2026-12-11']);
-  // e a sexta à tarde não vende a entrada de hoje
-  assert.equal(contaEstadia(FERRADURA, '2026-12-11', '2026-12-14', { hoje: sextaTarde }).motivo, 'datas');
+  // e a sexta não vende a entrada de hoje, nem cedo
+  assert.equal(contaEstadia(FERRADURA, '2026-12-11', '2026-12-14', { hoje: sextaCedo }).motivo, 'datas');
+  // na quinta, a sexta ainda é de amanhã: sábado a segunda pede a sexta junto (o fim de semana)
+  const quinta = primeiraEntradaPossivel(new Date('2026-12-10T12:00:00-03:00'));
+  const naQuinta = contaEstadia(FERRADURA, '2026-12-12', '2026-12-14', { hoje: quinta });
+  assert.equal(naQuinta.motivo, 'fim-de-semana');
+  assert.deepEqual(naQuinta.faltam, ['2026-12-11']);
   // sábado às 18h: domingo a terça passa
   const sabadoTarde = primeiraEntradaPossivel(new Date('2026-12-12T18:00:00-03:00'));
   assert.equal(contaEstadia(FERRADURA, '2026-12-13', '2026-12-15', { hoje: sabadoTarde }).ok, true);

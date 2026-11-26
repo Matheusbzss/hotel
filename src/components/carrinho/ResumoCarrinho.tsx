@@ -1,6 +1,6 @@
 'use client';
 
-import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
+import { temCasa, totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
@@ -8,6 +8,8 @@ import { ComDolar } from '../ComDolar';
 
 export interface TextosResumo {
   total: string;
+  /** "A pagar hoje": no lugar de "Total" quando o carrinho tem casa (a casa cobra o sinal hoje). */
+  aPagarHoje: string;
   noPix: string;
   noCartao: string;
   /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês) */
@@ -21,7 +23,8 @@ export interface TextosResumo {
 
 /**
  * O total do carrinho nas duas formas (em português o Pix em destaque; em espanhol e inglês o cartão em destaque e o Pix
- * embaixo, com o desconto: src/lib/preco-destaque.ts), um pagamento só, e o botão de finalizar.
+ * embaixo, com o desconto: src/lib/preco-destaque.ts), um pagamento só, e o botão de finalizar. Com casa no carrinho, o
+ * total é o que se paga hoje (o sinal da casa mais o resto), com o rótulo "A pagar hoje".
  */
 export function ResumoCarrinho({
   itens,
@@ -44,6 +47,7 @@ export function ResumoCarrinho({
   aoContinuar?: () => void;
 }) {
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
+  const rotulo = temCasa(itens) ? T.aPagarHoje : T.total;
   const brl = (c: number) => formatarCifra(c, locale);
   const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
   const cartaoPrimeiro = cartaoEmDestaque(locale);
@@ -59,7 +63,7 @@ export function ResumoCarrinho({
         <span className="grow basis-0 font-semibold">
           <ComDolar dolar={usd(grande)} className="text-small font-normal text-(--color-tinta-suave)">
             <span className="whitespace-nowrap">
-              {T.total} {cartaoPrimeiro ? T.noCartao : verde(T.noPix)}
+              {rotulo} {cartaoPrimeiro ? T.noCartao : verde(T.noPix)}
             </span>
           </ComDolar>
         </span>
@@ -69,7 +73,7 @@ export function ResumoCarrinho({
         <span className="grow basis-0">
           <ComDolar dolar={usd(embaixo)}>
             <span className="whitespace-nowrap">
-              {T.total}{' '}
+              {rotulo}{' '}
               {cartaoPrimeiro ? <span className="font-semibold">{verde(rotuloPixComDesconto(T.noPixComDesconto))}</span> : T.noCartao}
             </span>
           </ComDolar>

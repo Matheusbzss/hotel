@@ -53,9 +53,7 @@ export interface Casa extends TabelaDiarias {
   fotos: string[];
 }
 
-/**
- * false até existir o pagamento das casas (Fase 4): a página mostra o calendário e a conta, e no lugar
- * do botão de reservar avisa que a reserva abre em breve. Decisão do dono: quando abrir, a reserva se
- * confirma sozinha com o sinal pago, sem a equipe confirmar antes.
- */
-export const RESERVA_CASAS_ABERTA = false;
+// A RESERVA DAS CASAS abre pelo interruptor RESERVA_CASAS (src/lib/reserva-casas.ts: 'desligado', o padrão, 'admin' ou
+// 'publico'), e nunca sem o pagamento online. Fechada, a página mostra o calendário e a conta, e no lugar do botão de
+// reservar avisa que a reserva abre em breve. Decisão do dono: quando abrir, a reserva se confirma sozinha com o sinal
+// pago, sem a equipe confirmar antes.

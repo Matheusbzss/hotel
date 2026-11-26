@@ -108,6 +108,9 @@ export async function pedirNovaSessao(codigoPedido: string, token: string, forma
       formas?: unknown;
     };
     if (res.ok && corpo.ok && corpo.clientSecret) return { clientSecret: corpo.clientSecret };
+    // a casa (Etapa 7): a conta ou as datas da casa mudaram e o servidor cancelou o pedido (409 'mudou' ou 'datas'). Para a
+    // tela, é o pedido que mudou por baixo: a página mostra o estado de verdade, pelo mesmo caminho do 409 'status'
+    if (res.status === 409 && (corpo.erro === 'mudou' || corpo.erro === 'datas')) return { erro: 'status' };
     const semPix = motivoSemPix(corpo.semPix);
     // as formas que ainda valem, que o 403 'forma' traz (vazias com o freio de emergência): é com elas que a escolha decide
     // o erro (erroDaFormaRecusada). Até o reteste de 17-18/11 (F7) elas ficavam pelo caminho

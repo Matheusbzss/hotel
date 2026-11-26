@@ -187,6 +187,13 @@ const es: Dicionario = {
     // Sem verbo em tú nem em vos: o es-ar lê a mesma frase
     pedidoPago: 'Tu pedido {codigo} ya está pagado.',
     verPedido: 'Ver el pedido',
+    // a casa de temporada no carrinho (Etapa 7); ver pt.ts
+    aPagarHoje: 'A pagar hoy',
+    casaSinalHoje: 'Anticipo del {p}% hoy; el resto, al llegar',
+    casaTotalDaEstadia: 'Total de la estadía: {cartao} con tarjeta o {pix} con Pix',
+    casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Toca Cambiar para elegir otras fechas.',
+    casaEsperando:
+      'Ya hay un pedido de casa con este e-mail esperando el pago. Completa ese pago o espera a que venza, en hasta 1 hora, para hacer otro pedido.',
   },
   cotacao: {
     mensagem: 'Tu mensaje',
@@ -694,6 +701,17 @@ const es: Dicionario = {
     // Pacote 34 (P7): embaixo do botão de pagar, "un solo pago" e "el valor total" numa linha só (sem verbo em tú: o
     // es-ar lê a mesma)
     umPagamentoTotal: 'Un solo pago, siempre por el valor total, y un voucher para cada ítem.',
+    // com casa no carrinho (Etapa 7); ver pt.ts
+    umPagamentoComCasa:
+      'Un solo pago y un voucher para cada ítem. En la casa, hoy pagas un anticipo del {p}% y el resto al llegar, con Pix, efectivo o tarjeta.',
+    casaSoNoSite:
+      'La reserva de la casa se paga aquí en el sitio, y el pago en el sitio no está disponible ahora. Intenta de nuevo más tarde o escríbenos por e-mail.',
+    casaSoNoSiteComOutros:
+      'La reserva de la casa se paga aquí en el sitio, y el pago en el sitio no está disponible ahora. Para terminar los otros ítems por WhatsApp, saca la casa del carrito.',
+    cancelamentoDaCasa: 'Cancelación de la casa',
+    garantiasPasseios: 'En los paseos',
+    garantiasTransfer: 'En el traslado',
+    garantiasPasseiosETransfer: 'En los paseos y el traslado',
     // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela); o nome do botão é o da Stripe em
     // espanhol ("Copiar el código", visto no teste de 09/11)
     pixNoCelular: 'En el celular, toca Copiar el código y pégalo en tu app, en Pix Copia y Pega.',
@@ -902,6 +920,7 @@ const es: Dicionario = {
     verCasas: 'Ver las casas',
     mapaCirculo: 'El círculo, de {m} m de radio, muestra la zona, no el lugar exacto de la casa.',
     chegadaSeguranca: 'Llegada y seguridad',
+    itemNaStripe: '{casa}: anticipo del {p}%',
   },
   contato: {
     titulo: 'Contáctanos',

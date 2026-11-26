@@ -5,10 +5,12 @@ import type { TextosDesistencia } from '@/components/pagamento/DesistirDaCompra'
 import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
 import { obterPasseio } from '@/data/passeios';
 import { dicionario, type Dicionario } from '@/i18n';
-import { fmt, rota, type Idioma } from '@/i18n/config';
+import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { nomeDoHotel } from './hospedagem';
-import type { ItemVisivel } from './carrinho';
+import { itensDaConta, type ItemVisivel } from './carrinho';
+import { linhasDoItemDaCasa } from './casa-no-carrinho';
+import { SINAL_PORCENTO } from './diarias';
 import {
   formasDoPagamento,
   pagamentoOnlineAberto,
@@ -24,7 +26,7 @@ import { pagamentoRetidoADecidir, provedorDaReserva, recebidoNaPaginaDoCliente, 
 import { textoPessoas } from './pessoas';
 import { partesDaPagina, type PartesDoReembolso } from './reembolsos-a-resolver';
 import { recusaParaOCliente, type ChaveRecusa } from './recusas';
-import { ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type StatusReserva } from './reservas';
+import { ehCasa, ehTransfer, type MetodoPagamento, type Provedor, type Reserva, type ReservaCasa, type StatusReserva } from './reservas';
 import { frasesDoCancelamentoSemReembolso } from './cancelar-sem-reembolso';
 import { canceladoSemReembolso, cancelamentoDoVoucher } from './sem-reembolso';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
@@ -41,7 +43,7 @@ export interface ReservaPublica {
   codigo: string;
   /** O status deste voucher: o do pedido ou, se o item foi cancelado ou reembolsado sozinho, o do item. */
   status: StatusReserva;
-  tipo: 'passeio' | 'transfer';
+  tipo: 'passeio' | 'transfer' | 'casa';
   /** No transfer, "transfer" (o código do produto no Pixel). */
   passeioSlug: string;
   /** No transfer, "Transfer privado". */
@@ -65,6 +67,8 @@ export interface ReservaPublica {
   cidadeHospedagem: string;
   /** Só no transfer: veículo, trechos, malas e cadeirinhas, já no idioma da página. */
   transfer?: TransferVisivel;
+  /** Só na casa: as datas, as diárias, os hóspedes e os valores (a estadia, o sinal pago no site e o que fica para a chegada). */
+  casa?: CasaPublica;
   metodo: Reserva['pagamento']['metodo'];
   /** A forma de pagamento online escolhida (cartão ou Pix); ausente no caminho do WhatsApp. */
   forma?: FormaPagamento;
@@ -103,6 +107,61 @@ export interface ReservaPublica {
    * nem a hora, nem a trava dos 7 dias.
    */
   semReembolso?: { motivo: string; regra: string };
+}
+
+/** A casa como as páginas, o checkout embutido e a sessão da Stripe mostram, já no idioma da página. */
+export interface CasaPublica {
+  /** A entrada (às 15h) e a saída (até as 12h), AAAA-MM-DD. */
+  entrada: string;
+  saida: string;
+  noites: number;
+  hospedes: number;
+  /** "4 diárias, de qui 10/12 a seg 14/12". */
+  periodo: string;
+  /** O nome do item na Stripe: "Mansão Geribá Vista Mar: sinal de 50%" (casas.itemNaStripe). */
+  nomeDoSinal: string;
+  totalCentavos: number;
+  totalPixCentavos: number;
+  /** O sinal guardado na compra, nas duas formas, e o que se paga na chegada (o total menos o sinal da mesma forma). */
+  sinalCentavos: number;
+  sinalPixCentavos: number;
+  chegadaCentavos: number;
+  chegadaPixCentavos: number;
+}
+
+/** A casa de um voucher, para as telas: as linhas do carrinho (as diárias com as datas, os hóspedes) e os valores guardados. */
+export function casaPublica(r: ReservaCasa, idioma: Idioma, d: Dicionario): CasaPublica {
+  // a primeira linha do carrinho: as diárias com as datas (as outras, os hóspedes e o sinal, a tela escreve do jeito dela)
+  const [periodo] = linhasDoItemDaCasa(
+    { entrada: r.data, saida: r.saida, hospedes: r.hospedes },
+    idioma,
+    LOCALE_INTL[idioma],
+    {
+      ajusteResultado: d.casas.ajusteResultado,
+      nDiarias: d.casas.nDiarias,
+      umaDiaria: d.casas.umaDiaria,
+      hospede: d.casas.linha.hospede,
+      hospedes: d.casas.linha.hospedes,
+      sinalHoje: d.carrinho.casaSinalHoje,
+    },
+    SINAL_PORCENTO,
+  );
+  const totalPix = r.totalPixCentavos ?? r.totalCentavos;
+  const noites = r.linhas.reduce((s, l) => s + l.noites, 0);
+  return {
+    entrada: r.data,
+    saida: r.saida,
+    noites,
+    hospedes: r.hospedes,
+    periodo,
+    nomeDoSinal: fmt(d.casas.itemNaStripe, { casa: r.casa.nome, p: SINAL_PORCENTO }),
+    totalCentavos: r.totalCentavos,
+    totalPixCentavos: totalPix,
+    sinalCentavos: r.sinalCentavos,
+    sinalPixCentavos: r.sinalPixCentavos,
+    chegadaCentavos: r.totalCentavos - r.sinalCentavos,
+    chegadaPixCentavos: totalPix - r.sinalPixCentavos,
+  };
 }
 
 /**
@@ -144,28 +203,42 @@ export const pagamentoEmAberto = (status: StatusReserva): boolean =>
 
 export type { ItemPagavel };
 
-/** Os vouchers de um pedido como itens pagáveis (para "pagar de novo" na página do pedido). */
+/**
+ * Os vouchers de um pedido como itens pagáveis (para "pagar de novo" na página do pedido). A casa leva o sinal guardado na
+ * compra (crítica de 26/11, furo 19): o "Pagar de novo" e o reembolso de um voucher cobram e devolvem o número guardado.
+ */
 export function itensPagaveis(reservas: Reserva[]): ItemPagavel[] {
   return reservas.map((r) => ({
     tipo: r.tipo ?? 'passeio',
     data: r.data,
     totalCentavos: r.totalCentavos,
     ...(r.totalPixCentavos !== undefined ? { totalPixCentavos: r.totalPixCentavos } : {}),
-    ...(ehTransfer(r) ? { transfer: { ida: { hora: r.transfer.ida.hora } } } : r.horario ? { horario: { hora: r.horario.hora } } : {}),
+    ...(ehCasa(r)
+      ? { sinalCentavos: r.sinalCentavos, sinalPixCentavos: r.sinalPixCentavos }
+      : ehTransfer(r)
+        ? { transfer: { ida: { hora: r.transfer.ida.hora } } }
+        : r.horario
+          ? { horario: { hora: r.horario.hora } }
+          : {}),
   }));
 }
 
-/** Os itens do carrinho como itens pagáveis: é com eles que a página do checkout pergunta formasDisponiveis. */
+/**
+ * Os itens do carrinho como itens pagáveis: é com eles que a página do checkout pergunta formasDisponiveis. A casa leva a
+ * data da entrada e o sinal das duas formas; a casa indisponível (alguma noite ficou ocupada) fica de fora, como na conta.
+ */
 export function itensPagaveisDoCarrinho(
-  itens: Pick<ItemVisivel, 'tipo' | 'escolha' | 'totalCentavos' | 'totalPixCentavos'>[],
+  itens: Pick<ItemVisivel, 'tipo' | 'escolha' | 'totalCentavos' | 'totalPixCentavos' | 'casa' | 'indisponivel'>[],
 ): ItemPagavel[] {
-  return itens.map((i) => ({
+  return itensDaConta(itens).map((i) => ({
     tipo: i.tipo,
     totalCentavos: i.totalCentavos,
     totalPixCentavos: i.totalPixCentavos,
-    ...(i.escolha.tipo === 'transfer'
-      ? { data: i.escolha.ida.data, transfer: { ida: { hora: i.escolha.ida.hora } } }
-      : { data: i.escolha.data, horario: { hora: i.escolha.hora } }),
+    ...(i.escolha.tipo === 'casa'
+      ? { data: i.escolha.entrada, ...(i.casa ? { sinalCentavos: i.casa.sinalCentavos, sinalPixCentavos: i.casa.sinalPixCentavos } : {}) }
+      : i.escolha.tipo === 'transfer'
+        ? { data: i.escolha.ida.data, transfer: { ida: { hora: i.escolha.ida.hora } } }
+        : { data: i.escolha.data, horario: { hora: i.escolha.hora } }),
   }));
 }
 
@@ -360,6 +433,26 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     // o voucher que a equipe cancelou sem reembolso (Pacote 33): o motivo e a regra, no idioma da página
     ...(semReembolso ? { semReembolso: frasesDoCancelamentoSemReembolso(d.pedido, semReembolso) } : {}),
   };
+  if (ehCasa(r)) {
+    const casa = casaPublica(r, idioma, d);
+    return {
+      codigo: r.codigo,
+      tipo: 'casa',
+      passeioSlug: r.casa.slug,
+      passeioNome: r.casa.nome,
+      data: r.data,
+      adultos: r.hospedes,
+      criancas: 0,
+      pessoasTexto: r.hospedes === 1 ? d.casas.linha.hospede : fmt(d.casas.linha.hospedes, { n: r.hospedes }),
+      unidades: 1,
+      hotel: '',
+      cidadeHospedagem: '',
+      casa,
+      ...pagamento,
+      // na casa, a faixa mostra o que se paga pelo site: em aberto, o sinal nas duas formas; pago, o sinal pago (valorRecebido)
+      ...(emAberto ? { totalCentavos: r.sinalCentavos, totalPixCentavos: r.sinalPixCentavos } : {}),
+    };
+  }
   if (ehTransfer(r)) {
     const transfer = transferVisivel(r, idioma, d);
     return {

@@ -2,7 +2,7 @@ import type { Idioma } from '@/i18n/config';
 import type { Json, Tables } from './banco-tipos';
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { provedorDaReserva } from './pedidos-painel.ts';
-import type { Provedor, Reserva, ReservaPasseio, ReservaTransfer, StatusItem, StatusReserva } from './reservas';
+import type { Provedor, Reserva, ReservaCasa, ReservaPasseio, ReservaTransfer, StatusItem, StatusReserva } from './reservas';
 
 /**
  * A reserva como o site usa (o mesmo JSON que ficava no Blob) ↔ as linhas do banco: um pedido, um item
@@ -61,8 +61,9 @@ export function paraLinhas(
     cliente_nome: r.cliente.nome,
     cliente_email: r.cliente.email,
     cliente_telefone: r.cliente.telefone,
-    cliente_documento_tipo: r.tipo === 'transfer' ? null : (r.cliente.documentoTipo ?? null),
-    cliente_documento: r.tipo === 'transfer' ? null : (r.cliente.documento ?? null),
+    // só a reserva de passeio feita antes do carrinho tem o documento
+    cliente_documento_tipo: r.tipo === 'transfer' || r.tipo === 'casa' ? null : (r.cliente.documentoTipo ?? null),
+    cliente_documento: r.tipo === 'transfer' || r.tipo === 'casa' ? null : (r.cliente.documento ?? null),
     cliente_pais: r.cliente.pais ?? null,
     metodo_pagamento: r.pagamento.metodo,
     pagamento: json(r.pagamento),
@@ -94,6 +95,26 @@ export function paraLinhas(
   };
   // no pedido com vários itens, o preço do item no Pix (o total do pedido fica na linha do pedido)
   const pix = r.pedido && r.totalPixCentavos !== undefined ? { pixCentavos: r.totalPixCentavos } : {};
+  // a casa vai INTEIRA em toda gravação: atualizar_reserva regrava data_fim, sinal_centavos e detalhes a cada vez
+  // (migração 20261112025627), e uma gravação sem eles apagaria a saída e o sinal guardado
+  if (r.tipo === 'casa') {
+    const item: LinhaItem = {
+      ...comum,
+      data_fim: r.saida,
+      sinal_centavos: r.sinalCentavos,
+      tipo: 'casa',
+      produto_slug: r.casa.slug,
+      produto_nome: r.casa.nome,
+      cidade: r.casa.cidade,
+      opcao: null,
+      // a casa não tem horário: a entrada é às 15h e a saída às 12h para todas (HORA_ENTRADA_CASA)
+      horario: null,
+      pessoas: json({ hospedes: r.hospedes }),
+      unidades: 1,
+      detalhes: json({ casaId: r.casa.id, sinalPixCentavos: r.sinalPixCentavos, linhas: r.linhas, ...pix }),
+    };
+    return { pedido, item, historico: (r.historico ?? []).map(({ em, evento }) => ({ em, evento })) };
+  }
   const item: LinhaItem =
     r.tipo === 'transfer'
       ? {
@@ -207,6 +228,23 @@ export function deLinhas(p: LinhaPedido, i: LinhaItem, historico: EventoHistoric
     ...(p.cliente_pais !== null ? { pais: p.cliente_pais } : {}),
   };
   const pessoas = i.pessoas as Record<string, number>;
+
+  if (i.tipo === 'casa') {
+    const d = i.detalhes as unknown as { casaId: string; sinalPixCentavos: number; linhas?: ReservaCasa['linhas'] };
+    const casa: ReservaCasa = {
+      ...base,
+      tipo: 'casa',
+      cliente,
+      casa: { id: d.casaId, slug: i.produto_slug, nome: i.produto_nome, cidade: i.cidade ?? '' },
+      // a saída sempre vai junto (paraLinhas); se um dia faltar, fica a entrada, para a leitura não quebrar
+      saida: i.data_fim ?? i.data,
+      hospedes: pessoas.hospedes,
+      sinalCentavos: i.sinal_centavos ?? 0,
+      sinalPixCentavos: d.sinalPixCentavos,
+      linhas: d.linhas ?? [],
+    };
+    return casa;
+  }
 
   if (i.tipo === 'transfer') {
     const d = i.detalhes as unknown as Omit<ReservaTransfer['transfer'], 'passageiros'>;

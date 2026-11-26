@@ -7,8 +7,10 @@ const ALVOS = ['#reservar', '#outras-casas', 'footer'];
 /**
  * A barra fixa do celular na página da casa (Etapa 7, parte 7), em vidro escuro, em três linhas curtas que cabem de
  * 320 a 430 px nos quatro idiomas: o que é o preço ("Diária a partir de", ou as diárias e as datas escolhidas), o
- * valor no Pix em destaque e o valor no cartão embaixo. Sem datas, o botão leva ao calendário; com as datas escolhidas,
- * à conta. Some enquanto o calendário e o quadro da reserva aparecem, e perto do rodapé. Sem dólar (decisão de 07/11).
+ * valor no Pix em destaque e o valor no cartão embaixo. Em espanhol e inglês (`cartaoPrimeiro`, decisão D1-A de 25/11:
+ * src/lib/preco-destaque.ts), o cartão em destaque e o Pix embaixo, com o desconto. Sem datas, o botão leva ao calendário;
+ * com as datas escolhidas, à conta. Some enquanto o calendário e o quadro da reserva aparecem, e perto do rodapé. Sem dólar
+ * (decisão de 07/11).
  */
 export function BarraCasa({
   rotulo,
@@ -16,6 +18,8 @@ export function BarraCasa({
   noPix,
   cartao,
   noCartao,
+  cartaoPrimeiro = false,
+  noPixComDesconto = '',
   botao,
   href,
 }: {
@@ -27,6 +31,10 @@ export function BarraCasa({
   /** O valor no cartão, já formatado. */
   cartao: string;
   noCartao: string;
+  /** O cartão é o preço grande (espanhol e inglês). */
+  cartaoPrimeiro?: boolean;
+  /** "con Pix (−10%)": o rótulo do Pix na linha de baixo, quando o cartão é o grande. */
+  noPixComDesconto?: string;
   botao: string;
   href: string;
 }) {
@@ -41,10 +49,11 @@ export function BarraCasa({
         <div className="min-w-0">
           <p className="truncate text-caption text-white/90 first-letter:uppercase">{rotulo}</p>
           <p className="truncate leading-tight">
-            <strong className="cifra text-lead">{pix}</strong> <span className="text-small font-semibold">{noPix}</span>
+            <strong className="cifra text-lead">{cartaoPrimeiro ? cartao : pix}</strong>{' '}
+            <span className="text-small font-semibold">{cartaoPrimeiro ? noCartao : noPix}</span>
           </p>
           <p className="truncate text-caption text-white/90">
-            <span className="numeros">{cartao}</span> {noCartao}
+            <span className="numeros">{cartaoPrimeiro ? pix : cartao}</span> {cartaoPrimeiro ? noPixComDesconto || noPix : noCartao}
           </p>
         </div>
         <a href={href} className="botao barra-casa-botao" tabIndex={oculta ? -1 : undefined}>

@@ -13,7 +13,8 @@ const DIAS_NO_ARQUIVO = 90;
 
 const sha256 = (valor: string) => createHash('sha256').update(valor).digest('hex');
 
-const produtoDe = (i: PedidoPainel['itens'][number]) => (i.tipo === 'transfer' ? 'transfer' : i.passeio.slug);
+// o código do produto: o slug do passeio ou da casa; o transfer é "transfer"
+const produtoDe = (i: PedidoPainel['itens'][number]) => (i.tipo === 'transfer' ? 'transfer' : i.tipo === 'casa' ? i.casa.slug : i.passeio.slug);
 
 /**
  * O evento de compra da API de Conversões. O event_id é o código do pedido, o mesmo do Pixel: se o navegador

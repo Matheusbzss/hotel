@@ -68,6 +68,9 @@ const HORA_MS = 3_600_000;
 
 /** Um item do carrinho como as regras de prazo precisam: a data e a hora em que começa. */
 export function agendaDoItem(escolha: EscolhaItem): ItemAgendado {
+  // a casa: a data da entrada (o prazo de pagar conta da meia-noite dela: limiteParaPagar, src/lib/formas-pagamento.ts).
+  // Sem este ramo, o carrinho com casa lançava erro aqui e parava a rodada de todos os lembretes (crítica de 26/11, furo 13)
+  if (escolha.tipo === 'casa') return { tipo: 'casa', data: escolha.entrada };
   return escolha.tipo === 'passeio'
     ? { tipo: 'passeio', data: escolha.data, horario: { hora: escolha.hora } }
     : { tipo: 'transfer', data: escolha.ida.data, transfer: { ida: { hora: escolha.ida.hora } } };

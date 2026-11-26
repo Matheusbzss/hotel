@@ -88,6 +88,9 @@ export interface ItemDaSessao extends ItemAgendado {
   totalCentavos: number;
   /** O total no Pix (com o desconto). */
   totalPixCentavos?: number;
+  /** Só na casa: o sinal guardado na compra, nas duas formas (é o que a sessão cobra: valorDoItem). */
+  sinalCentavos?: number;
+  sinalPixCentavos?: number;
 }
 
 /**

@@ -27,8 +27,11 @@ function existe(caminho: string, pasta = PAGINAS): boolean {
   return variavel ? existe(resto.join('/'), path.join(pasta, variavel)) : false;
 }
 
-/** /reserva e /pedido são o começo do link, completado com o código do pedido; a reserva da casa abre na Fase 4. */
-const PERMITIDOS = new Set(['/reserva', '/pedido', '/casas-de-temporada/${c.slug}/reservar']);
+/**
+ * /reserva e /pedido são o começo do link, completado com o código do pedido. A reserva da casa não tem página própria
+ * (Etapa 7): o botão da casa põe a casa no carrinho e abre o checkout, como o "Reservar" do passeio.
+ */
+const PERMITIDOS = new Set(['/reserva', '/pedido']);
 
 const CODIGO = arquivos('src').map((arquivo) => ({ arquivo, texto: readFileSync(arquivo, 'utf8') }));
 

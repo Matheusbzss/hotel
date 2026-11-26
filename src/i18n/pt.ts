@@ -186,6 +186,15 @@ const pt = {
     // o carrinho que virou um pedido já pago (o Pix pago no app do banco e a aba recarregada): o caminho para o pedido
     pedidoPago: 'Seu pedido {codigo} já está pago.',
     verPedido: 'Ver o pedido',
+    // a casa de temporada no carrinho (Etapa 7): o total vira "A pagar hoje" (o sinal da casa mais o resto), a linha do
+    // sinal, o total da estadia, a casa que alguém reservou enquanto estava no carrinho e o limite de um pedido de casa
+    // esperando o pagamento por e-mail
+    aPagarHoje: 'A pagar hoje',
+    casaSinalHoje: 'Sinal de {p}% hoje; o restante, na chegada',
+    casaTotalDaEstadia: 'Total da estadia: {pix} no Pix ou {cartao} no cartão',
+    casaIndisponivel: 'Alguma noite dessas datas já está ocupada. Toque em Mudar para escolher outras datas.',
+    casaEsperando:
+      'Já existe um pedido de casa com este e-mail esperando o pagamento. Termine esse pagamento ou espere ele vencer, em até 1 hora, para fazer outro pedido.',
   },
   cotacao: {
     mensagem: 'Sua mensagem',
@@ -738,6 +747,20 @@ const pt = {
     avisoTotal: 'O pagamento é sempre do valor total da reserva.',
     // Pacote 34 (P7): embaixo do botão de pagar, o "um pagamento só" e o "valor total" numa linha só
     umPagamentoTotal: 'Um pagamento só, sempre do valor total, e um voucher para cada item.',
+    // com casa no carrinho (Etapa 7): o sinal hoje e o restante na chegada, no lugar do "sempre do valor total"
+    umPagamentoComCasa:
+      'Um pagamento só e um voucher para cada item. Na casa, você paga hoje o sinal de {p}% e o restante na chegada, em Pix, dinheiro ou cartão.',
+    // a casa só se paga pelo site: sem o pagamento online, no lugar do botão do WhatsApp (o servidor também recusa)
+    casaSoNoSite:
+      'A reserva da casa é paga aqui no site, e o pagamento pelo site não está disponível agora. Tente de novo mais tarde ou fale com a gente por e-mail.',
+    casaSoNoSiteComOutros:
+      'A reserva da casa é paga aqui no site, e o pagamento pelo site não está disponível agora. Para finalizar os outros itens pelo WhatsApp, tire a casa do carrinho.',
+    // perto do botão, com casa no carrinho: as regras de cancelamento das casas (CANCELAMENTO_DAS_CASAS) com este título, e
+    // as garantias dos passeios e do transfer do mesmo carrinho com o rótulo de a quem valem
+    cancelamentoDaCasa: 'Cancelamento da casa',
+    garantiasPasseios: 'Nos passeios',
+    garantiasTransfer: 'No transfer',
+    garantiasPasseiosETransfer: 'Nos passeios e no transfer',
     // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela): o código copia e cola, no app
     pixNoCelular: 'No celular, copie o código e cole no app do seu banco, em Pix Copia e Cola.',
     // Pacote 34 (P13): o e-mail com um erro de digitação comum no domínio; {email} vira o botão que corrige
@@ -952,6 +975,8 @@ const pt = {
     // não promete a casa dentro do círculo: o dono marcou as casas pelo ponto do bairro (decisão de 25/11/2026)
     mapaCirculo: 'O círculo, de {m} m de raio, mostra a região, não o lugar exato da casa.',
     chegadaSeguranca: 'Chegada e segurança',
+    // o nome da casa na tela de pagamento da Stripe, que cobra só o sinal (Etapa 7)
+    itemNaStripe: '{casa}: sinal de {p}%',
   },
   contato: {
     titulo: 'Fale com a gente',

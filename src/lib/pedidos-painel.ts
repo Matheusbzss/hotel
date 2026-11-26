@@ -1,5 +1,7 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
 import { formatarCifra } from './cifra.ts';
+import { HORA_ENTRADA_CASA } from './diarias.ts';
+import { valorDoItem } from './formas-pagamento.ts';
 import {
   AVISO_EMAIL_PAGO_SAINDO,
   MARCA_DO_EMAIL,
@@ -27,8 +29,9 @@ import { canceladoSemReembolso, cancelamentoDoVoucher, pedidoCanceladoSemReembol
  * sem tocar no banco: assim dá para testar (tests/estatisticas.test.ts).
  */
 
-/** Quando o item acontece, para mostrar os itens de um pedido na ordem da viagem. */
-export const quandoAcontece = (r: Reserva) => `${r.data} ${r.tipo === 'transfer' ? r.transfer.ida.hora : (r.horario?.hora ?? '')}`;
+/** Quando o item acontece, para mostrar os itens de um pedido na ordem da viagem (a casa, na entrada das 15h). */
+export const quandoAcontece = (r: Reserva) =>
+  `${r.data} ${r.tipo === 'transfer' ? r.transfer.ida.hora : r.tipo === 'casa' ? HORA_ENTRADA_CASA : (r.horario?.hora ?? '')}`;
 
 /**
  * Quem processou o pagamento. As reservas gravadas antes da coluna `provedor` não têm o campo: pelo WhatsApp
@@ -39,19 +42,25 @@ export const provedorDaReserva = (r: { provedor?: Provedor; pagamento: { metodo:
   r.provedor ?? (r.pagamento.metodo === 'whatsapp' ? 'whatsapp' : 'pagarme');
 
 /**
- * O que entrou de fato: no Pix, o total com o desconto; no cartão, o total cheio. Na reserva paga no Pix
- * online, o `totalCentavos` já é o total com o desconto (ela não tem `totalPixCentavos`).
+ * O que entrou de fato por este voucher: no Pix, o total com o desconto; no cartão, o total cheio. Na reserva paga no Pix
+ * online, o `totalCentavos` já é o total com o desconto (ela não tem `totalPixCentavos`). Na casa, o sinal guardado na
+ * compra, na forma paga (valorDoItem): o restante é pago na chegada, fora do site.
  */
-export const valorRecebido = (r: Reserva) => (r.pagamento.metodo === 'pix' ? (r.totalPixCentavos ?? r.totalCentavos) : r.totalCentavos);
+export const valorRecebido = (r: Reserva) => valorDoItem(r, r.pagamento.metodo === 'pix' ? 'pix' : 'cartao');
 
 /**
- * O total que o pedido esperava receber na forma registrada: o do pedido inteiro, não só deste voucher (no Pix, o total
- * com o desconto). É a conta do aviso de valor diferente (aplicarSessao e reativarPedidoRetido, src/lib/pagamento-stripe.ts).
+ * O que o pedido esperava receber na forma registrada: o do pedido inteiro, não só deste voucher (no Pix, o total com o
+ * desconto). No pedido com casa, o que ele cobra hoje (pagamento.cobrar, gravado na criação: o sinal da casa mais o resto),
+ * e não o total, que a Stripe nunca recebe. É a conta do aviso de valor diferente (aplicarSessao e reativarPedidoRetido,
+ * src/lib/pagamento-stripe.ts). Os pedidos sem `cobrar` (todos os de antes da Etapa 7) continuam como sempre.
  */
 export function valorEsperadoDoPedido(r: Pick<Reserva, 'totalCentavos' | 'totalPixCentavos' | 'pedido' | 'pagamento'>): number {
+  const pix = r.pagamento.metodo === 'pix';
+  const cobrar = r.pagamento.cobrar;
+  if (cobrar) return pix ? cobrar.pix : cobrar.cartao;
   const total = r.pedido?.totalCentavos ?? r.totalCentavos;
   const totalPix = r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos;
-  return r.pagamento.metodo === 'pix' ? (totalPix ?? total) : total;
+  return pix ? (totalPix ?? total) : total;
 }
 
 /** A linha do aviso de valor diferente (avisoDeValorDiferente, src/lib/pagamento-stripe.ts), lida de volta: o recebido. */

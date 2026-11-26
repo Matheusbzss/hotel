@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { semIdioma } from '@/i18n/config';
-import { totaisDoCarrinho } from '@/lib/carrinho';
+import { temCasa, totaisDoCarrinho } from '@/lib/carrinho';
 import { formatarCifra } from '@/lib/cifra';
 import { cartaoEmDestaque } from '@/lib/preco-destaque';
 import { useBarraOculta } from '../BarraReservaMovel';
@@ -16,7 +16,8 @@ const ALVOS = ['footer'];
 
 /**
  * No celular, com itens no carrinho: a barra de vidro embaixo, com o total (no Pix em português; no cartão em espanhol e
- * inglês, src/lib/preco-destaque.ts) e o "Finalizar".
+ * inglês, src/lib/preco-destaque.ts) e o "Finalizar". Com casa no carrinho, o total é o que se paga hoje (o sinal da casa
+ * mais o resto), e a linha de cima diz "A pagar hoje".
  */
 export function BarraCarrinho({ locale, hrefFinalizar, textos: T }: { locale: string; hrefFinalizar: string; textos: TextosCarrinho }) {
   const { itens, abrir } = useCarrinho();
@@ -46,7 +47,9 @@ export function BarraCarrinho({ locale, hrefFinalizar, textos: T }: { locale: st
             </span>
           </span>
           <span className="min-w-0 leading-tight">
-            <span className="block text-caption text-white/80">{textoQuantidade(T, itens.length)}</span>
+            <span className="block text-caption text-white/80">
+              {temCasa(itens) ? `${textoQuantidade(T, itens.length)} · ${T.aPagarHoje}` : textoQuantidade(T, itens.length)}
+            </span>
             <strong className="cifra text-lead">{formatarCifra(cartaoPrimeiro ? totalCentavos : totalPixCentavos, locale)}</strong>{' '}
             <span className="text-small">{cartaoPrimeiro ? T.noCartao : T.noPix}</span>
           </span>

@@ -9,10 +9,13 @@ import { mesmosPeriodos } from './casa';
 import { detalhesDeLinha, pacoteDeLinha } from './casa-detalhes';
 import { centroDeLinha } from './casa-pagina';
 import { bloqueioDeLinha, deLinhas, linhaDeTarifa, paraLinha, type LinhaBloqueio, type LinhaCasa, type LinhaTarifa } from './casas-banco';
+import type { BloqueioLido } from './casa-no-carrinho';
 import { casasDaPrevia } from './casas-previa';
 import type { Ponto } from './circulo-casa';
+import { mensagemDoErro } from './erros';
 import type { Pacote } from './estadia';
 import { lerIcal } from './ical';
+import { prenderNoArquivo, type BloqueioNoArquivo, type EstadiaDoPedido } from './trava-das-casas';
 import { hojeEmBuzios } from './validacao';
 
 /**
@@ -165,9 +168,15 @@ export async function obterCasa(slug: string): Promise<CasaDoSite | undefined> {
   return (await casasDaPagina()).find((c) => c.slug === slug);
 }
 
-/** As datas ocupadas de uma casa da página (as da prévia vêm do cadastro pronto). */
+/**
+ * As datas ocupadas de uma casa da página (as da prévia vêm do cadastro pronto). No computador sem o banco, juntam-se as
+ * estadias do site presas no arquivo da trava (a cópia particular): com um pedido esperando o pagamento, as noites dele
+ * aparecem riscadas para os outros visitantes, como no banco.
+ */
 export async function ocupacaoDaCasa(id: string): Promise<Pick<Bloqueio, 'inicio' | 'fim'>[]> {
-  return casasDaPrevia().find((p) => p.casa.id === id)?.bloqueios ?? periodosOcupados(id);
+  const daCasa = casasDaPrevia().find((p) => p.casa.id === id)?.bloqueios ?? (await periodosOcupados(id));
+  if (usarBanco()) return daCasa;
+  return [...daCasa, ...(await periodosDoSiteNoComputador(id))];
 }
 
 /** Só as datas: o calendário da página não precisa saber de onde veio o bloqueio. */
@@ -181,6 +190,133 @@ export const periodosOcupados = unstable_cache(
   ['casas-periodos-ocupados'],
   { tags: [TAG_CALENDARIO] },
 );
+
+/**
+ * O calendário de alguma casa mudou: datas presas por um pedido (o primeiro pagamento, o "Pagar de novo", a conferência do
+ * pedido pago) ou soltas (a sessão que venceu, o pedido cancelado). As páginas das casas refazem na próxima visita, já com
+ * as noites certas; sem isto, a página guardada mostraria como livre, por até um dia, uma noite que já está presa (o
+ * servidor confere de novo antes de cobrar, então não há venda dupla). SÓ nas rotas (Route Handlers): o Next lança erro com
+ * revalidateTag durante a renderização de uma página (crítica de 26/11, furo 3), por isso nada de src/lib/pagamento-stripe.ts
+ * a chama. Um erro aqui só fica no registro: nunca desfaz o que já foi gravado.
+ */
+export function calendarioMudou(): void {
+  try {
+    refazerPaginas(TAG_CALENDARIO);
+  } catch (e) {
+    console.error(`[casas] não deu para refazer o calendário das casas: ${mensagemDoErro(e)}`);
+  }
+}
+
+/**
+ * Os bloqueios de agora das casas (pelo id), SEM cache, com o item do pedido de cada reserva do site: é o que a conferência
+ * do carrinho usa (src/lib/casas-carrinho.ts), para nunca cobrar por noites que acabaram de ser presas. As casas da prévia
+ * vêm do cadastro pronto; no computador sem o banco, juntam-se as estadias do site presas no arquivo da trava.
+ */
+export async function bloqueiosDasCasasAgora(ids: readonly string[]): Promise<BloqueioLido[]> {
+  if (!ids.length) return [];
+  const lista: BloqueioLido[] = [];
+  const previa = casasDaPrevia().filter((p) => ids.includes(p.casa.id));
+  for (const p of previa) lista.push(...p.bloqueios.map((b) => ({ casaId: p.casa.id, inicio: b.inicio, fim: b.fim })));
+  const outras = ids.filter((id) => !previa.some((p) => p.casa.id === id));
+  if (usarBanco()) {
+    if (!outras.length) return lista;
+    const { data, error } = await supabase().from('casas_bloqueios').select('casa_id, inicio, fim, item_pedido_id').in('casa_id', outras);
+    if (error) throw erroDoBanco(error);
+    return [...lista, ...data.map((b) => ({ casaId: b.casa_id, inicio: b.inicio, fim: b.fim, itemPedidoId: b.item_pedido_id }))];
+  }
+  for (const c of await dosArquivos()) {
+    if (outras.includes(c.id)) lista.push(...c.bloqueios.map((b) => ({ casaId: c.id, inicio: b.inicio, fim: b.fim })));
+  }
+  for (const b of await lerBloqueiosDoSite()) {
+    if (ids.includes(b.casaId)) lista.push({ casaId: b.casaId, inicio: b.inicio, fim: b.fim, itemPedidoId: b.itemPedidoId });
+  }
+  return lista;
+}
+
+/* ------------------------------------------------------------------ */
+/* A trava das datas no computador (sem o banco)                       */
+
+/**
+ * No computador sem o banco (a cópia particular, `servidor.sh`), as estadias do site presas enquanto o cliente paga ficam
+ * num arquivo à parte, fora da pasta das casas (dosArquivos lê como casa todo arquivo de lá). A regra é a da função do
+ * banco prender_datas_casas (prenderNoArquivo, src/lib/trava-das-casas.ts): confere os bloqueios da casa e os do site e
+ * grava tudo ou nada. Uma mudança de cada vez (naFila): a cópia particular roda num processo só. O item do pedido, aqui,
+ * é o código do voucher (os arquivos de reserva não têm o id do item).
+ */
+const ARQUIVO_DO_SITE = path.join(process.cwd(), '.data', 'casas-bloqueios-do-site.json');
+let fila: Promise<unknown> = Promise.resolve();
+
+function naFila<T>(fazer: () => Promise<T>): Promise<T> {
+  const vez = fila.then(fazer, fazer);
+  fila = vez.catch(() => undefined);
+  return vez;
+}
+
+async function lerBloqueiosDoSite(): Promise<BloqueioNoArquivo[]> {
+  try {
+    return JSON.parse(await fs.readFile(ARQUIVO_DO_SITE, 'utf8')) as BloqueioNoArquivo[];
+  } catch {
+    return [];
+  }
+}
+
+async function gravarBloqueiosDoSite(lista: BloqueioNoArquivo[]): Promise<void> {
+  await fs.mkdir(path.dirname(ARQUIVO_DO_SITE), { recursive: true });
+  await fs.writeFile(ARQUIVO_DO_SITE, JSON.stringify(lista, null, 2));
+}
+
+/** As estadias do site de uma casa no arquivo, só as datas, para o calendário da página (refeito por calendarioMudou). */
+const periodosDoSiteNoComputador = unstable_cache(
+  async (id: string): Promise<Pick<Bloqueio, 'inicio' | 'fim'>[]> =>
+    (await lerBloqueiosDoSite()).filter((b) => b.casaId === id).map(({ inicio, fim }) => ({ inicio, fim })),
+  ['casas-site-no-computador'],
+  { tags: [TAG_CALENDARIO] },
+);
+
+/** Os bloqueios de uma casa que não são do site (o cadastro e o calendário de fora), no computador. */
+async function bloqueiosDaCasaNoComputador(): Promise<Map<string, Pick<Bloqueio, 'inicio' | 'fim'>[]>> {
+  const porCasa = new Map<string, Pick<Bloqueio, 'inicio' | 'fim'>[]>();
+  for (const p of casasDaPrevia()) porCasa.set(p.casa.id, p.bloqueios);
+  for (const c of await dosArquivos()) if (!porCasa.has(c.id)) porCasa.set(c.id, c.bloqueios.filter((b) => b.origem !== 'site'));
+  return porCasa;
+}
+
+/** Prende as estadias no arquivo, como prender_datas_casas: true se gravou tudo; false, sem gravar nada, com noite ocupada. */
+export function prenderNoComputador(estadias: readonly EstadiaDoPedido[], referencia: string): Promise<boolean> {
+  return naFila(async () => {
+    const daCasa = await bloqueiosDaCasaNoComputador();
+    const nova = prenderNoArquivo(await lerBloqueiosDoSite(), (id) => daCasa.get(id) ?? [], estadias, referencia, randomUUID);
+    if (!nova) return false;
+    await gravarBloqueiosDoSite(nova);
+    return true;
+  });
+}
+
+/** Solta do arquivo as estadias de uma sessão ou de uns itens. Devolve quantas saíram. */
+export function soltarNoComputador(filtro: { referencia: string } | { itens: readonly string[] }): Promise<number> {
+  return naFila(async () => {
+    const atuais = await lerBloqueiosDoSite();
+    const sai = (b: BloqueioNoArquivo) => ('referencia' in filtro ? b.referencia === filtro.referencia : filtro.itens.includes(b.itemPedidoId));
+    const ficam = atuais.filter((b) => !sai(b));
+    if (ficam.length !== atuais.length) await gravarBloqueiosDoSite(ficam);
+    return atuais.length - ficam.length;
+  });
+}
+
+/** Passa para a sessão nova as estadias destes itens que estão no arquivo. Devolve os itens renomeados. */
+export function renomearNoComputador(itens: readonly string[], referencia: string): Promise<string[]> {
+  return naFila(async () => {
+    const atuais = await lerBloqueiosDoSite();
+    const renomeados = atuais.filter((b) => itens.includes(b.itemPedidoId));
+    if (renomeados.length) await gravarBloqueiosDoSite(atuais.map((b) => (itens.includes(b.itemPedidoId) ? { ...b, referencia } : b)));
+    return renomeados.map((b) => b.itemPedidoId);
+  });
+}
+
+/** Quais destes itens têm estadia presa no arquivo. */
+export async function itensPresosNoComputador(itens: readonly string[]): Promise<string[]> {
+  return (await lerBloqueiosDoSite()).filter((b) => itens.includes(b.itemPedidoId)).map((b) => b.itemPedidoId);
+}
 
 /**
  * O centro PÚBLICO do círculo do mapa de uma casa no ar (casas.centro_lat e casas.centro_lng, deslocado do ponto que o

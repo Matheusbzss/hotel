@@ -10,7 +10,6 @@ import { MapaCasa } from '@/components/casas/MapaCasa';
 import { ComodidadesCasa, DestaquesCasa, QuartosCasa, RegrasCasa } from '@/components/casas/PartesCasa';
 import { ReservaCasa } from '@/components/casas/ReservaCasa';
 import { EMPRESA } from '@/config/empresa';
-import { RESERVA_CASAS_ABERTA } from '@/data/casas';
 import { altDaFoto } from '@/data/fotos-alt';
 import { CIDADES } from '@/data/passeios';
 import { dicionario } from '@/i18n';
@@ -18,6 +17,7 @@ import { IDIOMAS, LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { noitesOcupadas } from '@/lib/casa';
+import { limiteDaSaida } from '@/lib/casa-no-carrinho';
 import { comodidadesDaPagina, linhaDaFicha, regrasDaPagina, tabelaDaPagina } from '@/lib/casa-pagina';
 import { casasAtivas, casasDaPagina, obterCasa, ocupacaoDaCasa } from '@/lib/casas';
 import { formatarCifra } from '@/lib/cifra';
@@ -25,8 +25,11 @@ import { textosCotacao } from '@/lib/cotacao';
 import { textoDolar } from '@/lib/dolar';
 import { menorDiariaCentavos, primeiraEntradaPossivel } from '@/lib/estadia';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
+import { casasAbertasPara } from '@/lib/reserva-casas';
 import { centroCabeNoRecorte, rotulosDoRecorte, versaoDoRecorte } from '@/lib/satelite-casa';
 import { alternates, openGraphDaPagina } from '@/lib/site';
+import { hojeEmBuzios } from '@/lib/validacao';
 
 // a página é refeita uma vez por dia, para os dias e os pacotes que já passaram saírem dela; a casa nova abre na
 // primeira visita
@@ -109,6 +112,14 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
     .filter(Boolean);
   const alt = (foto: string, i: number) => altDaFoto(foto, locale, `${nome}, ${fmt(d.passeio.fotoDe, { i: i + 1, n: c.fotos.length })}`);
   const usdPix = menor !== null ? textoDolar(precoPixCentavos(menor), cambio.taxa, d.preco.dolar, intl) : '';
+  const usdCartao = menor !== null ? textoDolar(menor, cambio.taxa, d.preco.dolar, intl) : '';
+  // em espanhol e inglês, o preço do cartão é o grande e o do Pix vai embaixo, com o desconto (decisão D1-A de 25/11)
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
+  // a reserva das casas para todos (RESERVA_CASAS=publico com o pagamento online no ar), lida quando a página é feita; no
+  // modo 'admin', o botão aparece só para quem tem o cookie do painel, pelo carrinho (GET /api/carrinho). Uma falha deixa fechada
+  const reservaAberta = await casasAbertasPara({ admin: false }).catch(() => false);
+  // até a saída do último pacote cadastrado da casa; sem pacote, 12 meses à frente (decisão do dono de 26/11/2026)
+  const ultimaSaida = limiteDaSaida(c.pacotes, hojeEmBuzios());
 
   return (
     <main id="conteudo" className="tom-fundo">
@@ -136,14 +147,30 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           {menor !== null && (
             <div className="topo-casa-preco">
               <p className="text-small text-(--color-tinta-suave) first-letter:uppercase">{t.diariaAPartir}</p>
-              <p className="mt-1">
-                <strong className="cifra text-figure">{formatarCifra(precoPixCentavos(menor), intl)}</strong>{' '}
-                <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
-                {usdPix && <span className="text-small text-(--color-tinta-suave)"> · {usdPix}</span>}
-              </p>
-              <p className="text-small text-(--color-tinta-suave)">
-                <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(menor, intl)}</span> {d.preco.noCartao}
-              </p>
+              {cartaoPrimeiro ? (
+                <>
+                  <p className="mt-1">
+                    <strong className="cifra text-figure">{formatarCifra(menor, intl)}</strong>{' '}
+                    <span className="text-small font-semibold">{d.preco.noCartao}</span>
+                    {usdCartao && <span className="text-small text-(--color-tinta-suave)"> · {usdCartao}</span>}
+                  </p>
+                  <p className="text-small text-(--color-tinta-suave)">
+                    <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(precoPixCentavos(menor), intl)}</span>{' '}
+                    <span className="font-semibold text-(--color-sucesso)">{rotuloPixComDesconto(d.preco.noPixComDesconto)}</span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1">
+                    <strong className="cifra text-figure">{formatarCifra(precoPixCentavos(menor), intl)}</strong>{' '}
+                    <span className="text-small font-semibold text-(--color-sucesso)">{d.preco.noPix}</span>
+                    {usdPix && <span className="text-small text-(--color-tinta-suave)"> · {usdPix}</span>}
+                  </p>
+                  <p className="text-small text-(--color-tinta-suave)">
+                    <span className="numeros font-semibold text-(--color-tinta)">{formatarCifra(menor, intl)}</span> {d.preco.noCartao}
+                  </p>
+                </>
+              )}
               <a href="#datas-casa" className="link mt-1 inline-flex min-h-11 items-center font-semibold">
                 {t.verDatas}
               </a>
@@ -216,8 +243,10 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           hojeServidor={hoje}
           capacidade={c.capacidade}
           nomeCasa={nome}
-          reservaAberta={RESERVA_CASAS_ABERTA}
-          hrefReserva={rota(locale, `/casas-de-temporada/${c.slug}/reservar`)}
+          slug={c.slug}
+          reservaAberta={reservaAberta}
+          hrefCheckout={rota(locale, '/checkout')}
+          ultimaSaida={ultimaSaida}
           idioma={locale}
           locale={intl}
           dolar={cambio.taxa}
@@ -260,6 +289,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             diariaAPartir: t.diariaAPartir,
             noPix: d.preco.noPix,
             noCartao: d.preco.noCartao,
+            noPixComDesconto: d.preco.noPixComDesconto,
             chegada: t.chegada,
             saida: t.saida,
             hospedes: t.hospedes,
@@ -290,6 +320,9 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             verDatas: t.verDatas,
             barraDatas: t.barraDatas,
             reservar: t.reservar,
+            adicionando: d.carrinho.adicionando,
+            erroConexao: d.carrinho.erroConexao,
+            erroTemporario: d.carrinho.erroTemporario,
             reservaEmBreve: t.reservaEmBreve,
             pedir: t.pedir,
             avisemeTitulo: t.avisemeTitulo,

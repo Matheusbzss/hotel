@@ -5,7 +5,7 @@ import { dicionario } from '@/i18n';
 import { COOKIE_ADMIN, ESPERA_O_SEGREDO_DO_PAINEL, segredoDoPainelCriado, sessaoValida } from '@/lib/admin-auth';
 import { emailLigado } from '@/lib/email/enviar';
 import { agruparPedidos, buscaDoPainel, type PedidoPainel } from '@/lib/pedidos-painel';
-import { ehTransfer, type Reserva } from '@/lib/reservas';
+import { ehCasa, ehTransfer, type Reserva } from '@/lib/reservas';
 import {
   RESUMO_NAO_VALE,
   RESUMO_SEM_BANCO,
@@ -48,10 +48,12 @@ export const dynamic = 'force-dynamic';
 
 const DICIONARIO_PT = dicionario('pt');
 
-/** O voucher numa linha: o passeio (com a opção) ou o transfer, e a data, como o cartão do pedido escreve. */
+/** O voucher numa linha: o passeio (com a opção), o transfer ou a casa, e a data, como o cartão do pedido escreve. */
 function descrever(r: Reserva): string {
   const data = formatarDataIso(r.data, 'pt-BR');
   if (ehTransfer(r)) return `Transfer privado — ${transferVisivel(r, 'pt', DICIONARIO_PT).veiculo} · ${data}`;
+  // a casa: o nome e a entrada e a saída (o bloco completo do resumo fica para a parte 2 do pacote 1 das casas)
+  if (ehCasa(r)) return `${r.casa.nome} · ${data} a ${formatarDataIso(r.saida, 'pt-BR')}`;
   return `${r.passeio.nome}${r.passeio.opcao ? ` — ${r.passeio.opcao.nome}` : ''} · ${data}`;
 }
 

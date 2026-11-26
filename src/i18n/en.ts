@@ -178,6 +178,13 @@ const en: Dicionario = {
     // o carrinho que virou um pedido já pago (o Pix pago no app do banco e a aba recarregada): o caminho para o pedido
     pedidoPago: 'Your order {codigo} is already paid.',
     verPedido: 'View your order',
+    // a casa de temporada no carrinho (Etapa 7); ver pt.ts
+    aPagarHoje: 'Due today',
+    casaSinalHoje: '{p}% deposit today; the balance on arrival',
+    casaTotalDaEstadia: 'Stay total: {cartao} by card or {pix} with Pix',
+    casaIndisponivel: 'Some of these nights are already booked. Tap Change to pick other dates.',
+    casaEsperando:
+      'There is already a home booking with this email waiting for payment. Complete that payment or wait for it to expire, within 1 hour, to place another order.',
   },
   cotacao: {
     mensagem: 'Your message',
@@ -672,6 +679,17 @@ const en: Dicionario = {
     avisoTotal: 'Payment is always for the full amount of the booking.',
     // Pacote 34 (P7): embaixo do botão de pagar, o "um pagamento só" e o "valor total" numa linha só
     umPagamentoTotal: 'One payment, always for the full amount, and one voucher for each item.',
+    // com casa no carrinho (Etapa 7); ver pt.ts
+    umPagamentoComCasa:
+      'One payment and one voucher for each item. For the home, you pay the {p}% deposit today and the balance on arrival, by Pix, cash or card.',
+    casaSoNoSite:
+      'The home booking is paid here on the site, and online payment isn’t available right now. Please try again later or email us.',
+    casaSoNoSiteComOutros:
+      'The home booking is paid here on the site, and online payment isn’t available right now. To finish the other items on WhatsApp, remove the home from the cart.',
+    cancelamentoDaCasa: 'Home cancellation',
+    garantiasPasseios: 'For tours',
+    garantiasTransfer: 'For the transfer',
+    garantiasPasseiosETransfer: 'For tours and transfers',
     // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela): o código copia e cola, no app
     pixNoCelular: 'On your phone, copy the code and paste it into your app, under Pix Copia e Cola.',
     // Pacote 34 (P13): o e-mail com um erro de digitação comum no domínio; {email} vira o botão que corrige
@@ -879,6 +897,7 @@ const en: Dicionario = {
     verCasas: 'See the homes',
     mapaCirculo: 'The circle, {m} m in radius, shows the area, not the exact location of the house.',
     chegadaSeguranca: 'Arrival and safety',
+    itemNaStripe: '{casa}: {p}% deposit',
   },
   contato: {
     titulo: 'Get in touch',

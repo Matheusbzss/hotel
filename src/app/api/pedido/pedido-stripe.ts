@@ -33,20 +33,39 @@ import { formatarDataIso } from '../../../lib/validacao.ts';
 /* ------------------------------------------------------------------ */
 /* Regras puras                                                        */
 
-/** O que o voucher gravado diz de quando começa: o horário do passeio ou a saída da ida do transfer. */
-type QuandoComeca = { horario?: { hora: string }; transfer?: { ida: { hora: string } } };
+/**
+ * O que o voucher gravado diz de quando começa (o horário do passeio ou a saída da ida do transfer) e, na casa, o sinal
+ * guardado na compra nas duas formas.
+ */
+type QuandoComeca = { horario?: { hora: string }; transfer?: { ida: { hora: string } }; sinalCentavos?: number; sinalPixCentavos?: number };
 
 /**
  * Um voucher como entra na sessão da Stripe: o nome do item e uma linha com a data, a hora e as pessoas, no
  * idioma do cliente (os textos vêm de paraPublico, que já traduz). O valor é o do servidor, nas duas formas. A data e
  * a hora em que começa vão junto (do voucher gravado, não do texto da tela): o QR do Pix não passa do prazo do Pix.
+ * A casa cobra só o sinal (valorDoItem, com o sinal guardado), com o nome "Mansão Geribá Vista Mar: sinal de 50%" e a
+ * linha "4 diárias, de qui 10/12 a seg 14/12 · 12 hóspedes".
  */
 export function itemDaSessao(
   r: Pick<Reserva, 'codigo' | 'tipo' | 'totalCentavos' | 'totalPixCentavos' | 'data'> & QuandoComeca,
-  p: Pick<ReservaPublica, 'passeioNome' | 'opcaoNome' | 'data' | 'horario' | 'transfer' | 'pessoasTexto'>,
+  p: Pick<ReservaPublica, 'passeioNome' | 'opcaoNome' | 'data' | 'horario' | 'transfer' | 'pessoasTexto' | 'casa'>,
   idioma: Idioma,
   modeloDataHora: string,
 ): ItemDaSessao {
+  if (r.tipo === 'casa' && p.casa) {
+    return {
+      voucher: r.codigo,
+      nome: p.casa.nomeDoSinal,
+      descricao: `${p.casa.periodo} · ${p.pessoasTexto}`,
+      tipo: 'casa',
+      totalCentavos: r.totalCentavos,
+      ...(r.totalPixCentavos !== undefined ? { totalPixCentavos: r.totalPixCentavos } : {}),
+      ...(r.sinalCentavos !== undefined ? { sinalCentavos: r.sinalCentavos } : {}),
+      ...(r.sinalPixCentavos !== undefined ? { sinalPixCentavos: r.sinalPixCentavos } : {}),
+      // a entrada: a hora das 15h e o prazo de pagar (a meia-noite do dia da entrada) vêm de formas-pagamento.ts
+      data: r.data,
+    };
+  }
   const nome = p.transfer
     ? `${p.passeioNome}: ${p.transfer.ida.saida} → ${p.transfer.ida.destino}`
     : p.opcaoNome
@@ -76,8 +95,12 @@ export function urlDeRetorno(base: string, idioma: Idioma, codigo: string, token
   return `${base}${pagina}?t=${encodeURIComponent(token)}`;
 }
 
-/** Um item do carrinho (já conferido) como a escolha da forma de pagamento precisa: a data e a hora em que começa. */
+/**
+ * Um item do carrinho (já conferido) como a escolha da forma de pagamento precisa: a data e a hora em que começa. A casa:
+ * a data da entrada (a hora das 15h e o prazo de pagar, a meia-noite do dia da entrada, vêm de formas-pagamento.ts).
+ */
 export function itemAgendado(escolha: EscolhaItem): ItemAgendado {
+  if (escolha.tipo === 'casa') return { tipo: 'casa', data: escolha.entrada };
   return escolha.tipo === 'passeio'
     ? { tipo: 'passeio', data: escolha.data, horario: { hora: escolha.hora } }
     : { tipo: 'transfer', data: escolha.ida.data, transfer: { ida: { hora: escolha.ida.hora } } };
@@ -227,6 +250,36 @@ export interface SessaoAberta {
   forma: FormaPagamento;
 }
 
+/** A linha do pedido cancelado porque as noites da casa ficaram de outra pessoa (o 409 'datas'). */
+export const EVENTO_DATAS_OCUPADAS = 'Cancelado: as datas da casa não estavam mais livres';
+/** A linha do pedido cancelado porque o banco não conseguiu prender as datas da casa no primeiro pagamento (o 503 'banco'). */
+export const EVENTO_TRAVA_FALHOU = 'Cancelado: não deu para prender as datas da casa (erro do banco)';
+/** A linha do pedido que volta a vencido porque o banco não conseguiu prender as datas no "Pagar de novo" (o 503 'banco'). */
+export const EVENTO_SESSAO_SEM_TRAVA =
+  'Sessão de pagamento fechada: não deu para prender as datas da casa (erro do banco); o cliente pode tentar de novo';
+
+/**
+ * As noites de uma casa do pedido já são de outra pessoa (DatasIndisponiveis, na hora de prender): o pedido foi cancelado
+ * (EVENTO_DATAS_OCUPADAS), a sessão nova fechou sem chegar ao cliente e a rota responde 409 'datas'.
+ */
+export class DatasDaCasaOcupadas extends Error {
+  constructor(codigo: string) {
+    super(`As datas da casa do pedido ${codigo} não estavam mais livres: o pedido foi cancelado.`);
+    this.name = 'DatasDaCasaOcupadas';
+  }
+}
+
+/**
+ * O banco não conseguiu prender as datas da casa (fora do ar, tempo esgotado): a sessão nova fechou sem chegar ao cliente
+ * e a rota responde 503 'banco' (furo 1 da crítica de 26/11, correção 2: nunca segue com a sessão sem as datas presas).
+ */
+export class DatasNaoPresas extends Error {
+  constructor(codigo: string) {
+    super(`As datas da casa do pedido ${codigo} não puderam ser presas: a sessão nova foi fechada.`);
+    this.name = 'DatasNaoPresas';
+  }
+}
+
 /** O pedido não aceita mais pagamento (pago em outra aba, cancelado): a rota responde 409 com o status. */
 export class PedidoFechado extends Error {
   status: StatusReserva;
@@ -308,7 +361,21 @@ export async function fecharSessaoAnterior(
  * Se o pedido for pago ou cancelado enquanto a sessão nasce, ele não aceita a sessão nova: ela é expirada na
  * Stripe e sai PedidoFechado (a rota responde 409 'status').
  */
-export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagamento, agora: Date = new Date()): Promise<SessaoAberta> {
+export async function abrirSessaoDoPedido(
+  vouchers: Reserva[],
+  forma: FormaPagamento,
+  agora: Date = new Date(),
+  {
+    seATravaFalhar = 'vencer',
+  }: {
+    /**
+     * O que fazer com o pedido quando o banco não consegue prender as datas da casa: 'cancelar' (o primeiro pagamento, na
+     * criação do pedido: o cliente refaz pelo carrinho) ou 'vencer' (o "Pagar de novo" e a troca de forma: o pedido volta
+     * a vencido, sem o e-mail do Pix vencido, e o cliente pode tentar de novo).
+     */
+    seATravaFalhar?: 'cancelar' | 'vencer';
+  } = {},
+): Promise<SessaoAberta> {
   const [r] = vouchers;
   if (!r) throw new Error('Pedido sem itens.');
   const codigo = r.pedido?.codigo ?? r.codigo;
@@ -316,7 +383,8 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
   const { paraPublico } = await import('../../../lib/reserva-publica.ts');
   const { dicionario } = await import('../../../i18n/index.ts');
   const { urlDoSite } = await import('../../../lib/site.ts');
-  const { renomearBloqueiosDaSessao } = await import('../../../lib/pedido-carrinho.ts');
+  const { DatasIndisponiveis, acertarDatasParaASessao, liberarDatasDosVouchers, prenderDatasDoPedido } =
+    await import('../../../lib/pedido-carrinho.ts');
 
   const d = dicionario(r.idioma);
   const dados = {
@@ -396,15 +464,79 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
     throw new SessaoAnteriorAberta(codigo, aberta.anterior);
   }
 
-  // com as anteriores fechadas, os bloqueios de casa passam para a sessão nova: com dois cliques, em qualquer ordem de
-  // chegada, eles terminam na sessão que ficou no pedido. (Três cliques ao mesmo tempo ainda poderiam deixar um bloqueio
-  // numa sessão fechada; hoje nenhum pedido tem bloqueio de casa, isso chega na Etapa 7.)
-  for (const anterior of anteriores) {
-    await renomearBloqueiosDaSessao(anterior, sessao.id).catch((e) =>
-      console.error(`[pedido] não deu para passar os bloqueios de casa para a sessão nova do pedido ${codigo}: ${mensagem(e)}`),
+  // com as anteriores fechadas, as datas das casas ficam presas para a sessão nova (Etapa 7; crítica de 26/11, furo 1): os
+  // bloqueios do pedido passam para ela pelo ITEM do pedido, conferindo as linhas, e o que não voltou é preso de novo pela
+  // função do banco (prenderDatasDoPedido). Nada segue com a sessão sem as datas presas:
+  // - as noites já são de outra pessoa: o pedido é cancelado ANTES de a nova fechar (cancelarPedidoAberto grava primeiro;
+  //   furo 14: fechando antes, o aviso da sessão vencida punha o pedido em vencido e mandava o e-mail do Pix vencido de um
+  //   QR que o cliente nunca viu), e sai DatasDaCasaOcupadas (409 'datas');
+  // - o banco falhou: o pedido é cancelado (o primeiro pagamento) ou volta a vencido ("Pagar de novo"), a nova fecha e sai
+  //   DatasNaoPresas (503 'banco').
+  // O calendário das páginas é refeito pela rota (calendarioMudou só nas rotas: furo 3)
+  let temCasa: boolean;
+  try {
+    temCasa = await prenderDatasDoPedido(vouchers, sessao.id);
+  } catch (e) {
+    if (e instanceof DatasIndisponiveis) {
+      const cancelado = await cancelarPedidoAberto(codigo, EVENTO_DATAS_OCUPADAS).catch((e2) => {
+        console.error(`[pedido] não deu para cancelar o pedido ${codigo} com as datas ocupadas: ${mensagem(e2)}`);
+        return null;
+      });
+      await fecharNova();
+      if (cancelado?.status === 'cancelado') {
+        await liberarDatasDosVouchers(vouchers).catch((e2) =>
+          console.error(`[pedido] não deu para soltar as datas do pedido cancelado ${codigo}: ${mensagem(e2)}`),
+        );
+      }
+      throw new DatasDaCasaOcupadas(codigo);
+    }
+    console.error(`[pedido] não deu para prender as datas da casa do pedido ${codigo}: ${mensagem(e)}`);
+    if (seATravaFalhar === 'cancelar') {
+      await cancelarPedidoAberto(codigo, EVENTO_TRAVA_FALHOU).catch((e2) =>
+        console.error(`[pedido] não deu para cancelar o pedido ${codigo} sem as datas presas: ${mensagem(e2)}`),
+      );
+    } else {
+      await voltarAVencido(codigo, sessao.id).catch((e2) =>
+        console.error(`[pedido] não deu para pôr o pedido ${codigo} em vencido sem as datas presas: ${mensagem(e2)}`),
+      );
+    }
+    await fecharNova();
+    // o que a renomeação tiver passado para a sessão nova não fica preso a uma sessão fechada
+    await liberarDatasDosVouchers(vouchers).catch((e2) =>
+      console.error(`[pedido] não deu para soltar as datas do pedido ${codigo}: ${mensagem(e2)}`),
     );
+    throw new DatasNaoPresas(codigo);
+  }
+
+  // dois "Pagar" quase juntos (o cartão numa aba, o Pix na outra): cada um prende com a sua sessão, e as datas têm de seguir
+  // a que ficou no pedido, para sair junto com ela quando vencer
+  if (temCasa) {
+    const { obterReservaDoPedido } = await import('../../../lib/reservas.ts');
+    const atual = await obterReservaDoPedido(codigo).catch(() => null);
+    if (atual?.pagamentoExternoId && atual.pagamentoExternoId !== sessao.id && podeAbrirSessao(atual.status)) {
+      await acertarDatasParaASessao(vouchers, atual.pagamentoExternoId).catch((e) =>
+        console.error(`[pedido] não deu para passar as datas da casa para a sessão corrente do pedido ${codigo}: ${mensagem(e)}`),
+      );
+    }
   }
   return { codigo, sessaoId: sessao.id, clientSecret: sessao.client_secret, forma };
+}
+
+/**
+ * O "Pagar de novo" que não conseguiu prender as datas da casa (o banco falhou): o pedido volta a vencido, ANTES de a
+ * sessão nova fechar. Assim o aviso da sessão vencida não muda mais nada (o pedido já está vencido) e não sai o e-mail do
+ * Pix vencido de um QR que o cliente nunca viu; a página mostra "Pagar de novo", e ele pode tentar outra vez. Só se a
+ * sessão corrente ainda for a nova e o pedido ainda esperar o pagamento.
+ */
+async function voltarAVencido(codigo: string, sessaoId: string): Promise<void> {
+  const { atualizarReserva, obterReservaDoPedido, registrar } = await import('../../../lib/reservas.ts');
+  const alvo = await obterReservaDoPedido(codigo);
+  if (!alvo) return;
+  await atualizarReserva(alvo.codigo, (x) => {
+    if (x.pagamentoExternoId !== sessaoId || x.status !== 'pendente') return null;
+    x.status = 'expirado';
+    return registrar(x, EVENTO_SESSAO_SEM_TRAVA);
+  });
 }
 
 /**

@@ -179,7 +179,9 @@ test('a sessão nova só volta depois de conferir cada anterior: paga, o pedido 
     pos('depois.push({ anterior, ...(await fecharSessaoAnterior(anterior, codigo)) });'),
     pos("const paga = depois.find((d) => d.estado === 'paga');"),
     pos("const aberta = depois.findLast((d) => d.estado === 'aberta');"),
-    pos('await renomearBloqueiosDaSessao(anterior, sessao.id)'),
+    // Etapa 7: as datas das casas ficam presas para a sessão nova pelo item do pedido (prenderDatasDoPedido), no lugar da
+    // troca pela referência da sessão anterior (crítica de 26/11, furo 1)
+    pos('temCasa = await prenderDatasDoPedido(vouchers, sessao.id);'),
     pos('return { codigo, sessaoId: sessao.id, clientSecret: sessao.client_secret, forma };'),
   ];
   assert.deepEqual(

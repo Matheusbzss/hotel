@@ -43,6 +43,12 @@ export interface ItemCobravel {
   totalCentavos: number;
   /** O total no Pix (com o desconto). Sem ele, o Pix cobra o mesmo do cartão. */
   totalPixCentavos?: number;
+  /**
+   * Só na casa: o sinal de cada forma, GUARDADO na compra (ReservaCasa, src/lib/reservas.ts). Com ele, a cobrança usa o
+   * número guardado, e não a conta de hoje: se um dia o sinal mudar de SINAL_PORCENTO, as reservas antigas não mudam.
+   */
+  sinalCentavos?: number;
+  sinalPixCentavos?: number;
 }
 
 /** O que um item precisa dizer para se saber se ainda dá tempo de pagar: a data e a hora em que começa. */
@@ -68,12 +74,15 @@ export function totalDoItem(item: ItemCobravel, forma: FormaPagamento): number {
 }
 
 /**
- * Quanto cobrar por um item na forma escolhida, em centavos: o total no passeio e no transfer; na casa, o
- * sinal de 50% sobre o total (sobre o total com o desconto, no Pix), arredondado em centavos.
+ * Quanto cobrar por um item na forma escolhida, em centavos: o total no passeio e no transfer; na casa, o sinal de 50%
+ * sobre o total (sobre o total com o desconto, no Pix), arredondado em centavos. A casa que traz o sinal guardado na
+ * compra cobra o guardado (o pedido, o "Pagar de novo", o reembolso de um voucher).
  */
 export function valorDoItem(item: ItemCobravel, forma: FormaPagamento): number {
   const total = totalDoItem(item, forma);
-  return item.tipo === 'casa' ? sinalCentavos(total) : total;
+  if (item.tipo !== 'casa') return total;
+  const guardado = forma === 'pix' ? item.sinalPixCentavos : item.sinalCentavos;
+  return guardado ?? sinalCentavos(total);
 }
 
 /** O que a sessão de pagamento cobra: a soma dos itens na forma escolhida. */
@@ -87,22 +96,44 @@ export function inicioDoItem(item: ItemAgendado): { data: string; hora: string }
   return { data: item.data, hora };
 }
 
+/**
+ * A hora que conta para os prazos de PAGAR um item (o Pix até 2 horas antes, o cartão até 30 minutos antes): o início do
+ * item no passeio e no transfer; na casa, a meia-noite que começa o dia da entrada. Decisão do dono de 26/11/2026: a casa
+ * não se paga no dia da entrada, nem no Pix nem no cartão, também o pedido antigo e vencido ("Pagar de novo"). Assim o
+ * Pix da casa vale até as 22h da véspera e o cartão, até as 23h30. O aviso do pagamento que chega depois do horário
+ * (horarioJaPassou, src/lib/pagamento-stripe.ts) continua contando do início de verdade, a entrada das 15h.
+ */
+export const HORA_LIMITE_PARA_PAGAR_A_CASA = '00:00';
+
+export function limiteParaPagar(item: ItemAgendado): { data: string; hora: string } {
+  return item.tipo === 'casa' ? { data: item.data, hora: HORA_LIMITE_PARA_PAGAR_A_CASA } : inicioDoItem(item);
+}
+
 /** Quantos dias de calendário vão de uma data (AAAA-MM-DD) até a outra. */
 const diasEntre = (de: string, ate: string): number =>
   Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
 
 /**
- * O item começa pelo menos `antecedenciaMinutos` depois de agora, no fuso de Búzios, contando minutos inteiros. A conta
- * atravessa a virada do dia: às 23h30, o transfer da 0h30 de amanhã começa em 60 minutos. Uma data que não dá para ler
- * conta como fora do prazo. Hoje só os lembretes do carrinho a usam (src/lib/lembretes.ts); os prazos de pagar contam
- * segundos (segundosAteOInicio): o do Pix (validadeDoPix) e, desde o reteste de 17/11, o do cartão (cartaoDisponivel).
+ * Ainda dá para pagar o item com pelo menos `antecedenciaMinutos` de folga, no fuso de Búzios, contando minutos inteiros
+ * até o limite de pagar (limiteParaPagar: o início do item; na casa, a meia-noite do dia da entrada). A conta atravessa a
+ * virada do dia: às 23h30, o transfer da 0h30 de amanhã começa em 60 minutos. Uma data que não dá para ler conta como
+ * fora do prazo. Hoje só os lembretes do carrinho a usam (src/lib/lembretes.ts); os prazos de pagar contam segundos
+ * (segundosAteOPrazo): o do Pix (validadeDoPix) e, desde o reteste de 17/11, o do cartão (cartaoDisponivel).
  */
 export function dentroDoPrazo(item: ItemAgendado, agora: Date, antecedenciaMinutos: number = ANTECEDENCIA_MINIMA_MINUTOS): boolean {
-  const { data, hora } = inicioDoItem(item);
+  const { data, hora } = limiteParaPagar(item);
   const { data: hoje, minutos } = agoraEmBuzios(agora);
   if (data < hoje) return false;
   const faltam = diasEntre(hoje, data) * 24 * 60 + paraMinutos(hora) - minutos;
   return faltam >= antecedenciaMinutos;
+}
+
+/** Os segundos de agora até um dia e uma hora de Búzios (negativo se já passou; NaN se não dá para ler). */
+function segundosAte({ data, hora }: { data: string; hora: string }, agora: Date): number {
+  const { data: hoje, minutos } = agoraEmBuzios(agora);
+  const faltamMinutos = diasEntre(hoje, data) * 24 * 60 + paraMinutos(hora) - minutos;
+  // agoraEmBuzios conta minutos inteiros: os segundos do minuto corrente saem aqui (o fuso de Búzios é de horas inteiras)
+  return faltamMinutos * 60 - agora.getUTCSeconds();
 }
 
 /**
@@ -110,11 +141,15 @@ export function dentroDoPrazo(item: ItemAgendado, agora: Date, antecedenciaMinut
  * que não dá para ler dá NaN, que nenhuma comparação aceita: nunca libera pagamento.
  */
 export function segundosAteOInicio(item: ItemAgendado, agora: Date): number {
-  const { data, hora } = inicioDoItem(item);
-  const { data: hoje, minutos } = agoraEmBuzios(agora);
-  const faltamMinutos = diasEntre(hoje, data) * 24 * 60 + paraMinutos(hora) - minutos;
-  // agoraEmBuzios conta minutos inteiros: os segundos do minuto corrente saem aqui (o fuso de Búzios é de horas inteiras)
-  return faltamMinutos * 60 - agora.getUTCSeconds();
+  return segundosAte(inicioDoItem(item), agora);
+}
+
+/**
+ * Quantos segundos faltam, agora, para o limite de pagar o item (limiteParaPagar): no passeio e no transfer, o mesmo
+ * número de segundosAteOInicio; na casa, até a meia-noite do dia da entrada. NaN quando não dá para ler.
+ */
+export function segundosAteOPrazo(item: ItemAgendado, agora: Date): number {
+  return segundosAte(limiteParaPagar(item), agora);
 }
 
 /**
@@ -146,7 +181,8 @@ export const PIX_VALIDADE_MINIMA_SEGUNDOS = 10 * 60;
  */
 export function validadeDoPix(itens: ItemAgendado[], agora: Date = new Date()): number | null {
   if (!itens.length) return null;
-  const ate = Math.min(...itens.map((item) => segundosAteOInicio(item, agora))) - ANTECEDENCIA_MINIMA_MINUTOS * 60;
+  // na casa, o prazo conta da meia-noite do dia da entrada (limiteParaPagar): o Pix dela vale até as 22h da véspera
+  const ate = Math.min(...itens.map((item) => segundosAteOPrazo(item, agora))) - ANTECEDENCIA_MINIMA_MINUTOS * 60;
   // passou do prazo; NaN (uma data que não dá para ler) também cai aqui
   if (!(ate >= 0)) return null;
   return Math.min(PIX_EXPIRA_SEGUNDOS, Math.max(PIX_VALIDADE_MINIMA_SEGUNDOS, ate));
@@ -214,7 +250,8 @@ export const ANTECEDENCIA_CARTAO_MINUTOS = 30;
  * `agora` de cada uma. Uma data ou hora que não dá para ler (NaN) nunca libera o cartão.
  */
 export function cartaoDisponivel(itens: ItemAgendado[], agora: Date = new Date()): boolean {
-  return itens.length > 0 && itens.every((item) => segundosAteOInicio(item, agora) >= ANTECEDENCIA_CARTAO_MINUTOS * 60);
+  // na casa, o prazo conta da meia-noite do dia da entrada (limiteParaPagar): o cartão dela vale até as 23h30 da véspera
+  return itens.length > 0 && itens.every((item) => segundosAteOPrazo(item, agora) >= ANTECEDENCIA_CARTAO_MINUTOS * 60);
 }
 
 /**

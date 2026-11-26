@@ -80,6 +80,11 @@ export const ajustesAR: AjustesAR = {
     faltaData: 'Elegí la fecha del paseo, más arriba.',
     faltaHorario: 'Elegí el horario, más arriba.',
     faltaDataEHorario: 'Elegí la fecha y el horario, más arriba.',
+    // Etapa 7, a casa no carrinho: a seña e as frases com verbo em vos
+    casaSinalHoje: 'Seña del {p}% hoy; el resto, al llegar',
+    casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Tocá Cambiar para elegir otras fechas.',
+    casaEsperando:
+      'Ya hay un pedido de casa con este e-mail esperando el pago. Completá ese pago o esperá a que venza, en hasta 1 hora, para hacer otro pedido.',
   },
   cotacao: {
     erro: 'No se pudo enviar ahora. Intentá de nuevo en unos minutos.',
@@ -324,6 +329,13 @@ export const ajustesAR: AjustesAR = {
       'No pudimos abrir el pago por el sitio en este momento. Tu reserva queda registrada con todos los datos y completás el pago con nuestro equipo por WhatsApp.',
     semStripe:
       'El formulario de pago no se cargó. Probá sin el bloqueador de anuncios en este sitio o con otra red, como los datos del celular. Si sigue sin funcionar, escribinos por e-mail.',
+    // Etapa 7, a casa no checkout: a seña, o acá e as frases com verbo em vos
+    umPagamentoComCasa:
+      'Un solo pago y un voucher para cada ítem. En la casa, hoy pagás una seña del {p}% y el resto al llegar, con Pix, efectivo o tarjeta.',
+    casaSoNoSite:
+      'La reserva de la casa se paga acá en el sitio, y el pago en el sitio no está disponible ahora. Intentá de nuevo más tarde o escribinos por e-mail.',
+    casaSoNoSiteComOutros:
+      'La reserva de la casa se paga acá en el sitio, y el pago en el sitio no está disponible ahora. Para terminar los otros ítems por WhatsApp, sacá la casa del carrito.',
     erros: {
       obrigatorio: 'Completá este campo.',
       email: 'Revisá el e-mail.',
@@ -365,6 +377,8 @@ export const ajustesAR: AjustesAR = {
     colunaPix: 'Seña con Pix',
     colunaCartao: 'Seña con tarjeta',
     avisemeTexto: 'Dejanos tu nombre y tu e-mail y te avisamos cuando abra la reserva de esta casa.',
+    // Etapa 7: o nome da casa na tela de pagamento da Stripe, com a seña
+    itemNaStripe: '{casa}: seña del {p}%',
   },
   contato: {
     titulo: 'Contactanos',

@@ -330,9 +330,9 @@ export const AVISO_PAGO_DEPOIS_DO_HORARIO =
   'Aviso: o pagamento chegou depois do horário do serviço: ver com o parceiro se ainda dá para atender; se não der, reembolsar o cliente';
 
 /**
- * O total que o pedido esperava receber na forma registrada (o do pedido inteiro, não só deste voucher).
- * Etapa 7 (casas com sinal): aí o valor esperado passa a ser o que foi cobrado de fato (o sinal), não o total do
- * pedido; trocar aqui junto com o valor mandado para a sessão, senão todo pagamento de casa gera o aviso de valor.
+ * O que o pedido esperava receber na forma registrada (o do pedido inteiro, não só deste voucher). Desde a Etapa 7, no pedido
+ * com casa, é o que ele cobra hoje (pagamento.cobrar: o sinal da casa mais o resto), o mesmo valor que a sessão cobra
+ * (valorDoItem): o sinal pago não dá o aviso de valor diferente (valorEsperadoDoPedido, src/lib/pedidos-painel.ts).
  */
 const valorEsperado = (r: Reserva): number => valorEsperadoDoPedido(r);
 

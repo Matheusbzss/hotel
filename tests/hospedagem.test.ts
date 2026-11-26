@@ -107,7 +107,8 @@ test('o painel grava o hotel a informar: o campo uma vez por pedido, a rota deci
   // nada de decidir pela lista lida no começo da requisição: cada passeio é relido dentro de atualizarReserva
   assert.match(rota, /const passo = passoDoHotel\(x\.hospedagem, x\.historico, hotel\);/);
   // a linha do histórico só com o primeiro passeio do pedido (segunda revisão: sem o banco, cada voucher tem uma cópia)
-  assert.match(rota, /const primeiroPasseio = vouchers\.find\(\(v\) => !ehTransfer\(v\)\)\?\.codigo;/);
+  // só os passeios têm hotel (desde a Etapa 7 o pedido também pode ter casa: ehPasseio, e não "não é transfer")
+  assert.match(rota, /const primeiroPasseio = vouchers\.find\(\(v\) => ehPasseio\(v\)\)\?\.codigo;/);
   assert.match(rota, /return passo\.linha && v\.codigo === primeiroPasseio \? registrar\(x, passo\.linha\) : x;/);
   // outro hotel já gravado: para no primeiro passeio que diz isso, e a volta avisa
   assert.match(rota, /if \(outro\) \{\s+outroHotel = true;\s+break;\s+\}/);

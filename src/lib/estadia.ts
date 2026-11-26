@@ -1,7 +1,7 @@
 import type { Texto } from '../data/passeios';
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
-import { HORA_ENTRADA_CASA, noitesEntre, sinalCentavos } from './diarias.ts';
-import { ANTECEDENCIA_MINIMA_MINUTOS, agoraEmBuzios, paraMinutos } from './horarios.ts';
+import { noitesEntre, sinalCentavos } from './diarias.ts';
+import { ANTECEDENCIA_MINIMA_MINUTOS, agoraEmBuzios } from './horarios.ts';
 import { precoPixCentavos } from './orcamento.ts';
 import { somarDias } from './validacao.ts';
 
@@ -137,15 +137,22 @@ export function dataValida(data: string): boolean {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === data;
 }
 
+/** Os minutos de um dia inteiro: a meia-noite que começa o dia da entrada é o prazo de pagar a casa. */
+const MINUTOS_DO_DIA = 24 * 60;
+
 /**
- * O primeiro dia em que ainda dá para ENTRAR numa casa, agora, no fuso de Búzios: hoje, se ainda faltam
- * ANTECEDENCIA_MINIMA_MINUTOS (2 horas) até a entrada das 15h, como em todo pedido novo (src/lib/horarios.ts); depois
- * das 13h, amanhã. É o `hoje` que o servidor passa para contaEstadia: depois das 13h, a noite de hoje já não pode ser
- * vendida e conta como passada. Ex.: na sexta às 18h, sábado a segunda passa (a sexta ficou para trás).
+ * O primeiro dia em que ainda dá para ENTRAR numa casa, agora, no fuso de Búzios. Decisão do dono de 26/11/2026: a casa
+ * só se reserva para entrar a partir do DIA SEGUINTE, nunca no mesmo dia, e nem se paga no dia da entrada (o prazo de
+ * pagar a casa é a meia-noite que começa o dia da entrada: limiteParaPagar, src/lib/formas-pagamento.ts). Como em todo
+ * pedido novo, faltam pelo menos ANTECEDENCIA_MINIMA_MINUTOS (2 horas) até esse prazo (src/lib/horarios.ts): até as 22h,
+ * a entrada de amanhã; depois das 22h, a de depois de amanhã. É o `hoje` que o servidor passa para contaEstadia: as noites
+ * antes dele já não podem ser vendidas e contam como passadas. Ex.: na sexta, sábado a segunda passa (a sexta é de hoje).
+ * HORA_ENTRADA_CASA (15h) continua sendo a hora de entrar na casa, a dos textos, do voucher e do aviso do pagamento que
+ * chega depois do horário.
  */
 export function primeiraEntradaPossivel(agora: Date = new Date()): string {
   const { data, minutos } = agoraEmBuzios(agora);
-  return minutos + ANTECEDENCIA_MINIMA_MINUTOS <= paraMinutos(HORA_ENTRADA_CASA) ? data : somarDias(data, 1);
+  return minutos + ANTECEDENCIA_MINIMA_MINUTOS <= MINUTOS_DO_DIA ? somarDias(data, 1) : somarDias(data, 2);
 }
 
 /** O dia da semana: 0 = domingo, 5 = sexta, 6 = sábado. */

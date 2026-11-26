@@ -23,6 +23,7 @@ import type { Json } from './banco-tipos';
 import { juntarCopias, type CarrinhoComCopia, type CarrinhoNoFunil } from './estatisticas';
 import {
   MAXIMO_ITENS,
+  type EscolhaCasa,
   type EscolhaPasseio,
   type EscolhaTransfer,
   type ItemCarrinho,
@@ -30,6 +31,8 @@ import {
   type SugestaoVisivel,
   type TrechoEscolhido,
 } from './carrinho';
+import { EsquemaEscolhaCasa, conferirCasa, linhasDoItemDaCasa, type CasaConferida, type ContextoDasCasas } from './casa-no-carrinho';
+import { SINAL_PORCENTO } from './diarias';
 import type { FormaPagamento } from './formas-pagamento';
 import { formatarHora, horasDisponiveis } from './horarios';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Orcamento } from './orcamento';
@@ -85,6 +88,8 @@ export const EsquemaEscolha = z.discriminatedUnion('tipo', [
     passageiros: z.number().int().min(1).max(17),
     malas: z.object({ grandes: quantidade, medias: quantidade, mao: quantidade }),
   }),
+  // a casa de temporada (Etapa 7): a casa, a entrada, a saída e os hóspedes (src/lib/casa-no-carrinho.ts)
+  EsquemaEscolhaCasa,
 ]);
 
 /** O preço de uma escolha, sempre pela tabela do site. */
@@ -96,17 +101,26 @@ export interface PrecoEscolha {
 export type Conferida =
   | ({ ok: true; escolha: EscolhaPasseio; passeio: Passeio; orc: Orcamento; busca: boolean } & PrecoEscolha)
   | ({ ok: true; escolha: EscolhaTransfer; trechosCentavos: number[] } & PrecoEscolha)
-  | { ok: false; erro: string };
+  | CasaConferida
+  // `ocupadas`: só na casa recusada por noite ocupada, as noites ocupadas de agora (o calendário da página se atualiza)
+  | { ok: false; erro: string; ocupadas?: string[] };
 
 /** Fora dos aeroportos, cada ponta precisa do hotel, da pousada ou do endereço; "outra cidade" é sob cotação. */
 const pontaValida = (p: EscolhaTransfer['ida']['saida']) =>
   p.lugar !== 'outra-cidade' && (LUGARES[p.lugar].aeroporto || (p.endereco ?? '').length >= 3);
 
-/** Confere a escolha com as regras de hoje (horário, crianças, datas, ida e volta) e calcula o preço. */
-export function conferirEscolha(bruta: unknown, agora: Date = new Date()): Conferida {
+/**
+ * Confere a escolha com as regras de hoje (horário, crianças, datas, ida e volta) e calcula o preço. A casa precisa do
+ * contexto das casas (src/lib/casas-carrinho.ts), lido antes: a casa e as noites ocupadas de agora. Ele é obrigatório
+ * (crítica de 26/11, furo 2): quem esquece não passa no tsc, e o carrinho sem casa passa SEM_CASAS, sem leitura nenhuma.
+ */
+export function conferirEscolha(bruta: unknown, contexto: ContextoDasCasas, agora: Date = new Date()): Conferida {
   const r = EsquemaEscolha.safeParse(bruta);
   if (!r.success) return { ok: false, erro: r.error.issues[0]?.path.join('.') || 'dados' };
   const e = r.data;
+
+  // a casa: a mesma conta da página (contaEstadia), com as noites ocupadas de agora e as decisões do dono de 26/11
+  if (e.tipo === 'casa') return conferirCasa(e, contexto, agora);
 
   if (e.tipo === 'passeio') {
     const passeio = obterPasseio(e.slug);
@@ -184,8 +198,19 @@ export function conferirEscolha(bruta: unknown, agora: Date = new Date()): Confe
   };
 }
 
-/** O que ainda vale: o item cuja data ou horário passou sai da conta. */
-export const itensQueValem = (itens: ItemCarrinho[], agora?: Date) => itens.filter((i) => conferirEscolha(i.escolha, agora).ok);
+/** A casa recusada porque alguma noite ficou ocupada: continua no carrinho como indisponível (furo 8 da crítica). */
+export const casaOcupada = (c: Conferida): boolean => !c.ok && c.erro === 'ocupada';
+
+/**
+ * O que ainda vale: o item cuja data ou horário passou sai da conta. A casa que alguém reservou enquanto estava no
+ * carrinho fica, indisponível, com o aviso e o "Mudar" (itemVisivel): nunca some calada, nem é apagada na próxima vez
+ * que o cliente mexe no carrinho.
+ */
+export const itensQueValem = (itens: ItemCarrinho[], contexto: ContextoDasCasas, agora?: Date) =>
+  itens.filter((i) => {
+    const c = conferirEscolha(i.escolha, contexto, agora);
+    return c.ok || casaOcupada(c);
+  });
 
 /* ------------------------------------------------------------------ */
 /* Como cada item aparece                                              */
@@ -195,9 +220,73 @@ export const itensQueValem = (itens: ItemCarrinho[], agora?: Date) => itens.filt
 const quando = (data: string, hora: string, idioma: Idioma) =>
   `${formatarDataIso(data, LOCALE_INTL[idioma])}${PONTO_PRESO}${formatarHora(hora, idioma)}`;
 
+/**
+ * A casa como o cliente vê no carrinho e no checkout: o nome, a primeira foto, as diárias com as datas, os hóspedes e a
+ * linha do sinal; o "Mudar" leva à página da casa com as datas e os hóspedes. Os totais são os da estadia inteira, e o
+ * sinal (o que se paga hoje) vai em `casa`. A casa com noite ocupada agora volta indisponível, sem preço.
+ */
+function itemVisivelDaCasa(
+  item: ItemCarrinho,
+  c: Conferida,
+  idioma: Idioma,
+  d: Dicionario,
+  contexto: ContextoDasCasas,
+): ItemVisivel | null {
+  const e = item.escolha as EscolhaCasa;
+  if (!c.ok && !casaOcupada(c)) return null;
+  const casa = 'casa' in c ? c.casa : contexto.casas.get(e.slug)?.casa;
+  if (!casa) return null;
+  const linhas = linhasDoItemDaCasa(
+    e,
+    idioma,
+    LOCALE_INTL[idioma],
+    {
+      ajusteResultado: d.casas.ajusteResultado,
+      nDiarias: d.casas.nDiarias,
+      umaDiaria: d.casas.umaDiaria,
+      hospede: d.casas.linha.hospede,
+      hospedes: d.casas.linha.hospedes,
+      sinalHoje: d.carrinho.casaSinalHoje,
+    },
+    SINAL_PORCENTO,
+  );
+  const comum = {
+    id: item.id,
+    tipo: 'casa' as const,
+    titulo: texto(casa.nome, idioma),
+    foto: casa.fotos[0] ?? '',
+    href: `${rota(idioma, `/casas-de-temporada/${casa.slug}`)}?mudar=${item.id}#reservar`,
+  };
+  // indisponível: as datas e os hóspedes, sem a linha do sinal e sem preço (fica fora da conta e do pedido)
+  if (!('casa' in c))
+    return { ...comum, detalhes: linhas.slice(0, 2), totalCentavos: 0, totalPixCentavos: 0, escolha: e, indisponivel: true };
+  return {
+    ...comum,
+    detalhes: linhas,
+    totalCentavos: c.totalCentavos,
+    totalPixCentavos: c.totalPixCentavos,
+    escolha: c.escolha,
+    casa: {
+      noites: c.noites,
+      hospedes: c.escolha.hospedes,
+      sinalCentavos: c.sinalCentavos,
+      sinalPixCentavos: c.sinalPixCentavos,
+      chegadaCentavos: c.chegadaCentavos,
+      chegadaPixCentavos: c.chegadaPixCentavos,
+    },
+  };
+}
+
 /** O item como o cliente vê no carrinho e no checkout. Escolha que não vale mais (data passada) → null. */
-export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, agora?: Date): ItemVisivel | null {
-  const c = conferirEscolha(item.escolha, agora);
+export function itemVisivel(
+  item: ItemCarrinho,
+  idioma: Idioma,
+  d: Dicionario,
+  contexto: ContextoDasCasas,
+  agora?: Date,
+): ItemVisivel | null {
+  const c = conferirEscolha(item.escolha, contexto, agora);
+  if (item.escolha.tipo === 'casa') return itemVisivelDaCasa(item, c, idioma, d, contexto);
   if (!c.ok) return null;
   if (c.escolha.tipo === 'passeio' && 'passeio' in c) {
     const p = c.passeio;
@@ -257,8 +346,17 @@ export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, a
  * As sugestões do carrinho (src/data/sugestoes.ts), com o preço para o grupo do último item e a data do dia
  * seguinte. Com criança no grupo, o passeio com idade mínima (mergulho) não aparece.
  */
-export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, agora?: Date): SugestaoVisivel[] {
-  const escolhas = itensQueValem(itens, agora).map((i) => i.escolha);
+export function sugestoesVisiveis(
+  itens: ItemCarrinho[],
+  idioma: Idioma,
+  d: Dicionario,
+  contexto: ContextoDasCasas,
+  agora?: Date,
+): SugestaoVisivel[] {
+  // a casa não gera sugestão (a venda cruzada fica para depois) e não quebra as dos outros itens
+  const escolhas = itensQueValem(itens, contexto, agora)
+    .map((i) => i.escolha)
+    .filter((e): e is EscolhaPasseio | EscolhaTransfer => e.tipo !== 'casa');
   const ultimo = escolhas.at(-1);
   if (!ultimo) return [];
   const grupo =
@@ -576,7 +674,7 @@ export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[
   return inicio ? juntos.filter((c) => Date.parse(c.criadoEm) >= Date.parse(inicio)) : juntos;
 }
 
-/** Os itens que ainda valem, já com o texto e o preço no idioma. */
-export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario): ItemVisivel[] {
-  return itens.map((i) => itemVisivel(i, idioma, d)).filter((i): i is ItemVisivel => i !== null);
+/** Os itens que ainda valem, já com o texto e o preço no idioma (a casa ocupada agora, indisponível). */
+export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas): ItemVisivel[] {
+  return itens.map((i) => itemVisivel(i, idioma, d, contexto)).filter((i): i is ItemVisivel => i !== null);
 }

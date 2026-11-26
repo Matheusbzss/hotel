@@ -4,17 +4,27 @@ import { z } from 'zod';
 import { IDIOMAS } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
-import { COOKIE_CARRINHO, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
+import { COOKIE_CARRINHO, casaOcupada, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
+import { cruzaComAMesmaCasa } from '@/lib/casa-no-carrinho';
+import { calendarioMudou } from '@/lib/casas';
+import { contextoDoCarrinho } from '@/lib/casas-carrinho';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
 import { hospedagemDoCheckout } from '@/lib/hospedagem';
-import { FORMAS_PAGAMENTO, formasDoPagamento, type FormaPagamento } from '@/lib/formas-pagamento';
+import { FORMAS_PAGAMENTO, formasDoPagamento, valorACobrar, type FormaPagamento } from '@/lib/formas-pagamento';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { origemDaVisita } from '@/lib/origem-servidor';
 import { podeAbrirSessao } from '@/lib/pagamento-stripe';
-import { reservaDoItem } from '@/lib/pedido-carrinho';
+import { liberarDatasDosVouchers, pedidoDeCasaEsperando, reservaDoItem } from '@/lib/pedido-carrinho';
 import { criarPedido } from '@/lib/reservas';
 import { CIDADES_HOSPEDAGEM, emailValido, telefoneParaGravar, telefoneValido } from '@/lib/validacao';
-import { abrirSessaoDoPedido, cancelarPedidoAberto, itemAgendado, vouchersDoPedido } from './pedido-stripe';
+import {
+  DatasDaCasaOcupadas,
+  DatasNaoPresas,
+  abrirSessaoDoPedido,
+  cancelarPedidoAberto,
+  itemAgendado,
+  vouchersDoPedido,
+} from './pedido-stripe';
 import { mensagemDoErro } from '@/lib/erros';
 import { barrarRobo } from '@/lib/robos-servidor';
 
@@ -24,6 +34,14 @@ export const maxDuration = 30;
 /** Até quantos pedidos um mesmo IP pode fazer em 10 minutos (cada um abre uma sessão na Stripe). */
 const LIMITE_POR_IP = 20;
 const JANELA_SEGUNDOS = 600;
+/**
+ * Até quantos pedidos COM CASA um mesmo IP pode fazer por hora (crítica de 26/11, furo 21: cada um prende as noites por
+ * até 61 minutos). O IP não fica gravado no pedido e as redes de celular dividem um IP entre muita gente: o limite por IP
+ * é uma contagem por hora, e o "um pedido esperando" de verdade é o do e-mail (pedidoDeCasaEsperando) e o do carrinho (o
+ * pedido anterior do mesmo carrinho é cancelado quando o cliente refaz).
+ */
+const PEDIDOS_DE_CASA_POR_IP = 3;
+const JANELA_DA_CASA_SEGUNDOS = 3600;
 
 const texto = (max: number) => z.string().trim().min(1).max(max);
 
@@ -80,6 +98,10 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * Erros: 400 com o campo; 409 'mudou'; 403 'forma' (com as formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou
  * 'limite'); 400 'pagamento' (o pagamento online está no ar e a forma não veio); 429 'limite'; 403 'robo' (a proteção
  * contra robôs, src/lib/robos.ts: nada gravado); 502 'stripe' (o pedido fica cancelado e o carrinho continua); 503 'banco'.
+ * Com casa (Etapa 7): 409 'datas' (alguma noite ficou ocupada, antes de criar o pedido ou na hora de prender as datas: o
+ * pedido fica cancelado); 403 'casa-so-online' (a casa só se paga pelo site, nunca pelo WhatsApp); 403 'casa-fechada' (a
+ * reserva das casas fechou para este visitante); 409 'casa-esperando' (já há um pedido de casa esperando o pagamento com
+ * este e-mail). O pedido com casa guarda o que cobra hoje (pagamento.cobrar) e prende as datas com a sessão.
  */
 export async function POST(req: Request) {
   const r = Esquema.safeParse(await req.json().catch(() => null));
@@ -94,25 +116,39 @@ export async function POST(req: Request) {
   const loja = await cookies();
   const codigoCarrinho = loja.get(COOKIE_CARRINHO)?.value;
   const agora = new Date();
+  const ip = ipDaRequisicao(req.headers);
+  const admin = sessaoValida(loja.get(COOKIE_ADMIN)?.value);
   try {
     // um robô não enche o painel de pedidos pendentes nem abre sessões à toa na Stripe
-    if (!(await permitir(chaveDoLimite('pedido', ipDaRequisicao(req.headers)), LIMITE_POR_IP, JANELA_SEGUNDOS, agora)))
-      return erro('limite', 429);
+    if (!(await permitir(chaveDoLimite('pedido', ip), LIMITE_POR_IP, JANELA_SEGUNDOS, agora))) return erro('limite', 429);
 
     const carrinho = await lerCarrinho(codigoCarrinho);
-    const conferidas = carrinho.itens.flatMap((i) => {
-      const c = conferirEscolha(i.escolha, agora);
-      return c.ok ? [{ id: i.id, c }] : [];
-    });
+    // a casa: o contexto (as noites ocupadas de agora, lidas sem cache, sem as do próprio pedido do carrinho), lido antes
+    // de conferir; o carrinho sem casa não lê nada a mais
+    const contexto = await contextoDoCarrinho(carrinho, { admin });
+    const todas = carrinho.itens.map((i) => ({ id: i.id, c: conferirEscolha(i.escolha, contexto, agora) }));
+    // a casa que alguém reservou enquanto estava no carrinho: o cliente escolhe outras datas (nunca o 'mudou' genérico)
+    if (todas.some(({ c }) => casaOcupada(c))) return erro('datas', 409);
+    // a reserva das casas fechou para este visitante (o interruptor RESERVA_CASAS ou o pagamento online)
+    if (todas.some(({ c }) => !c.ok && c.erro === 'casa-fechada')) return erro('casa-fechada', 403);
+    const conferidas = todas.flatMap(({ id, c }) => (c.ok ? [{ id, c }] : []));
     // um item venceu agora (a data ou o horário passou) ou o carrinho mudou em outra aba: o cliente confere antes
     const igual = conferidas.length === e.ids.length && conferidas.every(({ id }) => e.ids.includes(id));
     if (!codigoCarrinho || !igual) return erro('mudou', 409);
+    // a mesma casa duas vezes com noites que se cruzam (duas abas): a função do banco também recusaria, depois
+    const casas = conferidas.flatMap(({ c }) => ('casa' in c ? [c.escolha] : []));
+    if (casas.some((casa, i) => cruzaComAMesmaCasa(casa, casas.slice(i + 1)))) return erro('datas', 409);
+    const temCasa = casas.length > 0;
 
     // a forma de pagamento: só as que o checkout oferece agora a este cliente (o interruptor, a Stripe, o prazo de cada
-    // forma e o limite de valor do Pix, sobre os preços do servidor)
-    const admin = sessaoValida(loja.get(COOKIE_ADMIN)?.value);
+    // forma e o limite de valor do Pix, sobre os preços do servidor; na casa, o sinal)
     const { formas, semPix } = await formasDoPagamento(
-      conferidas.map(({ c }) => ({ ...itemAgendado(c.escolha), totalCentavos: c.totalCentavos, totalPixCentavos: c.totalPixCentavos })),
+      conferidas.map(({ c }) => ({
+        ...itemAgendado(c.escolha),
+        totalCentavos: c.totalCentavos,
+        totalPixCentavos: c.totalPixCentavos,
+        ...('casa' in c ? { sinalCentavos: c.sinalCentavos, sinalPixCentavos: c.sinalPixCentavos } : {}),
+      })),
       agora,
       { admin },
     );
@@ -124,6 +160,8 @@ export async function POST(req: Request) {
       // com pagamento online no ar, o formulário sempre manda a forma
       return erro('pagamento');
     }
+    // a casa só se paga aqui no site: o caminho "registrar e finalizar pelo WhatsApp" não serve para ela
+    if (temCasa && !forma) return erro('casa-so-online', 403);
 
     const dados = {
       idioma: e.idioma,
@@ -143,15 +181,26 @@ export async function POST(req: Request) {
     const novas = [];
     for (const { id, c } of conferidas) {
       if ('passeio' in c && !hospedagem) return erro('hospedagem');
-      const extras = e.transfers[id];
-      if (!('passeio' in c) && extras && extras.cadeirinhas.length > c.escolha.passageiros) return erro('cadeirinhas');
+      const extras = 'trechosCentavos' in c ? e.transfers[id] : undefined;
+      if ('trechosCentavos' in c && extras && extras.cadeirinhas.length > c.escolha.passageiros) return erro('cadeirinhas');
       novas.push(reservaDoItem(c, dados, extras));
+    }
+    if (temCasa) {
+      // o que o pedido cobra hoje em cada forma (a casa, o sinal; o resto, o total): é o valor esperado do pagamento, e o
+      // sinal pago não dá o aviso de valor diferente (valorEsperadoDoPedido, src/lib/pedidos-painel.ts)
+      const cobrar = { cartao: valorACobrar(novas, 'cartao'), pix: valorACobrar(novas, 'pix') };
+      for (const n of novas) n.pagamento = { ...n.pagamento, cobrar };
+      // no máximo um pedido de casa esperando o pagamento por e-mail (o do próprio carrinho é cancelado logo abaixo)
+      if (await pedidoDeCasaEsperando(dados.cliente.email, carrinho.pedido?.codigo)) return erro('casa-esperando', 409);
     }
 
     // a proteção contra robôs (src/lib/robos.ts): depois do campo-isca, das conferências e do limite por endereço, e antes
     // de qualquer gravação (o pedido, o carrinho, o e-mail, a sessão na Stripe). Robô: 403 'robo' e nada gravado
     const robo = await barrarRobo('POST /api/pedido');
     if (robo) return robo;
+    // e o teto dos pedidos de casa por IP, que só conta quem passou da proteção
+    if (temCasa && !(await permitir(chaveDoLimite('pedido-casa', ip), PEDIDOS_DE_CASA_POR_IP, JANELA_DA_CASA_SEGUNDOS, agora)))
+      return erro('limite', 429);
 
     const pedido = await criarPedido(novas);
     // o pedido já existe: se marcar o carrinho falhar, o cliente não pode ver erro e enviar de novo
@@ -168,23 +217,44 @@ export async function POST(req: Request) {
     // Se a gravação do cancelamento falhar, a sessão do anterior fecha mesmo assim (fecharMesmoSemGravar; terceira
     // conferência do Pacote 29): o novo é o que vale
     const anterior = carrinho.pedido;
+    // as datas de alguma casa saíram ou foram presas: as páginas das casas refazem (calendarioMudou só nas rotas)
+    let mexeuNoCalendario = false;
     if (anterior && podeAbrirSessao(anterior.status)) {
-      await cancelarPedidoAberto(anterior.codigo, `Cancelado: o cliente refez o pedido (${pedido.codigo})`, {
+      const cancelado = await cancelarPedidoAberto(anterior.codigo, `Cancelado: o cliente refez o pedido (${pedido.codigo})`, {
         fecharMesmoSemGravar: true,
-      }).catch((err) => console.error(`[pedido] falha ao cancelar o pedido anterior ${anterior.codigo}`, mensagem(err)));
+      }).catch((err) => {
+        console.error(`[pedido] falha ao cancelar o pedido anterior ${anterior.codigo}`, mensagem(err));
+        return null;
+      });
+      // as datas das casas do anterior saem também pelo item do pedido (a sessão dele pode ter tido outra referência), para
+      // o pedido novo prender as mesmas noites logo abaixo
+      if (cancelado?.status === 'cancelado') {
+        const soltas = await liberarDatasDosVouchers(await vouchersDoPedido(anterior.codigo)).catch((err) => {
+          console.error(`[pedido] falha ao soltar as datas do pedido anterior ${anterior.codigo}`, mensagem(err));
+          return 0;
+        });
+        if (soltas > 0) mexeuNoCalendario = true;
+      }
     }
 
     if (!forma) {
       // o caminho do WhatsApp: o carrinho acabou aqui
+      if (mexeuNoCalendario) calendarioMudou();
       loja.delete(COOKIE_CARRINHO);
       return NextResponse.json(resposta);
     }
 
     try {
-      const sessao = await abrirSessaoDoPedido(await vouchersDoPedido(pedido.codigo), forma, agora);
+      const sessao = await abrirSessaoDoPedido(await vouchersDoPedido(pedido.codigo), forma, agora, { seATravaFalhar: 'cancelar' });
+      if (temCasa || mexeuNoCalendario) calendarioMudou();
       // o cookie do carrinho fica: o carrinho só acaba quando o pedido virar pago (GET /api/carrinho cuida disso)
       return NextResponse.json({ ...resposta, forma, clientSecret: sessao.clientSecret });
     } catch (err) {
+      if (temCasa || mexeuNoCalendario) calendarioMudou();
+      // as noites da casa ficaram de outra pessoa na hora de prender: o pedido já foi cancelado, e o cliente escolhe outras
+      if (err instanceof DatasDaCasaOcupadas) return erro('datas', 409);
+      // o banco não prendeu as datas: o pedido já foi cancelado e a sessão fechou; o carrinho continua para tentar de novo
+      if (err instanceof DatasNaoPresas) return erro('banco', 503);
       console.error(`[pedido] a sessão de pagamento do pedido ${pedido.codigo} não pôde ser criada: ${mensagem(err)}`);
       await cancelarPedidoAberto(pedido.codigo, 'Cancelado: a sessão de pagamento não pôde ser criada').catch((e2) =>
         console.error(`[pedido] falha ao cancelar o pedido ${pedido.codigo}`, mensagem(e2)),

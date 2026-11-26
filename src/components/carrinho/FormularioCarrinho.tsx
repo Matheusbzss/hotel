@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
-import { totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
+import { cobradoHoje, temCasa, totaisDoCarrinho, type ItemVisivel } from '@/lib/carrinho';
+import { SINAL_PORCENTO } from '@/lib/diarias';
 import { formatarCifra } from '@/lib/cifra';
 import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { textoDolar } from '@/lib/dolar';
@@ -123,7 +124,21 @@ const numerosInteiros = (texto: string) =>
       parte
     ),
   );
-const codigoDoProduto = (i: ItemVisivel) => (i.escolha.tipo === 'passeio' ? i.escolha.slug : 'transfer');
+// o código do produto no Pixel: o slug do passeio ou da casa; o transfer é "transfer"
+const codigoDoProduto = (i: ItemVisivel) => (i.escolha.tipo === 'transfer' ? 'transfer' : i.escolha.slug);
+
+/**
+ * Os textos da casa no checkout (Etapa 7), montados na página: as regras de cancelamento das casas
+ * (CANCELAMENTO_DAS_CASAS, src/data/regras-casas.ts) com o título, a da entrada e da saída, e a frase da noite que ficou
+ * ocupada com o link para escolher outras datas.
+ */
+export interface TextosDaCasaNoCheckout {
+  cancelamentoTitulo: string;
+  cancelamento: readonly string[];
+  horario: string;
+  avisoOcupada: string;
+  verDatas: string;
+}
 
 /**
  * O checkout do carrinho: os dados do titular e a hospedagem uma vez só, o que cada transfer precisa, um
@@ -173,6 +188,8 @@ export function FormularioCarrinho({
     garantias: readonly string[];
     /** Pacote 34 (P7): a 4ª garantia, a do pagamento seguro, com o escudo (passeio.pagoSeguroOnline). */
     pagoSeguro: string;
+    /** A casa no checkout (Etapa 7): as regras de cancelamento das casas e a frase da noite ocupada. */
+    casa: TextosDaCasaNoCheckout;
   };
   links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
@@ -220,6 +237,8 @@ export function FormularioCarrinho({
   const [observacoes, setObservacoes] = useState('');
   const [tentou, setTentou] = useState(false);
   const [erroGeral, setErroGeral] = useState('');
+  // a página da casa que ficou com alguma noite ocupada (o 409 'datas'): o link embaixo do erro, para escolher outras datas
+  const [linkDoErro, setLinkDoErro] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [isca, setIsca] = useState('');
   const [forma, setForma] = useState<FormaPagamento | null>(() => formaPadrao(formas, idioma));
@@ -272,9 +291,16 @@ export function FormularioCarrinho({
   // algum passeio com taxa paga no local (embarque ou prefeitura): a linha das taxas perto do total
   const comTaxaNoLocal = itens.some((i) => i.taxaNoLocal);
   const transfers = itens.filter((i) => i.transfer);
+  // a casa de temporada (Etapa 7): cobra hoje o sinal; tem as regras de cancelamento dela; só se paga pelo site
+  const comCasa = temCasa(itens);
+  const soCasa = comCasa && !temPasseio && !transfers.length;
+  // a casa que alguém reservou enquanto estava no carrinho: fica fora da conta e não deixa enviar
+  const casaIndisponivel = itens.find((i) => i.indisponivel);
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
-  // passeio e transfer cobram o total; a casa (sinal) ainda não entra no carrinho
+  // o que o pedido cobra hoje: o total do passeio e do transfer e, na casa, o sinal (totaisDoCarrinho, valorDoItem)
   const totais: TotaisDasFormas = { cartaoCentavos: totalCentavos, pixCentavos: totalPixCentavos };
+  const rotuloDoTotal = comCasa ? K.aPagarHoje : C.total;
+  const umPagamento = comCasa ? fmt(C.umPagamentoComCasa, { p: SINAL_PORCENTO }) : C.umPagamentoTotal;
   // no pagamento online sem o Pix (o prazo de 2 horas ou o limite de valor de um Pix), a tela inteira mostra só o valor
   // do cartão, como a página do pedido: os itens, as sugestões e o total. Um preço "no Pix" que não dá para pagar
   // confundia, ao lado do botão que cobra o do cartão. No caminho do WhatsApp, os dois valores, como sempre
@@ -391,6 +417,13 @@ export function FormularioCarrinho({
     // a página está sendo relida para trazer as formas: o envio sem forma, o servidor recusaria
     if (esperandoFormas) return;
     setErroGeral('');
+    setLinkDoErro('');
+    // a casa com alguma noite ocupada agora: o cliente escolhe outras datas (ou tira a casa) antes de enviar
+    if (casaIndisponivel) {
+      setErroGeral(textos.casa.avisoOcupada);
+      setLinkDoErro(casaIndisponivel.href);
+      return;
+    }
     setTentou(true);
     if (Object.keys(validar()).length) {
       requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
@@ -467,7 +500,23 @@ export function FormularioCarrinho({
         window.location.assign(`${base}/${corpo.codigo}?t=${encodeURIComponent(corpo.token)}`);
         return;
       }
-      if (corpo.erro === 'mudou') {
+      if (corpo.erro === 'datas') {
+        // a casa: alguma noite ficou ocupada (outra pessoa pagou antes). O carrinho é relido (a casa volta indisponível) e
+        // o link leva à página da casa para escolher outras datas
+        const casa = itens.find((i) => i.tipo === 'casa');
+        await recarregar();
+        setErroGeral(textos.casa.avisoOcupada);
+        if (casa) setLinkDoErro(casa.href);
+      } else if (corpo.erro === 'casa-so-online') {
+        // a casa só se paga pelo site, e o pagamento online fechou enquanto o cliente preenchia
+        setErroGeral(soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros);
+      } else if (corpo.erro === 'casa-esperando') {
+        setErroGeral(K.casaEsperando);
+      } else if (corpo.erro === 'casa-fechada') {
+        // a reserva das casas fechou: a casa sai do carrinho relido
+        await recarregar();
+        setErroGeral(K.mudou);
+      } else if (corpo.erro === 'mudou') {
         // o carrinho já é um pedido que esperava o pagamento: o servidor recusou porque ele foi pago nesse meio-tempo (o
         // Pix confirmado enquanto o cliente voltava do banco) ou porque um item perdeu o prazo. A página do pedido diz o
         // estado de verdade ("Pedido confirmado!", ou o que ainda dá para pagar), com a página inteira carregando (nunca
@@ -546,6 +595,8 @@ export function FormularioCarrinho({
             noCartao: P.noCartao,
             noPixComDesconto: P.noPixComDesconto,
             dolar: P.dolar,
+            casaTotalDaEstadia: K.casaTotalDaEstadia,
+            casaIndisponivel: K.casaIndisponivel,
           }}
           aoRemover={remover}
         />
@@ -578,6 +629,7 @@ export function FormularioCarrinho({
     };
     // o resumo é o do pedido criado, não o do carrinho de agora: a gaveta ainda deixa tirar item, e a Stripe cobra o pedido
     const doPedido = totaisDoCarrinho(sessao.lista);
+    const casaNoPedido = temCasa(sessao.lista);
     const valor = valorDaForma({ cartaoCentavos: doPedido.totalCentavos, pixCentavos: doPedido.totalPixCentavos }, sessao.forma);
     const base = sessao.itens === 1 ? links.reserva : links.pedido;
     const urlVolta = `${base}/${sessao.codigo}?t=${encodeURIComponent(sessao.token)}`;
@@ -604,9 +656,7 @@ export function FormularioCarrinho({
                   </p>
                 ))}
               </div>
-              <span className="numeros ml-auto shrink-0 font-semibold">
-                {brl(sessao.forma === 'pix' ? i.totalPixCentavos : i.totalCentavos)}
-              </span>
+              <span className="numeros ml-auto shrink-0 font-semibold">{brl(cobradoHoje(i, sessao.forma))}</span>
             </li>
           ))}
         </ul>
@@ -627,7 +677,8 @@ export function FormularioCarrinho({
                 <span className="flex-1 font-semibold">
                   <ComDolar dolar={usd(valor)} className="text-small font-normal text-(--tinta-suave)">
                     <span className="whitespace-nowrap">
-                      {C.total} <span className="text-(--color-d2)">{sessao.forma === 'pix' ? P.noPix : P.noCartao}</span>
+                      {casaNoPedido ? K.aPagarHoje : C.total}{' '}
+                      <span className="text-(--color-d2)">{sessao.forma === 'pix' ? P.noPix : P.noCartao}</span>
                     </span>
                   </ComDolar>
                 </span>
@@ -636,7 +687,7 @@ export function FormularioCarrinho({
               {dolar && notaCambio && <p className="mt-2 text-caption text-(--tinta-suave)">{notaCambio}</p>}
             </div>
             <div className="hidden lg:block">{itensDoPedido}</div>
-            <p className="hidden text-small lg:block">{K.umPagamento}</p>
+            <p className="hidden text-small lg:block">{casaNoPedido ? fmt(C.umPagamentoComCasa, { p: SINAL_PORCENTO }) : K.umPagamento}</p>
           </div>
         </aside>
         <div className="lg:col-span-7">
@@ -992,7 +1043,7 @@ export function FormularioCarrinho({
           );
         })}
 
-        <Campo id="obs" rotulo={C.observacoes} ajuda={temPasseio ? C.observacoesAjuda : T.observacoesAjuda}>
+        <Campo id="obs" rotulo={C.observacoes} ajuda={temPasseio ? C.observacoesAjuda : transfers.length ? T.observacoesAjuda : undefined}>
           <textarea
             id="obs"
             className="campo min-h-28"
@@ -1021,6 +1072,27 @@ export function FormularioCarrinho({
             dolar={dolar}
             textos={textosEscolha}
           />
+        ) : comCasa ? (
+          // a casa só se paga pelo site: nunca o caminho do WhatsApp (o servidor também recusa, 403 'casa-so-online'). A casa
+          // que ficou com noite ocupada diz isso, e não que o pagamento está fora do ar
+          <fieldset className="min-w-0">
+            <legend className="text-lead font-semibold">{C.pagamento}</legend>
+            <div className="tom-superficie mt-5 px-5 py-5">
+              {casaIndisponivel ? (
+                <>
+                  <p className="font-bold">{K.casaIndisponivel}</p>
+                  <a href={casaIndisponivel.href} className="link mt-2 inline-flex min-h-11 items-center font-semibold">
+                    {textos.casa.verDatas}
+                  </a>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold">{C.indisponivelTitulo}</p>
+                  <p className="mt-2">{soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros}</p>
+                </>
+              )}
+            </div>
+          </fieldset>
         ) : (
           <fieldset className="min-w-0">
             <legend className="text-lead font-semibold">{C.pagamento}</legend>
@@ -1058,7 +1130,7 @@ export function FormularioCarrinho({
               <span className="flex-1 font-semibold">
                 <ComDolar dolar={usd(valorDaForma(totais, destaque))} className="text-small font-normal text-(--tinta-suave)">
                   <span className="whitespace-nowrap">
-                    {C.total} <span className="text-(--color-d2)">{rotuloDaForma(destaque)}</span>
+                    {rotuloDoTotal} <span className="text-(--color-d2)">{rotuloDaForma(destaque)}</span>
                   </span>
                 </ComDolar>
               </span>
@@ -1073,7 +1145,7 @@ export function FormularioCarrinho({
                 <span className="grow basis-0">
                   <ComDolar dolar={usd(valorDaForma(totais, outra))}>
                     <span className="whitespace-nowrap">
-                      {C.total}{' '}
+                      {rotuloDoTotal}{' '}
                       {pixEmbaixoComDesconto ? (
                         <span className="font-semibold text-(--color-d2)">{rotuloPixComDesconto(P.noPixComDesconto)}</span>
                       ) : (
@@ -1098,6 +1170,11 @@ export function FormularioCarrinho({
               <button type="submit" className="botao w-full" disabled={enviando} aria-busy={enviando} aria-describedby="aceite-frase">
                 {enviando ? C.processando : fmt(C.pagar, { valor: brl(valorDaForma(totais, forma)) })}
               </button>
+            ) : comCasa ? (
+              // a casa só se paga pelo site: sem o pagamento online, nenhum botão (a frase do quadro do pagamento explica)
+              <p className="tom-superficie px-4 py-3 text-small font-semibold">
+                {casaIndisponivel ? K.casaIndisponivel : soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros}
+              </p>
             ) : (
               // desligado também enquanto a página é relida para trazer as formas (esperandoFormas), com o mesmo texto
               <button
@@ -1119,6 +1196,12 @@ export function FormularioCarrinho({
             )}
             {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
             {erroGeral === textos.robo && <BotaoWhatsAppDoRobo whatsapp={textos.roboWhatsapp} />}
+            {/* a casa com noite ocupada (o 409 'datas'): o caminho para escolher outras datas na página dela */}
+            {erroGeral && linkDoErro && (
+              <a href={linkDoErro} className="link block text-small font-semibold">
+                {textos.casa.verDatas}
+              </a>
+            )}
             {/* as garantias do quadro do passeio, perto do botão (Pacote 27): só as que valem para este carrinho. Desde o
                 Pacote 34 (P7), com o pagamento seguro e o escudo, como no passeio */}
             <ul className="grid gap-y-2 text-small">
@@ -1126,6 +1209,7 @@ export function FormularioCarrinho({
                 temPasseio,
                 voucherNaHora: online && forma !== null,
                 pagoSeguro: textos.pagoSeguro,
+                comCasa,
               }).map(([icone, frase]) => (
                 <li key={icone} className="flex items-center gap-2.5">
                   <svg
@@ -1144,8 +1228,49 @@ export function FormularioCarrinho({
                 </li>
               ))}
             </ul>
-            {/* Pacote 34 (P7): "um pagamento só" e "sempre o valor total" numa linha só */}
-            <p className="text-small">{C.umPagamentoTotal}</p>
+            {/* com casa no carrinho (Etapa 7): as garantias dos passeios e do transfer, com o rótulo de a quem valem, e as
+                regras de cancelamento das casas e a da entrada e da saída, antes de pagar (Decreto 7.962/2013, art. 4º, I) */}
+            {comCasa && !soCasa && (
+              <div className="text-small">
+                <p className="font-semibold">
+                  {temPasseio && transfers.length ? C.garantiasPasseiosETransfer : temPasseio ? C.garantiasPasseios : C.garantiasTransfer}
+                </p>
+                <ul className="mt-1 grid gap-y-2">
+                  {garantiasDoCheckout(textos.garantias, { temPasseio, voucherNaHora: false, soDosPasseios: true }).map(
+                    ([icone, frase]) => (
+                      <li key={icone} className="flex items-center gap-2.5">
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="size-5 shrink-0 text-(--color-turquesa-texto)"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d={ICONES[icone]} />
+                        </svg>
+                        {frase}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            )}
+            {comCasa && (
+              <div className="text-small">
+                <p className="font-semibold">{textos.casa.cancelamentoTitulo}</p>
+                <ul className="mt-1 grid list-disc gap-y-1 pl-5">
+                  {textos.casa.cancelamento.map((regra) => (
+                    <li key={regra}>{regra}</li>
+                  ))}
+                  <li>{textos.casa.horario}</li>
+                </ul>
+              </div>
+            )}
+            {/* Pacote 34 (P7): "um pagamento só" e "sempre o valor total" numa linha só (com casa, o sinal hoje e o resto na chegada) */}
+            <p className="text-small">{umPagamento}</p>
             {/* o total não inclui as taxas pagas no local dos passeios; o transfer já inclui pedágio e estacionamento */}
             {comTaxaNoLocal && <p className="text-small">{K.taxasNoLocal}</p>}
             {online && forma === 'cartao' && <p className="text-small text-(--tinta-suave)">{C.seguro}</p>}

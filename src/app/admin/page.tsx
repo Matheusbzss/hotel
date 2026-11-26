@@ -67,10 +67,13 @@ import { AVISO_DA_SESSAO_VENCIDA } from '@/lib/sessao-do-painel';
 import { textoPessoas } from '@/lib/pessoas';
 import { formatarPreco } from '@/lib/precos';
 import {
+  ehCasa,
+  ehPasseio,
   ehTransfer,
   listarReservas,
   ondeFicamAsReservas,
   type Reserva,
+  type ReservaCasa,
   type ReservaPasseio,
   type ReservaTransfer,
   type StatusReserva,
@@ -306,8 +309,37 @@ function DetalhesTransfer({ r }: { r: ReservaTransfer }) {
   );
 }
 
-/** O que a busca do painel procura além do código e do contato: o passeio e o hotel, ou os endereços do transfer. */
+/**
+ * A casa de temporada no pedido (Etapa 7), o mínimo para a equipe: a casa, a entrada às 15h e a saída às 12h, as diárias,
+ * os hóspedes e o que foi pago no site (o sinal) e o que fica para a chegada, na forma do pedido. Sem endereço: a equipe
+ * manda a localização pelo WhatsApp depois do pagamento. O bloco completo do painel fica para a parte 2 do pacote 1.
+ */
+function DetalhesCasa({ r, metodo }: { r: ReservaCasa; metodo: string }) {
+  const pix = metodo === 'pix';
+  const total = pix ? (r.totalPixCentavos ?? r.totalCentavos) : r.totalCentavos;
+  const sinal = pix ? r.sinalPixCentavos : r.sinalCentavos;
+  const noites = r.linhas.reduce((s, l) => s + l.noites, 0);
+  return (
+    <>
+      <p className="font-bold">{r.casa.nome}</p>
+      <p>
+        Entrada <strong>{formatarDataIso(r.data, 'pt-BR')} às 15h</strong> · saída{' '}
+        <strong>{formatarDataIso(r.saida, 'pt-BR')} às 12h</strong>
+      </p>
+      <p>
+        {noites} {noites === 1 ? 'diária' : 'diárias'} · {r.hospedes} {r.hospedes === 1 ? 'hóspede' : 'hóspedes'}
+      </p>
+      <p>
+        Sinal{pix ? ' no Pix' : metodo === 'cartao' ? ' no cartão' : ''}: {formatarPreco(sinal)} · na chegada:{' '}
+        {formatarPreco(total - sinal)} · total {formatarPreco(total)}
+      </p>
+    </>
+  );
+}
+
+/** O que a busca do painel procura além do código e do contato: o passeio e o hotel, a casa, ou os endereços do transfer. */
 function textosDaBusca(r: Reserva): string[] {
+  if (ehCasa(r)) return [r.casa.nome];
   // "a informar" acha os pedidos em que o cliente ainda não sabia o hotel
   if (!ehTransfer(r)) return [r.hospedagem.aInformar ? 'hotel a informar' : r.hospedagem.hotel, r.passeio.nome];
   const t = r.transfer;
@@ -732,10 +764,10 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
   const r = p.itens[0];
   const varios = p.itens.length > 1;
   const whats = `https://wa.me/${r.cliente.telefone.replace(/\D/g, '')}`;
-  const documento = p.itens.find((i) => !ehTransfer(i) && i.cliente.documento) as ReservaPasseio | undefined;
+  const documento = p.itens.find((i): i is ReservaPasseio => ehPasseio(i) && Boolean(i.cliente.documento));
   // Pacote 29: o campo "Gravar o hotel" aparece uma vez por pedido, no primeiro passeio com o hotel a informar (a rota
   // grava o mesmo hotel em todos os passeios do pedido que estão a informar)
-  const primeiroAInformar = p.itens.find((i) => !ehTransfer(i) && i.hospedagem.aInformar)?.codigo;
+  const primeiroAInformar = p.itens.find((i) => ehPasseio(i) && i.hospedagem.aInformar)?.codigo;
   return (
     <li className="grid grid-cols-1 gap-4 bg-white p-5 lg:grid-cols-12">
       <div className="lg:col-span-3">
@@ -780,10 +812,12 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
               )}
               {ehTransfer(i) ? (
                 <DetalhesTransfer r={i} />
+              ) : ehCasa(i) ? (
+                <DetalhesCasa r={i} metodo={p.metodo} />
               ) : (
                 <DetalhesPasseio r={i} gravarHotel={i.codigo === primeiroAInformar ? { filtro, busca } : undefined} />
               )}
-              {!ehTransfer(i) && i.sugestao && (
+              {ehPasseio(i) && i.sugestao && (
                 <p className="mt-1 text-small font-semibold text-turquesa-texto">Pegou pela sugestão do carrinho</p>
               )}
             </li>

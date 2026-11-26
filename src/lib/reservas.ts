@@ -19,6 +19,7 @@ import {
   type LinhaPedido,
 } from './reservas-banco';
 import type { CancelamentoSemReembolso } from './sem-reembolso';
+import type { LinhaDaConta } from './conta-casa';
 import type { CidadeHospedagem } from './validacao';
 import { mensagemDoErro } from './erros.ts';
 
@@ -130,6 +131,13 @@ interface ReservaBase {
      * lê é src/lib/sem-reembolso.ts.
      */
     semReembolso?: CancelamentoSemReembolso[];
+    /**
+     * O que o pedido cobra HOJE em cada forma, em centavos, gravado na criação (Etapa 7): só nos pedidos com casa, em que
+     * a casa cobra o sinal e não o total. É o valor esperado do pagamento (valorEsperadoDoPedido, src/lib/pedidos-painel.ts):
+     * sem ele, o sinal pago daria o aviso de valor diferente. Ausente nos pedidos de sempre: o esperado continua o total.
+     * Sem migração: mora no JSON `pagamento`, nos arquivos e no banco.
+     */
+    cobrar?: { cartao: number; pix: number };
   };
   historico: { em: string; evento: string }[];
 }
@@ -218,9 +226,33 @@ export interface ReservaTransfer extends ReservaBase {
   };
 }
 
-export type Reserva = ReservaPasseio | ReservaTransfer;
+/**
+ * Uma estadia numa casa de temporada (Etapa 7), paga com o sinal no site e o restante na chegada. `data` é a entrada (às
+ * 15h) e `saida`, o dia da saída (até as 12h; a noite dele não conta). Os totais de ReservaBase são os da estadia inteira
+ * (no cartão e no Pix); o que se paga no site é o sinal, guardado na compra nas duas formas: a conta nunca é refeita depois
+ * (se um dia o sinal mudar de 50%, as reservas antigas não mudam). As linhas da conta vão para o voucher, o e-mail e o
+ * painel. Sem endereço: a equipe manda a localização pelo WhatsApp depois do pagamento.
+ */
+export interface ReservaCasa extends ReservaBase {
+  tipo: 'casa';
+  /** A casa como estava na compra: o nome em português e a cidade (o slug da lista das casas). */
+  casa: { id: string; slug: string; nome: string; cidade: string };
+  /** O dia da saída (AAAA-MM-DD). */
+  saida: string;
+  hospedes: number;
+  /** O sinal pago no site, no cartão e no Pix (sobre o total com o desconto), guardados na compra. */
+  sinalCentavos: number;
+  sinalPixCentavos: number;
+  /** As linhas da conta (LinhaDaConta, src/lib/conta-casa.ts): as noites do mesmo tipo e da mesma diária juntas. */
+  linhas: LinhaDaConta[];
+}
+
+export type Reserva = ReservaPasseio | ReservaTransfer | ReservaCasa;
 
 export const ehTransfer = (r: Reserva): r is ReservaTransfer => r.tipo === 'transfer';
+export const ehCasa = (r: Reserva): r is ReservaCasa => r.tipo === 'casa';
+/** As reservas de passeio antigas não têm o tipo: tudo que não é transfer nem casa é passeio. */
+export const ehPasseio = (r: Reserva): r is ReservaPasseio => r.tipo !== 'transfer' && r.tipo !== 'casa';
 
 export { codigoValido, gerarCodigo, gerarToken, provedorDaReserva };
 
@@ -455,8 +487,8 @@ export function ondeFicamAsReservas(): string {
 /* ------------------------------------------------------------------ */
 
 type CamposGerados = 'codigo' | 'token' | 'criadaEm' | 'atualizadaEm' | 'historico';
-/** Os dados de uma reserva nova, de passeio ou de transfer (o resto o banco preenche). */
-export type NovaReserva = Omit<ReservaPasseio, CamposGerados> | Omit<ReservaTransfer, CamposGerados>;
+/** Os dados de uma reserva nova, de passeio, de transfer ou de casa (o resto o banco preenche). */
+export type NovaReserva = Omit<ReservaPasseio, CamposGerados> | Omit<ReservaTransfer, CamposGerados> | Omit<ReservaCasa, CamposGerados>;
 
 export async function criarReserva<T extends NovaReserva>(dados: T): Promise<T & Pick<Reserva, CamposGerados>> {
   const agora = new Date().toISOString();

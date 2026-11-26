@@ -73,6 +73,7 @@ import { transferenciaDoPixOferecida } from '@/lib/resumo-do-painel';
 import {
   atualizarItem,
   atualizarReserva,
+  ehPasseio,
   ehTransfer,
   provedorDaReserva,
   registrar,
@@ -655,12 +656,13 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   if (acao === 'hotel') {
     const hotel = hotelDoPainel(form.get('hotel'));
     if (!hotel) return voltar('hotel-invalido');
-    const primeiroPasseio = vouchers.find((v) => !ehTransfer(v))?.codigo;
+    const primeiroPasseio = vouchers.find((v) => ehPasseio(v))?.codigo;
     let gravados = 0;
     let jaEstava = false;
     let outroHotel = false;
     for (const v of vouchers) {
-      if (ehTransfer(v)) continue;
+      // só o passeio tem hotel: o transfer e a casa ficam de fora
+      if (!ehPasseio(v)) continue;
       let gravou = false;
       let igual = false;
       let outro = false;
@@ -668,7 +670,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
         gravou = false;
         igual = false;
         outro = false;
-        if (ehTransfer(x)) return null;
+        if (!ehPasseio(x)) return null;
         const passo = passoDoHotel(x.hospedagem, x.historico, hotel);
         if (passo.tipo === 'ja-estava') igual = true;
         if (passo.tipo === 'outro-hotel') outro = true;

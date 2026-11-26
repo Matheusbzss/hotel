@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
 import { fmt, type Idioma } from '@/i18n/config';
@@ -30,6 +31,9 @@ import {
   type TabelaEstadia,
 } from '@/lib/estadia';
 import { precoPixCentavos } from '@/lib/orcamento';
+import { rastrear } from '@/lib/pixel';
+import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
+import { useCarrinho } from '../carrinho/CarrinhoContexto';
 import { FormularioCotacao } from '../FormularioCotacao';
 import { Contador } from '../grupo/Contador';
 import { BarraCasa } from './BarraCasa';
@@ -73,6 +77,8 @@ export interface TextosReservaCasa extends TextosCalendario {
   diariaAPartir: string;
   noPix: string;
   noCartao: string;
+  /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês: src/lib/preco-destaque.ts) */
+  noPixComDesconto: string;
   chegada: string;
   saida: string;
   hospedes: string;
@@ -105,6 +111,11 @@ export interface TextosReservaCasa extends TextosCalendario {
   /** "{diarias} · {de} a {ate}", na barra do celular. */
   barraDatas: string;
   reservar: string;
+  /** "Adicionando…", enquanto o botão põe a casa no carrinho e abre o checkout. */
+  adicionando: string;
+  /** As recusas do botão: sem conexão e o site que não grava agora (as de datas são avisoOcupada e avisoDatas). */
+  erroConexao: string;
+  erroTemporario: string;
   reservaEmBreve: string;
   pedir: string;
   avisemeTitulo: string;
@@ -125,6 +136,9 @@ const LINHA: Record<LinhaDaConta['tipo'], [keyof TextosReservaCasa, keyof Textos
   pacote: ['linhaPacote', 'linhaPacote'],
 };
 
+/** As recusas do servidor que são das datas (a conta da estadia, o limite de datas ou os hóspedes): "Escolha outras datas." */
+const ERROS_DAS_DATAS = new Set(['datas', 'preco', 'pacote', 'fim-de-semana', 'minimo', 'fora-do-limite', 'hospedes']);
+
 /** Quantas etiquetas de pacote aparecem antes do "Ver os N pacotes": 3 no celular, 4 no computador. */
 const ETIQUETAS_CELULAR = 3;
 const ETIQUETAS_COMPUTADOR = 4;
@@ -136,6 +150,14 @@ const ETIQUETAS_COMPUTADOR = 4;
  * conta é a de src/lib/estadia.ts, a mesma que o servidor refaz antes de cobrar. Enquanto a venda das casas está
  * fechada, no lugar do botão de reservar fica o aviso e o "Avise-me".
  *
+ * Com a reserva aberta (o interruptor RESERVA_CASAS, src/lib/reserva-casas.ts: para todos na página estática, ou só para o
+ * admin, pelo carrinho), o botão "Reservar com sinal" faz como o "Reservar" do passeio: põe a casa no carrinho e abre o
+ * checkout, que cobra só o sinal. O "Mudar" do carrinho volta aqui com as datas e os hóspedes (?mudar=<id>) e troca o
+ * item. As noites presas pelo próprio pedido do visitante (o pedido esperando o pagamento) são livres para ele; a recusa
+ * por noite ocupada traz as noites de agora, e o calendário se atualiza. O calendário vai até a saída do último pacote
+ * cadastrado (ultimaSaida: decisão do dono de 26/11/2026). O preço grande segue a regra D1-A (src/lib/preco-destaque.ts):
+ * o cartão em espanhol e inglês, o Pix em português.
+ *
  * As duas peças moram num bloco #reservar: no celular, a barra fixa (com as datas e o total, depois de escolher) leva
  * até ele e some enquanto ele aparece; no computador, o bloco se desfaz (display: contents) e cada peça vai para a sua
  * coluna da página.
@@ -146,8 +168,10 @@ export function ReservaCasa({
   hojeServidor,
   capacidade,
   nomeCasa,
+  slug,
   reservaAberta,
-  hrefReserva,
+  hrefCheckout,
+  ultimaSaida,
   idioma,
   locale,
   dolar,
@@ -162,9 +186,17 @@ export function ReservaCasa({
   hojeServidor: string;
   capacidade: number;
   nomeCasa: string;
-  /** false até o pagamento das casas existir: no lugar do botão, o aviso e o "Avise-me". */
+  /** O slug da casa: é o que vai para o carrinho. */
+  slug: string;
+  /**
+   * A reserva das casas vale para todos (RESERVA_CASAS=publico com o pagamento online no ar), decidido quando a página foi
+   * feita. Fechada, no lugar do botão, o aviso e o "Avise-me"; o admin, no modo 'admin', vê o botão pelo carrinho.
+   */
   reservaAberta: boolean;
-  hrefReserva: string;
+  /** O checkout: o botão leva para lá depois de pôr a casa no carrinho. */
+  hrefCheckout: string;
+  /** O último dia de saída que a casa aceita (AAAA-MM-DD): a saída do último pacote cadastrado; sem pacote, 12 meses. */
+  ultimaSaida: string;
   idioma: Idioma;
   locale: string;
   /** Reais por dólar, só em espanhol e inglês (null: sem o ≈ US$). */
@@ -173,7 +205,19 @@ export function ReservaCasa({
   textos: TextosReservaCasa;
   textosCotacao: TextosCotacao;
 }) {
-  const ocupadasSet = useMemo(() => new Set(ocupadas), [ocupadas]);
+  const router = useRouter();
+  const { itens, carregado, adicionar, casasAbertas, noitesDoPedido } = useCarrinho();
+  // o botão: o que a página trouxe e, com o carrinho lido, o que o servidor diz para este visitante (o admin no modo 'admin')
+  const aberta = casasAbertas ?? reservaAberta;
+  // as noites de agora, quando o servidor recusou a casa por noite ocupada (a página guardada pode ter até um dia)
+  const [ocupadasAgora, setOcupadasAgora] = useState<string[] | null>(null);
+  const proprias = noitesDoPedido[slug];
+  // as noites presas pelo próprio pedido do visitante são livres para ele (crítica de 26/11, furo 9)
+  const ocupadasSet = useMemo(() => {
+    const lista = new Set(ocupadasAgora ?? ocupadas);
+    for (const n of proprias ?? []) lista.delete(n);
+    return lista;
+  }, [ocupadas, ocupadasAgora, proprias]);
   const [hoje, setHoje] = useState(hojeServidor);
   useEffect(() => setHoje(primeiraEntradaPossivel()), []);
   // o calendário abre no mês da primeira noite livre (e não num mês todo bloqueado)
@@ -183,6 +227,10 @@ export function ReservaCasa({
   const [opcoes, setOpcoes] = useState<Pacote[] | null>(null);
   const [hospedes, setHospedes] = useState(Math.min(2, capacidade));
   const [todosPacotes, setTodosPacotes] = useState(false);
+  // o "Mudar" do carrinho: o item que o botão troca, e o envio
+  const [mudando, setMudando] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState('');
   // a cada saída escolhida (ou ajuste), o resumo ou o aviso embaixo do calendário entra na tela
   const [revelar, setRevelar] = useState(0);
   const resultado = useRef<HTMLDivElement>(null);
@@ -197,6 +245,9 @@ export function ReservaCasa({
 
   const nome = (p: Pacote) => texto(p.nome, idioma);
   const cifra = (centavos: number) => formatarCifra(centavos, locale);
+  // em espanhol e inglês, o preço do cartão é o grande e o do Pix vai embaixo, com o desconto (decisão D1-A de 25/11)
+  const cartaoPrimeiro = cartaoEmDestaque(locale);
+  const rotuloPix = rotuloPixComDesconto(T.noPixComDesconto);
   const usd = (centavos: number) => textoDolar(centavos, dolar, T.dolar, locale);
   const formatoCurtoEn = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const formatoComAnoEn = new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -233,7 +284,60 @@ export function ReservaCasa({
   const { entrada, saida } = datas;
   const opcoesConta = { ocupadas: ocupadasSet, hoje };
   const conta = entrada && saida ? contaEstadia(tabela, entrada, saida, opcoesConta) : null;
-  const ajustes = conta && !conta.ok ? ajustesDaEstadia(tabela, entrada, saida, opcoesConta) : [];
+  // os ajustes que passam do limite de datas (a saída do último pacote) não aparecem: o servidor recusaria
+  const ajustes = conta && !conta.ok ? ajustesDaEstadia(tabela, entrada, saida, opcoesConta).filter((a) => a.saida <= ultimaSaida) : [];
+
+  // o "Mudar" do carrinho (?mudar=<id>): o quadro abre com as datas e os hóspedes do item, e o botão troca o item
+  const mudarLido = useRef(false);
+  useEffect(() => {
+    if (!carregado || mudarLido.current) return;
+    mudarLido.current = true;
+    const id = new URLSearchParams(window.location.search).get('mudar');
+    const e = itens.find((i) => i.id === id)?.escolha;
+    if (!id || e?.tipo !== 'casa' || e.slug !== slug) return;
+    setMudando(id);
+    setDatas({ entrada: e.entrada, saida: e.saida });
+    setHospedes(Math.min(Math.max(1, e.hospedes), capacidade));
+    setMes(e.entrada.slice(0, 7));
+  }, [carregado, itens, slug, capacidade]);
+
+  // a recusa do servidor: a noite ocupada, as regras das datas, a conexão ou o site que não grava agora
+  const textoDaRecusa = (erro?: string) =>
+    !erro || erro === 'rede'
+      ? T.erroConexao
+      : erro === 'ocupada'
+        ? T.avisoOcupada
+        : ERROS_DAS_DATAS.has(erro)
+          ? T.avisoDatas
+          : T.erroTemporario;
+
+  /** Põe a casa no carrinho (ou troca a do "Mudar") e segue para o checkout, que cobra só o sinal. */
+  const reservar = async () => {
+    if (!conta?.ok || enviando) return;
+    setErroEnvio('');
+    setEnviando(true);
+    const r = await adicionar(
+      { tipo: 'casa', slug, entrada, saida, hospedes },
+      { abrir: false, ...(mudando ? { substituir: mudando } : {}) },
+    );
+    if (r.ok) {
+      setMudando('');
+      // o valor do evento é o que se cobra hoje: o sinal (no cartão, como o do passeio)
+      rastrear('AddToCart', {
+        content_ids: [slug],
+        content_name: nomeCasa,
+        content_type: 'product',
+        value: conta.sinalCentavos / 100,
+        currency: 'BRL',
+      });
+      // fica "adicionando" até a página do checkout abrir
+      router.push(hrefCheckout);
+      return;
+    }
+    if (r.ocupadas) setOcupadasAgora(r.ocupadas);
+    setErroEnvio(textoDaRecusa(r.erro));
+    setEnviando(false);
+  };
 
   useEffect(() => {
     if (!revelar) return;
@@ -320,6 +424,8 @@ export function ReservaCasa({
     const [uma, varias] = LINHA[l.tipo];
     return fmt(T[l.noites === 1 ? uma : varias], { n: l.noites, valor: cifra(l.diariaCentavos), pacote: l.pacote ? nome(l.pacote) : '' });
   };
+  // as colunas da conta: a forma em destaque primeiro
+  const colunas = cartaoPrimeiro ? (['cartao', 'pix'] as const) : (['pix', 'cartao'] as const);
   const valor = (centavos: number, forte = false): ReactNode => (
     <>
       <span className={`numeros ${forte ? 'cifra text-lead' : 'font-semibold'}`}>{cifra(centavos)}</span>
@@ -334,7 +440,6 @@ export function ReservaCasa({
   ]
     .filter(Boolean)
     .join(' · ');
-  const consulta = new URLSearchParams({ chegada: entrada, saida, hospedes: String(hospedes) });
 
   // as etiquetas além das 3 primeiras (celular) ou das 4 primeiras (computador) esperam o "Ver os N pacotes"
   const classeDaEtiqueta = (i: number) =>
@@ -354,6 +459,8 @@ export function ReservaCasa({
           noPix={T.noPix}
           cartao={cifra(conta?.ok ? conta.totalCentavos : menor)}
           noCartao={T.noCartao}
+          cartaoPrimeiro={cartaoPrimeiro}
+          noPixComDesconto={rotuloPix}
           botao={conta?.ok ? T.verValores : T.verDatas}
           href={conta?.ok ? '#conta-casa' : '#datas-casa'}
         />
@@ -455,6 +562,7 @@ export function ReservaCasa({
               mes={mes}
               aoMudarMes={setMes}
               hoje={hoje}
+              ultimaSaida={ultimaSaida}
               ocupadas={ocupadasSet}
               pacoteDaNoite={pacoteDaNoite}
               nomeDoPacote={nome}
@@ -472,7 +580,7 @@ export function ReservaCasa({
                   {T.legendaPacote}
                 </li>
               )}
-              {ocupadas.length > 0 && (
+              {ocupadasSet.size > 0 && (
                 <li>
                   <span className="cal-legenda-ocupada">13</span>
                   {T.legendaOcupada}
@@ -490,12 +598,18 @@ export function ReservaCasa({
                 <p className="linha-pontuada mt-1.5">
                   <span>
                     <span className="pedaco">
-                      {T.total} <strong className="cifra text-lead">{cifra(conta.totalPixCentavos)}</strong>{' '}
-                      <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+                      {T.total}{' '}
+                      <strong className="cifra text-lead">{cifra(cartaoPrimeiro ? conta.totalCentavos : conta.totalPixCentavos)}</strong>{' '}
+                      {cartaoPrimeiro ? (
+                        <span className="text-small font-semibold">{T.noCartao}</span>
+                      ) : (
+                        <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+                      )}
                     </span>
                     <span className="pedaco text-small">
                       {fmt(T.sinalHoje, { p: SINAL_PORCENTO })}{' '}
-                      <span className="numeros font-semibold">{cifra(conta.sinalPixCentavos)}</span> {T.noPix}
+                      <span className="numeros font-semibold">{cifra(cartaoPrimeiro ? conta.sinalCentavos : conta.sinalPixCentavos)}</span>{' '}
+                      {cartaoPrimeiro ? T.noCartao : T.noPix}
                     </span>
                   </span>
                 </p>
@@ -536,25 +650,51 @@ export function ReservaCasa({
           {!conta?.ok && menor !== null && (
             <div className="mt-3">
               <p className="text-small text-(--color-tinta-suave) first-letter:uppercase">{T.diariaAPartir}</p>
-              <p className="linha-pontuada mt-1">
-                <span>
-                  <span className="pedaco">
-                    <strong className="cifra text-figure">{cifra(precoPixCentavos(menor))}</strong>{' '}
-                    <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
-                  </span>
-                  {usd(precoPixCentavos(menor)) && (
-                    <span className="pedaco text-small text-(--color-tinta-suave)">{usd(precoPixCentavos(menor))}</span>
-                  )}
-                </span>
-              </p>
-              <p className="linha-pontuada text-small text-(--color-tinta-suave)">
-                <span>
-                  <span className="pedaco">
-                    <span className="numeros font-semibold text-(--color-tinta)">{cifra(menor)}</span> {T.noCartao}
-                  </span>
-                  {usd(menor) && <span className="pedaco">{usd(menor)}</span>}
-                </span>
-              </p>
+              {cartaoPrimeiro ? (
+                <>
+                  {/* espanhol e inglês: o cartão em cima, grande, e o Pix embaixo com o desconto (decisão D1-A de 25/11) */}
+                  <p className="linha-pontuada mt-1">
+                    <span>
+                      <span className="pedaco">
+                        <strong className="cifra text-figure">{cifra(menor)}</strong>{' '}
+                        <span className="text-small font-semibold">{T.noCartao}</span>
+                      </span>
+                      {usd(menor) && <span className="pedaco text-small text-(--color-tinta-suave)">{usd(menor)}</span>}
+                    </span>
+                  </p>
+                  <p className="linha-pontuada text-small text-(--color-tinta-suave)">
+                    <span>
+                      <span className="pedaco">
+                        <span className="numeros font-semibold text-(--color-tinta)">{cifra(precoPixCentavos(menor))}</span>{' '}
+                        <span className="font-semibold text-(--color-sucesso)">{rotuloPix}</span>
+                      </span>
+                      {usd(precoPixCentavos(menor)) && <span className="pedaco">{usd(precoPixCentavos(menor))}</span>}
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="linha-pontuada mt-1">
+                    <span>
+                      <span className="pedaco">
+                        <strong className="cifra text-figure">{cifra(precoPixCentavos(menor))}</strong>{' '}
+                        <span className="text-small font-semibold text-(--color-sucesso)">{T.noPix}</span>
+                      </span>
+                      {usd(precoPixCentavos(menor)) && (
+                        <span className="pedaco text-small text-(--color-tinta-suave)">{usd(precoPixCentavos(menor))}</span>
+                      )}
+                    </span>
+                  </p>
+                  <p className="linha-pontuada text-small text-(--color-tinta-suave)">
+                    <span>
+                      <span className="pedaco">
+                        <span className="numeros font-semibold text-(--color-tinta)">{cifra(menor)}</span> {T.noCartao}
+                      </span>
+                      {usd(menor) && <span className="pedaco">{usd(menor)}</span>}
+                    </span>
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -589,33 +729,44 @@ export function ReservaCasa({
               </ul>
               <table className="conta-casa-tabela">
                 <caption className="sr-only">{T.contaTitulo}</caption>
+                {/* em espanhol e inglês, a coluna do cartão vem primeiro, com o total grande (decisão D1-A de 25/11) */}
                 <thead>
                   <tr>
                     <td />
-                    <th scope="col">
-                      <span className="text-(--color-sucesso)">{T.colunaPix}</span>
-                      <span className="block text-caption font-normal text-(--color-tinta-suave)">
-                        {fmt(T.pixNoTotal, { p: DESCONTO_PIX_PORCENTO })}
-                      </span>
-                    </th>
-                    <th scope="col">{T.colunaCartao}</th>
+                    {colunas.map((forma) =>
+                      forma === 'pix' ? (
+                        <th key={forma} scope="col">
+                          <span className="text-(--color-sucesso)">{T.colunaPix}</span>
+                          <span className="block text-caption font-normal text-(--color-tinta-suave)">
+                            {fmt(T.pixNoTotal, { p: DESCONTO_PIX_PORCENTO })}
+                          </span>
+                        </th>
+                      ) : (
+                        <th key={forma} scope="col">
+                          {T.colunaCartao}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <th scope="row">{T.total}</th>
-                    <td>{valor(conta.totalPixCentavos, true)}</td>
-                    <td>{valor(conta.totalCentavos)}</td>
+                    {colunas.map((forma, i) => (
+                      <td key={forma}>{valor(forma === 'pix' ? conta.totalPixCentavos : conta.totalCentavos, i === 0)}</td>
+                    ))}
                   </tr>
                   <tr>
                     <th scope="row">{fmt(T.sinalHoje, { p: SINAL_PORCENTO })}</th>
-                    <td>{valor(conta.sinalPixCentavos)}</td>
-                    <td>{valor(conta.sinalCentavos)}</td>
+                    {colunas.map((forma) => (
+                      <td key={forma}>{valor(forma === 'pix' ? conta.sinalPixCentavos : conta.sinalCentavos)}</td>
+                    ))}
                   </tr>
                   <tr>
                     <th scope="row">{T.naChegada}</th>
-                    <td>{valor(conta.chegadaPixCentavos)}</td>
-                    <td>{valor(conta.chegadaCentavos)}</td>
+                    {colunas.map((forma) => (
+                      <td key={forma}>{valor(forma === 'pix' ? conta.chegadaPixCentavos : conta.chegadaCentavos)}</td>
+                    ))}
                   </tr>
                 </tbody>
               </table>
@@ -625,14 +776,24 @@ export function ReservaCasa({
 
           {/* no computador, o botão sobe para logo depois dos hóspedes: o quadro preso no topo nunca o esconde */}
           <div className="mt-5 lg:order-1">
-            {reservaAberta ? (
-              <a
-                href={conta?.ok ? `${hrefReserva}?${consulta.toString()}` : undefined}
-                aria-disabled={!conta?.ok}
-                className={`botao w-full ${conta?.ok ? '' : 'pointer-events-none'}`}
-              >
-                {fmt(T.reservar, { p: SINAL_PORCENTO })}
-              </a>
+            {aberta ? (
+              <>
+                <button
+                  type="button"
+                  onClick={reservar}
+                  disabled={!conta?.ok || enviando}
+                  aria-busy={enviando}
+                  aria-describedby={erroEnvio ? 'erro-reserva-casa' : undefined}
+                  className="botao w-full"
+                >
+                  {enviando ? T.adicionando : fmt(T.reservar, { p: SINAL_PORCENTO })}
+                </button>
+                {erroEnvio && (
+                  <p id="erro-reserva-casa" className="mt-3 bg-erro-claro px-4 py-3 text-small font-semibold text-mar" role="alert">
+                    {erroEnvio}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <p className="em-breve-casa">{T.reservaEmBreve}</p>

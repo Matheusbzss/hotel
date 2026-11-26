@@ -4,12 +4,31 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Idioma } from '@/i18n/config';
 import type { EscolhaItem, ItemVisivel, SugestaoVisivel } from '@/lib/carrinho';
 
+/** O que o servidor respondeu ao "adicionar": na casa recusada por noite ocupada, as noites ocupadas de agora. */
+export interface ResultadoDoAdicionar {
+  ok: boolean;
+  erro?: string;
+  /** Só na casa recusada com 'ocupada': as noites ocupadas de agora, para o calendário da página se atualizar. */
+  ocupadas?: string[];
+}
+
 interface Carrinho {
   itens: ItemVisivel[];
   /** Os passeios que combinam com o carrinho (no máximo 3). */
   sugestoes: SugestaoVisivel[];
   /** O carrinho guardado já chegou do servidor. */
   carregado: boolean;
+  /**
+   * A reserva das casas vale para este visitante (o interruptor RESERVA_CASAS e o pagamento online, decididos no servidor):
+   * é por aqui que o botão da página da casa, que é estática, aparece para o admin no modo 'admin'. undefined até o
+   * carrinho chegar do servidor (aí vale o que a página trouxe).
+   */
+  casasAbertas?: boolean;
+  /**
+   * As noites presas pelo próprio pedido do visitante, por casa (o slug): a página da casa as trata como livres para ele
+   * (o "Mudar" com o pedido esperando o pagamento).
+   */
+  noitesDoPedido: Readonly<Record<string, string[]>>;
   /** A gaveta está aberta. */
   aberto: boolean;
   abrir: () => void;
@@ -18,14 +37,24 @@ interface Carrinho {
    * Confere no servidor e põe no carrinho, abrindo a gaveta (a não ser com `abrir: false`). Com
    * `substituir`, troca o item que o cliente está mudando.
    */
-  adicionar: (escolha: EscolhaItem, opcoes?: { abrir?: boolean; substituir?: string }) => Promise<{ ok: boolean; erro?: string }>;
+  adicionar: (escolha: EscolhaItem, opcoes?: { abrir?: boolean; substituir?: string }) => Promise<ResultadoDoAdicionar>;
   remover: (id: string) => void;
   /** Lê o carrinho de novo do servidor. */
   recarregar: () => Promise<void>;
 }
 
 /** O que a rota do carrinho responde. */
-type Resposta = { ok?: boolean; erro?: string; itens?: ItemVisivel[]; sugestoes?: SugestaoVisivel[] };
+type Resposta = {
+  ok?: boolean;
+  erro?: string;
+  itens?: ItemVisivel[];
+  sugestoes?: SugestaoVisivel[];
+  casasAbertas?: boolean;
+  noitesDoPedido?: Record<string, string[]>;
+  ocupadas?: unknown;
+};
+
+const SEM_NOITES: Readonly<Record<string, string[]>> = {};
 
 const Contexto = createContext<Carrinho | null>(null);
 
@@ -35,16 +64,24 @@ export function useCarrinho(): Carrinho {
   return c;
 }
 
+/** As noites que vieram na recusa, só as datas AAAA-MM-DD (nada mais vai para o calendário). */
+const noitesDaResposta = (v: unknown): string[] | undefined =>
+  Array.isArray(v) ? v.filter((n): n is string => typeof n === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(n)) : undefined;
+
 /** O carrinho guardado no servidor (pelo cookie), com a gaveta que abre por cima da página. */
 export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; children: ReactNode }) {
   const [itens, setItens] = useState<ItemVisivel[]>([]);
   const [sugestoes, setSugestoes] = useState<SugestaoVisivel[]>([]);
+  const [casasAbertas, setCasasAbertas] = useState<boolean | undefined>(undefined);
+  const [noitesDoPedido, setNoitesDoPedido] = useState<Readonly<Record<string, string[]>>>(SEM_NOITES);
   const [carregado, setCarregado] = useState(false);
   const [aberto, setAberto] = useState(false);
 
   const aplicar = useCallback((j: Resposta) => {
     setItens(j.itens ?? []);
     setSugestoes(j.sugestoes ?? []);
+    if (typeof j.casasAbertas === 'boolean') setCasasAbertas(j.casasAbertas);
+    setNoitesDoPedido(j.noitesDoPedido ?? SEM_NOITES);
   }, []);
 
   const recarregar = useCallback(async () => {
@@ -81,7 +118,7 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
   const fechar = useCallback(() => setAberto(false), []);
 
   const adicionar = useCallback(
-    async (escolha: EscolhaItem, opcoes: { abrir?: boolean; substituir?: string } = {}) => {
+    async (escolha: EscolhaItem, opcoes: { abrir?: boolean; substituir?: string } = {}): Promise<ResultadoDoAdicionar> => {
       try {
         const r = await fetch('/api/carrinho', {
           method: 'POST',
@@ -89,7 +126,12 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
           body: JSON.stringify({ escolha, idioma, substituir: opcoes.substituir }),
         });
         const j = (await r.json().catch(() => null)) as Resposta | null;
-        if (!r.ok || !j?.ok) return { ok: false, erro: j?.erro ?? 'rede' };
+        if (!r.ok || !j?.ok) {
+          // a casa recusada por noite ocupada traz as noites de agora, para o calendário da página se atualizar
+          const ocupadas = noitesDaResposta(j?.ocupadas);
+          if (ocupadas) return { ok: false, erro: j?.erro ?? 'rede', ocupadas };
+          return { ok: false, erro: j?.erro ?? 'rede' };
+        }
         aplicar(j);
         if (opcoes.abrir !== false) setAberto(true);
         return { ok: true };
@@ -112,8 +154,8 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
   );
 
   const valor = useMemo(
-    () => ({ itens, sugestoes, carregado, aberto, abrir, fechar, adicionar, remover, recarregar }),
-    [itens, sugestoes, carregado, aberto, abrir, fechar, adicionar, remover, recarregar],
+    () => ({ itens, sugestoes, carregado, casasAbertas, noitesDoPedido, aberto, abrir, fechar, adicionar, remover, recarregar }),
+    [itens, sugestoes, carregado, casasAbertas, noitesDoPedido, aberto, abrir, fechar, adicionar, remover, recarregar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

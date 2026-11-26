@@ -274,12 +274,15 @@ function juntar(entradas: { chave: string; rotulo: string; centavos: number }[])
   return [...fatias.values()].sort((a, b) => b.centavos - a.centavos || b.quantidade - a.quantidade);
 }
 
+// a casa de temporada entra no ranking pelo slug e com o que entrou (o sinal: valorRecebido)
 const produtoDoItem = (i: Reserva) =>
   i.tipo === 'transfer'
     ? { chave: 'transfer', rotulo: 'Transfer privado', centavos: valorRecebido(i) }
-    : { chave: i.passeio.slug, rotulo: i.passeio.nome, centavos: valorRecebido(i) };
+    : i.tipo === 'casa'
+      ? { chave: i.casa.slug, rotulo: i.casa.nome, centavos: valorRecebido(i) }
+      : { chave: i.passeio.slug, rotulo: i.passeio.nome, centavos: valorRecebido(i) };
 
-const veioDaSugestao = (i: Reserva) => i.tipo !== 'transfer' && i.sugestao === true;
+const veioDaSugestao = (i: Reserva) => i.tipo !== 'transfer' && i.tipo !== 'casa' && i.sugestao === true;
 
 /**
  * O que as sugestões venderam num pedido, na base do faturamento (o que ficou do pedido, menos reembolsos): o valor dos
@@ -416,7 +419,9 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
       itens.map((i) =>
         i.tipo === 'transfer'
           ? { chave: 'transfer', rotulo: 'Transfer', centavos: valorRecebido(i) }
-          : { chave: i.passeio.cidade, rotulo: i.passeio.cidade, centavos: valorRecebido(i) },
+          : i.tipo === 'casa'
+            ? { chave: i.casa.cidade, rotulo: i.casa.cidade, centavos: valorRecebido(i) }
+            : { chave: i.passeio.cidade, rotulo: i.passeio.cidade, centavos: valorRecebido(i) },
       ),
     ),
     porPais: juntar(vendidos.map((p) => ({ ...paisDoTelefone(p.itens[0].cliente.telefone), centavos: liquido(p) }))),

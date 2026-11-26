@@ -17,7 +17,7 @@ import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
 import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserva, recebidoDoPedido } from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
-import { atualizarReserva, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
+import { atualizarReserva, ehPasseio, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
 import { stripe } from '../stripe';
 import { formatarDataIso } from '../validacao';
@@ -775,7 +775,7 @@ export async function enviarAvisoDoPedidoPago(codigo: string): Promise<void> {
     linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
     site: siteDoEmail(),
     // Pacote 29: o cliente marcou "Ainda não sei" no hotel de algum passeio do pedido
-    hotelAInformar: lista.some((v) => !ehTransfer(v) && v.hospedagem.aInformar === true),
+    hotelAInformar: lista.some((v) => ehPasseio(v) && v.hospedagem.aInformar === true),
   });
   const resultado = await enviarEmail({
     tipo: 'pedido-pago-equipe',

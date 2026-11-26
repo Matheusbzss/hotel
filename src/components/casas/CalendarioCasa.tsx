@@ -29,12 +29,14 @@ export interface TextosCalendario {
  * O calendário da casa: dois meses lado a lado no computador, um no celular. O primeiro toque marca a entrada e o
  * segundo, a saída (quem decide o que o toque faz é o quadro de reserva, ReservaCasa). Dias que já passaram e noites
  * ocupadas ficam apagados (as ocupadas, riscadas); escolhendo a saída, ela não pode atravessar uma noite ocupada. As
- * noites de pacote ficam numa faixa de cor, e as datas escolhidas, numa faixa escura.
+ * noites de pacote ficam numa faixa de cor, e as datas escolhidas, numa faixa escura. Nada depois de `ultimaSaida` (a saída
+ * do último pacote cadastrado da casa; decisão do dono de 26/11/2026): nem entrada, nem noite, nem saída.
  */
 export function CalendarioCasa({
   mes,
   aoMudarMes,
   hoje,
+  ultimaSaida,
   ocupadas,
   pacoteDaNoite,
   nomeDoPacote,
@@ -50,6 +52,8 @@ export function CalendarioCasa({
   aoMudarMes: (mes: string) => void;
   /** O primeiro dia em que ainda dá para entrar (AAAA-MM-DD, fuso de Búzios). */
   hoje: string;
+  /** O último dia de saída que a casa aceita (AAAA-MM-DD); depois dele, tudo apagado. */
+  ultimaSaida: string;
   ocupadas: ReadonlySet<string>;
   pacoteDaNoite: ReadonlyMap<string, Pacote>;
   nomeDoPacote: (p: Pacote) => string;
@@ -63,11 +67,12 @@ export function CalendarioCasa({
 }) {
   const escolhendoSaida = Boolean(entrada && !saida);
   // escolhendo a saída: ela vai até a primeira noite ocupada depois da entrada (a saída pode cair numa noite ocupada)
+  // e nunca depois da última saída que a casa aceita
   const limiteDaSaida = useMemo(() => {
     if (!escolhendoSaida) return '';
-    for (let n = entrada, i = 0; i < 400; n = somarDias(n, 1), i++) if (ocupadas.has(n)) return n;
-    return '9999-12-31';
-  }, [escolhendoSaida, entrada, ocupadas]);
+    for (let n = entrada, i = 0; i < 400; n = somarDias(n, 1), i++) if (ocupadas.has(n)) return n < ultimaSaida ? n : ultimaSaida;
+    return ultimaSaida;
+  }, [escolhendoSaida, entrada, ocupadas, ultimaSaida]);
 
   const semana = useMemo(
     () =>
@@ -81,8 +86,9 @@ export function CalendarioCasa({
   const formatoDia = new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' });
   const mesDeHoje = (hoje || iso(new Date())).slice(0, 7);
   const podeVoltar = mes > mesDeHoje;
-  // até um ano e meio à frente (os pacotes do ano estão lá dentro)
-  const podeAvancar = mes < somarMeses(mesDeHoje, 17);
+  // até o mês da última saída que a casa aceita (e nunca mais de um ano e meio à frente)
+  const ultimoMes = ultimaSaida.slice(0, 7) < somarMeses(mesDeHoje, 17) ? ultimaSaida.slice(0, 7) : somarMeses(mesDeHoje, 17);
+  const podeAvancar = mes < ultimoMes;
 
   const mesInteiro = (m: string, segundo: boolean) => {
     const primeiro = diaUtc(`${m}-01`);
@@ -108,7 +114,8 @@ export function CalendarioCasa({
             const passou = Boolean(hoje) && dia < hoje;
             const ocupada = ocupadas.has(dia);
             const comoSaida = escolhendoSaida && dia > entrada;
-            const desativado = comoSaida ? dia > limiteDaSaida : passou || ocupada;
+            // como entrada ou noite, a última saída e o que vem depois dela não valem
+            const desativado = comoSaida ? dia > limiteDaSaida : passou || ocupada || dia >= ultimaSaida;
             const pacote = pacoteDaNoite.get(dia);
             const noite = (d: string) => pacote && pacoteDaNoite.get(d) === pacote;
             const faixaPacote = pacote

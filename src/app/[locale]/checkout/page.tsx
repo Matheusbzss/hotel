@@ -11,6 +11,10 @@ import { LOCALE_INTL, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { COOKIE_CARRINHO, itensVisiveis, lerCarrinho, type CarrinhoGuardado } from '@/lib/carrinho-servidor';
+import { SEM_CASAS } from '@/lib/casa-no-carrinho';
+import { contextoDoCarrinho } from '@/lib/casas-carrinho';
+import { CANCELAMENTO_DAS_CASAS } from '@/data/regras-casas';
+import { texto } from '@/i18n/conteudo';
 import { linkEmail } from '@/lib/email';
 import { emailLigado } from '@/lib/email/enviar';
 import { ipDaRequisicao } from '@/lib/limite-ip';
@@ -37,7 +41,7 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
   const d = dicionario(locale);
   const loja = await cookies();
   const codigoDoCarrinho = loja.get(COOKIE_CARRINHO)?.value;
-  let carrinho: Pick<CarrinhoGuardado, 'itens' | 'pedido'> = await lerCarrinho(codigoDoCarrinho).catch(() => ({ itens: [] }));
+  let carrinho: Pick<CarrinhoGuardado, 'itens' | 'pedido' | 'pedidoId'> = await lerCarrinho(codigoDoCarrinho).catch(() => ({ itens: [] }));
   // quem pagou o Pix no app do banco pode voltar antes de o aviso da Stripe chegar: como a página do pedido, o servidor
   // relê a sessão na Stripe (conferirNaStripe: a porta de sempre, uma consulta a cada 10 s por pedido e um teto por IP).
   // Pago, o carrinho relido traz o pedido pago e a página leva a ele. O checkout espera no máximo 3 s: com a Stripe lenta,
@@ -53,15 +57,14 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
       if (conferida && conferida.status !== 'pendente') carrinho = await lerCarrinho(codigoDoCarrinho).catch(() => carrinho);
     }
   }
-  const inicial = itensVisiveis(carrinho.itens, locale, d);
+  const admin = sessaoValida(loja.get(COOKIE_ADMIN)?.value);
+  // a casa no carrinho: o contexto (as noites ocupadas de agora, sem as do próprio pedido); sem casa, nada é lido. Uma
+  // falha deixa a casa de fora (nunca cobra errado) e o resto do carrinho abre como sempre
+  const contexto = await contextoDoCarrinho(carrinho, { admin }).catch(() => SEM_CASAS);
+  const inicial = itensVisiveis(carrinho.itens, locale, d, contexto);
   // cartão e Pix (o interruptor, a Stripe e o prazo), se o pagamento online vale para este visitante, o pedido em aberto
   // do carrinho e o pedido pago, decididos aqui no servidor
-  const { pagamentoOnline, pagamentoLigado, pedidoAberto, pedidoPago } = await pagamentoDoCheckout(
-    locale,
-    inicial,
-    carrinho.pedido,
-    sessaoValida(loja.get(COOKIE_ADMIN)?.value),
-  );
+  const { pagamentoOnline, pagamentoLigado, pedidoAberto, pedidoPago } = await pagamentoDoCheckout(locale, inicial, carrinho.pedido, admin);
   // o aproximado em dólar e a nota da cotação, só em espanhol e inglês
   const cambio = await cambioParaTela(locale);
 
@@ -111,6 +114,15 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
                 // com o pagamento seguro desde o Pacote 34 (P7)
                 garantias: d.passeio.garantiasOnline,
                 pagoSeguro: d.passeio.pagoSeguroOnline,
+                // a casa (Etapa 7): as regras de cancelamento das casas e a da entrada e da saída, perto do botão, antes de
+                // pagar (Decreto 7.962/2013, art. 4º, I), e a frase da noite que ficou ocupada
+                casa: {
+                  cancelamentoTitulo: d.checkout.cancelamentoDaCasa,
+                  cancelamento: CANCELAMENTO_DAS_CASAS.map((regra) => texto(regra, locale)),
+                  horario: d.casas.regraHorario,
+                  avisoOcupada: d.casas.avisoOcupada,
+                  verDatas: d.casas.verDatas,
+                },
               }}
               links={{
                 termos: rota(locale, '/termos-de-uso'),

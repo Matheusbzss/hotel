@@ -12,8 +12,10 @@ import {
   registrarRecusa,
   type EntregaDoEvento,
 } from '@/lib/pagamento-stripe';
-import { liberarBloqueiosDaSessao } from '@/lib/pedido-carrinho';
-import { atualizarItem, atualizarReserva, obterReservaDoPedido, registrar, type Reserva } from '@/lib/reservas';
+import { calendarioMudou } from '@/lib/casas';
+import { conferirDatasDoPedidoPago, liberarBloqueiosDaSessao } from '@/lib/pedido-carrinho';
+import { atualizarItem, atualizarReserva, ehCasa, obterReservaDoPedido, registrar, type Reserva } from '@/lib/reservas';
+import { avisoDasDatasNaoPresas } from '@/lib/trava-das-casas';
 import { construirEvento, criarReembolso, expirarSessao, obterSessao, sessaoDoPagamento, stripe } from '@/lib/stripe';
 import { vouchersDoPedido } from '../../pedido/pedido-stripe';
 import {
@@ -186,6 +188,46 @@ async function devolverPagamento(pedido: Reserva, pi: string, motivo: string): P
 }
 
 /**
+ * Solta as datas de casa presas a uma sessão que venceu ou de um pedido cancelado e, se saiu alguma, refaz o calendário das
+ * páginas das casas (calendarioMudou: só nas rotas, nunca durante a renderização de uma página).
+ */
+async function soltarAsDatasDaSessao(codigo: string, sessaoId: string): Promise<void> {
+  const soltas = await liberarBloqueiosDaSessao(sessaoId).catch((e) => {
+    console.error(`[webhook stripe] falha ao liberar as datas de ${codigo}: ${mensagem(e)}`);
+    return 0;
+  });
+  if (soltas > 0) calendarioMudou();
+}
+
+/**
+ * Na virada para pago de um pedido com casa, em TODA virada (crítica de 26/11, furo 1, correção 3): as datas de cada casa
+ * têm de estar presas para ele. A conferência mora aqui, no aviso da Stripe, e nunca em aplicarSessao: a página que vira o
+ * pedido para pago (quem pagou o Pix no app do banco e voltou antes do aviso) roda durante a renderização, e lá o
+ * calendarioMudou (revalidateTag) lança erro (furo 3). O aviso sempre chega (a Stripe reenvia por até 3 dias) e acha o pedido
+ * já pago pela página: por isso conta o pedido pago por esta sessão, e não só o que "virou pago agora". Só no pedido com
+ * casa (o que tem pagamento.cobrar): o pedido de passeio e transfer não lê nada a mais. A casa sem a trava é presa agora;
+ * se as noites já forem de outra pessoa, fica um "Aviso:" no histórico (uma vez por voucher) para a equipe decidir, e a
+ * reserva continua paga. Um erro do banco segue para a rota (500), e a Stripe manda o aviso de novo.
+ */
+async function conferirAsDatasDaCasa(reserva: Reserva, sessaoId: string): Promise<string> {
+  const codigo = reserva.pedido?.codigo ?? reserva.codigo;
+  const vouchers = await vouchersDoPedido(codigo);
+  if (!vouchers.some(ehCasa)) return '';
+  const { prendeu, semTrava } = await conferirDatasDoPedidoPago(vouchers, sessaoId);
+  if (prendeu) calendarioMudou();
+  if (!semTrava.length) return prendeu ? '; datas da casa presas de novo' : '';
+  const linhas = semTrava.map(avisoDasDatasNaoPresas);
+  await atualizarReserva(reserva.codigo, (r) => {
+    const faltam = linhas.filter((l) => !r.historico.some((h) => h.evento === l));
+    if (!faltam.length) return null;
+    for (const l of faltam) registrar(r, l);
+    return r;
+  });
+  console.error(`[webhook stripe] o pedido ${codigo} foi pago sem as datas da casa presas: ${semTrava.map((v) => v.codigo).join(', ')}`);
+  return '; AVISO: datas da casa não presas';
+}
+
+/**
  * Os quatro eventos da sessão (concluída, os dois async_payment_* e vencida) fazem a mesma coisa: relêem a sessão na
  * Stripe e aplicam o que ela diz. No Pix, o pago chega como checkout.session.completed já pago (a sessão fica aberta
  * com o QR na tela até o pagamento) e o vencido como payment_intent.payment_failed (pagamentoFalhou); os dois
@@ -229,11 +271,14 @@ async function sessaoMudou(alvo: AlvoDoEvento): Promise<ResultadoDaSessao> {
     await atualizarReserva(reserva.codigo, (r) => (r.historico.some((h) => h.evento === PIX_GERADO) ? null : registrar(r, PIX_GERADO)));
   }
   if (corrente && (reserva.status === 'expirado' || reserva.status === 'cancelado')) {
-    await liberarBloqueiosDaSessao(sessao.id).catch((e) =>
-      console.error(`[webhook stripe] falha ao liberar as datas de ${codigo}: ${mensagem(e)}`),
-    );
+    await soltarAsDatasDaSessao(codigo, sessao.id);
   }
-  return { codigo, resultado: `${leitura.status}${virouPago ? ' (virou pago agora)' : ''}`, pagaDoPedido };
+  // o pedido com casa pago por esta sessão: as datas de cada casa têm de estar presas para ele (toda virada para pago)
+  const datas =
+    corrente && pagaDoPedido && reserva.status === 'pago' && reserva.pagamento.cobrar
+      ? await conferirAsDatasDaCasa(reserva, sessao.id)
+      : '';
+  return { codigo, resultado: `${leitura.status}${virouPago ? ' (virou pago agora)' : ''}${datas}`, pagaDoPedido };
 }
 
 /**
@@ -257,9 +302,7 @@ async function pagamentoFalhou(pi: Stripe.PaymentIntent): Promise<Resultado> {
   if (leitura.forma === 'pix' || pi.payment_method_types?.includes('pix')) {
     const { reserva } = await aplicarSessao(codigo, sessao, 'webhook');
     if (reserva?.status === 'expirado' && reserva.pagamentoExternoId === sessao.id) {
-      await liberarBloqueiosDaSessao(sessao.id).catch((e) =>
-        console.error(`[webhook stripe] falha ao liberar as datas de ${codigo}: ${mensagem(e)}`),
-      );
+      await soltarAsDatasDaSessao(codigo, sessao.id);
     }
     return { codigo, resultado: `Pix não pago: pedido ${reserva?.status ?? 'não encontrado'}` };
   }

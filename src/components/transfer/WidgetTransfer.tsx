@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   IDS_LUGARES,
   primeiroDiaTransfer,
@@ -18,15 +18,18 @@ import {
   type Veiculo,
 } from '@/data/transfer';
 import { texto } from '@/i18n/conteudo';
+import { textoDaRecusa, type TextosDaRecusa } from '@/lib/aviso-reserva';
 import type { TrechoEscolhido } from '@/lib/carrinho';
 import type { PontaCotacao, TextosCotacao } from '@/lib/cotacao';
 import { formatarCifra } from '@/lib/cifra';
 import { textoDolar } from '@/lib/dolar';
 import { ANTECEDENCIA_TRANSFER_MINUTOS } from '@/lib/horarios';
+import { levarAoCampo } from '@/lib/levar-ao-campo';
 import { precoPixCentavos } from '@/lib/orcamento';
 import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
 import { rastrear } from '@/lib/pixel';
 import { hojeEmBuzios, somarDias } from '@/lib/validacao';
+import { BlocoCampo } from '../BlocoCampo';
 import { CampoData } from '../CampoData';
 import { FormularioCotacao } from '../FormularioCotacao';
 import { useCarrinho } from '../carrinho/CarrinhoContexto';
@@ -35,7 +38,8 @@ import { ComDolar } from '../ComDolar';
 import { Contador } from '../grupo/Contador';
 import { useGrupo } from '../grupo/GrupoContexto';
 
-export interface TextosTransfer {
+/** Com os avisos da recusa de src/lib/aviso-reserva.ts (erroConexao, erroAdicionar, erroTemporario e cheio). */
+export interface TextosTransfer extends TextosDaRecusa {
   reservarTitulo: string;
   saida: string;
   destino: string;
@@ -89,10 +93,17 @@ export interface TextosTransfer {
   adicionar: string;
   reservarAgora: string;
   adicionando: string;
-  erroAdicionar: string;
-  cheio: string;
   /** "Ainda não cobramos nada: você confere tudo antes de pagar.", logo abaixo dos botões. */
   semCobranca: string;
+}
+
+/** Os pedaços do cartão que podem faltar no toque em Reservar: para onde a tela vai (Pacote 34, ENT-02). */
+type CampoTransfer = 'saida' | 'destino' | 'quando' | 'volta' | 'voltaSaida' | 'voltaDestino';
+
+/** O que falta no cartão: o pedaço e o aviso dele (o mesmo aviso aparece embaixo do pedaço e perto dos botões). */
+interface Falta {
+  campo: CampoTransfer;
+  texto: string;
 }
 
 interface Ponta {
@@ -190,6 +201,7 @@ export function WidgetTransfer({
   finalizarHref,
   dolar = null,
   notaCambio = '',
+  garantias,
   textos: T,
 }: {
   idioma: Idioma;
@@ -200,6 +212,11 @@ export function WidgetTransfer({
   dolar?: number | null;
   /** A nota com a fonte e a data da cotação, perto do total (vazia sem o ≈ US$). */
   notaCambio?: string;
+  /**
+   * As garantias (cancelamento, voucher, pagamento) logo abaixo dos botões, como no cartão do passeio, sem a do clima
+   * (Pacote 34, ENT-04). Também embaixo da dica do trajeto, antes de ele ser escolhido; não no pedido de cotação.
+   */
+  garantias?: ReactNode;
   textos: TextosTransfer;
 }) {
   const router = useRouter();
@@ -228,6 +245,11 @@ export function WidgetTransfer({
   const idHora = useId();
   const idDataVolta = useId();
   const idHoraVolta = useId();
+  // os pedaços do cartão que podem faltar no toque em Reservar: a tela vai até o primeiro (Pacote 34, ENT-02)
+  const blocos = useRef<Partial<Record<CampoTransfer, HTMLDivElement | null>>>({});
+  const bloco = (campo: CampoTransfer) => (el: HTMLDivElement | null) => {
+    blocos.current[campo] = el;
+  };
 
   // o cartão da cidade abre o transfer com o destino escolhido (?destino=buzios); o link do anúncio, com a saída
   // também (?saida=galeao&destino=buzios, ou ?origem=): as duas listas já escolhidas e os preços à vista
@@ -339,28 +361,53 @@ export function WidgetTransfer({
   const erroAntecedencia = T.erroAntecedencia.replace('{h}', String(ANTECEDENCIA_TRANSFER_MINUTOS / 60));
   // fora dos aeroportos, cada ponta precisa do hotel, da pousada ou do endereço
   const pontaOk = (p: Ponta) => Boolean(p.lugar) && (LUGARES[p.lugar as IdLugar].aeroporto || p.endereco.trim().length >= 3);
-  function problema(): string {
-    if (![saida, destino, ...(idaVolta ? [vSaida, vDestino] : [])].every(pontaOk)) return T.trajetoIncompleto;
-    if (!data || (primeiroDia && data < primeiroDia)) return T.erroData;
-    if (!hora) return T.erroHora;
+  /** O primeiro pedaço que falta, com o aviso dele; null quando está tudo certo. */
+  function problema(): Falta | null {
+    // a volta só tem pontas próprias depois do "Mudar" (antes, é a ida ao contrário, e a ida já foi conferida)
+    const pontas: [CampoTransfer, Ponta][] = [
+      ['saida', saida],
+      ['destino', destino],
+      ...(idaVolta
+        ? ([
+            ['voltaSaida', vSaida],
+            ['voltaDestino', vDestino],
+          ] as [CampoTransfer, Ponta][])
+        : []),
+    ];
+    const incompleta = pontas.find(([, p]) => !pontaOk(p));
+    if (incompleta) return { campo: incompleta[0], texto: T.trajetoIncompleto };
+    if (!data || (primeiroDia && data < primeiroDia)) return { campo: 'quando', texto: T.erroData };
+    if (!hora) return { campo: 'quando', texto: T.erroHora };
     // a mesma regra do servidor (conferirEscolha), com o relógio do aparelho: perto da meia-noite pesa na madrugada de amanhã
-    if (!transferComAntecedencia(data, hora)) return erroAntecedencia;
-    if (idaVolta && (!dataVolta || !horaVolta || `${dataVolta}T${horaVolta}` <= `${data}T${hora}`)) return T.erroVolta;
-    return '';
+    if (!transferComAntecedencia(data, hora)) return { campo: 'quando', texto: erroAntecedencia };
+    if (idaVolta && (!dataVolta || !horaVolta || `${dataVolta}T${horaVolta}` <= `${data}T${hora}`))
+      return { campo: 'volta', texto: T.erroVolta };
+    return null;
   }
-  const [erro, setErro] = useState('');
-  // o aviso some assim que a pessoa corrige o que faltava
+  const [falta, setFalta] = useState<Falta | null>(null);
+  // a recusa do servidor ou a falta de conexão (Pacote 34, ENT-10)
+  const [erroEnvio, setErroEnvio] = useState('');
+  // o aviso some (ou passa para o próximo pedaço que falta) assim que a pessoa corrige o que faltava
   useEffect(() => {
-    if (erro) setErro(problema());
+    if (falta) setFalta(problema());
+    setErroEnvio('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saida, destino, vSaida, vDestino, data, hora, idaVolta, dataVolta, horaVolta]);
+  const faltaEm = (campo: CampoTransfer) => falta?.campo === campo;
+  // perto dos botões: o que falta (o mesmo aviso do pedaço, lá em cima) ou por que o envio não passou
+  const erro = falta?.texto || erroEnvio;
 
   /** Põe no carrinho: "Adicionar" abre a gaveta; "Reservar agora" segue direto para o checkout. */
   const colocar = async (para: 'agora' | 'carrinho') => {
     if (!veiculo || precoEscolhido === null) return;
     const p = problema();
     if (p) {
-      setErro(p);
+      setFalta(p);
+      setErroEnvio('');
+      // Pacote 34 (ENT-02): a tela vai até o pedaço que falta, no meio da tela, e o foco fica no primeiro campo vazio dele
+      const el = blocos.current[p.campo];
+      const campos = [...(el?.querySelectorAll<HTMLInputElement | HTMLSelectElement>('select, input') ?? [])];
+      levarAoCampo(el, campos.find((c) => !c.value.trim()) ?? campos[0]);
       return;
     }
     const ponta = (x: Ponta) => ({ lugar: x.lugar as IdLugar, ...(x.endereco.trim() ? { endereco: x.endereco.trim() } : {}) });
@@ -385,8 +432,9 @@ export function WidgetTransfer({
         return;
       }
     } else {
-      // 'antecedencia': o relógio do aparelho deixou passar e o servidor recusou (ou o prazo venceu no meio do caminho)
-      setErro(r.erro === 'cheio' ? T.cheio : r.erro === 'antecedencia' ? erroAntecedencia : T.erroAdicionar);
+      // 'antecedencia': o relógio do aparelho deixou passar e o servidor recusou (ou o prazo venceu no meio do caminho).
+      // Pacote 34 (ENT-10): sem conexão, o aviso pede para conferir a internet; só os erros de data ou de horário falam deles
+      setErroEnvio(r.erro === 'antecedencia' ? erroAntecedencia : textoDaRecusa(r.erro, T));
     }
     setEnviando('');
   };
@@ -402,7 +450,9 @@ export function WidgetTransfer({
       <h2 className="text-lead font-semibold">{T.reservarTitulo}</h2>
 
       <div className="mt-4 grid gap-3">
-        <CampoPonta rotulo={T.saida} valor={saida} aoMudar={setSaida} idioma={idioma} T={T} />
+        <BlocoCampo ref={bloco('saida')} falta={faltaEm('saida')} aviso={falta?.texto}>
+          <CampoPonta rotulo={T.saida} valor={saida} aoMudar={setSaida} idioma={idioma} T={T} />
+        </BlocoCampo>
         <button
           type="button"
           onClick={inverter}
@@ -413,31 +463,35 @@ export function WidgetTransfer({
           </svg>
           {T.inverter}
         </button>
-        <CampoPonta rotulo={T.destino} valor={destino} aoMudar={setDestino} idioma={idioma} T={T} />
+        <BlocoCampo ref={bloco('destino')} falta={faltaEm('destino')} aviso={falta?.texto}>
+          <CampoPonta rotulo={T.destino} valor={destino} aoMudar={setDestino} idioma={idioma} T={T} />
+        </BlocoCampo>
       </div>
 
-      <div className="mt-4 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
-        <div>
-          <label htmlFor={idData} className="rotulo">
-            {T.data}
-          </label>
-          <CampoData
-            id={idData}
-            valor={data}
-            dica={T.escolhaData}
-            min={primeiroDia || undefined}
-            max={hoje ? somarDias(hoje, 366) : undefined}
-            onChange={(e) => setData(e.target.value)}
-          />
+      <BlocoCampo ref={bloco('quando')} falta={faltaEm('quando')} aviso={falta?.texto} className="mt-4">
+        <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
+          <div>
+            <label htmlFor={idData} className="rotulo">
+              {T.data}
+            </label>
+            <CampoData
+              id={idData}
+              valor={data}
+              dica={T.escolhaData}
+              min={primeiroDia || undefined}
+              max={hoje ? somarDias(hoje, 366) : undefined}
+              onChange={(e) => setData(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor={idHora} className="rotulo">
+              {T.hora}
+            </label>
+            <input id={idHora} type="time" className="campo" value={hora} onChange={(e) => setHora(e.target.value)} />
+          </div>
         </div>
-        <div>
-          <label htmlFor={idHora} className="rotulo">
-            {T.hora}
-          </label>
-          <input id={idHora} type="time" className="campo" value={hora} onChange={(e) => setHora(e.target.value)} />
-        </div>
-      </div>
-      {aeroportoNaIda && <p className="ajuda">{T.horaAjudaAeroporto}</p>}
+        {aeroportoNaIda && <p className="ajuda">{T.horaAjudaAeroporto}</p>}
+      </BlocoCampo>
 
       <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 font-semibold">
         <input
@@ -455,20 +509,24 @@ export function WidgetTransfer({
         <div className="mt-2 grid gap-3 rounded-[4px] bg-(--color-superficie) p-3">
           {voltaEditada ? (
             <>
-              <CampoPonta
-                rotulo={`${T.volta}: ${T.saida.toLowerCase()}`}
-                valor={voltaSaida}
-                aoMudar={setVoltaSaida}
-                idioma={idioma}
-                T={T}
-              />
-              <CampoPonta
-                rotulo={`${T.volta}: ${T.destino.toLowerCase()}`}
-                valor={voltaDestino}
-                aoMudar={setVoltaDestino}
-                idioma={idioma}
-                T={T}
-              />
+              <BlocoCampo ref={bloco('voltaSaida')} falta={faltaEm('voltaSaida')} aviso={falta?.texto}>
+                <CampoPonta
+                  rotulo={`${T.volta}: ${T.saida.toLowerCase()}`}
+                  valor={voltaSaida}
+                  aoMudar={setVoltaSaida}
+                  idioma={idioma}
+                  T={T}
+                />
+              </BlocoCampo>
+              <BlocoCampo ref={bloco('voltaDestino')} falta={faltaEm('voltaDestino')} aviso={falta?.texto}>
+                <CampoPonta
+                  rotulo={`${T.volta}: ${T.destino.toLowerCase()}`}
+                  valor={voltaDestino}
+                  aoMudar={setVoltaDestino}
+                  idioma={idioma}
+                  T={T}
+                />
+              </BlocoCampo>
             </>
           ) : (
             <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-small">
@@ -488,26 +546,28 @@ export function WidgetTransfer({
               </button>
             </p>
           )}
-          <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
-            <div>
-              <label htmlFor={idDataVolta} className="rotulo">
-                {T.dataVolta}
-              </label>
-              <CampoData
-                id={idDataVolta}
-                valor={dataVolta}
-                dica={T.escolhaData}
-                min={data || primeiroDia || undefined}
-                onChange={(e) => setDataVolta(e.target.value)}
-              />
+          <BlocoCampo ref={bloco('volta')} falta={faltaEm('volta')} aviso={falta?.texto}>
+            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
+              <div>
+                <label htmlFor={idDataVolta} className="rotulo">
+                  {T.dataVolta}
+                </label>
+                <CampoData
+                  id={idDataVolta}
+                  valor={dataVolta}
+                  dica={T.escolhaData}
+                  min={data || primeiroDia || undefined}
+                  onChange={(e) => setDataVolta(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor={idHoraVolta} className="rotulo">
+                  {T.horaVolta}
+                </label>
+                <input id={idHoraVolta} type="time" className="campo" value={horaVolta} onChange={(e) => setHoraVolta(e.target.value)} />
+              </div>
             </div>
-            <div>
-              <label htmlFor={idHoraVolta} className="rotulo">
-                {T.horaVolta}
-              </label>
-              <input id={idHoraVolta} type="time" className="campo" value={horaVolta} onChange={(e) => setHoraVolta(e.target.value)} />
-            </div>
-          </div>
+          </BlocoCampo>
         </div>
       )}
 
@@ -587,7 +647,11 @@ export function WidgetTransfer({
       </fieldset>
 
       {!completo ? (
-        <p className="mt-5 border-t border-(--color-borda) pt-4 text-small text-(--color-tinta-suave)">{T.escolhaTrajeto}</p>
+        <>
+          <p className="mt-5 border-t border-(--color-borda) pt-4 text-small text-(--color-tinta-suave)">{T.escolhaTrajeto}</p>
+          {/* as garantias já aparecem antes do trajeto (Pacote 34, ENT-04) */}
+          {garantias && <div className="mt-5">{garantias}</div>}
+        </>
       ) : veiculo && precoEscolhido !== null ? (
         <>
           {cartaoPrimeiro ? (
@@ -684,6 +748,8 @@ export function WidgetTransfer({
             {/* nenhum dos botões cobra na hora: a frase tira a dúvida ali mesmo */}
             <p className="text-small text-(--color-tinta-suave)">{T.semCobranca}</p>
           </div>
+          {/* Pacote 34 (ENT-04): as garantias logo abaixo dos botões, como no cartão do passeio */}
+          {garantias && <div className="mt-5">{garantias}</div>}
         </>
       ) : (
         // sem preço fixo (ou grupo maior que a van): o pedido de cotação vai para o painel, já com o trajeto

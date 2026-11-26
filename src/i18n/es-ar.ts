@@ -36,9 +36,34 @@ export const ajustesAR: AjustesAR = {
   comum: {
     // Pacote 20: a mensagem de quem a proteção contra robôs confundiu com robô ("Escribinos")
     robo: 'No pudimos terminar por el sitio ahora. Escribinos por WhatsApp y lo terminamos por ahí.',
+    // Pacote 34 (P11): "chicos" em todo o es-ar, como o transfer e os guias já diziam (era a palavra mais usada no /es-ar:
+    // 31 vezes, contra 22 de "niños", que vinham do neutro nos rótulos de preço, nas regras e na FAQ)
+    criancas: 'Chicos',
+    crianca: 'chico',
+    rotulos: {
+      crianca: 'chico',
+      criancas: 'chicos',
+      criancaMeia: 'chico (mitad de precio)',
+      criancasMeia: 'chicos (mitad de precio)',
+      criancaGratis: 'chico (gratis)',
+      criancasGratis: 'chicos (gratis)',
+    },
+    // o espaço que não quebra antes de "años": em 390 px, "Chicos de 6 a 10 años" deixava o "años" sozinho na segunda
+    // linha do cartão de reserva (revisão do Pacote 34); assim desce "10 años" inteiro, se precisar
+    faixas: {
+      meia: 'Chicos de {de} a {ate} años',
+      gratis: 'Chicos hasta {ate} años',
+    },
+    regras: {
+      titulo: 'Chicos',
+      todosPagam: 'Todos pagan, chicos incluidos.',
+      porUnidade: 'El precio es por {unidade}, para hasta {n} personas contando a los chicos.',
+    },
   },
   grupo: {
     escolhaData: 'Elegí la fecha',
+    criancasMeia: 'Chicos de 6 a 10',
+    criancasGratis: 'Chicos hasta 5',
   },
   preco: {
     notaCambio: 'Pagás en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',
@@ -48,6 +73,13 @@ export const ajustesAR: AjustesAR = {
     escolhaHorario: 'Elegí el horario',
     erroAdicionar: 'No se pudo agregar. Revisá la fecha y el horario e intentá de nuevo.',
     mudou: 'Un ítem del carrito cambió o ya no está disponible. Revisá el pedido y envialo de nuevo.',
+    // Pacote 34 (26/11): o aviso de quando o envio não chega ao site (ENT-10) e o de quando o site não grava agora, e o
+    // que falta escolher, repetido perto do botão do cartão de reserva (ENT-02)
+    erroConexao: 'No pudimos conectar. Revisá tu internet y tocá de nuevo.',
+    erroTemporario: 'No se pudo agregar ahora. Intentá de nuevo en unos minutos.',
+    faltaData: 'Elegí la fecha del paseo, más arriba.',
+    faltaHorario: 'Elegí el horario, más arriba.',
+    faltaDataEHorario: 'Elegí la fecha y el horario, más arriba.',
   },
   cotacao: {
     erro: 'No se pudo enviar ahora. Intentá de nuevo en unos minutos.',
@@ -63,6 +95,9 @@ export const ajustesAR: AjustesAR = {
     dicaInternacional:
       'Si tu tarjeta es de fuera de Brasil, revisá en la app de tu banco que las compras internacionales estén habilitadas.',
     tentarOutroCartao: 'Probá con otra tarjeta.',
+    // Pacote 34 (P8): o Pix como segunda opção depois do cartão recusado, e (P1) a troca do Pix para o cartão
+    recusadoPixComApp: 'Si tenés una app que pague Pix, pagá con Pix (−{p}%)',
+    pagarComCartao: '¿No podés pagar con Pix? Pagá con tarjeta',
     contestadoTexto:
       'Este pago está en disputa con el banco. Mientras el banco lo revisa, el voucher queda suspendido. Si tenés dudas, escribinos.',
     contestadoTextoVarios:
@@ -73,6 +108,8 @@ export const ajustesAR: AjustesAR = {
   },
   boletim: {
     escolha: 'Tocá un paseo para ver el total y reservar.',
+    colCriancas: 'Chicos',
+    nota: 'En la mayoría de los paseos, los chicos de hasta 5 años no pagan. Cada paseo muestra su regla antes de reservar.',
   },
   home: {
     gancho: 'Llegá y disfrutá. Del resto nos ocupamos nosotros.',
@@ -89,7 +126,7 @@ export const ajustesAR: AjustesAR = {
     tutorial: [
       {
         titulo: 'Elegí el paseo y la fecha.',
-        texto: 'El precio final aparece al instante, con la regla para niños de cada paseo.',
+        texto: 'El precio final aparece al instante, con la regla para chicos de cada paseo.',
       },
       {
         titulo: 'Elegí el horario.',
@@ -117,6 +154,8 @@ export const ajustesAR: AjustesAR = {
       { titulo: 'Voucher al instante', texto: 'Con número único, en el celular y en PDF.' },
       { titulo: 'Pago seguro', texto: 'Pix con {p}% de descuento o tarjeta, procesados por Stripe.' },
     ],
+    // Pacote 34 (P11): "chicos", como no resto do es-ar (a lista entra inteira)
+    precosRodape: ['En la mayoría de los paseos, los chicos hasta 5 años no pagan.', 'Cada paseo muestra su regla antes de reservar.'],
     garantiasColunas: ['Si', 'Recibís', 'Plazo'],
     garantias: [
       {
@@ -174,8 +213,8 @@ export const ajustesAR: AjustesAR = {
         'Tarjeta de crédito o débito, o Pix con 10% de descuento, siempre por el valor total de la reserva. El pago se hace en el propio sitio, con Stripe. El Pix vale hasta 2 horas antes del primer servicio del pedido; después, solo con tarjeta. La confirmación es automática y el voucher sale al instante.',
     },
     {
-      p: '¿Los niños pagan?',
-      r: 'En la mayoría de los paseos, los niños de hasta 5 años no pagan. En paseos en barco, city tours y full days, de 6 a 10 años pagan la mitad. Lancha, cuatriciclo, moto de agua, helicóptero y buceo tienen reglas propias. Cada paseo muestra su regla antes de reservar.',
+      p: '¿Los chicos pagan?',
+      r: 'En la mayoría de los paseos, los chicos de hasta 5 años no pagan. En paseos en barco, city tours y full days, de 6 a 10 años pagan la mitad. Lancha, cuatriciclo, moto de agua, helicóptero y buceo tienen reglas propias. Cada paseo muestra su regla antes de reservar.',
     },
     {
       p: '¿Y si llueve o el mar no lo permite?',
@@ -199,7 +238,7 @@ export const ajustesAR: AjustesAR = {
     },
     {
       p: 'Soy extranjero. ¿Puedo reservar?',
-      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, ingresá tu teléfono con el código del país.',
+      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, elegí tu país al lado del teléfono y escribí el número con el código de área.',
     },
     {
       p: '¿Es seguro pagar en el sitio?',
@@ -265,9 +304,15 @@ export const ajustesAR: AjustesAR = {
     grupoGrande: 'El grupo o las valijas superan lo que entra en la van. Dejanos tus datos y te respondemos con una propuesta.',
   },
   checkout: {
-    // o exemplo de telefone: no /es é chileno (DDI padrão +56); aqui fica o argentino e o uruguaio de antes
-    telefoneAjuda: 'Con el código del país. Ej.: +54 9 11 1234-5678 o +598 99 123 456',
+    // Pacote 34 (P5): o código do país já está na caixa ao lado; o exemplo é argentino (no /es, chileno)
+    telefoneAjuda: 'Sin el código del país (ya está al lado). Ej.: 9 11 1234-5678',
     selecione: 'Seleccioná',
+    observacoesAjuda: 'Alergias, movilidad reducida, edad de los chicos…',
+    // Pacote 34 (P9): os dados do cartão no passo seguinte, com o vos ("los ingresás")
+    cartaoAvista:
+      'Crédito o débito, en un solo pago. Visa y Mastercard. Los datos de la tarjeta los ingresás en el paso siguiente, en el formulario seguro de Stripe.',
+    // Pacote 34 (P2): no celular, o código copia e cola ("tocá", "pegalo")
+    pixNoCelular: 'En el celular, tocá Copiar el código y pegalo en tu app, en Pix Copia y Pega.',
     pixExplicacao:
       'Pagás en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
     // Pacote 29: a frase do Pix para quem é de fora, com o "vos"
@@ -282,7 +327,7 @@ export const ajustesAR: AjustesAR = {
     erros: {
       obrigatorio: 'Completá este campo.',
       email: 'Revisá el e-mail.',
-      telefone: 'Ingresá el teléfono con código de país y de área.',
+      telefone: 'Revisá el número, con el código de área.',
       semHorarioHoje: 'Para hoy ya no quedan horarios. Elegí otra fecha.',
       generico: 'No pudimos completarlo ahora. Probá de nuevo en unos minutos.',
       revise: 'Revisá los campos marcados.',

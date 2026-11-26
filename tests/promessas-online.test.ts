@@ -72,7 +72,8 @@ test('com o pagamento online no ar para o público, voltam o voucher na hora e o
   ]);
   assert.deepEqual(comPromessasOnline(dicionario('es-ar'), true).home.confianca, [
     'Cancelación gratis hasta 24 h antes',
-    'Reembolso si el clima cancela',
+    // Pacote 34 (P11): "el clima cancela" soava traduzido do português
+    'Reembolso si se cancela por mal tiempo',
     'Voucher al instante',
   ]);
   assert.deepEqual(comPromessasOnline(dicionario('en'), true).home.confianca, [

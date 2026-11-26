@@ -66,6 +66,10 @@ export default async function Inicio({ params }: PageProps<'/[locale]'>) {
     id: c,
     titulo: c === 'rio-de-janeiro' ? H.saindoDaRegiao : texto(CIDADES[c].nome, locale),
     contagem: quantos(daCidade(c).length),
+    // Pacote 34 (ENT-08): com mais de um passeio, o "10 paseos" vira "Ver los 10", o link para a lista da cidade
+    ...(daCidade(c).length > 1
+      ? { ver: { href: `${rota(locale, '/passeios')}?cidade=${c}`, texto: fmt(H.destinosVer, { n: daCidade(c).length }) } }
+      : {}),
     cartoes: [
       ...daCidade(c).map((p) => (
         <li key={p.slug}>

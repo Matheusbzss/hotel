@@ -13,13 +13,14 @@ export const ICONES = {
 /**
  * As garantias que tiram o risco da compra, perto do botão de reservar: cancelamento grátis, reembolso se o tempo
  * cancelar o passeio, o voucher e o pagamento seguro. Enquanto o pagamento é fechado pelo WhatsApp, a linha do
- * pagamento seguro vem vazia e sai do quadro (src/lib/promessas-online.ts).
+ * pagamento seguro vem vazia e sai do quadro (src/lib/promessas-online.ts). No transfer (Pacote 34, ENT-04), sem a
+ * linha do clima (`semClima`): o reembolso pelo tempo vale para o passeio, não para o traslado.
  */
-export function Confianca({ d, className = '' }: { d: Dicionario; className?: string }) {
+export function Confianca({ d, semClima = false, className = '' }: { d: Dicionario; semClima?: boolean; className?: string }) {
   const [cancelar, chuva, voucher] = d.passeio.garantias;
   const todos: [keyof typeof ICONES, string][] = [
     ['cancelar', cancelar],
-    ['chuva', chuva],
+    ['chuva', semClima ? '' : chuva],
     ['voucher', voucher],
     ['pagamento', d.passeio.pagoSeguro],
   ];

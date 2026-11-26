@@ -6,7 +6,7 @@ import type { TextosCotacao, TipoCotacao, TrajetoCotacao } from '@/lib/cotacao';
 import { envioProtegido, semRespostaDaProtecao } from '@/lib/envio-protegido';
 import { rastrear } from '@/lib/pixel';
 import { respostaDeRobo } from '@/lib/robos';
-import { DDIS, PAIS_PADRAO, emailValido, telefoneValido } from '@/lib/validacao';
+import { DDIS, PAIS_PADRAO, emailValido, semDdiRepetido, telefoneValido } from '@/lib/validacao';
 import { BotaoWhatsAppDoRobo } from './BotaoWhatsAppDoRobo';
 import { Campo, descricao } from './Campo';
 
@@ -180,6 +180,13 @@ export function FormularioCotacao({
             autoComplete="tel-national"
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
+            // Pacote 34 (P5): o código do país repetido no começo sai do número, e um de outro país, escrito com o "+", passa
+            // para a caixa (semDdiRepetido, src/lib/validacao.ts; o servidor faz a mesma conta)
+            onBlur={() => {
+              const t = semDdiRepetido(ddi, telefone);
+              if (t.ddi !== ddi) setDdi(t.ddi);
+              if (t.numero !== telefone) setTelefone(t.numero);
+            }}
             maxLength={24}
             aria-labelledby={`${id}-telefone-rotulo`}
             aria-invalid={Boolean(erros.telefone)}

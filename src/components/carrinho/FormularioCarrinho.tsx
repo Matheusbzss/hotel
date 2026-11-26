@@ -14,6 +14,7 @@ import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
 import { rastrear } from '@/lib/pixel';
 import type { ChaveRecusa } from '@/lib/recusas';
 import { garantiasDoCheckout } from '@/lib/garantias-checkout';
+import { hospedagemDoTransfer } from '@/lib/hospedagem';
 import { formasChegaram, releituraDoCheckout } from '@/lib/releitura-do-checkout';
 import { respostaDeRobo } from '@/lib/robos';
 import {
@@ -22,6 +23,8 @@ import {
   NOME_CIDADE_HOSPEDAGEM,
   PAIS_PADRAO,
   emailValido,
+  semDdiRepetido,
+  sugestaoDeEmail,
   telefoneValido,
   type CidadeHospedagem,
 } from '@/lib/validacao';
@@ -74,6 +77,12 @@ export interface TextosPagamentoOnline {
   /** O aviso do nome que o app do banco mostra no Pix (checkout.pixRecebedor). */
   pixRecebedor: string;
   recusa: Record<ChaveRecusa, string>;
+  /** Pacote 34 (P1): embaixo do QR do Pix, a troca para o cartão no mesmo pedido (pedido.pagarComCartao). */
+  pagarComCartao: string;
+  /** Pacote 34 (P8): o Pix como segunda opção depois do cartão recusado (pedido.recusadoPixComApp, com o {p}; vazio em português). */
+  recusadoPixComApp: string;
+  /** O Pix já gerado vale até vencer (pedido.pixGerado): quando o cartão deixou de valer na hora da troca. */
+  pixGerado: string;
 }
 
 /**
@@ -100,9 +109,12 @@ interface SessaoAberta {
 }
 
 const SEM_EXTRAS: ExtrasItem = { ida: '', volta: '', idades: [] };
-/** A ajuda do telefone com cada número de exemplo inteiro numa linha: não quebra no espaço nem no hífen ("1234-" / "5678"). */
+/**
+ * A ajuda do telefone com cada número de exemplo inteiro numa linha: não quebra no espaço nem no hífen ("1234-" / "5678").
+ * Desde o Pacote 34 (P5) o exemplo vem sem o "+" do código do país ("Ej.: 9 11 1234-5678"), e ele continua inteiro.
+ */
 const numerosInteiros = (texto: string) =>
-  texto.split(/(\+\d[\d -]*\d)/).map((parte, n) =>
+  texto.split(/(\+?\d[\d -]*\d)/).map((parte, n) =>
     n % 2 ? (
       <span key={n} className="whitespace-nowrap">
         {parte}
@@ -159,6 +171,8 @@ export function FormularioCarrinho({
     roboWhatsapp: WhatsAppDoRobo;
     /** As garantias embaixo do botão (passeio.garantiasOnline; garantiasDoCheckout, src/lib/garantias-checkout.ts). */
     garantias: readonly string[];
+    /** Pacote 34 (P7): a 4ª garantia, a do pagamento seguro, com o escudo (passeio.pagoSeguroOnline). */
+    pagoSeguro: string;
   };
   links: { termos: string; politica: string; privacidade: string; reserva: string; pedido: string; passeios: string };
   /** O e-mail da equipe (o link já montado no servidor), para quando o formulário da Stripe não carrega. */
@@ -190,10 +204,16 @@ export function FormularioCarrinho({
   const checkoutRef = useRef<HTMLDivElement>(null);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  // Pacote 34 (P13): a sugestão para o e-mail com erro de digitação no domínio ("¿Quisiste decir …@gmail.com?"), calculada
+  // quando o cliente sai do campo e escondida enquanto ele digita. Nunca troca sozinha: só o toque no e-mail sugerido troca
+  const [sugestaoEmail, setSugestaoEmail] = useState<string | null>(null);
   const [ddi, setDdi] = useState(PAIS_PADRAO[idioma].ddi);
   const [telefone, setTelefone] = useState('');
-  const [cidadeHosp, setCidadeHosp] = useState<CidadeHospedagem | ''>('');
-  const [hotel, setHotel] = useState('');
+  // Pacote 34 (P12): com um transfer para Búzios, Cabo Frio ou Arraial no carrinho, a cidade e o hotel já vêm do transfer
+  // (o que o cliente escreveu lá); ele pode mudar. O carrinho da página (inicial) decide, uma vez, ao abrir
+  const [daViagem] = useState(() => hospedagemDoTransfer(inicial));
+  const [cidadeHosp, setCidadeHosp] = useState<CidadeHospedagem | ''>(daViagem?.cidade ?? '');
+  const [hotel, setHotel] = useState(daViagem?.hotel ?? '');
   // "Ainda não sei": o pedido vai sem o hotel e a equipe pede depois (src/lib/hospedagem.ts)
   const [hotelAInformar, setHotelAInformar] = useState(false);
   const [extras, setExtras] = useState<Record<string, ExtrasItem>>({});
@@ -313,8 +333,8 @@ export function FormularioCarrinho({
   }, [recarregar]);
 
   /** O e-mail digitado fica no carrinho, para lembrar quem não terminou (Fase 5). */
-  function guardarEmail() {
-    const limpo = email.trim();
+  function guardarEmail(valor: string = email) {
+    const limpo = valor.trim();
     if (!emailValido(limpo) || limpo === emailGuardado.current) return;
     emailGuardado.current = limpo;
     fetch('/api/carrinho', {
@@ -322,6 +342,30 @@ export function FormularioCarrinho({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: limpo }),
     }).catch(() => null);
+  }
+
+  /** Saindo do campo do e-mail: guarda no carrinho e, com erro de digitação comum no domínio, mostra a sugestão (P13). */
+  function aoSairDoEmail() {
+    guardarEmail();
+    setSugestaoEmail(sugestaoDeEmail(email));
+  }
+
+  /** O toque no e-mail sugerido: ele entra no campo (e no carrinho, no lugar do que tinha o erro) e a sugestão sai. */
+  function usarSugestaoDoEmail(sugerido: string) {
+    setEmail(sugerido);
+    setSugestaoEmail(null);
+    guardarEmail(sugerido);
+  }
+
+  /**
+   * Pacote 34 (P5): saindo do campo do telefone, o código do país repetido no começo sai do número ("+54 9 11…" com a
+   * caixa na Argentina vira "9 11…"), e um código de outro país da lista, escrito com o "+", passa para a caixa. O servidor
+   * faz a mesma conta (semDdiRepetido, src/lib/validacao.ts) com o que chegar.
+   */
+  function aoSairDoTelefone() {
+    const t = semDdiRepetido(ddi, telefone);
+    if (t.ddi !== ddi) setDdi(t.ddi);
+    if (t.numero !== telefone) setTelefone(t.numero);
   }
 
   function validar(): Erros {
@@ -352,6 +396,8 @@ export function FormularioCarrinho({
       requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
+    // o telefone sem o código do país repetido (P5), mesmo que o cliente toque em "Pagar" sem sair do campo
+    const tel = semDdiRepetido(ddi, telefone);
     setEnviando(true);
     try {
       const res = await envioProtegido('/api/pedido', {
@@ -360,7 +406,7 @@ export function FormularioCarrinho({
         body: JSON.stringify({
           idioma,
           ids: itens.map((i) => i.id),
-          cliente: { nome: nome.trim(), email: email.trim(), ddi, telefone },
+          cliente: { nome: nome.trim(), email: email.trim(), ddi: tel.ddi, telefone: tel.numero },
           ...(temPasseio
             ? {
                 hospedagem: hotelAInformar
@@ -518,6 +564,10 @@ export function FormularioCarrinho({
       semPixPrazo: O.semPixPrazo,
       semPixLimite: O.semPixLimite,
       pixRecebedor: O.pixRecebedor,
+      pixNoCelular: C.pixNoCelular,
+      pagarComCartao: O.pagarComCartao,
+      recusadoPixComApp: O.recusadoPixComApp,
+      pixGerado: O.pixGerado,
       recusa: O.recusa,
       processando: C.processando,
       erroGenerico: C.erros.generico,
@@ -600,6 +650,7 @@ export function FormularioCarrinho({
               token={sessao.token}
               idioma={idioma}
               pixDisponivel={formas.includes('pix')}
+              cartaoDisponivel={formas.includes('cartao')}
               semPix={semPix}
               urlVolta={urlVolta}
               contato={contato}
@@ -621,6 +672,7 @@ export function FormularioCarrinho({
         pix: C.pix,
         cartaoAvista: C.cartaoAvista,
         pixExplicacao: C.pixExplicacao,
+        pixNoCelular: C.pixNoCelular,
         pixApps: C.pixApps,
         pixDeFora: C.pixDeFora,
         pixRecebedor: pagamentoOnline.textos.pixRecebedor,
@@ -717,13 +769,38 @@ export function FormularioCarrinho({
                 className="campo"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onBlur={guardarEmail}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setSugestaoEmail(null);
+                }}
+                onBlur={aoSairDoEmail}
                 maxLength={160}
                 aria-invalid={Boolean(erros.email)}
                 aria-describedby={descricao('email', erros.email, lembretesLigados ? C.emailAjuda : undefined)}
                 required
               />
+              {/* P13: a sugestão do e-mail, logo embaixo do campo, num lugar que o leitor de tela anuncia quando ela aparece.
+                  O e-mail sugerido é um botão: o toque troca o que está no campo; sem o toque, nada muda */}
+              <div aria-live="polite">
+                {sugestaoEmail && !erros.email && (
+                  <p className="ajuda">
+                    {C.emailSugestao.split(/(\{email\})/).map((pedaco, n) =>
+                      pedaco === '{email}' ? (
+                        <button
+                          key={n}
+                          type="button"
+                          className="link break-all font-semibold text-(--color-turquesa-texto)"
+                          onClick={() => usarSugestaoDoEmail(sugestaoEmail)}
+                        >
+                          {sugestaoEmail}
+                        </button>
+                      ) : (
+                        pedaco
+                      ),
+                    )}
+                  </p>
+                )}
+              </div>
               {/* para que serve o e-mail, ali onde ele é pedido (LGPD): ele fica guardado no carrinho assim que o cliente
                   sai do campo, para os lembretes de quem não terminou a compra. A política abre em outra aba, como os
                   links do aceite, para não perder o que já foi preenchido. Com o erro, o erro fica no lugar */}
@@ -772,6 +849,7 @@ export function FormularioCarrinho({
                   autoComplete="tel-national"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
+                  onBlur={aoSairDoTelefone}
                   maxLength={24}
                   aria-labelledby="telefone-rotulo"
                   aria-invalid={Boolean(erros.telefone)}
@@ -1041,9 +1119,14 @@ export function FormularioCarrinho({
             )}
             {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento) */}
             {erroGeral === textos.robo && <BotaoWhatsAppDoRobo whatsapp={textos.roboWhatsapp} />}
-            {/* as garantias do quadro do passeio, perto do botão (Pacote 27): só as que valem para este carrinho */}
+            {/* as garantias do quadro do passeio, perto do botão (Pacote 27): só as que valem para este carrinho. Desde o
+                Pacote 34 (P7), com o pagamento seguro e o escudo, como no passeio */}
             <ul className="grid gap-y-2 text-small">
-              {garantiasDoCheckout(textos.garantias, { temPasseio, voucherNaHora: online && forma !== null }).map(([icone, frase]) => (
+              {garantiasDoCheckout(textos.garantias, {
+                temPasseio,
+                voucherNaHora: online && forma !== null,
+                pagoSeguro: textos.pagoSeguro,
+              }).map(([icone, frase]) => (
                 <li key={icone} className="flex items-center gap-2.5">
                   <svg
                     viewBox="0 0 24 24"
@@ -1061,8 +1144,8 @@ export function FormularioCarrinho({
                 </li>
               ))}
             </ul>
-            <p className="text-small">{K.umPagamento}</p>
-            <p className="text-small">{C.avisoTotal}</p>
+            {/* Pacote 34 (P7): "um pagamento só" e "sempre o valor total" numa linha só */}
+            <p className="text-small">{C.umPagamentoTotal}</p>
             {/* o total não inclui as taxas pagas no local dos passeios; o transfer já inclui pedágio e estacionamento */}
             {comTaxaNoLocal && <p className="text-small">{K.taxasNoLocal}</p>}
             {online && forma === 'cartao' && <p className="text-small text-(--tinta-suave)">{C.seguro}</p>}

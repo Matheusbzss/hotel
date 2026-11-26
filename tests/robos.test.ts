@@ -368,11 +368,12 @@ test('os quatro formulários mostram a mensagem onde já mostram os erros do env
     /\} else if \(respostaDeRobo\(res\.status, corpo\)\) \{\s+setErroGeral\(textos\.robo\);\s+\} else setErroGeral\(C\.erros\.generico\);/,
   );
   assert.match(codigo('src', 'app', '[locale]', 'checkout', 'page.tsx'), /robo: d\.comum\.robo,/);
-  // pagar de novo (a escolha da forma e o "Pague com Pix" do cartão recusado): os dois toques do POST /pagar
+  // pagar de novo (a escolha da forma e o "Pague com Pix" do cartão recusado) e, desde o Pacote 34 (P1), o "Pague com
+  // cartão" embaixo do QR do Pix: os três toques do POST /pagar
   const checkout = codigo('src', 'components', 'pagamento', 'CheckoutEmbutido.tsx');
   assert.equal(
     checkout.match(/\} else if \(resposta\.erro === 'robo'\) \{\s+setErro\(T\.robo\);\s+\} else setErro\(T\.erroGenerico\);/g)?.length,
-    2,
+    3,
   );
   assert.match(codigo('src', 'lib', 'reserva-publica.ts'), /robo: d\.comum\.robo,/);
   assert.match(carrinho, /robo: textos\.robo,/);

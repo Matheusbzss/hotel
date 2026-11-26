@@ -31,13 +31,16 @@ function erro(campo: string, status: number, extra: Record<string, unknown> = {}
 
 /**
  * Uma sessão de pagamento nova para um pedido que ainda não foi pago: "pagar de novo" depois de a sessão vencer,
- * ou "cartão recusado? pague com Pix". Exige o token do link privado (comparado em tempo constante); só para
- * pedido pendente ou expirado; a sessão anterior, se ainda aberta, é expirada assim que a nova fica gravada no
- * pedido (abrirSessaoDoPedido explica a ordem). Devolve o `clientSecret` do checkout embutido. O status não muda
- * aqui (um pedido expirado volta a pendente ao gravar a sessão nova); pago, só pelo webhook.
+ * "cartão recusado? pague com Pix" ou, desde o Pacote 34 (P1), "não consegue pagar com Pix? pague com cartão". Exige o
+ * token do link privado (comparado em tempo constante); só para pedido pendente ou expirado; a sessão anterior, se
+ * ainda aberta, é expirada assim que a nova fica gravada no pedido, e a nova só volta com a Stripe confirmando que a
+ * anterior fechou (abrirSessaoDoPedido explica a ordem). Devolve o `clientSecret` do checkout embutido. O status não muda
+ * aqui (um pedido expirado volta a pendente ao gravar a sessão nova); pago, pelo webhook ou, quando a anterior foi paga
+ * pouco antes da troca, pela mesma porta do webhook (o 409 'status', com o pedido já pago).
  * Erros: 400 dados, 404 'nao-encontrado' (sem pedido ou sem o token certo), 409 'status', 403 'forma' (com as
  * formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou 'limite'), 403 'robo' (a proteção contra robôs,
- * src/lib/robos.ts: nada gravado), 429 'limite', 502 'stripe'.
+ * src/lib/robos.ts: nada gravado), 429 'limite', 502 'stripe' (também quando a Stripe não confirmou que a anterior
+ * fechou: o pedido continua com ela, e o cliente pode tentar de novo).
  */
 export async function POST(req: Request, { params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = await params;

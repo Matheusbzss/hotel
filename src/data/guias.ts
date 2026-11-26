@@ -231,7 +231,11 @@ export const GUIAS: Guia[] = [
       },
       {
         p: { es: '¿Qué hacer en Búzios con niños?', 'es-ar': '¿Qué hacer en Búzios con chicos?' },
-        r: 'Ferradura y João Fernandes tienen mar calmo. El catamarán se mueve menos y tiene mucho espacio, y el trolley es para todas las edades. En la mayoría de los paseos, los niños de hasta 5 años no pagan: la regla de cada uno está en su página.',
+        r: {
+          es: 'Ferradura y João Fernandes tienen mar calmo. El catamarán se mueve menos y tiene mucho espacio, y el trolley es para todas las edades. En la mayoría de los paseos, los niños de hasta 5 años no pagan: la regla de cada uno está en su página.',
+          'es-ar':
+            'Ferradura y João Fernandes tienen mar calmo. El catamarán se mueve menos y tiene mucho espacio, y el trolley es para todas las edades. En la mayoría de los paseos, los chicos de hasta 5 años no pagan: la regla de cada uno está en su página.',
+        },
       },
       {
         p: '¿Búzios tiene aeropuerto?',

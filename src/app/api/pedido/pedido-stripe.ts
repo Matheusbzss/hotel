@@ -5,7 +5,9 @@ import type { EscolhaItem } from '../../../lib/carrinho';
 import { linhaDoCancelamento } from '../../../lib/email/marcas.ts';
 import type { FormaPagamento, ItemAgendado } from '../../../lib/formas-pagamento';
 import {
+  anteriorDepoisDeFechar,
   aplicarSessao,
+  devolverSessaoAnterior,
   interpretarSessao,
   podeAbrirSessao,
   proximaTentativa,
@@ -236,6 +238,60 @@ export class PedidoFechado extends Error {
 }
 
 /**
+ * A Stripe não confirmou que a sessão anterior fechou (Pacote 34, P1): a nova não chega ao cliente, o pedido continua com
+ * a anterior (devolverSessaoAnterior) e a rota responde como a Stripe fora do ar (502 'stripe'). O cliente continua na
+ * tela de antes (o QR do Pix, o formulário do cartão) e pode tentar de novo.
+ */
+export class SessaoAnteriorAberta extends Error {
+  constructor(codigo: string, sessao: string) {
+    super(`A sessão anterior ${sessao} do pedido ${codigo} não pôde ser fechada: a troca de forma foi desfeita.`);
+    this.name = 'SessaoAnteriorAberta';
+  }
+}
+
+/** O que fecharSessaoAnterior descobriu: a sessão paga vem junto (é ela que vira o pagamento do pedido). */
+export type DepoisDeFechar =
+  { estado: 'fechada' } | { estado: 'paga'; lida: Stripe.Checkout.Session } | { estado: 'aberta'; forma?: FormaPagamento };
+
+/** As duas chamadas à Stripe de fecharSessaoAnterior (os testes passam as de mentira). */
+export interface ChamadasDaStripe {
+  expirar: (id: string) => Promise<boolean>;
+  reler: (id: string) => Promise<Stripe.Checkout.Session>;
+}
+
+/**
+ * Fecha a sessão anterior na Stripe e confere, pela Stripe, se ela fechou mesmo (Pacote 34, P1). Fechou agora: pronto.
+ * Não estava mais aberta, ou a Stripe deu erro: a sessão é relida, e o que ela diz decide (anteriorDepoisDeFechar): paga
+ * pouco antes, vencida, ou ainda aberta. Se nem a releitura responder, ela conta como aberta: sem a certeza de que o Pix
+ * morreu, o cartão não abre. Uma sessão que não existe nesta conta da Stripe não recebe pagamento nenhum: fechada.
+ * Testada em tests/troca-de-forma.test.ts, com a Stripe de mentira.
+ */
+export async function fecharSessaoAnterior(
+  id: string,
+  codigo: string,
+  { expirar, reler }: ChamadasDaStripe = { expirar: expirarSessao, reler: obterSessao },
+): Promise<DepoisDeFechar> {
+  const fechou = await expirar(id).catch((e) => {
+    console.error(`[pedido] não deu para expirar a sessão anterior do pedido ${codigo}: ${mensagem(e)}`);
+    return 'erro' as const;
+  });
+  if (fechou === true) return { estado: 'fechada' };
+  let lida: Stripe.Checkout.Session;
+  try {
+    lida = await reler(id);
+  } catch (e) {
+    if (e instanceof Stripe.errors.StripeInvalidRequestError && e.code === 'resource_missing') return { estado: 'fechada' };
+    console.error(`[pedido] não deu para reler a sessão anterior do pedido ${codigo}: ${mensagem(e)}`);
+    return { estado: 'aberta' };
+  }
+  const estado = anteriorDepoisDeFechar(lida);
+  if (estado === 'paga') return { estado, lida };
+  if (estado === 'fechada') return { estado };
+  const forma = lida.metadata?.forma;
+  return { estado, ...(forma === 'pix' || forma === 'cartao' ? { forma } : {}) };
+}
+
+/**
  * Abre uma sessão de pagamento para o pedido (a primeira, ou uma nova: cartão recusado → Pix, "pagar de novo"):
  * cria a sessão com um item por voucher no idioma do cliente, grava-a como a corrente (registrarSessaoCriada: o
  * pedido expirado volta a pendente), passa para ela os bloqueios de casa e só então expira a anterior, se ainda
@@ -243,8 +299,11 @@ export class PedidoFechado extends Error {
  * sessoesSubstituidas). A ordem importa: com a sessão nova já gravada, o aviso de sessão vencida da anterior (webhook
  * checkout.session.expired) fala de uma sessão que não é mais a do pedido e não muda nada. Expirando antes, o
  * aviso podia chegar no meio da troca e pôr o pedido em "expirado" (e soltar as datas da casa) com o cliente já
- * no formulário novo, que fecharia sozinho. Se o cliente pagar a anterior nesse meio segundo, o webhook trata
- * como pagamento em duas abas (fecha a outra sessão ou devolve o pagamento repetido).
+ * no formulário novo, que fecharia sozinho. Desde o Pacote 34 (P1, a troca do Pix para o cartão), a sessão nova só
+ * volta ao cliente depois que a Stripe confirma que cada anterior fechou: se uma delas foi paga pouco antes (o Pix pago
+ * no app do banco no instante da troca), esse pagamento é aplicado ao pedido, a nova fecha e sai PedidoFechado; se a
+ * Stripe não confirmar o fechamento, a nova fecha, o pedido volta para a anterior e sai SessaoAnteriorAberta. Assim o
+ * cliente nunca fica com duas formas abertas para pagar o mesmo pedido.
  * Só para pedido pendente ou expirado; lança erro se a Stripe falhar (a rota decide o que fazer com o pedido).
  * Se o pedido for pago ou cancelado enquanto a sessão nasce, ele não aceita a sessão nova: ela é expirada na
  * Stripe e sai PedidoFechado (a rota responde 409 'status').
@@ -299,19 +358,50 @@ export async function abrirSessaoDoPedido(vouchers: Reserva[], forma: FormaPagam
     throw new PedidoFechado(gravada.status);
   }
 
-  // primeiro a sessão lida no começo, depois a que a gravação encontrou (a de outro "Pagar" quase simultâneo): com
-  // dois cliques, em qualquer ordem de chegada, os bloqueios de casa terminam na sessão que ficou no pedido e a
-  // outra fecha. (Três cliques ao mesmo tempo ainda poderiam deixar um bloqueio numa sessão fechada; hoje nenhum
-  // pedido tem bloqueio de casa, isso chega na Etapa 7.)
-  for (const anterior of sessoesSubstituidas(r.pagamentoExternoId, registro.substituida, sessao.id)) {
+  // as anteriores deixam de aceitar pagamento: fechar a sessão cancela o pagamento pendente dela e MATA o QR de um Pix já
+  // gerado (visto em 15/11). Primeiro a sessão lida no começo, depois a que a gravação encontrou (a de outro "Pagar" quase
+  // simultâneo). Pacote 34 (P1, a troca do Pix para o cartão): a sessão nova só chega ao cliente com a certeza, pela
+  // Stripe, de que cada anterior fechou (fecharSessaoAnterior). Antes, um Pix pago no instante da troca, ou uma sessão que
+  // a Stripe não conseguia fechar, deixava o cliente pagar de novo com a outra forma, e o segundo pagamento só voltava
+  // depois, pela devolução automática
+  const anteriores = sessoesSubstituidas(r.pagamentoExternoId, registro.substituida, sessao.id);
+  const depois: (DepoisDeFechar & { anterior: string })[] = [];
+  for (const anterior of anteriores) depois.push({ anterior, ...(await fecharSessaoAnterior(anterior, codigo)) });
+
+  // paga pouco antes (o Pix pago no app do banco enquanto o cliente tocava em "Pagar com cartão"): é o pagamento do
+  // pedido. Ele entra pela mesma porta do aviso da Stripe (aplicarSessao), a sessão nova fecha sem nunca ter chegado ao
+  // cliente e a rota responde 409 'status': a tela vai para a página do pedido, que mostra o pedido pago.
+  // A ordem importa (revisão do Pacote 34): primeiro o pedido passa para a sessão anterior, e só depois a nova fecha.
+  // Fechando antes, o aviso de sessão vencida da nova (ainda a do pedido) podia chegar no meio e pôr o pedido em
+  // "expirado". O client_secret da nova nunca saiu do servidor: ela aberta por mais um instante não deixa ninguém pagar
+  const paga = depois.find((d) => d.estado === 'paga');
+  if (paga?.estado === 'paga') {
+    try {
+      const aplicada = await aplicarSessao(codigo, paga.lida, 'consulta');
+      throw new PedidoFechado(aplicada.reserva?.status ?? 'pago');
+    } finally {
+      await fecharNova();
+    }
+  }
+  // a Stripe não confirmou que a anterior fechou: o pedido volta para a anterior (a que o cliente ainda pode pagar), a
+  // nova fecha (nessa ordem, pelo mesmo motivo de cima) e a troca fica para outro toque
+  const aberta = depois.findLast((d) => d.estado === 'aberta');
+  if (aberta?.estado === 'aberta') {
+    const metodoDoComeco = r.pagamento.metodo === 'pix' || r.pagamento.metodo === 'cartao' ? r.pagamento.metodo : undefined;
+    const formaAnterior = aberta.forma ?? (aberta.anterior === r.pagamentoExternoId ? metodoDoComeco : undefined);
+    await devolverSessaoAnterior(codigo, sessao.id, aberta.anterior, formaAnterior).catch((e) =>
+      console.error(`[pedido] não deu para devolver o pedido ${codigo} à sessão anterior: ${mensagem(e)}`),
+    );
+    await fecharNova();
+    throw new SessaoAnteriorAberta(codigo, aberta.anterior);
+  }
+
+  // com as anteriores fechadas, os bloqueios de casa passam para a sessão nova: com dois cliques, em qualquer ordem de
+  // chegada, eles terminam na sessão que ficou no pedido. (Três cliques ao mesmo tempo ainda poderiam deixar um bloqueio
+  // numa sessão fechada; hoje nenhum pedido tem bloqueio de casa, isso chega na Etapa 7.)
+  for (const anterior of anteriores) {
     await renomearBloqueiosDaSessao(anterior, sessao.id).catch((e) =>
       console.error(`[pedido] não deu para passar os bloqueios de casa para a sessão nova do pedido ${codigo}: ${mensagem(e)}`),
-    );
-    // a anterior, se ainda aberta, deixa de aceitar pagamento: fechar a sessão cancela o pagamento pendente dela e MATA
-    // o QR de um Pix já gerado (visto em 15/11). Se ele for pago no instante antes do fechamento, vale como o pagamento
-    // do pedido e o webhook fecha esta sessão nova
-    await expirarSessao(anterior).catch((e) =>
-      console.error(`[pedido] não deu para expirar a sessão anterior do pedido ${codigo}: ${mensagem(e)}`),
     );
   }
   return { codigo, sessaoId: sessao.id, clientSecret: sessao.client_secret, forma };

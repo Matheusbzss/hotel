@@ -1,5 +1,6 @@
 // com a extensão, para os testes (node) acharem o arquivo sem o atalho "@/"
-import type { CidadeHospedagem } from './validacao.ts';
+import type { EscolhaItem } from './carrinho';
+import { CIDADES_HOSPEDAGEM, type CidadeHospedagem } from './validacao.ts';
 
 /**
  * Onde o cliente dos passeios vai ficar, uma vez só para todos os passeios do pedido. `aInformar`: o cliente marcou
@@ -28,6 +29,24 @@ export function hospedagemDoCheckout(h: HospedagemDoCheckout): Hospedagem | null
   if (h.aInformar) return { cidade: h.cidade, hotel: '', aInformar: true };
   const hotel = h.hotel.trim();
   return hotel ? { cidade: h.cidade, hotel } : null;
+}
+
+const ehCidadeHospedagem = (lugar: string): lugar is CidadeHospedagem => (CIDADES_HOSPEDAGEM as readonly string[]).includes(lugar);
+
+/**
+ * Pacote 34 (P12): com um transfer para Búzios, Cabo Frio ou Arraial do Cabo no carrinho, o checkout já abre com a cidade
+ * e o hotel que o cliente escreveu no transfer ("Hotel, posada o dirección"), em vez de pedir tudo de novo; ele pode
+ * mudar. Vale o primeiro transfer que CHEGA a uma das três cidades; sem nenhum, o primeiro que SAI de uma delas (a volta
+ * para o aeroporto: quem sai de Búzios está hospedado em Búzios). O nome fica no limite do campo do checkout. Null sem
+ * transfer que passe por uma das três (o cliente preenche, como sempre).
+ */
+export function hospedagemDoTransfer(itens: readonly { escolha: EscolhaItem }[]): { cidade: CidadeHospedagem; hotel: string } | null {
+  const transfers = itens.flatMap((i) => (i.escolha.tipo === 'transfer' ? [i.escolha] : []));
+  const ponta =
+    transfers.map((t) => t.ida.destino).find((p) => ehCidadeHospedagem(p.lugar)) ??
+    transfers.map((t) => t.ida.saida).find((p) => ehCidadeHospedagem(p.lugar));
+  if (!ponta || !ehCidadeHospedagem(ponta.lugar)) return null;
+  return { cidade: ponta.lugar, hotel: (ponta.endereco ?? '').trim().slice(0, MAXIMO_NOME_DO_HOTEL) };
 }
 
 /** O nome do hotel como o voucher, a página do pedido, a mensagem do WhatsApp e o painel mostram: o digitado, ou o "a informar" do idioma. */

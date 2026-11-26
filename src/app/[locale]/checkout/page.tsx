@@ -107,8 +107,10 @@ export default async function CheckoutCarrinho({ params }: PageProps<'/[locale]/
                 tentarDeNovo: d.reserva.tentarNovamente,
                 robo: d.comum.robo,
                 roboWhatsapp: whatsappDoRobo(d),
-                // as garantias embaixo do botão de pagar: as frases do quadro do passeio (src/lib/garantias-checkout.ts)
+                // as garantias embaixo do botão de pagar: as frases do quadro do passeio (src/lib/garantias-checkout.ts),
+                // com o pagamento seguro desde o Pacote 34 (P7)
                 garantias: d.passeio.garantiasOnline,
+                pagoSeguro: d.passeio.pagoSeguroOnline,
               }}
               links={{
                 termos: rota(locale, '/termos-de-uso'),

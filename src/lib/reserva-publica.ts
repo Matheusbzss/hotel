@@ -219,8 +219,11 @@ export function textosDoPagamento(d: Dicionario, varios = false): TextosPagarPed
     semPrazo: P.semPrazo,
     recusadoTitulo: P.recusadoTitulo,
     recusadoPix: fmt(P.recusadoPix, { p: DESCONTO_PIX_PORCENTO }),
+    recusadoPixComApp: fmt(P.recusadoPixComApp, { p: DESCONTO_PIX_PORCENTO }),
     dicaInternacional: P.dicaInternacional,
     tentarOutroCartao: P.tentarOutroCartao,
+    pagarComCartao: P.pagarComCartao,
+    pixNoCelular: C.pixNoCelular,
     recusa: d.recusa,
   };
 }
@@ -241,6 +244,9 @@ export function textosDoPagamentoOnline(d: Dicionario): TextosPagamentoOnline {
     semPixLimite: P.semPixLimite,
     pixRecebedor: d.checkout.pixRecebedor,
     recusa: d.recusa,
+    pagarComCartao: P.pagarComCartao,
+    recusadoPixComApp: fmt(P.recusadoPixComApp, { p: DESCONTO_PIX_PORCENTO }),
+    pixGerado: P.pixGerado,
   };
 }
 

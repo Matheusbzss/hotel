@@ -123,7 +123,10 @@ const en: Dicionario = {
     noPixComDesconto: 'with Pix (−{p}%)',
     dolar: '≈ US$ {v}',
     // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
-    notaCambio: 'You pay in Brazilian reais. ≈ US$ is approximate: Central Bank of Brazil rate from {data}.',
+    // Pacote 34 (P10): os países de quem lê em inglês (EUA, Reino Unido, Europa…) estão na lista da moeda local da Stripe
+    // (Adaptive Pricing): no cartão, dá para pagar na moeda do cliente, com a cotação da Stripe; o Pix é sempre em reais
+    notaCambio:
+      'At checkout you can pay in Brazilian reais or, by card, in your own currency (at Stripe’s exchange rate). ≈ US$ is approximate: Central Bank of Brazil rate from {data}.',
   },
   carrinho: {
     titulo: 'Your cart',
@@ -152,7 +155,15 @@ const en: Dicionario = {
     umPagamento: 'One payment and one voucher for each item.',
     transferTitulo: 'Private transfer: {de} → {para}',
     volta: 'Return: {quando}',
+    // só quando o servidor recusa a data ou o horário (src/lib/aviso-reserva.ts)
     erroAdicionar: "Couldn't add it. Check the date and time and try again.",
+    // Pacote 34 (ENT-10): o envio que não chegou ao site (sem internet) e o que o site não conseguiu gravar agora
+    erroConexao: "We couldn't connect. Check your internet connection and tap again.",
+    erroTemporario: "Couldn't add it right now. Try again in a few minutes.",
+    // Pacote 34 (ENT-02): perto do botão do cartão de reserva, o que falta escolher lá em cima
+    faltaData: 'Choose the tour date above.',
+    faltaHorario: 'Choose a time above.',
+    faltaDataEHorario: 'Choose the date and time above.',
     cheio: 'The cart takes up to 12 items per order.',
     adicionando: 'Adding…',
     seuPedido: 'Your order',
@@ -229,6 +240,10 @@ const en: Dicionario = {
     recusadoPix: 'Card declined? Pay with Pix and get {p}% off',
     dicaInternacional: 'If your card is from outside Brazil, check in your bank’s app that international purchases are enabled.',
     tentarOutroCartao: 'Try another card.',
+    // Pacote 34 (P8): depois do cartão recusado, o Pix vem como segunda opção, para quem tem um app que pague Pix
+    recusadoPixComApp: 'If you have an app that pays with Pix, pay with Pix (−{p}%)',
+    // Pacote 34 (P1): embaixo do QR do Pix, a troca para o cartão no mesmo pedido
+    pagarComCartao: 'Can’t pay with Pix? Pay by card',
     semPixPrazo: 'Pix is only available up to 2 hours before the first service in your order. You can now pay by card only.',
     semPixLimite: 'Pix has a maximum amount per payment, and this order is above it. You can pay for this order by card only.',
     // a contestação é entre o cliente e o banco dele: texto neutro, sem acusar ninguém
@@ -321,6 +336,8 @@ const en: Dicionario = {
     destinosTexto: 'Búzios, Arraial do Cabo and Cabo Frio are close to each other: stay in one and tour all three.',
     destinosQtd: '{n} tours',
     destinosUm: '1 tour',
+    // Pacote 34 (ENT-08): na vitrine da inicial, o link da cidade para a lista filtrada (a seta vem no desenho)
+    destinosVer: 'See all {n}',
     comoTitulo: 'How it works',
     etapas: ['Pick the tour and the date.', 'Pay by Pix or card.', 'Board with the voucher on your phone.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
@@ -432,7 +449,7 @@ const en: Dicionario = {
     },
     {
       p: 'I’m not Brazilian. Can I book?',
-      r: 'Of course. We speak English, Spanish and Portuguese. At checkout, enter your phone with the country code.',
+      r: 'Of course. We speak English, Spanish and Portuguese. At checkout, choose your country next to the phone field and enter the number with the area code.',
     },
     {
       p: 'Is it safe to pay on the website?',
@@ -444,6 +461,9 @@ const en: Dicionario = {
   passeios: {
     titulo: 'Tours',
     texto: '{n} tours in Búzios, Arraial do Cabo and Cabo Frio, with online booking and free cancellation up to 24 h before.',
+    // Pacote 34 (ENT-08): o mesmo texto na lista filtrada, contando só os passeios mostrados e só as cidades deles
+    textoFiltrado: '{n} tours in {lugares}, with online booking and free cancellation up to 24 h before.',
+    textoFiltradoUm: '1 tour in {lugares}, with online booking and free cancellation up to 24 h before.',
     nenhum: 'No tours match these filters.',
     limpar: 'Clear filters',
     resultado: '{n} tour',
@@ -482,7 +502,9 @@ const en: Dicionario = {
     opinioesTitulo: 'Reviews of Orla Nativa',
     opinioesContagem: '{n} reviews',
     opinioesContagemUma: '1 review',
+    // Pacote 34 (ENT-11): o "Ver todas" abre o cartão ali mesmo; aberto, o botão fecha
     opinioesVerTodas: 'See all reviews',
+    opinioesVerMenos: 'Show fewer reviews',
   },
   horario: {
     saida: 'Departure time',
@@ -597,7 +619,8 @@ const en: Dicionario = {
     emailAjuda: 'We use your email for your order and, if you don’t complete the purchase, to send up to 2 reminders.',
     emailPrivacidade: 'Privacy Policy',
     telefone: 'Phone / WhatsApp',
-    telefoneAjuda: 'Include the country code. E.g. +1 212 555 0100 or +54 9 11 1234-5678',
+    // Pacote 34 (P5): o código do país já está na caixa ao lado do número
+    telefoneAjuda: 'Don’t include the country code (it’s already selected). E.g. 212 555 0100',
     ddi: 'Country code',
     hospedagem: 'Where you’ll be staying',
     cidadeHospedagem: 'Town',
@@ -620,7 +643,9 @@ const en: Dicionario = {
     cartao: 'Card',
     // a escolha cartão x Pix e o botão de pagar (Etapa 4, pela Stripe); o {valor} já vem formatado, com centavos
     formaPagamento: 'Payment method',
-    cartaoAvista: 'Credit or debit, in a single payment. Visa and Mastercard.',
+    // Pacote 34 (P9): o "Pay" ainda não cobra; os dados do cartão vêm no passo seguinte, no formulário da Stripe
+    cartaoAvista:
+      'Credit or debit, in a single payment. Visa and Mastercard. You’ll enter your card details in the next step, on Stripe’s secure form.',
     pixExplicacao:
       'You pay in your bank or wallet app, with the QR code or the copy-and-paste code shown in the next step. Confirmation is automatic and your voucher is issued instantly.',
     // vazio por decisão do dono (11/11): a frase dos apps de fora só volta depois do Pix de R$ 1,00 pago por app de
@@ -635,6 +660,12 @@ const en: Dicionario = {
     irParaPagamento: 'Continue to payment',
     processando: 'Processing…',
     avisoTotal: 'Payment is always for the full amount of the booking.',
+    // Pacote 34 (P7): embaixo do botão de pagar, o "um pagamento só" e o "valor total" numa linha só
+    umPagamentoTotal: 'One payment, always for the full amount, and one voucher for each item.',
+    // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela): o código copia e cola, no app
+    pixNoCelular: 'On your phone, copy the code and paste it into your app, under Pix Copia e Cola.',
+    // Pacote 34 (P13): o e-mail com um erro de digitação comum no domínio; {email} vira o botão que corrige
+    emailSugestao: 'Did you mean {email}?',
     seguro: 'Card payments are securely processed by Stripe. Your card details go straight to Stripe and are never stored by us.',
     semStripe:
       'The payment form didn’t load. Turn off your ad blocker for this site or switch to another network, such as mobile data, and try again. If it still doesn’t work, email us.',
@@ -649,7 +680,7 @@ const en: Dicionario = {
     erros: {
       obrigatorio: 'Please fill in this field.',
       email: 'Please check your email.',
-      telefone: 'Enter your phone number with country and area code.',
+      telefone: 'Check the number, including the area code.',
       semHorarioHoje: 'There are no times left for today. Choose another date.',
       generico: 'We couldn’t complete this right now. Please try again in a few minutes.',
       revise: 'Please review the highlighted fields.',

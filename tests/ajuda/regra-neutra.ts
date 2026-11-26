@@ -59,6 +59,8 @@ export const VERBOS_VOS: Record<string, string> = {
   disfrutás: 'disfrutas',
   reservás: 'reservas',
   paseás: 'paseas',
+  // Pacote 34 (P9): "los datos de la tarjeta los ingresás en el paso siguiente"
+  ingresás: 'ingresas',
   sos: 'eres',
   // imperativos
   reservá: 'reserva',
@@ -129,6 +131,8 @@ export const VERBOS_VOS: Record<string, string> = {
   informanos: 'infórmanos',
   envianos: 'envíanos',
   envialo: 'envíalo',
+  // Pacote 34 (P2): "tocá Copiar el código y pegalo en tu app"
+  pegalo: 'pégalo',
 };
 
 /**
@@ -185,8 +189,15 @@ export const FRASES_ARGENTINAS: [string, string][] = [
   ['salir a la noche', 'salir por la noche'],
   ['arrancar por el mar', 'empezar por el mar'],
   ['paradores', 'bares'],
-  // o exemplo de telefone do checkout: argentino/uruguaio no es-ar, chileno no es (DDI padrão +56)
-  ['+54 9 11 1234-5678 o +598 99 123 456', '+56 9 1234 5678 o +54 9 11 1234-5678'],
+  // o exemplo de telefone do checkout, sem o código do país desde o Pacote 34 (P5): argentino no es-ar, chileno no es
+  // (o país que já vem marcado em cada um)
+  ['Ej.: 9 11 1234-5678', 'Ej.: 9 1234 5678'],
+  // Pacote 34 (P10): a nota da moeda. No /es (Chile), o cartão pode ser pago na moeda do cliente, com a cotação da
+  // Stripe; a Argentina não está na lista da Stripe, e o es-ar continua com "Pagás en reales"
+  [
+    'Pagás en reales. El ≈ US$',
+    'En el pago puedes elegir pagar en reales o, con tarjeta, en tu moneda (con la cotización de Stripe). El ≈ US$',
+  ],
   // textos alternativos das fotos
   ['Brochette', 'Brocheta'],
   ['picadas', 'aperitivos'],

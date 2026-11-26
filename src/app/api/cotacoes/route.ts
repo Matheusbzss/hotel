@@ -5,7 +5,7 @@ import { criarCotacao } from '@/lib/cotacoes';
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { soCampanha } from '@/lib/origem';
 import { origemDaVisita } from '@/lib/origem-servidor';
-import { emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
+import { emailValido, telefoneParaGravar, telefoneValido } from '@/lib/validacao';
 import { mensagemDoErro } from '@/lib/erros';
 import { barrarRobo } from '@/lib/robos-servidor';
 
@@ -47,7 +47,8 @@ export async function POST(req: Request) {
       nome: e.nome,
       email: e.email.toLowerCase(),
       idioma: e.idioma,
-      ...(e.telefone ? { telefone: `+${soDigitos(e.ddi)} ${soDigitos(e.telefone)}` } : {}),
+      // sem o código do país repetido no começo do número (Pacote 34, P5: semDdiRepetido, src/lib/validacao.ts)
+      ...(e.telefone ? { telefone: telefoneParaGravar(e.ddi, e.telefone) } : {}),
       ...(e.mensagem ? { mensagem: e.mensagem } : {}),
       ...(e.trajeto ? { trajeto: e.trajeto } : {}),
       origem: soCampanha(await origemDaVisita()),

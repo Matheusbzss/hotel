@@ -13,7 +13,7 @@ import { origemDaVisita } from '@/lib/origem-servidor';
 import { podeAbrirSessao } from '@/lib/pagamento-stripe';
 import { reservaDoItem } from '@/lib/pedido-carrinho';
 import { criarPedido } from '@/lib/reservas';
-import { CIDADES_HOSPEDAGEM, emailValido, soDigitos, telefoneValido } from '@/lib/validacao';
+import { CIDADES_HOSPEDAGEM, emailValido, telefoneParaGravar, telefoneValido } from '@/lib/validacao';
 import { abrirSessaoDoPedido, cancelarPedidoAberto, itemAgendado, vouchersDoPedido } from './pedido-stripe';
 import { mensagemDoErro } from '@/lib/erros';
 import { barrarRobo } from '@/lib/robos-servidor';
@@ -130,7 +130,9 @@ export async function POST(req: Request) {
       cliente: {
         nome: e.cliente.nome,
         email: e.cliente.email.toLowerCase(),
-        telefone: `+${soDigitos(e.cliente.ddi)} ${soDigitos(e.cliente.telefone)}`,
+        // sem o código do país repetido no começo do número (Pacote 34, P5): "+54 9 11…" com a caixa na Argentina vira
+        // "+54 911…", nunca "+54 54911…" (semDdiRepetido, src/lib/validacao.ts)
+        telefone: telefoneParaGravar(e.cliente.ddi, e.cliente.telefone),
       },
       hospedagem,
       observacoes: e.observacoes || undefined,

@@ -1,16 +1,17 @@
-import Link from 'next/link';
 import type { Dicionario } from '@/i18n';
-import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
+import { LOCALE_INTL, fmt, type Idioma } from '@/i18n/config';
 import { idiomaDeConteudo } from '@/i18n/conteudo';
-import { notaDaAgencia, notaVisivel, trechoDaAvaliacao, trechosDoCartao, type Avaliacao } from '@/lib/avaliacao';
+import { notaDaAgencia, notaVisivel, opinioesDoCartao, trechoDaAvaliacao, type Avaliacao } from '@/lib/avaliacao';
+import { ListaOpinioes, type OpiniaoDoCartao } from './ListaOpinioes';
 
 /**
  * Cartão compacto de opiniões perto da reserva (desenho A, escolhido pelo dono em 08/11/2026 entre A, B e C).
  * A nota média e a contagem são só das avaliações da agência — o título deixa isso claro —, sem o nome do site
  * de onde vieram ("5,0 · 5 opiniões", como na página inicial; Pacote 27), 2 trechos
- * curtos (quem cita o passeio vem primeiro; frase inteira antes de frase cortada) e o link para a seção
- * de opiniões da página inicial. Some sem o mínimo publicado (a seção de destino do link nem existiria)
- * ou sem nota da agência.
+ * curtos (quem cita o passeio vem primeiro; frase inteira antes de frase cortada) e o "Ver todas as opiniões", que abre
+ * o cartão ali mesmo, com todas as opiniões da agência (Pacote 34, ENT-11: antes, o link levava para a página inicial e o
+ * cliente perdia o passeio e o horário escolhidos). Some sem o mínimo publicado ou sem nota da agência.
+ * No transfer (Pacote 34, ENT-04), o mesmo cartão, com `slug` "transfer": as avaliações marcadas com ele vêm primeiro.
  */
 export function OpinioesPasseio({
   avaliacoes,
@@ -28,9 +29,17 @@ export function OpinioesPasseio({
 }) {
   if (!notaVisivel(avaliacoes)) return null;
   const { media, total } = notaDaAgencia(avaliacoes);
-  const trechos = trechosDoCartao(avaliacoes, slug, idioma);
+  // fechado, os 2 trechos de sempre; aberto, os mesmos e, depois deles, as outras da agência (src/lib/avaliacao.ts)
+  const { iniciais, todas } = opinioesDoCartao(avaliacoes, slug, idioma);
   const nota = media.toLocaleString(LOCALE_INTL[idioma], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const contagem = total === 1 ? d.passeio.opinioesContagemUma : fmt(d.passeio.opinioesContagem, { n: total });
+  const doCartao = (a: Avaliacao): OpiniaoDoCartao => ({
+    id: a.id,
+    nome: a.nome,
+    ...(a.idioma && a.idioma !== idiomaDeConteudo(idioma) ? { original: d.opinioes.original[a.idioma] } : {}),
+    trecho: trechoDaAvaliacao(a.texto),
+    texto: a.texto,
+  });
   return (
     <section
       aria-labelledby="opinioes-passeio-titulo"
@@ -51,21 +60,17 @@ export function OpinioesPasseio({
         </span>
         <span className="text-small text-(--color-tinta-suave)">· {contagem}</span>
       </p>
-      <ul className="mt-4 space-y-3 border-t border-(--color-borda) pt-4">
-        {trechos.map((a) => (
-          <li key={a.id} className="text-small">
-            <p>“{trechoDaAvaliacao(a.texto)}”</p>
-            <p className="mt-0.5 text-(--color-tinta-suave)">
-              {a.nome}
-              {a.idioma && a.idioma !== idiomaDeConteudo(idioma) && ` · ${d.opinioes.original[a.idioma]}`}
-            </p>
-          </li>
-        ))}
-      </ul>
-      {/* #opinioes-titulo é o id que existe hoje na seção da página inicial */}
-      <Link href={`${rota(idioma, '/')}#opinioes-titulo`} className="link mt-4 inline-block text-small">
-        {d.passeio.opinioesVerTodas}
-      </Link>
+      <ListaOpinioes
+        iniciais={iniciais.map(doCartao)}
+        todas={todas.map(doCartao)}
+        idTitulo="opinioes-passeio-titulo"
+        textos={{
+          verTodas: d.passeio.opinioesVerTodas,
+          verMenos: d.passeio.opinioesVerMenos,
+          lerMais: d.opinioes.lerMais,
+          lerMenos: d.opinioes.lerMenos,
+        }}
+      />
     </section>
   );
 }

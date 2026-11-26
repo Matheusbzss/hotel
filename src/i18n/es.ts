@@ -84,9 +84,10 @@ const es: Dicionario = {
       pessoas: 'Personas',
       aPartirDe: 'Desde {n} años',
       todasIdades: 'Todas las edades',
-      meia: 'Niños de {de} a {ate} años',
+      // o espaço que não quebra antes de "años", como no es-ar (revisão do Pacote 34: "años" sozinho na segunda linha)
+      meia: 'Niños de {de} a {ate} años',
       meiaAjuda: 'Pagan la mitad',
-      gratis: 'Niños hasta {ate} años',
+      gratis: 'Niños hasta {ate} años',
       gratisAjuda: 'No pagan',
       idadeMinima: 'Edad mínima: {n} años',
     },
@@ -129,7 +130,11 @@ const es: Dicionario = {
     noPixComDesconto: 'con Pix (−{p}%)',
     dolar: '≈ US$ {v}',
     // a nota perto dos totais; só aparece em espanhol e inglês, e {data} é a data da cotação no formato do idioma
-    notaCambio: 'Pagas en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',
+    // Pacote 34 (P10): no /es (Chile e outros países da lista da Stripe), o cartão pode ser pago na moeda do cliente, com a
+    // cotação da Stripe (Adaptive Pricing, ligado no painel); o Pix é sempre em reais. O es-ar fica com "Pagás en reales":
+    // a Argentina não está na lista
+    notaCambio:
+      'En el pago puedes elegir pagar en reales o, con tarjeta, en tu moneda (con la cotización de Stripe). El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',
   },
   carrinho: {
     titulo: 'Tu carrito',
@@ -152,13 +157,21 @@ const es: Dicionario = {
     // logo abaixo dos botões do cartão de reserva: nenhum botão cobra na hora
     semCobranca: 'Todavía no te cobramos nada: revisas todo antes de pagar.',
     // impessoal ("que se pagan"): sem verbo em tú, o es-ar lê esta mesma frase
-    taxasNoLocal: 'No incluye tasas municipales o de embarque, que se pagan en el lugar cuando se cobran.',
+    taxasNoLocal: 'Las tasas municipales o de embarque, si se cobran, se pagan en el lugar.',
     horario: 'Horario',
     escolhaHorario: 'Elige el horario',
     umPagamento: 'Un solo pago y un voucher para cada ítem.',
     transferTitulo: 'Traslado privado: {de} → {para}',
     volta: 'Vuelta: {quando}',
+    // só quando o servidor recusa a data ou o horário (src/lib/aviso-reserva.ts)
     erroAdicionar: 'No se pudo agregar. Revisa la fecha y el horario e intenta de nuevo.',
+    // Pacote 34 (ENT-10): o envio que não chegou ao site (sem internet) e o que o site não conseguiu gravar agora
+    erroConexao: 'No pudimos conectar. Revisa tu internet y toca de nuevo.',
+    erroTemporario: 'No se pudo agregar ahora. Intenta de nuevo en unos minutos.',
+    // Pacote 34 (ENT-02): perto do botão do cartão de reserva, o que falta escolher lá em cima
+    faltaData: 'Elige la fecha del paseo, más arriba.',
+    faltaHorario: 'Elige el horario, más arriba.',
+    faltaDataEHorario: 'Elige la fecha y el horario, más arriba.',
     cheio: 'El carrito acepta hasta 12 ítems por pedido.',
     adicionando: 'Agregando…',
     seuPedido: 'Tu pedido',
@@ -238,6 +251,11 @@ const es: Dicionario = {
     dicaInternacional:
       'Si tu tarjeta es de fuera de Brasil, revisa en la app de tu banco que las compras internacionales estén habilitadas.',
     tentarOutroCartao: 'Prueba con otra tarjeta.',
+    // Pacote 34 (P8): depois do cartão recusado, em espanhol e inglês o Pix vem como segunda opção, para quem tem um app
+    // que pague Pix (em português ela é vazia, e o Pix continua sendo a primeira)
+    recusadoPixComApp: 'Si tienes una app que pague Pix, paga con Pix (−{p}%)',
+    // Pacote 34 (P1): embaixo do QR do Pix, a troca para o cartão no mesmo pedido
+    pagarComCartao: '¿No puedes pagar con Pix? Paga con tarjeta',
     semPixPrazo: 'Pix solo está disponible hasta 2 horas antes del primer servicio del pedido. Ahora solo se puede pagar con tarjeta.',
     semPixLimite: 'Pix tiene un monto máximo por pago, y este pedido lo supera. Este pedido solo se puede pagar con tarjeta.',
     // a contestação é entre o cliente e o banco dele: texto neutro, sem acusar ninguém
@@ -302,9 +320,9 @@ const es: Dicionario = {
     // enquanto não houver casa no ar (src/data/casas.ts), a frase do topo não fala das casas
     ganchoTextoSemCasas: 'Paseos en Búzios, Arraial y Cabo Frio, y traslado privado, con precio cerrado y atención en español.',
     ganchoCta: 'Ver paseos',
-    confianca: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela'],
+    confianca: ['Cancelación gratis hasta 24 h antes', 'Reembolso si se cancela por mal tiempo'],
     // Pacote 30 (decisão do dono de 25/11, opção A): o cancelamento grátis primeiro, também com o pagamento online
-    confiancaOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher al instante'],
+    confiancaOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si se cancela por mal tiempo', 'Voucher al instante'],
     vitrineTitulo: 'Paseos y precio por persona',
     vitrineTexto: 'Elige la fecha y quiénes van: debajo de cada precio aparece el total de tu grupo.',
     mapaTitulo: 'Tres ciudades en la misma costa',
@@ -333,6 +351,8 @@ const es: Dicionario = {
     destinosTexto: 'Búzios, Arraial do Cabo y Cabo Frio están cerca una de otra: te alojas en una y paseas por las tres.',
     destinosQtd: '{n} paseos',
     destinosUm: '1 paseo',
+    // Pacote 34 (ENT-08): na vitrine da inicial, o link da cidade para a lista filtrada (a seta vem no desenho)
+    destinosVer: 'Ver los {n}',
     comoTitulo: 'Cómo funciona',
     etapas: ['Elige el paseo y la fecha.', 'Paga con Pix o tarjeta.', 'Embarca con el voucher en el celular.'],
     // o tutorial em 4 passos (prints reais do site no celular); entra no lugar de etapas quando for ligado
@@ -444,7 +464,7 @@ const es: Dicionario = {
     },
     {
       p: 'Soy extranjero. ¿Puedo reservar?',
-      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, ingresa tu teléfono con el código del país.',
+      r: '¡Claro! Atendemos en español, portugués e inglés. En el checkout, elige tu país al lado del teléfono y escribe el número con el código de área.',
     },
     {
       p: '¿Es seguro pagar en el sitio?',
@@ -456,6 +476,9 @@ const es: Dicionario = {
   passeios: {
     titulo: 'Paseos',
     texto: '{n} paseos en Búzios, Arraial do Cabo y Cabo Frio, con reserva online y cancelación gratis hasta 24 h antes.',
+    // Pacote 34 (ENT-08): o mesmo texto na lista filtrada, contando só os passeios mostrados e só as cidades deles
+    textoFiltrado: '{n} paseos en {lugares}, con reserva online y cancelación gratis hasta 24 h antes.',
+    textoFiltradoUm: '1 paseo en {lugares}, con reserva online y cancelación gratis hasta 24 h antes.',
     nenhum: 'Ningún paseo con esos filtros.',
     limpar: 'Limpiar filtros',
     resultado: '{n} paseo',
@@ -484,8 +507,8 @@ const es: Dicionario = {
     semFotos: 'Pronto, fotos de este paseo.',
     precoPorPessoa: 'por persona',
     escolhaOpcao: 'Elige la duración',
-    garantias: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher con número único'],
-    garantiasOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si el clima cancela', 'Voucher al instante'],
+    garantias: ['Cancelación gratis hasta 24 h antes', 'Reembolso si se cancela por mal tiempo', 'Voucher con número único'],
+    garantiasOnline: ['Cancelación gratis hasta 24 h antes', 'Reembolso si se cancela por mal tiempo', 'Voucher al instante'],
     pagoSeguro: '',
     pagoSeguroOnline: 'Pago seguro con Pix o tarjeta',
     encontro: 'Punto de encuentro',
@@ -494,7 +517,9 @@ const es: Dicionario = {
     opinioesTitulo: 'Opiniones sobre Orla Nativa',
     opinioesContagem: '{n} opiniones',
     opinioesContagemUma: '1 opinión',
+    // Pacote 34 (ENT-11): o "Ver todas" abre o cartão ali mesmo; aberto, o botão fecha
     opinioesVerTodas: 'Ver todas las opiniones',
+    opinioesVerMenos: 'Ver menos opiniones',
   },
   horario: {
     saida: 'Horario de salida',
@@ -612,7 +637,8 @@ const es: Dicionario = {
     emailAjuda: 'Usamos el e-mail para tu pedido y, si la compra no se completa, para enviarte hasta 2 recordatorios.',
     emailPrivacidade: 'Política de Privacidad',
     telefone: 'Teléfono / WhatsApp',
-    telefoneAjuda: 'Con el código del país. Ej.: +56 9 1234 5678 o +54 9 11 1234-5678',
+    // Pacote 34 (P5): o código do país já está na caixa ao lado; o exemplo é chileno (o país que já vem marcado no /es)
+    telefoneAjuda: 'Sin el código del país (ya está al lado). Ej.: 9 1234 5678',
     ddi: 'Código de país',
     hospedagem: 'Dónde te vas a alojar',
     cidadeHospedagem: 'Ciudad del alojamiento',
@@ -636,7 +662,9 @@ const es: Dicionario = {
     cartao: 'Tarjeta',
     // a escolha cartão x Pix e o botão de pagar (Etapa 4, pela Stripe); o {valor} já vem formatado, com centavos
     formaPagamento: 'Forma de pago',
-    cartaoAvista: 'Crédito o débito, en un solo pago. Visa y Mastercard.',
+    // Pacote 34 (P9): o "Pagar" ainda não cobra; os dados do cartão vêm depois, no formulário da Stripe
+    cartaoAvista:
+      'Crédito o débito, en un solo pago. Visa y Mastercard. Los datos de la tarjeta los ingresas en el paso siguiente, en el formulario seguro de Stripe.',
     pixExplicacao:
       'Pagas en la app de tu banco o billetera, con el código QR o el código copia y pega que aparecen en el paso siguiente. La confirmación es automática y el voucher sale al instante.',
     // vazio por decisão do dono (11/11): a frase dos apps de fora só volta depois do Pix de R$ 1,00 pago por app de
@@ -652,6 +680,14 @@ const es: Dicionario = {
     irParaPagamento: 'Ir al pago',
     processando: 'Procesando…',
     avisoTotal: 'El pago es siempre por el valor total de la reserva.',
+    // Pacote 34 (P7): embaixo do botão de pagar, "un solo pago" e "el valor total" numa linha só (sem verbo em tú: o
+    // es-ar lê a mesma)
+    umPagamentoTotal: 'Un solo pago, siempre por el valor total, y un voucher para cada ítem.',
+    // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela); o nome do botão é o da Stripe em
+    // espanhol ("Copiar el código", visto no teste de 09/11)
+    pixNoCelular: 'En el celular, toca Copiar el código y pégalo en tu app, en Pix Copia y Pega.',
+    // Pacote 34 (P13): o e-mail com erro de digitação comum no domínio; {email} vira o botão que corrige
+    emailSugestao: '¿Quisiste decir {email}?',
     seguro: 'Tarjeta procesada de forma segura por Stripe. Los datos de la tarjeta van directo a Stripe y no quedan con nosotros.',
     semStripe:
       'El formulario de pago no se cargó. Prueba sin el bloqueador de anuncios en este sitio o con otra red, como los datos del celular. Si sigue sin funcionar, escríbenos por e-mail.',
@@ -666,7 +702,7 @@ const es: Dicionario = {
     erros: {
       obrigatorio: 'Completa este campo.',
       email: 'Revisa el e-mail.',
-      telefone: 'Ingresa el teléfono con código de país y de área.',
+      telefone: 'Revisa el número, con el código de área.',
       semHorarioHoje: 'Para hoy ya no quedan horarios. Elige otra fecha.',
       generico: 'No pudimos completarlo ahora. Prueba de nuevo en unos minutos.',
       revise: 'Revisa los campos marcados.',

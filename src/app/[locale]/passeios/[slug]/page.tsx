@@ -293,6 +293,12 @@ export default async function PaginaPasseio({ params }: PageProps<'/[locale]/pas
                   // só nos passeios com as taxas no "Não inclui" (o helicóptero e o city tour do Rio não têm)
                   taxasNoLocal: temTaxaNoLocal(p) ? d.carrinho.taxasNoLocal : '',
                   semHorarioHoje: d.checkout.erros.semHorarioHoje,
+                  // Pacote 34: o que falta, repetido perto do botão (ENT-02), e o aviso de cada recusa (ENT-10)
+                  faltaData: d.carrinho.faltaData,
+                  faltaHorario: d.carrinho.faltaHorario,
+                  faltaDataEHorario: d.carrinho.faltaDataEHorario,
+                  erroConexao: d.carrinho.erroConexao,
+                  erroTemporario: d.carrinho.erroTemporario,
                   noPix: d.preco.noPix,
                   noCartao: d.preco.noCartao,
                   noPixComDesconto: d.preco.noPixComDesconto,

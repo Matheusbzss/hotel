@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { filtrarPasseios, textoDaLista, type ItemDaLista, type TextosDaLista } from '@/lib/lista-passeios';
 
 export interface ItemExplorador {
   slug: string;
@@ -12,6 +13,63 @@ export interface ItemExplorador {
 interface Opcao {
   valor: string;
   rotulo: string;
+}
+
+interface Filtro {
+  cidade: string;
+  tipo: string;
+  setCidade: (c: string) => void;
+  setTipo: (t: string) => void;
+}
+
+const ContextoFiltro = createContext<Filtro | null>(null);
+
+function useFiltro(): Filtro {
+  const f = useContext(ContextoFiltro);
+  if (!f) throw new Error('A lista de passeios precisa estar dentro do FiltroPasseios');
+  return f;
+}
+
+/**
+ * O filtro da lista (cidade e tipo), lido do endereço (?cidade=…&tipo=…) quando a página abre: o mesmo para a lista
+ * (ExploradorPasseios) e para o texto do topo (TextoDaLista, Pacote 34), que ficam em pedaços diferentes da página.
+ */
+export function FiltroPasseios({ cidades, categorias, children }: { cidades: string[]; categorias: string[]; children: ReactNode }) {
+  const [cidade, setCidade] = useState('');
+  const [tipo, setTipo] = useState('');
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const c = q.get('cidade') ?? '';
+    const t = q.get('tipo') ?? '';
+    if (cidades.includes(c)) setCidade(c);
+    if (categorias.includes(t)) setTipo(t);
+  }, [cidades, categorias]);
+
+  const valor = useMemo(() => ({ cidade, tipo, setCidade, setTipo }), [cidade, tipo]);
+  return <ContextoFiltro.Provider value={valor}>{children}</ContextoFiltro.Provider>;
+}
+
+/**
+ * Pacote 34 (ENT-08): o texto do topo da lista, que conta só os passeios mostrados pelo filtro (src/lib/lista-passeios.ts).
+ * Sem filtro, o texto de sempre, igual ao que o servidor manda.
+ */
+export function TextoDaLista({
+  itens,
+  cidades,
+  locale,
+  textos,
+  className = '',
+}: {
+  itens: ItemDaLista[];
+  /** As cidades na ordem da lista, com o nome no idioma. */
+  cidades: Opcao[];
+  locale: string;
+  textos: TextosDaLista;
+  className?: string;
+}) {
+  const { cidade, tipo } = useFiltro();
+  return <p className={className}>{textoDaLista(itens, { cidade, tipo }, cidades, locale, textos)}</p>;
 }
 
 /**
@@ -42,16 +100,8 @@ export function ExploradorPasseios({
     resultados: string;
   };
 }) {
-  const [cidade, setCidade] = useState('');
-  const [tipo, setTipo] = useState('');
-
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const c = q.get('cidade') ?? '';
-    const t = q.get('tipo') ?? '';
-    if (cidades.some((o) => o.valor === c)) setCidade(c);
-    if (categorias.some((o) => o.valor === t)) setTipo(t);
-  }, [cidades, categorias]);
+  // o filtro mora no FiltroPasseios (lido do endereço quando a página abre): o texto do topo usa o mesmo
+  const { cidade, tipo, setCidade, setTipo } = useFiltro();
 
   const atualizarUrl = (c: string, t: string) => {
     const url = new URL(window.location.href);
@@ -71,10 +121,7 @@ export function ExploradorPasseios({
     atualizarUrl(cidade, t);
   };
 
-  const visiveis = useMemo(
-    () => itens.filter((i) => (!cidade || i.cidade === cidade) && (!tipo || i.categoria === tipo)),
-    [itens, cidade, tipo],
-  );
+  const visiveis = useMemo(() => filtrarPasseios(itens, cidade, tipo), [itens, cidade, tipo]);
 
   const contagem = (visiveis.length === 1 ? textos.resultado : textos.resultados).replace('{n}', String(visiveis.length));
 

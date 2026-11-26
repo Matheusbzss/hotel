@@ -137,6 +137,17 @@ export interface TextosCheckoutEmbutido {
   semPixLimite: string;
   /** Em cima do QR do Pix: o nome que o app do banco mostra pode ser o da empresa que processa o pagamento. */
   pixRecebedor: string;
+  /** Pacote 34 (P2), em cima do QR do Pix: no celular o QR não serve, é o código copia e cola (checkout.pixNoCelular). */
+  pixNoCelular: string;
+  /** Pacote 34 (P1), embaixo do QR do Pix: "Não consegue pagar com Pix? Pague com cartão" (pedido.pagarComCartao). */
+  pagarComCartao: string;
+  /**
+   * Pacote 34 (P8): depois do cartão recusado, em espanhol e inglês, o botão do Pix como segunda opção ("…si tenés una app
+   * que pague Pix", já com o {p} preenchido). Vazio em português: lá o Pix continua sendo a primeira opção (recusadoPix).
+   */
+  recusadoPixComApp: string;
+  /** O Pix já gerado vale até vencer (pedido.pixGerado): quando o cartão deixou de valer na hora da troca. */
+  pixGerado: string;
   /** O motivo da recusa em linguagem simples, por chave (src/lib/recusas.ts). */
   recusa: Record<ChaveRecusa, string>;
   processando: string;
@@ -165,6 +176,7 @@ export function CheckoutEmbutido({
   token,
   idioma,
   pixDisponivel,
+  cartaoDisponivel = false,
   semPix: semPixDoServidor,
   urlVolta,
   contato,
@@ -183,6 +195,8 @@ export function CheckoutEmbutido({
   idioma: Idioma;
   /** O Pix ainda vale para este pedido (o servidor decidiu): a oferta depois do cartão recusado só aparece com ele. */
   pixDisponivel: boolean;
+  /** Pacote 34 (P1): o cartão vale para este pedido (o servidor decidiu): a troca do Pix para o cartão só aparece com ele. */
+  cartaoDisponivel?: boolean;
   /** Sem o Pix, por quê (o prazo ou o limite de valor), para a frase no lugar da oferta. */
   semPix?: MotivoSemPix;
   /** A página do pedido com o token: para onde a página vai ao concluir ou quando o servidor fecha o pedido. */
@@ -210,6 +224,11 @@ export function CheckoutEmbutido({
   // o que entra no lugar da oferta: a frase do motivo com o convite para outro cartão (como sempre) ou, quando o servidor
   // diz que nenhuma forma vale mais (o freio de emergência), só o convite (noLugarDaOfertaDoPix)
   const [noLugarDoPix, setNoLugarDoPix] = useState<NoLugarDaOfertaDoPix>('motivo-do-pix');
+  // Pacote 34 (P1): o servidor disse que o cartão não vale mais (o pagamento online desligado às pressas): a troca do Pix
+  // para o cartão sai da tela, e o QR já gerado continua valendo
+  const [semCartao, setSemCartao] = useState(false);
+  // a troca do Pix para o cartão deu certo: a tela vai até o formulário do cartão (o efeito logo abaixo da escala)
+  const irAoCartao = useRef(false);
   const avisoRef = useRef<HTMLDivElement>(null);
   const erroRef = useRef<HTMLParagraphElement>(null);
   const semStripeRef = useRef<HTMLParagraphElement>(null);
@@ -392,6 +411,51 @@ export function CheckoutEmbutido({
     setTrocando(false);
   }
 
+  // Pacote 34 (P1): quem está no QR do Pix e não consegue pagar (no celular o QR não serve; sem um app que pague Pix) troca
+  // para o cartão ali mesmo, no mesmo pedido e com o mesmo código, pelo mesmo caminho da troca para o Pix (POST
+  // /api/pedido/[codigo]/pagar). O servidor só devolve a sessão do cartão depois que a Stripe confirma que a do Pix fechou
+  // (abrirSessaoDoPedido): o QR morre e não há como pagar duas vezes. Se o Pix foi pago pouco antes, vem o 409 'status' e
+  // a página do pedido mostra o pedido pago; se a Stripe não confirmou que o Pix fechou, vem o erro de sempre e o QR
+  // continua valendo, com o pedido do jeito que estava
+  async function pagarComCartao() {
+    setTrocando(true);
+    setErro('');
+    const resposta = await pedirNovaSessao(codigoPedido, token, 'cartao');
+    if ('clientSecret' in resposta) {
+      irAoCartao.current = true;
+      setSegredo(resposta.clientSecret);
+      setFormaAtual('cartao');
+      setRecusa(undefined);
+      aoTrocarForma?.('cartao');
+    } else if (resposta.erro === 'status') {
+      // o pedido mudou por baixo (o Pix pago no instante da troca, ou cancelado): a página do pedido mostra o estado de verdade
+      irParaOPedido();
+      return;
+    } else if (resposta.erro === 'forma') {
+      // o cartão não vale mais (o freio de emergência): a troca sai da tela, e a frase diz que o QR já gerado ainda vale
+      setSemCartao(true);
+      setErro(T.pixGerado);
+    } else if (resposta.erro === 'robo') {
+      // confundido com robô pela proteção: nada foi gravado, e o QR do Pix continua valendo
+      setErro(T.robo);
+    } else setErro(T.erroGenerico);
+    setTrocando(false);
+  }
+
+  // a troca para o cartão deu certo: o botão sumiu e o formulário do cartão entra na mesma caixa, mais acima. A tela sobe até
+  // o começo da caixa quando ele está fora da vista (a mesma medida do aviso do cartão recusado: a folga é a margem de
+  // rolagem da caixa), e o foco vai para ela, para o próximo Tab entrar no formulário e não recomeçar do topo da página
+  useEffect(() => {
+    if (formaAtual !== 'cartao' || !irAoCartao.current) return;
+    irAoCartao.current = false;
+    const caixa = caixaRef.current;
+    if (!caixa) return;
+    const folga = parseFloat(getComputedStyle(caixa).scrollMarginTop) || 0;
+    const { top } = caixa.getBoundingClientRect();
+    if (top < folga || top > window.innerHeight * 0.6) caixa.scrollIntoView({ block: 'start' });
+    caixa.focus({ preventScroll: true });
+  }, [formaAtual]);
+
   return (
     <div className="space-y-5">
       {/* o motivo da recusa em linguagem simples, acima do formulário da Stripe (que também mostra a recusa dela) */}
@@ -401,7 +465,25 @@ export function CheckoutEmbutido({
           <p className="mt-1">{T.recusa[recusa]}</p>
           {/* a dica vem em toda recusa de cartão, como o dono pediu, menos na "internacional", em que o motivo já diz o mesmo */}
           {mostrarDicaInternacional(recusa) && <p className="mt-2 text-small">{T.dicaInternacional}</p>}
-          {pixDisponivel && !semPix ? (
+          {T.recusadoPixComApp ? (
+            // Pacote 34 (P8), em espanhol e inglês: primeiro outro cartão (o formulário, embaixo, continua aberto) e, como
+            // segunda opção, o Pix para quem tem um app que pague Pix. Para o argentino e o chileno, a recusa mais comum é a
+            // compra internacional bloqueada no banco, e o Pix empurrado como saída principal levava ao QR que ele não paga
+            <>
+              <p className="mt-2 font-semibold">{T.tentarOutroCartao}</p>
+              {pixDisponivel && !semPix && (
+                <button
+                  type="button"
+                  className="botao botao-vazado mt-4 w-full"
+                  onClick={pagarComPix}
+                  disabled={trocando}
+                  aria-busy={trocando}
+                >
+                  {trocando ? T.processando : T.recusadoPixComApp}
+                </button>
+              )}
+            </>
+          ) : pixDisponivel && !semPix ? (
             <button type="button" className="botao mt-4 w-full" onClick={pagarComPix} disabled={trocando} aria-busy={trocando}>
               {trocando ? T.processando : T.recusadoPix}
             </button>
@@ -423,6 +505,9 @@ export function CheckoutEmbutido({
       {/* o WhatsApp da equipe só com a mensagem do robô (a exceção à regra de só depois do pagamento), logo embaixo do aviso
           e fora dele: dentro do respiro do aviso, a palavra "WhatsApp" com a letra grande não caberia no botão */}
       {recusa && formaAtual === 'cartao' && erro === T.robo && <BotaoWhatsAppDoRobo whatsapp={T.roboWhatsapp} />}
+      {/* Pacote 34 (P2): em cima do QR, o que fazer no celular, onde o QR não serve (não dá para escanear a própria tela):
+          copiar o código e colar no app. Vem antes do recebedor: é o que o cliente faz primeiro */}
+      {formaAtual === 'pix' && !semFormulario && <p className="max-w-[52ch] font-semibold">{T.pixNoCelular}</p>}
       {/* em cima do QR, antes de o cliente abrir o app do banco: o recebedor pode aparecer com outro nome, e não é golpe */}
       {formaAtual === 'pix' && !semFormulario && <p className="max-w-[52ch] text-small text-(--color-tinta-suave)">{T.pixRecebedor}</p>}
       {semFormulario && (
@@ -455,8 +540,9 @@ export function CheckoutEmbutido({
         // barrado, nunca pelo prazo: desmontada, a peça da Stripe deixaria um formulário fantasma
         <div
           ref={caixaRef}
-          className="-mx-(--margem) bg-(--color-papel) py-3 transition-opacity duration-200 aria-busy:opacity-50 sm:mx-0 sm:rounded-cartao sm:p-5"
+          className="-mx-(--margem) scroll-mt-24 bg-(--color-papel) py-3 outline-none transition-opacity duration-200 aria-busy:opacity-50 sm:mx-0 sm:rounded-cartao sm:p-5"
           aria-busy={trocando}
+          tabIndex={-1}
         >
           {/* a régua: um bloco vazio, sem altura, que mede a largura que o formulário tem */}
           <div ref={reguaRef} aria-hidden="true" />
@@ -475,6 +561,27 @@ export function CheckoutEmbutido({
           </div>
         </div>
       )}
+      {/* Pacote 34 (P1): embaixo do QR do Pix, a troca para o cartão no mesmo pedido, enquanto o cartão vale. No celular o QR
+          abre numa folha da Stripe por cima da página: quem fecha a folha sem conseguir pagar encontra o botão logo embaixo do
+          formulário. Um botão vazado: o caminho principal da tela continua sendo pagar o Pix */}
+      {formaAtual === 'pix' && cartaoDisponivel && !semCartao && !semFormulario && (
+        <button
+          type="button"
+          className="botao botao-vazado w-full sm:w-auto"
+          onClick={pagarComCartao}
+          disabled={trocando}
+          aria-busy={trocando}
+        >
+          {trocando ? T.processando : T.pagarComCartao}
+        </button>
+      )}
+      {/* o erro da troca para o cartão (o QR continua valendo) nasce embaixo do botão, com o foco */}
+      {formaAtual === 'pix' && erro && (
+        <p ref={erroRef} tabIndex={-1} role="alert" className="max-w-[52ch] bg-erro-claro px-4 py-3 font-semibold text-mar outline-none">
+          {erro}
+        </p>
+      )}
+      {formaAtual === 'pix' && erro === T.robo && <BotaoWhatsAppDoRobo whatsapp={T.roboWhatsapp} />}
     </div>
   );
 }
@@ -756,10 +863,14 @@ export function PagarPedido({
             token={token}
             idioma={idioma}
             pixDisponivel={formas.includes('pix')}
+            cartaoDisponivel={formas.includes('cartao')}
             semPix={semPix}
             urlVolta={urlVolta}
             contato={contato}
             textos={T}
+            // sem redesenhar a página (nem na troca do Pix para o cartão, Pacote 34): a chave desta tela é o status, e o pedido
+            // que era "expirado" já voltou a pendente com a sessão nova; redesenhada, a tela começaria do zero em "confirmando
+            // o pagamento" e o formulário que acabou de abrir sumiria (visto no teste da troca na página da reserva)
             aoTrocarForma={setForma}
           />
         </div>

@@ -7,6 +7,7 @@ import { LUGARES, VEICULOS, precoTrecho, totalTransfer, type IdLugar, type Malas
 import type { Dicionario } from '@/i18n';
 import { fmt, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
+import { textoDaRecusa } from '@/lib/aviso-reserva';
 import type { EscolhaTransfer, TrechoEscolhido } from '@/lib/carrinho';
 import { ANTECEDENCIA_TRANSFER_MINUTOS, formatarHora } from '@/lib/horarios';
 import { formatarCentavos, precoPixCentavos } from '@/lib/orcamento';
@@ -131,8 +132,9 @@ export function FormularioTransfer({
       router.push(links.checkout);
       return;
     }
-    // 'antecedencia': a ida do link começa sem a antecedência do transfer (a regra do servidor, conferirEscolha)
-    setErro(r.erro === 'cheio' ? K.cheio : r.erro === 'antecedencia' ? erroAntecedencia : K.erroAdicionar);
+    // 'antecedencia': a ida do link começa sem a antecedência do transfer (a regra do servidor, conferirEscolha).
+    // Pacote 34 (ENT-10): sem conexão, o aviso pede para conferir a internet; só os erros de data ou de horário falam deles
+    setErro(r.erro === 'antecedencia' ? erroAntecedencia : textoDaRecusa(r.erro, K));
     setEnviando(false);
   }
 
@@ -182,7 +184,9 @@ export function FormularioTransfer({
               {pedido.volta ? T.totalIdaVolta : T.total}{' '}
               {grande.verde ? <span className="text-(--color-d2)">{grande.rotulo}</span> : grande.rotulo}
             </span>
-            <span className="numeros titulo leading-none">{grande.centavos === null ? '—' : formatarCentavos(grande.centavos, locale)}</span>
+            <span className="numeros titulo leading-none">
+              {grande.centavos === null ? '—' : formatarCentavos(grande.centavos, locale)}
+            </span>
           </div>
           {embaixo.centavos !== null && (
             <p className="mt-2 flex justify-between gap-4 text-small text-(--tinta-suave)">

@@ -1,1 +1,142 @@
-# hotel
+# Orla Nativa — Viagens & Passeios
+
+Site de passeios em Búzios, Cabo Frio e Arraial do Cabo, com reserva online, cartão e Pix pela Stripe no próprio site (ligados pela variável `PAGAMENTO_ONLINE`; sem ela o pedido segue pelo WhatsApp), voucher em PDF e área administrativa. Feito em Next.js 16, publicado na Vercel. Português (padrão), inglês, espanhol neutro (`/es`) e espanhol da Argentina (`/es-ar`).
+
+## Onde mudar cada coisa
+
+| O que                                                                                                            | Arquivo                                     |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Nome, e-mail, WhatsApp (só no fim da reserva), domínio                                                           | `src/config/empresa.ts`                     |
+| Passeios (nome, cidade, categoria, preço de venda, opções, unidade, crianças, duração, inclusos, roteiro, fotos) | `src/data/passeios.ts`                      |
+| Ajuste de todos os preços e desconto do Pix                                                                      | `src/config/precos.ts`                      |
+| Regra padrão de crianças (até 5 anos grátis)                                                                     | `CRIANCAS_PADRAO` em `src/data/passeios.ts` |
+| Pacotes Passeio + Hospedagem (sob consulta)                                                                      | `src/data/pacotes.ts`                       |
+| Casas de temporada (desligada até as parcerias)                                                                  | `src/data/casas.ts`                         |
+| Textos do site nos 3 idiomas (home, FAQ, checkout…)                                                              | `src/i18n/pt.ts`, `en.ts`, `es.ts`          |
+| Política de Cancelamento, Termos de Uso, Política de Privacidade                                                 | `src/content/legal/`                        |
+| Logos (horizontal, fundo escuro, emblema)                                                                        | `public/logo/`                              |
+
+### Preço
+
+Cada passeio guarda o **preço de venda** (`preco`): o que o cliente paga no cartão. Para subir ou baixar todos os preços de uma vez e para o desconto do Pix, altere `src/config/precos.ts`.
+
+Unidades de preço: `'pessoa'`, `'veiculo'` ou `'embarcacao'` (com `capacidadePorUnidade`). Ex.: quadriciclo para até 2 pessoas, reserva de 3 pessoas = 2 quadriciclos.
+
+`origemPreco` marca de onde veio o valor: `'parceiro'` (lista do parceiro) ou `'pesquisa'` (preço médio de mercado — confirme com o parceiro antes de vender).
+
+**Opções**: passeios com mais de um formato usam `opcoes`, cada uma com o próprio `preco` (ex.: lancha 2 h ou 4 h, jet ski 30 min ou 1 h). O "a partir de" usa a mais barata.
+
+**Crianças** (`criancas` em cada passeio):
+
+| Regra                                  | Significa                                               |
+| -------------------------------------- | ------------------------------------------------------- |
+| `{ gratisAte: 5 }`                     | até 5 anos não paga; a partir de 6, inteira (padrão)    |
+| `{ gratisAte: 5, meiaAte: 10 }`        | até 5 grátis; 6 a 10 meia (50%); 11+ inteira            |
+| `{ gratisAte: null }`                  | todos pagam (lancha, quadriciclo, jet ski, helicóptero) |
+| `{ gratisAte: null, idadeMinima: 10 }` | todos pagam, idade mínima 10 anos (mergulho)            |
+
+Nos passeios por veículo/embarcação o preço não muda com a idade, mas todos contam na lotação.
+
+### Fotos
+
+Coloque as fotos em `public/fotos/` (hoje: `buzios/` e `arraial/`) e liste os caminhos no campo `fotos` do passeio:
+
+```ts
+fotos: ['/fotos/buzios/escuna-no-mar.jpg', '/fotos/buzios/escuna-proa.jpg'],
+```
+
+A primeira foto vira a capa, a galeria e a imagem de prévia no WhatsApp. O Next.js otimiza tudo (AVIF/WebP, tamanhos certos para o celular). Enquanto um passeio não tem fotos, o site mostra uma capa desenhada (sol, mar e o nome do passeio nas cores da cidade). Use fotos com pelo menos 1.200 px de largura.
+
+Na galeria do topo do passeio (e no trilho de fotos da casa, no celular), só a primeira foto baixa quando a página abre: as outras entram depois que ela termina de carregar, no primeiro toque ou deslize, ou em 4 segundos (`src/lib/galeria.ts`). Assim a foto principal não disputa a conexão do celular com as vizinhas. As fotos dos veículos do transfer só baixam quando chegam perto da tela (`.adiar`). Das fontes, só a do título (Barlow Condensed) é pré-carregada.
+
+### Opiniões
+
+As avaliações publicadas no painel aparecem na inicial, no cartão de opiniões de cada passeio e, desde o Pacote 27, numa etiqueta no topo do passeio ("★ 5,0 · 5 opiniões", que leva ao cartão). A nota só aparece com pelo menos 3 publicadas e com nota da agência (`notaVisivel`, `src/lib/avaliacao.ts`). Nada que o cliente vê cita o site de onde vieram (decisão do dono de 25/11/2026: sem "do Tripadvisor"); a origem fica só no painel.
+
+### Links para anúncios
+
+- Passeio: o endereço da página do passeio no idioma do anúncio (`/es-ar/paseos/<passeio>` para a Argentina, `/es/paseos/<passeio>` para o Chile).
+- Lista por cidade: `/es-ar/paseos?cidade=buzios`.
+- Transfer com o trajeto já escolhido e os preços à vista: `/es-ar/traslado?saida=galeao&destino=buzios` (`?origem=` também vale para a saída). Os nomes são os da lista do transfer (`galeao`, `santos-dumont`, `aeroporto-cabo-frio`, `rio-de-janeiro`, `buzios`, `cabo-frio`, `arraial-do-cabo`, `outra-cidade`); nome que não existe é ignorado (`trajetoDoLink`, `src/data/transfer.ts`). Saindo de um aeroporto, o cartão já abre em ida e volta (o preço dobra); se o anúncio mostrar o preço só da ida, acrescente `&volta=nao`: `/es-ar/traslado?saida=galeao&destino=buzios&volta=nao`.
+- As etiquetas `utm_…` e o `gclid` podem ir junto: não mudam a página.
+
+## Casas de temporada
+
+Área separada em `/casas-de-temporada`. As casas ficam no banco (tabelas `casas`, `casas_tarifas`, `casas_bloqueios` e `casas_pacotes`) e são cuidadas no painel, em `/admin/casas`; as duas de hoje foram gravadas desligadas por `scripts/cadastrar-casas.ts` (dados em `scripts/dados/casas.ts`). Sem casa no ar, a página mostra "Em breve" e fica fora do menu, do sitemap e do Google; "Casas" entra sozinha quando o painel publica a primeira. O botão de reservar continua desligado (`RESERVA_CASAS_ABERTA = false` em `src/data/casas.ts`): a página da casa mostra "A reserva desta casa abre em breve" e o "Avise-me", que cai em Cotações no painel.
+
+**Marcar a casa no mapa** (Pacote 32): na página da casa no painel, cole as coordenadas do Google Maps ("-22.75012, -41.88034"; só pontos da Região dos Lagos). O ponto exato vai só para a tabela fechada `casas_pontos`, pela função do banco `marcar_ponto_da_casa` (`src/lib/casas-painel.ts`); o banco sorteia uma vez um deslocamento de 150 a 350 m e grava o centro público do círculo em `casas.centro_lat` e `casas.centro_lng`, o único dado do mapa que a página lê. A página mostra a foto de satélite com um círculo de 500 m de raio em volta desse centro, e o painel mostra a mesma prévia. Não há endereço no cadastro: a localização exata vai pela equipe, no WhatsApp, depois da reserva. Para publicar, o painel pede também a casa marcada no mapa e a resposta sobre as câmeras.
+
+## Variáveis de ambiente
+
+Veja `.env.example`. Resumo:
+
+| Variável                               | Para quê                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                    | Chave restrita da Stripe (só servidor)                                    |
+| `STRIPE_WEBHOOK_SECRET`                | Assinatura do webhook da Stripe (`whsec_…`)                               |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Chave publicável (monta o checkout embutido)                              |
+| `PAGAMENTO_ONLINE`                     | `desligado` (padrão), `admin` ou `publico`                                |
+| `ADMIN_PASSWORD`                       | Senha do `/admin`                                                         |
+| `SUPABASE_URL` e `SUPABASE_SECRET_KEY` | Banco de dados (só servidor)                                              |
+| `CRON_SECRET`                          | Senha dos agendamentos da Vercel (e base dos links dos lembretes)         |
+| `RESEND_API_KEY`                       | Chave do Resend para os e-mails automáticos (só servidor)                 |
+| `EMAIL_REMETENTE`                      | Quem envia os e-mails (padrão `Orla Nativa <reservas@orlanativa.online>`) |
+| `EMAIL_RESPOSTA`                       | Para onde vai a resposta do cliente (padrão, o e-mail da empresa)         |
+| `NEXT_PUBLIC_META_PIXEL_ID`            | ID do Pixel da Meta                                                       |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID`            | ID da tag do Google Ads (`AW-…`)                                          |
+| `BLOB_READ_WRITE_TOKEN`                | Blob Store com as reservas antigas (criada pela Vercel)                   |
+| `NEXT_PUBLIC_SITE_URL`                 | Endereço oficial (sitemap, prévias, link do voucher)                      |
+
+**Trocar o domínio**: adicione o domínio no projeto da Vercel e aponte o DNS; quando ele abrir, mude `NEXT_PUBLIC_SITE_URL` para o novo endereço e faça Redeploy. O domínio mostrado no voucher e nas políticas acompanha essa variável. Em 11/11/2026 o site passou para `orlanativa.online` e o domínio antigo (`agenciavictorhugo.online`) foi desligado, sem redirecionamento, por decisão do dono.
+
+O Pixel da Meta e a tag do Google só carregam depois do aceite dos cookies e, desde o Pacote 27, só depois de a página terminar de carregar (o evento `load` e um momento livre do navegador, no máximo 2 segundos): no celular, os scripts deles não disputam a conexão com a foto do topo. Os eventos chamados antes esperam na fila e saem depois (`src/lib/pixel.ts`).
+
+Sem as chaves da Stripe, ou com `PAGAMENTO_ONLINE` desligado, o checkout registra o pedido e ele segue pelo WhatsApp. Com as chaves de teste (`rk_test_…` e `pk_test_…`) e `PAGAMENTO_ONLINE=publico` no `.env.local`, o fluxo completo funciona em modo de teste; o passo a passo está em `docs/pagamentos-stripe.md`.
+
+## Como funciona o pagamento
+
+Cartão e Pix pela Stripe, no checkout embutido do próprio site. O desenho completo está em `docs/pagamentos-stripe.md`.
+
+1. O cliente monta o carrinho; o total é recalculado no servidor (o navegador nunca define o preço).
+2. No checkout ele escolhe **Pix** (com 10% de desconto) ou **cartão**; o servidor grava o pedido como `pendente` e abre a sessão de pagamento da Stripe.
+3. O pagamento só é confirmado pelo webhook assinado da Stripe (`/api/webhooks/stripe`), que relê a sessão na Stripe antes de mudar o status. Pix vencido libera a vaga.
+4. Pago → voucher com número único (ex.: `ON-7K3P9Q`), PDF e botão para enviar pelo WhatsApp. Reservas antigas com `VH-` continuam valendo.
+
+Com `PAGAMENTO_ONLINE` desligado (o padrão), o pedido é registrado como `aguardando_whatsapp`: a equipe cobra pelo WhatsApp e marca como pago no painel.
+
+## E-mails automáticos
+
+Pelo Resend, nos quatro idiomas, só com `RESEND_API_KEY`: sem ela nada sai e o site segue normal. O desenho está em `docs/emails.md`.
+
+- **Pedido recebido**, com o link privado do pedido (no caminho do WhatsApp e no pagamento online em aberto).
+- **Pagamento aprovado** (cartão ou Pix pelo webhook, ou marcado como pago no painel), com um voucher por item e o PDF de cada um anexado.
+- **Pix vencido** sem pagamento, com o link para pagar de novo.
+- **Consultar meu pedido** (`/consultar-pedido`, link no rodapé): o e-mail da compra e o código do pedido; se baterem, o link vai por e-mail. A tela responde sempre a mesma coisa.
+- **Carrinho abandonado**: quem digitou o e-mail no checkout e não terminou recebe até 2 lembretes (1 hora e 24 horas depois), pelo agendamento `/api/carrinho/lembretes` (a cada 15 minutos), com o link que devolve o carrinho e o de sair da lista. A página de estatísticas mostra quantos voltaram e compraram.
+
+## Banco de reservas
+
+Desde 03/11/2026 as reservas ficam no banco de dados (Supabase, projeto `orla-nativa`), com as migrações em `supabase/migrations/`. O Vercel Blob (privado) guarda só as reservas antigas, de antes do banco, que o site ainda consulta. No computador as reservas ficam em `.data/reservas/` (com `RESERVAS_NO_BANCO=1` no comando, no banco de verdade, para testar).
+
+## Área administrativa
+
+`/admin` (senha em `ADMIN_PASSWORD`): lista as reservas com status, voucher, data, hotel e contato; filtros, busca e total vendido; botões para marcar como pago (reservas finalizadas pelo WhatsApp), cancelar ou marcar reembolso.
+
+## Rodar no computador
+
+```bash
+npm install
+cp .env.example .env.local   # preencha o que tiver
+npm run dev                  # http://localhost:3000
+npm test                     # testes de preço, validação e voucher
+npm run build                # build de produção
+```
+
+## Idiomas e endereços
+
+- Português: `/`, `/passeios`, `/passeios/escuna-buzios`…
+- Inglês: `/en/...` · Espanhol neutro: `/es/...` · Espanhol da Argentina: `/es-ar/...`
+
+O seletor de idioma troca o idioma mantendo a mesma página. `sitemap.xml` e `robots.txt` são gerados automaticamente.
+
+Troca automática do espanhol (Pacote 31, regra em `src/i18n/chegada.ts`): só quem chega de fora na página inicial em português (`/`) com o primeiro idioma do navegador em espanhol vai para `/es-ar` (es-AR, ou "es"/"es-419" com o IP da Argentina pelo cabeçalho `x-vercel-ip-country`) ou para `/es` (o resto). É um 307 com a mesma busca (`?utm_...`), e o cookie `on_idioma` (1 ano) guarda a versão. O cookie manda sempre: o seletor e a faixa gravam a escolha no toque, no navegador e também pelo servidor (`POST /api/idioma?idioma=…`, que devolve o mesmo cookie com o Set-Cookie de 1 ano; no Safari do iPhone, o cookie escrito pelo JavaScript dura só 7 dias). Robôs, quem já navega no site (Sec-Fetch-Site `same-origin` ou o Referer do site), as outras páginas e os endereços dos anúncios nunca trocam. Nas outras páginas em português e inglês, uma faixa abaixo da cápsula do topo sugere o espanhol (`src/components/SugestaoIdioma.tsx`), só quando ela fica por cima de foto (nas páginas sem foto no topo, como a lista de passeios, as políticas e a página de erro, ela taparia o título), e menos no checkout (também o "Finalizar transfer", `/transfer/checkout`), no pedido, no voucher, no consultar pedido, no sair da lista e na futura página de reservar uma casa. Para testar no computador (não há o cabeçalho do país), com GET (o HEAD do `curl -I` nunca troca, de propósito): `curl -s -o /dev/null -D - -H "Accept-Language: es-419" -H "x-vercel-ip-country: AR" http://localhost:3400/`.

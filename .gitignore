@@ -1,0 +1,36 @@
+node_modules
+.next
+out
+.env
+.env*.local
+.vercel
+.data
+.taste-skill
+*.tsbuildinfo
+next-env.d.ts
+
+# trabalho local das skills (prints, prévias, dados brutos)
+.impeccable/review/
+.impeccable/previa/
+.impeccable/osm/
+.impeccable/dna/
+.impeccable/mocks/
+sentinel/
+.impeccable/fotos-web/
+
+# material bruto enviado pelo dono: só entra no site depois de otimizado
+material-recebido/
+
+# fontes baixadas para gerar a logo (Cinzel, licença OFL)
+.impeccable/fontes/
+
+# documentos de trabalho do dono: nunca vão para o git
+/CLAUDE.md
+/FASE-*.md
+/.claude/launch.json
+
+# capturas da ferramenta Playwright MCP (só no computador)
+.playwright-mcp/
+
+# cópias separadas do código que os agentes usam (git worktree)
+/.claude/worktrees/

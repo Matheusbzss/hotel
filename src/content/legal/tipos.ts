@@ -1,0 +1,39 @@
+export interface SecaoLegal {
+  titulo: string;
+  paragrafos: string[];
+  lista?: string[];
+  depois?: string[];
+}
+
+export interface DocumentoLegal {
+  titulo: string;
+  resumo: string;
+  /** A descrição da página no Google, com até 160 caracteres (o resumo é maior). */
+  descricao: string;
+  secoes: SecaoLegal[];
+}
+
+/** Os três textos legais, com os nomes que textosLegais (src/content/legal/online.ts) e as páginas usam. */
+export type TextoLegal = 'termos' | 'cancelamento' | 'privacidade';
+
+/**
+ * A data da última revisão de cada texto legal de hoje (AAAA-MM-DD), uma por documento: a página de cada um mostra a
+ * dele em "Atualizado em". Mudou o texto de um deles, ou o que a página dele mostra (como o "Em resumo" da política de
+ * cancelamento)? Troque só a data dele.
+ * - termos: 2026-11-26 (Pacote 32), o item 1 passou a dizer o endereço do cadastro da empresa na Receita Federal
+ *   (enderecoCompleto, em src/config/empresa.ts). Antes, 2026-11-11: o domínio oficial orlanativa.online.
+ * - cancelamento: 2026-11-13, a primeira linha do "Em resumo" (a tabela do topo): "O passeio for cancelado por chuva,
+ *   vento ou mar".
+ * - privacidade: 2026-11-26 (Pacote 31), o item 3 passou a dizer que o site mostra o idioma pelo idioma do celular ou
+ *   do navegador e pelo país aproximado do acesso, e o item 5, que um cookie guarda o idioma por 1 ano e que o país sai
+ *   do endereço IP e não é guardado (a troca automática do espanhol na página inicial e a faixa que sugere o espanhol,
+ *   src/i18n/chegada.ts). No mesmo dia (Pacote 32), o item 1 passou a dizer o endereço da Receita Federal, como nos
+ *   termos. Antes, 2026-11-14: o item 5 passou a dizer que o Google e a Meta usam cookies para medir e personalizar os
+ *   anúncios e como desativar (e o topo e os itens 3 e 4 dizem o mesmo).
+ * O cancelamento não muda com o endereço: ele cita só a cidade (Armação dos Búzios – RJ), que continua a mesma.
+ */
+export const ATUALIZADO_EM: Readonly<Record<TextoLegal, string>> = {
+  termos: '2026-11-26',
+  cancelamento: '2026-11-13',
+  privacidade: '2026-11-26',
+};

@@ -1,0 +1,210 @@
+'use client';
+
+import { useId } from 'react';
+import { DESCONTO_PIX_PORCENTO } from '@/config/precos';
+import { fmt } from '@/i18n/config';
+import { formatarCifra } from '@/lib/cifra';
+import { textoDolar } from '@/lib/dolar';
+import type { FormaPagamento, MotivoSemPix } from '@/lib/formas-pagamento';
+
+/** Os textos da escolha (chaves de checkout.* e preco.*; o servidor monta a partir do dicionário). */
+export interface TextosEscolhaPagamento {
+  /** "Forma de pagamento" */
+  formaPagamento: string;
+  cartao: string;
+  pix: string;
+  /** A linha embaixo do cartão: à vista, Visa e Mastercard, crédito ou débito. */
+  cartaoAvista: string;
+  /** A linha embaixo do Pix: como se paga pelo app do banco. */
+  pixExplicacao: string;
+  /** Pacote 34 (P2): no celular o QR não serve; é o código copia e cola (checkout.pixNoCelular), depois da explicação. */
+  pixNoCelular: string;
+  /** Os apps de fora do Brasil que já pagam Pix (só os confirmados). */
+  pixApps: string;
+  /** Pacote 29: em espanhol e inglês, que o Pix pede um app que pague Pix (sem ele, o cartão); vazia em português. */
+  pixDeFora: string;
+  /** Antes de pagar: o nome que o app do banco mostra no Pix pode ser o da empresa que processa o pagamento. */
+  pixRecebedor: string;
+  /** "{p}% de desconto no Pix" (preco.descontoPix). */
+  descontoPix: string;
+  /** Quando o Pix não vale mais (o primeiro serviço começa em menos de 2 horas): a frase do prazo. */
+  semPixPrazo: string;
+  /** Quando o valor do pedido passa do limite de um Pix: a frase do limite. */
+  semPixLimite: string;
+  /** "≈ US$ {v}" */
+  dolar: string;
+}
+
+/** A frase de por que o Pix não aparece: a do limite de valor, ou a do prazo (o motivo de sempre, quando não se sabe). */
+export const fraseSemPix = (T: Pick<TextosEscolhaPagamento, 'semPixPrazo' | 'semPixLimite'>, motivo?: MotivoSemPix): string =>
+  motivo === 'limite' ? T.semPixLimite : T.semPixPrazo;
+
+/** Quanto cada forma cobra, em centavos: o total no cartão e o total no Pix (com o desconto; nas casas, o sinal). */
+export interface TotaisDasFormas {
+  cartaoCentavos: number;
+  pixCentavos: number;
+}
+
+export const valorDaForma = (totais: TotaisDasFormas, forma: FormaPagamento): number =>
+  forma === 'pix' ? totais.pixCentavos : totais.cartaoCentavos;
+
+// a forma que já vem marcada (a que o pedido tinha, se ainda vale; senão o Pix em português e o cartão nos outros
+// idiomas): mora em src/lib/preco-destaque.ts desde a revisão do Pacote 29, para as páginas do servidor usarem a mesma
+// regra na ordem dos totais (formaEmDestaque)
+export { formaPadrao } from '@/lib/preco-destaque';
+
+/**
+ * Cartão ou Pix, cada um com o valor em R$ (e o ≈ US$ nos idiomas que já o mostram). O Pix some quando o servidor
+ * não o liberou (o primeiro serviço começa em menos de 2 horas, ou o valor passa do limite de um Pix), e a frase do
+ * motivo explica, num quadro, para não passar despercebida. Com o Pix marcado, embaixo das duas opções, o aviso do nome
+ * que aparece no app do banco. Só apresenta: quem decide as formas é o servidor (formasDoPagamento).
+ */
+export function EscolhaPagamento({
+  formas,
+  semPix,
+  escolhida,
+  aoEscolher,
+  totais,
+  locale,
+  dolar = null,
+  textos: T,
+  pixGerado,
+  className = '',
+}: {
+  /** As formas que o servidor liberou agora. */
+  formas: FormaPagamento[];
+  /** Por que o Pix ficou de fora, quando ficou (o servidor decide). */
+  semPix?: MotivoSemPix;
+  /**
+   * A frase do Pix já gerado (pedido.pixGerado), embaixo da frase de por que o Pix ficou de fora: só a tela de pagar um
+   * pedido de Pix pendente cujo Pix saiu das formas passa (pixGeradoNaEscolha, src/lib/espera-do-pagamento.ts); o
+   * checkout do carrinho, não.
+   */
+  pixGerado?: string;
+  escolhida: FormaPagamento | null;
+  aoEscolher: (forma: FormaPagamento) => void;
+  totais: TotaisDasFormas;
+  locale: string;
+  /** Reais por dólar, para o "≈ US$" das páginas em espanhol e inglês (null no português). */
+  dolar?: number | null;
+  textos: TextosEscolhaPagamento;
+  className?: string;
+}) {
+  const brl = (c: number) => formatarCifra(c, locale);
+  const usd = (c: number) => textoDolar(c, dolar, T.dolar, locale);
+  // o Pix primeiro, nos quatro idiomas: a opção D1-A (25/11) mudou o preço grande, não a ordem das opções; em espanhol e
+  // inglês o cartão é que já vem marcado (formaPadrao)
+  const opcoes = (['pix', 'cartao'] as const).filter((forma) => formas.includes(forma));
+  const desconto = fmt(T.descontoPix, { p: DESCONTO_PIX_PORCENTO });
+  const pixMarcado = escolhida === 'pix' && opcoes.includes('pix');
+  // o aviso do recebedor fica fora da caixa do Pix: o rádio do Pix aponta para ele, para o leitor de tela ler junto
+  const idRecebedor = useId();
+
+  return (
+    <fieldset className={`min-w-0 ${className}`}>
+      <legend className="text-lead font-semibold">{T.formaPagamento}</legend>
+      {/* rádios de verdade (o grupo é o fieldset): setas do teclado e leitores de tela funcionam sem nada a mais.
+          grid-cols-1: uma coluna que encolhe com a tela. Sem isto a coluna fica da largura da linha mais larga das caixas
+          e, com a letra grande em tela estreita, passa do fieldset e da tela (a página rolava de lado: T4b, 15/11) */}
+      <div className="mt-5 grid grid-cols-1 gap-3">
+        {opcoes.map((forma) => {
+          const ativa = escolhida === forma;
+          const centavos = valorDaForma(totais, forma);
+          const emDolar = usd(centavos);
+          return (
+            <label
+              key={forma}
+              data-ativo={ativa}
+              className="group block cursor-pointer rounded-celula border border-(--color-borda-campo) bg-(--color-papel) px-5 py-4 transition-[border-color,box-shadow] duration-200 hover:border-(--color-tinta) has-[:focus-visible]:outline has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-turquesa data-[ativo=true]:border-(--color-tinta) data-[ativo=true]:shadow-[inset_0_0_0_1px_var(--color-tinta)]"
+            >
+              <input
+                type="radio"
+                name="forma-pagamento"
+                value={forma}
+                checked={ativa}
+                onChange={() => aoEscolher(forma)}
+                aria-describedby={forma === 'pix' && pixMarcado ? idRecebedor : undefined}
+                className="sr-only"
+              />
+              {/* com a letra grande em tela estreita, o preço desce para a linha de baixo, à direita (ml-auto), em vez de
+                  alargar a caixa (e a página). Com a letra normal, a partir de 320 px, ele fica ao lado do nome */}
+              <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <span className="flex items-center gap-3">
+                  {/* a bolinha do rádio, desenhada para acompanhar a cor da tinta (taste-skill-ignore). A borda da marcada cresce
+                      com a letra, como a bolinha (size-5 = 1.25rem): 0.375rem são os mesmos 6 px com a letra normal, e o miolo
+                      branco fica sempre com 0.5rem. Com a borda fixa em 6 px e a letra em 150%, a bolinha ia a 30 px e o
+                      miolo a 18: a forma marcada parecia desmarcada (reteste de 22/11) */}
+                  <span
+                    aria-hidden="true"
+                    className="size-5 shrink-0 rounded-full border-2 border-(--color-borda-campo) transition-[border-width,border-color] duration-200 group-data-[ativo=true]:border-[0.375rem] group-data-[ativo=true]:border-(--color-tinta)"
+                  />
+                  <span className="text-lead font-semibold leading-tight">{forma === 'pix' ? T.pix : T.cartao}</span>
+                </span>
+                <span className="cifra ml-auto text-figure">{brl(centavos)}</span>
+              </span>
+              {/* o aproximado em dólar flutua à direita, sob o preço, e a descrição corre em volta dele: na tela
+                  estreita ela quebra em duas linhas e o dólar não cai sozinho para a linha de baixo. A descrição é um
+                  bloco (com um espaço antes) só para o dólar não sair colado nela no texto lido em voz alta ou copiado.
+                  A frase do desconto não se parte: quando não cabe ao lado do dólar, desce inteira para a linha de baixo */}
+              <span className="mt-1.5 flow-root pl-8 text-small">
+                {emDolar && (
+                  <>
+                    <span className="float-right ml-4 whitespace-nowrap text-(--color-tinta-suave)">{emDolar}</span>{' '}
+                  </>
+                )}
+                {forma === 'pix' ? (
+                  <span className="block font-semibold text-(--color-sucesso)">
+                    <span className="inline-block">{desconto}</span>
+                  </span>
+                ) : (
+                  <span className="block text-(--color-tinta-suave)">{T.cartaoAvista}</span>
+                )}
+              </span>
+              {forma === 'pix' && (
+                <span className="mt-2 block pl-8 text-small text-(--color-tinta-suave)">
+                  {/* Pacote 29: para quem é de fora, primeiro a frase de que o Pix pede um app que pague Pix, mais escura;
+                      em português ela é vazia e não aparece */}
+                  {T.pixDeFora && <span className="mb-1 block font-semibold text-(--color-tinta)">{T.pixDeFora}</span>}
+                  {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
+                  {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
+                  {/* Pacote 34 (P2): o que fazer no celular, onde o QR do passo seguinte não serve: um bloco na linha de baixo,
+                      com um espaço antes só para as frases não saírem coladas no texto lido em voz alta ou copiado */}
+                  {T.pixNoCelular && (
+                    <>
+                      {' '}
+                      <span className="mt-1 block">{T.pixNoCelular}</span>
+                    </>
+                  )}
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      {/* com o Pix marcado, antes de pagar: o app do banco pode mostrar outro nome no recebedor, e isso não é golpe. Só com
+          ele marcado, para a tela do celular não crescer à toa (o aviso volta em cima do QR). Fica embaixo das duas opções,
+          e não dentro da caixa do Pix: ao trocar a escolha, nenhuma caixa muda de altura e a do cartão não sai de baixo do
+          dedo; quem se mexe é só o que vem depois das opções */}
+      {pixMarcado && (
+        <p id={idRecebedor} className="mt-3 text-small text-(--color-tinta-suave)">
+          {T.pixRecebedor}
+        </p>
+      )}
+      {/* sem o Pix, o motivo num quadro: em letra miúda e cinza, a frase passava despercebida perto dos valores. No pedido
+          de Pix que já tem o QR, embaixo dela, no mesmo quadro, a frase do Pix já gerado (o QR vale até vencer): um bloco
+          na linha de baixo, com um espaço antes só para as duas frases não saírem coladas no texto lido em voz alta ou
+          copiado. Sem ela, o quadro é o mesmo elemento de antes */}
+      {!formas.includes('pix') && (
+        <p className="mt-3 bg-superficie px-4 py-3 text-small">
+          {fraseSemPix(T, semPix)}
+          {pixGerado && (
+            <>
+              {' '}
+              <span className="mt-2 block">{pixGerado}</span>
+            </>
+          )}
+        </p>
+      )}
+    </fieldset>
+  );
+}

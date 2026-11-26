@@ -191,9 +191,15 @@ const es: Dicionario = {
     aPagarHoje: 'A pagar hoy',
     casaSinalHoje: 'Anticipo del {p}% hoy; el resto, al llegar',
     casaTotalDaEstadia: 'Total de la estadía: {cartao} con tarjeta o {pix} con Pix',
+    casaTotalDaEstadiaCartao: 'Total de la estadía: {cartao} con tarjeta',
     casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Toca Cambiar para elegir otras fechas.',
+    casaFechada: 'La reserva de esta casa en el sitio no está disponible ahora.',
     casaEsperando:
       'Ya hay un pedido de casa con este e-mail esperando el pago. Completa ese pago o espera a que venza, en hasta 1 hora, para hacer otro pedido.',
+    casaJaNoCarrinho:
+      'Esta casa ya está en tu carrito, con fechas que se cruzan con estas. Para cambiar las fechas, toca Cambiar en el carrito.',
+    casaLimite:
+      'Por seguridad, aceptamos pocos pedidos de casa por hora desde la misma conexión a internet. Intenta de nuevo dentro de 1 hora o escríbenos por e-mail.',
   },
   cotacao: {
     mensagem: 'Tu mensaje',
@@ -711,6 +717,9 @@ const es: Dicionario = {
       'La reserva de la casa se paga aquí en el sitio, y el pago en el sitio no está disponible ahora. Intenta de nuevo más tarde o escríbenos por e-mail.',
     casaSoNoSiteComOutros:
       'La reserva de la casa se paga aquí en el sitio, y el pago en el sitio no está disponible ahora. Para terminar los otros ítems por WhatsApp, saca la casa del carrito.',
+    casaFechadaSo: 'La reserva de esta casa en el sitio no está disponible ahora. Intenta de nuevo más tarde o escríbenos por e-mail.',
+    casaFechadaComOutros:
+      'La reserva de esta casa en el sitio no está disponible ahora. Para seguir con los otros ítems, saca la casa del carrito.',
     cancelamentoDaCasa: 'Cancelación de la casa',
     garantiasPasseios: 'En los paseos',
     garantiasTransfer: 'En el traslado',

@@ -116,6 +116,8 @@ export interface TextosReservaCasa extends TextosCalendario {
   /** As recusas do botão: sem conexão e o site que não grava agora (as de datas são avisoOcupada e avisoDatas). */
   erroConexao: string;
   erroTemporario: string;
+  /** A mesma casa já está no carrinho com noites que se cruzam com estas: o "Mudar" do carrinho troca as datas. */
+  jaNoCarrinho: string;
   reservaEmBreve: string;
   pedir: string;
   avisemeTitulo: string;
@@ -301,15 +303,18 @@ export function ReservaCasa({
     setMes(e.entrada.slice(0, 7));
   }, [carregado, itens, slug, capacidade]);
 
-  // a recusa do servidor: a noite ocupada, as regras das datas, a conexão ou o site que não grava agora
+  // a recusa do servidor: a noite ocupada, as regras das datas, a mesma casa já no carrinho, a conexão ou o site que não
+  // grava agora
   const textoDaRecusa = (erro?: string) =>
     !erro || erro === 'rede'
       ? T.erroConexao
       : erro === 'ocupada'
         ? T.avisoOcupada
-        : ERROS_DAS_DATAS.has(erro)
-          ? T.avisoDatas
-          : T.erroTemporario;
+        : erro === 'ja-no-carrinho'
+          ? T.jaNoCarrinho
+          : ERROS_DAS_DATAS.has(erro)
+            ? T.avisoDatas
+            : T.erroTemporario;
 
   /** Põe a casa no carrinho (ou troca a do "Mudar") e segue para o checkout, que cobra só o sinal. */
   const reservar = async () => {
@@ -334,6 +339,8 @@ export function ReservaCasa({
       router.push(hrefCheckout);
       return;
     }
+    // as recusas pelas noites (a ocupada, o fim de semana, o pacote, o mínimo) trazem as noites de agora: o calendário se
+    // atualiza, e a conta da página passa a dizer a regra (a sexta que a página riscava pode ter ficado livre)
     if (r.ocupadas) setOcupadasAgora(r.ocupadas);
     setErroEnvio(textoDaRecusa(r.erro));
     setEnviando(false);

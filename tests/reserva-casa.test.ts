@@ -152,12 +152,12 @@ test('a casa no carrinho: a mesma conta da página (o total, o total no Pix e os
 
 test('as recusas da casa: o motivo da conta, os hóspedes, a casa fora do ar, a reserva fechada e o contexto que não foi lido', () => {
   const ctx = contexto();
-  // sábado a segunda, sem a sexta: o fim de semana anda junto
-  assert.deepEqual(conferirCasa(escolha('2026-12-12', '2026-12-14'), ctx, AGORA), { ok: false, erro: 'fim-de-semana' });
+  // sábado a segunda, sem a sexta: o fim de semana anda junto (as recusas pelas noites levam as noites de agora: nenhuma)
+  assert.deepEqual(conferirCasa(escolha('2026-12-12', '2026-12-14'), ctx, AGORA), { ok: false, erro: 'fim-de-semana', ocupadas: [] });
   // uma diária de semana: o mínimo é 2
-  assert.deepEqual(conferirCasa(escolha('2026-12-14', '2026-12-15'), ctx, AGORA), { ok: false, erro: 'minimo' });
+  assert.deepEqual(conferirCasa(escolha('2026-12-14', '2026-12-15'), ctx, AGORA), { ok: false, erro: 'minimo', ocupadas: [] });
   // metade do Natal: o pacote vai inteiro
-  assert.deepEqual(conferirCasa(escolha('2026-12-24', '2026-12-26'), ctx, AGORA), { ok: false, erro: 'pacote' });
+  assert.deepEqual(conferirCasa(escolha('2026-12-24', '2026-12-26'), ctx, AGORA), { ok: false, erro: 'pacote', ocupadas: [] });
   // a saída antes da entrada
   assert.deepEqual(conferirCasa(escolha('2026-12-16', '2026-12-14'), ctx, AGORA), { ok: false, erro: 'datas' });
   // os hóspedes: de 1 até a capacidade (12 na Ferradura, 14 na Geribá)
@@ -322,7 +322,7 @@ test('o total do carrinho é o que se cobra hoje: o passeio inteiro mais o sinal
   assert.deepEqual(totaisDoCarrinho([PASSEIO_VISIVEL]), { totalCentavos: 15400, totalPixCentavos: 13860 });
   assert.deepEqual(totaisDoCarrinho([PASSEIO_VISIVEL, CASA_VISIVEL]), { totalCentavos: 15400 + 100000, totalPixCentavos: 13860 + 90000 });
   // a casa indisponível (alguém reservou enquanto ela estava no carrinho) fica fora da conta
-  const indisponivel: ItemVisivel = { ...CASA_VISIVEL, totalCentavos: 0, totalPixCentavos: 0, casa: undefined, indisponivel: true };
+  const indisponivel: ItemVisivel = { ...CASA_VISIVEL, totalCentavos: 0, totalPixCentavos: 0, casa: undefined, indisponivel: 'ocupada' };
   assert.deepEqual(totaisDoCarrinho([PASSEIO_VISIVEL, indisponivel]), { totalCentavos: 15400, totalPixCentavos: 13860 });
   assert.deepEqual(itensDaConta([PASSEIO_VISIVEL, indisponivel]), [PASSEIO_VISIVEL]);
   assert.equal(temCasa([PASSEIO_VISIVEL]), false);
@@ -757,8 +757,8 @@ test('o contexto das casas é obrigatório em todo lugar que confere o carrinho,
   tem(carrinho, 'export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas, agora?: Date)');
   tem(carrinho, 'export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas)');
   tem(carrinho, 'export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas,');
-  // a casa recusada por noite ocupada fica no carrinho (indisponível), e não some calada
-  tem(carrinho, 'return c.ok || casaOcupada(c);');
+  // a casa recusada por noite ocupada, ou com a reserva das casas fechada, fica no carrinho (indisponível), e não some calada
+  tem(carrinho, 'return c.ok || motivoDaCasaIndisponivel(c) !== undefined;');
   const rota = codigo('src', 'app', 'api', 'carrinho', 'route.ts');
   const post = rota.slice(rota.indexOf('export async function POST('));
   const leitura = onde(post, 'const guardado = await lerCarrinho(cookie);');

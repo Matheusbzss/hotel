@@ -5,7 +5,7 @@ import { IDIOMAS } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { MAXIMO_ITENS } from '@/lib/carrinho';
 import { COOKIE_CARRINHO, casaOcupada, conferirEscolha, gravarCarrinho, lerCarrinho } from '@/lib/carrinho-servidor';
-import { cruzaComAMesmaCasa } from '@/lib/casa-no-carrinho';
+import { casaFechadaNoPedido, cruzaComAMesmaCasa } from '@/lib/casa-no-carrinho';
 import { calendarioMudou } from '@/lib/casas';
 import { contextoDoCarrinho } from '@/lib/casas-carrinho';
 import { agendarEmailDoPedido } from '@/lib/email/pedidos';
@@ -38,7 +38,9 @@ const JANELA_SEGUNDOS = 600;
  * Até quantos pedidos COM CASA um mesmo IP pode fazer por hora (crítica de 26/11, furo 21: cada um prende as noites por
  * até 61 minutos). O IP não fica gravado no pedido e as redes de celular dividem um IP entre muita gente: o limite por IP
  * é uma contagem por hora, e o "um pedido esperando" de verdade é o do e-mail (pedidoDeCasaEsperando) e o do carrinho (o
- * pedido anterior do mesmo carrinho é cancelado quando o cliente refaz).
+ * pedido anterior do mesmo carrinho é cancelado quando o cliente refaz). Por isso a contagem é só do PRIMEIRO pedido de
+ * cada carrinho (revisão de 26/11, achado 7): quem volta do formulário da Stripe e envia de novo, ou tenta de novo depois
+ * de uma recusa, cancela o anterior e não prende nada a mais, e não gasta a vez de quem divide a mesma conexão.
  */
 const PEDIDOS_DE_CASA_POR_IP = 3;
 const JANELA_DA_CASA_SEGUNDOS = 3600;
@@ -100,8 +102,10 @@ const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * contra robôs, src/lib/robos.ts: nada gravado); 502 'stripe' (o pedido fica cancelado e o carrinho continua); 503 'banco'.
  * Com casa (Etapa 7): 409 'datas' (alguma noite ficou ocupada, antes de criar o pedido ou na hora de prender as datas: o
  * pedido fica cancelado); 403 'casa-so-online' (a casa só se paga pelo site, nunca pelo WhatsApp); 403 'casa-fechada' (a
- * reserva das casas fechou para este visitante); 409 'casa-esperando' (já há um pedido de casa esperando o pagamento com
- * este e-mail). O pedido com casa guarda o que cobra hoje (pagamento.cobrar) e prende as datas com a sessão.
+ * reserva das casas fechou para este visitante depois de a tela mostrar a casa como reservável; a casa que a tela já
+ * mostrava fechada fica de fora e não trava o resto); 409 'casa-esperando' (já há um pedido de casa esperando o pagamento
+ * com este e-mail); 429 'limite-casa' (o teto dos pedidos de casa por IP). O pedido com casa guarda o que cobra hoje
+ * (pagamento.cobrar) e prende as datas com a sessão.
  */
 export async function POST(req: Request) {
   const r = Esquema.safeParse(await req.json().catch(() => null));
@@ -129,8 +133,10 @@ export async function POST(req: Request) {
     const todas = carrinho.itens.map((i) => ({ id: i.id, c: conferirEscolha(i.escolha, contexto, agora) }));
     // a casa que alguém reservou enquanto estava no carrinho: o cliente escolhe outras datas (nunca o 'mudou' genérico)
     if (todas.some(({ c }) => casaOcupada(c))) return erro('datas', 409);
-    // a reserva das casas fechou para este visitante (o interruptor RESERVA_CASAS ou o pagamento online)
-    if (todas.some(({ c }) => !c.ok && c.erro === 'casa-fechada')) return erro('casa-fechada', 403);
+    // a reserva das casas fechou para este visitante (o interruptor RESERVA_CASAS ou o pagamento online) depois de a tela
+    // mostrar a casa como reservável: a tela relê o carrinho e mostra a casa fechada. A casa que a tela já mostrava fechada
+    // (fora da conta e de `ids`) fica de fora, como todo item que não vale, e não trava o pedido do resto
+    if (casaFechadaNoPedido(todas, e.ids)) return erro('casa-fechada', 403);
     const conferidas = todas.flatMap(({ id, c }) => (c.ok ? [{ id, c }] : []));
     // um item venceu agora (a data ou o horário passou) ou o carrinho mudou em outra aba: o cliente confere antes
     const igual = conferidas.length === e.ids.length && conferidas.every(({ id }) => e.ids.includes(id));
@@ -190,17 +196,22 @@ export async function POST(req: Request) {
       // sinal pago não dá o aviso de valor diferente (valorEsperadoDoPedido, src/lib/pedidos-painel.ts)
       const cobrar = { cartao: valorACobrar(novas, 'cartao'), pix: valorACobrar(novas, 'pix') };
       for (const n of novas) n.pagamento = { ...n.pagamento, cobrar };
-      // no máximo um pedido de casa esperando o pagamento por e-mail (o do próprio carrinho é cancelado logo abaixo)
-      if (await pedidoDeCasaEsperando(dados.cliente.email, carrinho.pedido?.codigo)) return erro('casa-esperando', 409);
     }
 
     // a proteção contra robôs (src/lib/robos.ts): depois do campo-isca, das conferências e do limite por endereço, e antes
     // de qualquer gravação (o pedido, o carrinho, o e-mail, a sessão na Stripe). Robô: 403 'robo' e nada gravado
     const robo = await barrarRobo('POST /api/pedido');
     if (robo) return robo;
-    // e o teto dos pedidos de casa por IP, que só conta quem passou da proteção
-    if (temCasa && !(await permitir(chaveDoLimite('pedido-casa', ip), PEDIDOS_DE_CASA_POR_IP, JANELA_DA_CASA_SEGUNDOS, agora)))
-      return erro('limite', 429);
+    if (temCasa) {
+      // no máximo um pedido de casa esperando o pagamento por e-mail (o do próprio carrinho é cancelado logo abaixo). Depois
+      // da proteção contra robôs (revisão de 26/11, achado 8): a resposta diz se um e-mail tem um pedido de casa esperando
+      if (await pedidoDeCasaEsperando(dados.cliente.email, carrinho.pedido?.codigo)) return erro('casa-esperando', 409);
+      // e o teto dos pedidos de casa por IP, que só conta quem passou da proteção e o primeiro pedido de cada carrinho (o
+      // carrinho que já virou pedido cancela o anterior ao refazer: não prende nada a mais)
+      const primeiroDoCarrinho = !carrinho.pedido;
+      if (primeiroDoCarrinho && !(await permitir(chaveDoLimite('pedido-casa', ip), PEDIDOS_DE_CASA_POR_IP, JANELA_DA_CASA_SEGUNDOS, agora)))
+        return erro('limite-casa', 429);
+    }
 
     const pedido = await criarPedido(novas);
     // o pedido já existe: se marcar o carrinho falhar, o cliente não pode ver erro e enviar de novo
@@ -227,12 +238,17 @@ export async function POST(req: Request) {
         return null;
       });
       // as datas das casas do anterior saem também pelo item do pedido (a sessão dele pode ter tido outra referência), para
-      // o pedido novo prender as mesmas noites logo abaixo
-      if (cancelado?.status === 'cancelado') {
-        const soltas = await liberarDatasDosVouchers(await vouchersDoPedido(anterior.codigo)).catch((err) => {
-          console.error(`[pedido] falha ao soltar as datas do pedido anterior ${anterior.codigo}`, mensagem(err));
-          return 0;
-        });
+      // o pedido novo prender as mesmas noites logo abaixo. Só quando o anterior tinha casa (pagamento.cobrar, que só o
+      // pedido com casa grava) ou o carrinho tem: o pedido de passeio e transfer não lê nada a mais. A leitura dos vouchers
+      // fica dentro do catch (revisão de 26/11, achado 5): com o pedido novo criado, uma falha do banco aqui nunca vira
+      // erro para o cliente
+      if (cancelado?.status === 'cancelado' && (temCasa || cancelado.pagamento.cobrar)) {
+        const soltas = await vouchersDoPedido(anterior.codigo)
+          .then(liberarDatasDosVouchers)
+          .catch((err) => {
+            console.error(`[pedido] falha ao soltar as datas do pedido anterior ${anterior.codigo}`, mensagem(err));
+            return 0;
+          });
         if (soltas > 0) mexeuNoCalendario = true;
       }
     }

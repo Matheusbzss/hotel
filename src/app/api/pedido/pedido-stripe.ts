@@ -383,7 +383,7 @@ export async function abrirSessaoDoPedido(
   const { paraPublico } = await import('../../../lib/reserva-publica.ts');
   const { dicionario } = await import('../../../i18n/index.ts');
   const { urlDoSite } = await import('../../../lib/site.ts');
-  const { DatasIndisponiveis, acertarDatasParaASessao, liberarDatasDosVouchers, prenderDatasDoPedido } =
+  const { DatasIndisponiveis, acertarDatasParaASessao, liberarBloqueiosDaSessao, liberarDatasDosVouchers, prenderDatasDoPedido } =
     await import('../../../lib/pedido-carrinho.ts');
 
   const d = dicionario(r.idioma);
@@ -491,29 +491,54 @@ export async function abrirSessaoDoPedido(
       throw new DatasDaCasaOcupadas(codigo);
     }
     console.error(`[pedido] não deu para prender as datas da casa do pedido ${codigo}: ${mensagem(e)}`);
+    // este toque fechou o pedido (cancelado, ou de volta a vencido com a sessão dele como a corrente)?
+    let fechouOPedido: boolean;
     if (seATravaFalhar === 'cancelar') {
-      await cancelarPedidoAberto(codigo, EVENTO_TRAVA_FALHOU).catch((e2) =>
-        console.error(`[pedido] não deu para cancelar o pedido ${codigo} sem as datas presas: ${mensagem(e2)}`),
-      );
+      const cancelado = await cancelarPedidoAberto(codigo, EVENTO_TRAVA_FALHOU).catch((e2) => {
+        console.error(`[pedido] não deu para cancelar o pedido ${codigo} sem as datas presas: ${mensagem(e2)}`);
+        return null;
+      });
+      fechouOPedido = cancelado?.status === 'cancelado';
     } else {
-      await voltarAVencido(codigo, sessao.id).catch((e2) =>
-        console.error(`[pedido] não deu para pôr o pedido ${codigo} em vencido sem as datas presas: ${mensagem(e2)}`),
-      );
+      fechouOPedido = await voltarAVencido(codigo, sessao.id).catch((e2) => {
+        console.error(`[pedido] não deu para pôr o pedido ${codigo} em vencido sem as datas presas: ${mensagem(e2)}`);
+        return false;
+      });
     }
     await fecharNova();
-    // o que a renomeação tiver passado para a sessão nova não fica preso a uma sessão fechada
-    await liberarDatasDosVouchers(vouchers).catch((e2) =>
+    // o que a renomeação tiver passado para a sessão nova não fica preso a uma sessão fechada. Pelo item (todas as datas do
+    // pedido) só quando foi este toque que fechou o pedido: nenhuma sessão dele aceita mais pagamento. Se outra sessão ficou
+    // como a corrente (dois "Pagar" quase juntos: o cartão numa aba, o Pix na outra), só pela referência DESTA sessão, e as
+    // datas que o outro prendeu com a dele continuam presas (revisão de 26/11, achado 3)
+    await (fechouOPedido ? liberarDatasDosVouchers(vouchers) : liberarBloqueiosDaSessao(sessao.id)).catch((e2) =>
       console.error(`[pedido] não deu para soltar as datas do pedido ${codigo}: ${mensagem(e2)}`),
     );
     throw new DatasNaoPresas(codigo);
   }
 
-  // dois "Pagar" quase juntos (o cartão numa aba, o Pix na outra): cada um prende com a sua sessão, e as datas têm de seguir
-  // a que ficou no pedido, para sair junto com ela quando vencer
   if (temCasa) {
     const { obterReservaDoPedido } = await import('../../../lib/reservas.ts');
     const atual = await obterReservaDoPedido(codigo).catch(() => null);
-    if (atual?.pagamentoExternoId && atual.pagamentoExternoId !== sessao.id && podeAbrirSessao(atual.status)) {
+    // o pedido foi cancelado (no painel, ou pelo mesmo carrinho refazendo o pedido) ou pago por outra sessão enquanto as
+    // datas eram presas (revisão de 26/11, achado 3): a sessão nova não vale mais. No cancelado, o que ela prendeu sai (o
+    // aviso de sessão vencida pode ter chegado antes de a trava ser gravada, e nada mais soltaria); no pago, as datas são
+    // dele e seguem a sessão que pagou. A sessão nova fecha e a rota responde como o pedido fechado (409 'status')
+    if (atual && !podeAbrirSessao(atual.status)) {
+      if (atual.status === 'cancelado') {
+        await liberarBloqueiosDaSessao(sessao.id).catch((e) =>
+          console.error(`[pedido] não deu para soltar as datas do pedido cancelado ${codigo}: ${mensagem(e)}`),
+        );
+      } else if (atual.pagamentoExternoId && atual.pagamentoExternoId !== sessao.id) {
+        await acertarDatasParaASessao(vouchers, atual.pagamentoExternoId).catch((e) =>
+          console.error(`[pedido] não deu para passar as datas da casa para a sessão paga do pedido ${codigo}: ${mensagem(e)}`),
+        );
+      }
+      await fecharNova();
+      throw new PedidoFechado(atual.status);
+    }
+    // dois "Pagar" quase juntos (o cartão numa aba, o Pix na outra): cada um prende com a sua sessão, e as datas têm de
+    // seguir a que ficou no pedido, para sair junto com ela quando vencer
+    if (atual?.pagamentoExternoId && atual.pagamentoExternoId !== sessao.id) {
       await acertarDatasParaASessao(vouchers, atual.pagamentoExternoId).catch((e) =>
         console.error(`[pedido] não deu para passar as datas da casa para a sessão corrente do pedido ${codigo}: ${mensagem(e)}`),
       );
@@ -526,17 +551,21 @@ export async function abrirSessaoDoPedido(
  * O "Pagar de novo" que não conseguiu prender as datas da casa (o banco falhou): o pedido volta a vencido, ANTES de a
  * sessão nova fechar. Assim o aviso da sessão vencida não muda mais nada (o pedido já está vencido) e não sai o e-mail do
  * Pix vencido de um QR que o cliente nunca viu; a página mostra "Pagar de novo", e ele pode tentar outra vez. Só se a
- * sessão corrente ainda for a nova e o pedido ainda esperar o pagamento.
+ * sessão corrente ainda for a nova e o pedido ainda esperar o pagamento. Devolve se o pedido voltou a vencido.
  */
-async function voltarAVencido(codigo: string, sessaoId: string): Promise<void> {
+async function voltarAVencido(codigo: string, sessaoId: string): Promise<boolean> {
   const { atualizarReserva, obterReservaDoPedido, registrar } = await import('../../../lib/reservas.ts');
   const alvo = await obterReservaDoPedido(codigo);
-  if (!alvo) return;
+  if (!alvo) return false;
+  let voltou = false;
   await atualizarReserva(alvo.codigo, (x) => {
+    voltou = false;
     if (x.pagamentoExternoId !== sessaoId || x.status !== 'pendente') return null;
     x.status = 'expirado';
+    voltou = true;
     return registrar(x, EVENTO_SESSAO_SEM_TRAVA);
   });
+  return voltou;
 }
 
 /**

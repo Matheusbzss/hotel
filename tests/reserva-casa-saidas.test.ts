@@ -648,22 +648,31 @@ const semEspaco = (s: string) => s.replace(/\s+/g, '').replace(/,([)\]}])/g, '$1
 const tem = (fonte: string, trecho: string) => assert.ok(semEspaco(fonte).includes(semEspaco(trecho)), trecho);
 const onde = (fonte: string, trecho: string) => semEspaco(fonte).indexOf(semEspaco(trecho));
 
-test('o bloqueio à mão confere as reservas do site antes de gravar e, sem conseguir conferir, não grava', () => {
+test('o bloqueio à mão confere as reservas do site antes E depois de gravar e, sem conseguir conferir, nada fica bloqueado', () => {
   const rota = codigo('src', 'app', 'api', 'admin', 'casas', '[id]', 'acoes', 'route.ts');
   const bloqueio = rota.slice(rota.indexOf('async novo_bloqueio('), rota.indexOf('async apagar_bloqueio('));
-  const conferencia = onde(
-    bloqueio,
-    'impedem = reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casa.id, r.data.inicio, r.data.fim));',
-  );
-  const semConferir = onde(bloqueio, "return 'bloqueio-sem-conferir';");
-  const recusa = onde(
-    bloqueio,
-    "if (impedem.length) return { aviso: 'bloqueio-cruza-reserva', parametros: { inicio: r.data.inicio, fim: r.data.fim } };",
-  );
-  const grava = onde(bloqueio, 'await criarBloqueio(casa.id, r.data);');
+  tem(bloqueio, 'return reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casa.id, r.data.inicio, r.data.fim));');
+  tem(bloqueio, "const recusa = { aviso: 'bloqueio-cruza-reserva', parametros: { inicio: r.data.inicio, fim: r.data.fim } };");
+  // antes de gravar: sem conseguir conferir, nada é gravado; com reserva no caminho, a recusa, sem gravar
+  const antes = onde(bloqueio, 'const antes = await reservasQueImpedem();');
+  const semConferir = onde(bloqueio, "if (!antes) return 'bloqueio-sem-conferir';");
+  const recusa = onde(bloqueio, 'if (antes.length) return recusa;');
+  const grava = onde(bloqueio, 'const id = await criarBloqueio(casa.id, r.data);');
+  // depois de gravar (revisão de 26/11, achado 4: a corrida com o "Pagar" de um cliente no mesmo instante): com reserva no
+  // caminho, ou sem conseguir conferir, o bloqueio que acabou de ser gravado sai
+  const depois = onde(bloqueio, 'const depois = await reservasQueImpedem();');
+  const apaga = onde(bloqueio, 'if (!depois || depois.length) { await apagarBloqueio(casa.id, id);');
+  const volta = onde(bloqueio, "return depois ? recusa : 'bloqueio-sem-conferir';");
+  const salvo = onde(bloqueio, "return 'bloqueio-salvo';");
+  const ordem = [antes, semConferir, recusa, grava, depois, apaga, volta, salvo];
   assert.ok(
-    conferencia > 0 && conferencia < semConferir && semConferir < recusa && recusa < grava,
-    `${conferencia} ${semConferir} ${recusa} ${grava}`,
+    ordem.every((p, i) => p > 0 && (i === 0 || ordem[i - 1] < p)),
+    ordem.join(' '),
+  );
+  // o bloqueio gravado volta com o id, para sair se a conferência de depois achar reserva
+  tem(
+    codigo('src', 'lib', 'casas.ts'),
+    'export async function criarBloqueio(casaId: string, b: { inicio: string; fim: string; referencia: string }): Promise<string> {',
   );
   // a página da casa no painel: os dois avisos e a lista das reservas no caminho, cada uma com o link do pedido
   const pagina = codigo('src', 'app', 'admin', 'casas', '[id]', 'page.tsx');

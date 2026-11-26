@@ -85,6 +85,11 @@ export const ajustesAR: AjustesAR = {
     casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Tocá Cambiar para elegir otras fechas.',
     casaEsperando:
       'Ya hay un pedido de casa con este e-mail esperando el pago. Completá ese pago o esperá a que venza, en hasta 1 hora, para hacer otro pedido.',
+    // revisão de 26/11: a mesma casa já no carrinho ("tocá") e o teto dos pedidos de casa por conexão ("intentá", "escribinos")
+    casaJaNoCarrinho:
+      'Esta casa ya está en tu carrito, con fechas que se cruzan con estas. Para cambiar las fechas, tocá Cambiar en el carrito.',
+    casaLimite:
+      'Por seguridad, aceptamos pocos pedidos de casa por hora desde la misma conexión a internet. Intentá de nuevo dentro de 1 hora o escribinos por e-mail.',
   },
   cotacao: {
     erro: 'No se pudo enviar ahora. Intentá de nuevo en unos minutos.',
@@ -336,6 +341,10 @@ export const ajustesAR: AjustesAR = {
       'La reserva de la casa se paga acá en el sitio, y el pago en el sitio no está disponible ahora. Intentá de nuevo más tarde o escribinos por e-mail.',
     casaSoNoSiteComOutros:
       'La reserva de la casa se paga acá en el sitio, y el pago en el sitio no está disponible ahora. Para terminar los otros ítems por WhatsApp, sacá la casa del carrito.',
+    // a casa cuja reserva fechou (revisão de 26/11): "intentá", "escribinos" e "sacá"
+    casaFechadaSo: 'La reserva de esta casa en el sitio no está disponible ahora. Intentá de nuevo más tarde o escribinos por e-mail.',
+    casaFechadaComOutros:
+      'La reserva de esta casa en el sitio no está disponible ahora. Para seguir con los otros ítems, sacá la casa del carrito.',
     erros: {
       obrigatorio: 'Completá este campo.',
       email: 'Revisá el e-mail.',

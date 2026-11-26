@@ -20,8 +20,12 @@ export interface TextosLista {
   dolar: string;
   /** Na casa: "Total da estadia: {pix} no Pix ou {cartao} no cartão" (o preço da linha é o sinal, o que se paga hoje). */
   casaTotalDaEstadia: string;
+  /** O mesmo, só no cartão ("Total da estadia: {cartao} no cartão"): o checkout sem o Pix. */
+  casaTotalDaEstadiaCartao: string;
   /** A casa que alguém reservou enquanto estava no carrinho: o aviso, no lugar do preço, com o "Mudar" ao lado. */
   casaIndisponivel: string;
+  /** A casa cuja reserva fechou para este visitante: o aviso, no lugar do preço; ela sai pelo X. */
+  casaFechada: string;
 }
 
 /**
@@ -29,7 +33,8 @@ export interface TextosLista {
  * ao lado em espanhol e inglês), mudar e tirar. Em português o Pix vem em cima; em espanhol e inglês, o cartão em cima e
  * o Pix embaixo, com o desconto (src/lib/preco-destaque.ts). Com `soCartao` (o checkout sem o Pix, pelo prazo ou pelo limite de
  * valor), só o preço no cartão, que é o que o pedido vai cobrar. Na casa, o preço é o sinal (o que se paga hoje), com a
- * linha do total da estadia embaixo; a casa indisponível mostra o aviso no lugar do preço.
+ * linha do total da estadia embaixo (sem o Pix, só a do cartão); a casa indisponível mostra o aviso no lugar do preço: a
+ * ocupada, com o "Mudar"; a fechada (a reserva das casas fechou), só com o X.
  */
 export function ListaCarrinho({
   itens,
@@ -97,14 +102,18 @@ export function ListaCarrinho({
                 </p>
               ))}
               {i.indisponivel ? (
-                // a casa que alguém reservou enquanto estava no carrinho: fora da conta, com o "Mudar" para outras datas
+                // a casa que alguém reservou enquanto estava no carrinho: fora da conta, com o "Mudar" para outras datas. A casa
+                // cuja reserva fechou (o interruptor ou o pagamento online): fora da conta, sem o "Mudar" (a página dela não
+                // reserva agora); o X de cima tira a casa, e o resto do carrinho segue
                 <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-small">
                   <p className="max-w-full flex-1 font-semibold text-(--color-tinta)" role="status">
-                    {T.casaIndisponivel}
+                    {i.indisponivel === 'fechada' ? T.casaFechada : T.casaIndisponivel}
                   </p>
-                  <a href={i.href} className="link ml-auto">
-                    {T.mudar}
-                  </a>
+                  {i.indisponivel === 'ocupada' && (
+                    <a href={i.href} className="link ml-auto">
+                      {T.mudar}
+                    </a>
+                  )}
                 </div>
               ) : soCartao ? (
                 // sem o Pix neste pedido: só o preço no cartão, no lugar (e com o peso) do preço no Pix; o "Mudar" ao lado,
@@ -176,11 +185,16 @@ export function ListaCarrinho({
                   </div>
                 </>
               )}
-              {/* na casa, embaixo do sinal: o total da estadia nas duas formas (no carrinho só de cartão, só o do cartão) */}
+              {/* na casa, embaixo do sinal: o total da estadia nas duas formas; no checkout sem o Pix (o limite de um Pix ou o
+                  prazo), só o do cartão, como o resto da tela: um preço no Pix que não dá para pagar confundia */}
               {i.casa && !i.indisponivel && (
                 <p className="mt-1 text-small text-(--color-tinta-suave)">
                   <TextoDoItem
-                    texto={fmt(T.casaTotalDaEstadia, { pix: brl(i.totalPixCentavos), cartao: brl(i.totalCentavos) })}
+                    texto={
+                      soCartao
+                        ? fmt(T.casaTotalDaEstadiaCartao, { cartao: brl(i.totalCentavos) })
+                        : fmt(T.casaTotalDaEstadia, { pix: brl(i.totalPixCentavos), cartao: brl(i.totalCentavos) })
+                    }
                     letra="linha"
                   />
                 </p>

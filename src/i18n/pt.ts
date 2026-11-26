@@ -192,9 +192,19 @@ const pt = {
     aPagarHoje: 'A pagar hoje',
     casaSinalHoje: 'Sinal de {p}% hoje; o restante, na chegada',
     casaTotalDaEstadia: 'Total da estadia: {pix} no Pix ou {cartao} no cartão',
+    // o checkout sem o Pix (o limite de um Pix ou o prazo): só o total da estadia no cartão
+    casaTotalDaEstadiaCartao: 'Total da estadia: {cartao} no cartão',
     casaIndisponivel: 'Alguma noite dessas datas já está ocupada. Toque em Mudar para escolher outras datas.',
+    // a casa cuja reserva fechou para este visitante (o interruptor ou o pagamento online): fica no carrinho, fora da conta
+    casaFechada: 'A reserva desta casa pelo site não está disponível agora.',
     casaEsperando:
       'Já existe um pedido de casa com este e-mail esperando o pagamento. Termine esse pagamento ou espere ele vencer, em até 1 hora, para fazer outro pedido.',
+    // a mesma casa já está no carrinho com noites que se cruzam (na página da casa, sem passar pelo "Mudar")
+    casaJaNoCarrinho:
+      'Esta casa já está no seu carrinho, com datas que se cruzam com essas. Para trocar as datas, toque em Mudar no carrinho.',
+    // o teto dos pedidos de casa por conexão (3 por hora, contando só o primeiro pedido de cada carrinho)
+    casaLimite:
+      'Por segurança, aceitamos poucos pedidos de casa por hora vindos da mesma conexão de internet. Tente de novo daqui a 1 hora ou fale com a gente por e-mail.',
   },
   cotacao: {
     mensagem: 'Sua mensagem',
@@ -759,6 +769,11 @@ const pt = {
       'A reserva da casa é paga aqui no site, e o pagamento pelo site não está disponível agora. Tente de novo mais tarde ou fale com a gente por e-mail.',
     casaSoNoSiteComOutros:
       'A reserva da casa é paga aqui no site, e o pagamento pelo site não está disponível agora. Para finalizar os outros itens pelo WhatsApp, tire a casa do carrinho.',
+    // a casa cuja reserva fechou para este visitante (o interruptor RESERVA_CASAS ou o pagamento online), no checkout:
+    // sozinha no carrinho, e com outros itens (que seguem sem ela)
+    casaFechadaSo: 'A reserva desta casa pelo site não está disponível agora. Tente de novo mais tarde ou fale com a gente por e-mail.',
+    casaFechadaComOutros:
+      'A reserva desta casa pelo site não está disponível agora. Para seguir com os outros itens, tire a casa do carrinho.',
     // perto do botão, com casa no carrinho: as regras de cancelamento das casas (CANCELAMENTO_DAS_CASAS) com este título, e
     // as garantias dos passeios e do transfer do mesmo carrinho com o rótulo de a quem valem
     cancelamentoDaCasa: 'Cancelamento da casa',

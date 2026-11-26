@@ -219,6 +219,9 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // do prazo do Pix; o vencido sem forma que valha mostra o valor que o cliente escolheu: formasDaFaixa); fechado, o que
   // foi pago
   const formasAbertas = formasDaFaixa(status, pagamento);
+  // o Pix está entre os valores da faixa (sem o pagamento online, como sempre, os dois): o total da estadia de cada casa
+  // em aberto segue a faixa (revisão de 26/11, achado 9)
+  const pixNaFaixa = formasAbertas?.includes('pix') ?? true;
   // a forma cujo total vem primeiro (o grande da faixa): em português, o Pix, como sempre; em espanhol e inglês, a que a
   // tela de pagar traz marcada, e o cartão no pedido do WhatsApp (formaEmDestaque, revisão do Pacote 29)
   const primeiraForma = formaEmDestaque(locale, pagamento && { ...pagamento, cartaoRecusado: Boolean(itens[0]?.recusa) });
@@ -462,10 +465,13 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   ) : (
                     <>
                       <p className="numeros mt-1.5 text-small">{linhaDeValores(partes(r.totalCentavos, r.totalPixCentavos))}</p>
-                      {/* na casa, o valor da linha é o sinal de hoje (paraPublico); embaixo, o total da estadia, como no carrinho */}
+                      {/* na casa, o valor da linha é o sinal de hoje (paraPublico); embaixo, o total da estadia, como no carrinho:
+                          sem o Pix entre as formas da faixa (o limite de um Pix ou o prazo), só o do cartão */}
                       {r.casa && (
                         <p className="mt-1 text-small">
-                          {fmt(d.carrinho.casaTotalDaEstadia, { pix: brl(r.casa.totalPixCentavos), cartao: brl(r.casa.totalCentavos) })}
+                          {pixNaFaixa
+                            ? fmt(d.carrinho.casaTotalDaEstadia, { pix: brl(r.casa.totalPixCentavos), cartao: brl(r.casa.totalCentavos) })
+                            : fmt(d.carrinho.casaTotalDaEstadiaCartao, { cartao: brl(r.casa.totalCentavos) })}
                         </p>
                       )}
                     </>

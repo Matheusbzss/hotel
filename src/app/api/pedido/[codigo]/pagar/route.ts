@@ -9,6 +9,7 @@ import { FORMAS_PAGAMENTO, formasDoPagamento, type FormaPagamento } from '@/lib/
 import { chaveDoLimite, ipDaRequisicao, permitir } from '@/lib/limite-ip';
 import { podeAbrirSessao } from '@/lib/pagamento-stripe';
 import { estadiasDoPedido, liberarDatasDosVouchers } from '@/lib/pedido-carrinho';
+import { casasAbertasPara } from '@/lib/reserva-casas';
 import { itensPagaveis, tokenConfere } from '@/lib/reserva-publica';
 import { ehCasa, type Reserva } from '@/lib/reservas';
 import { barrarRobo } from '@/lib/robos-servidor';
@@ -48,10 +49,12 @@ function erro(campo: string, status: number, extra: Record<string, unknown> = {}
 const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * O "Pagar de novo" de um pedido com casa refaz a conta com a tabela e as noites de AGORA (crítica de 26/11, furo 4):
- * conta igual, segue; outra conta (a diária subiu, um pacote novo, a capacidade, o limite de datas) ou noite tomada, o
- * pedido é cancelado e a rota responde 409 'mudou' ou 409 'datas', com o slug da casa (a página leva o cliente a escolher
- * de novo); a reserva das casas desligada, 403 'casa-fechada', sem cancelar nada. Devolve a resposta de erro, ou null.
+ * O "Pagar de novo" de um pedido com casa VENCIDO refaz a conta com a tabela e as noites de AGORA (crítica de 26/11, furo
+ * 4; conferirOPagarDeNovo): a conta igual ou menor segue; mais cara (a diária subiu), um pacote novo pela metade, a
+ * capacidade, o limite de datas ou noite tomada, o pedido é cancelado e a rota responde 409 'mudou' ou 409 'datas', com o
+ * slug da casa (a página leva o cliente a escolher de novo); a reserva das casas desligada, 403 'casa-fechada', sem cancelar
+ * nada. Devolve a resposta de erro, ou null. Só no pedido vencido: na troca de forma do pedido que espera o pagamento, as
+ * datas continuam presas para ele e nada é refeito (revisão de 26/11, achado 2).
  */
 async function conferirAsCasas(vouchers: Reserva[], admin: boolean, agora: Date): Promise<NextResponse | null> {
   const casas = vouchers.filter(ehCasa).filter((v) => v.statusItem !== 'cancelado' && v.statusItem !== 'reembolsado');
@@ -93,8 +96,11 @@ async function conferirAsCasas(vouchers: Reserva[], admin: boolean, agora: Date)
  * anterior fechou (abrirSessaoDoPedido explica a ordem). Devolve o `clientSecret` do checkout embutido. O status não muda
  * aqui (um pedido expirado volta a pendente ao gravar a sessão nova); pago, pelo webhook ou, quando a anterior foi paga
  * pouco antes da troca, pela mesma porta do webhook (o 409 'status', com o pedido já pago).
- * Com casa (Etapa 7): a conta é refeita com a tabela de agora (conferirAsCasas) e as datas ficam presas para a sessão nova
- * (abrirSessaoDoPedido; num pedido vencido, elas tinham saído).
+ * Com casa (Etapa 7): no pedido vencido ("Pagar de novo"), a conta é refeita com a tabela de agora (conferirAsCasas); na
+ * troca de forma do pedido que espera o pagamento (o cartão recusado → Pix), o preço é o combinado e só a reserva das casas
+ * aberta é conferida, porque refazer a conta cancelava o pedido no meio do pagamento por uma diária que baixou ou por uma
+ * sexta que ficou livre (revisão de 26/11, achado 2). Nos dois, as datas ficam presas para a sessão nova
+ * (abrirSessaoDoPedido: no pedido vencido, elas tinham saído; no que espera, ela confere que continuam presas).
  * Erros: 400 dados, 404 'nao-encontrado' (sem pedido ou sem o token certo), 409 'status', 403 'forma' (com as
  * formas que ainda valem e, sem o Pix, o motivo: 'prazo' ou 'limite'), 403 'robo' (a proteção contra robôs,
  * src/lib/robos.ts: nada gravado), 429 'limite', 502 'stripe' (também quando a Stripe não confirmou que a anterior
@@ -130,7 +136,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ codigo:
     if (robo) return robo;
 
     if (temCasa) {
-      const recusa = await conferirAsCasas(vouchers, admin, agora);
+      // o vencido refaz a conta; o que espera o pagamento só confere que a reserva das casas continua aberta (o freio)
+      const recusa =
+        pedido.status === 'expirado'
+          ? await conferirAsCasas(vouchers, admin, agora)
+          : (await casasAbertasPara({ admin }).catch(() => false))
+            ? null
+            : erro('casa-fechada', 403);
       if (recusa) return recusa;
     }
 

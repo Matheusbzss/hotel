@@ -766,7 +766,9 @@ test('a faixa das duas páginas passa pela regra única (formasDaFaixa), na faix
   // e a da mensagem do WhatsApp, como na reserva
   assert.equal(pedido.match(/partesDoTotal\(/g)?.length, 2);
   assert.match(pedido, /partesDoTotal\(pedido\.totalCentavos, noPix, undefined, primeiraForma\)/);
-  assert.equal(pedido.match(/\bformasAbertas\b/g)?.length, 2);
+  // a terceira é a do total da estadia de cada casa em aberto (revisão de 26/11, achado 9): sem o Pix na faixa, só o cartão
+  assert.equal(pedido.match(/\bformasAbertas\b/g)?.length, 3);
+  assert.match(pedido, /const pixNaFaixa = formasAbertas\?\.includes\('pix'\) \?\? true;/);
   for (const fonte of [status, pedido]) {
     assert.doesNotMatch(fonte, /pagamento\?\.formas/);
     assert.match(fonte, /^import \{ formasDaFaixa, partesDoTotal(?:, type ParteDoTotal)? \} from '@\/lib\/partes-do-total';$/m);

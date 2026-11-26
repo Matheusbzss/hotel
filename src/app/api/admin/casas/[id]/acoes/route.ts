@@ -48,28 +48,40 @@ const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<Volta>
     return 'tarifa-apagada';
   },
   /**
-   * Bloquear datas à mão. Antes de gravar, as reservas do site que cruzam as noites (crítica de 26/11, furo 6): a paga ou a
-   * que espera o pagamento recusa o bloqueio, com a lista na página (as datas voltam no endereço, e a página relê as reservas
-   * de agora): bloquear por cima poria duas pessoas na mesma casa, e uma delas pagou. A equipe cancela ou devolve a reserva
-   * no painel dos pedidos e então bloqueia. Sem migração: uma consulta antes da inserção (a função do banco que prende as
-   * datas do site já confere os bloqueios à mão: a reserva que chegar depois do bloqueio é recusada). Sem conseguir
-   * conferir (o banco não respondeu), nada é bloqueado: nunca por cima do que não se viu.
+   * Bloquear datas à mão. As reservas do site que cruzam as noites (crítica de 26/11, furo 6): a paga ou a que espera o
+   * pagamento recusa o bloqueio, com a lista na página (as datas voltam no endereço, e a página relê as reservas de agora):
+   * bloquear por cima poria duas pessoas na mesma casa, e uma delas pagou. A equipe cancela ou devolve a reserva no painel
+   * dos pedidos e então bloqueia. Sem migração, a conferência é feita duas vezes: antes de gravar (a recusa de sempre, sem
+   * gravar nada) e DEPOIS de gravar (revisão de 26/11, achado 4). A segunda fecha a corrida com o "Pagar" de um cliente no
+   * mesmo instante: a função do banco que prende as datas do site confere os bloqueios à mão, então a reserva que prender
+   * depois do bloqueio gravado é recusada, e a que prendeu antes aparece na releitura, e o bloqueio é apagado. Sem conseguir
+   * conferir (o banco não respondeu), nada fica bloqueado: nunca por cima do que não se viu.
    */
   async novo_bloqueio(casa, campos) {
     const r = EsquemaBloqueio.safeParse(campos);
     if (!r.success) return 'bloqueio-invalido';
-    let impedem: ReservaQueSegura[];
-    try {
-      impedem = reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casa.id, r.data.inicio, r.data.fim));
-    } catch (e) {
-      // como os outros registros desta rota: sem nenhum número com cara de coordenada (semCoordenadas)
-      console.error(
-        `[casas] não deu para conferir as reservas do site antes do bloqueio: ${semCoordenadas(e instanceof Error ? e.message : String(e))}`,
-      );
-      return 'bloqueio-sem-conferir';
+    const recusa = { aviso: 'bloqueio-cruza-reserva', parametros: { inicio: r.data.inicio, fim: r.data.fim } };
+    const reservasQueImpedem = async (): Promise<ReservaQueSegura[] | null> => {
+      try {
+        return reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casa.id, r.data.inicio, r.data.fim));
+      } catch (e) {
+        // como os outros registros desta rota: sem nenhum número com cara de coordenada (semCoordenadas)
+        console.error(
+          `[casas] não deu para conferir as reservas do site do bloqueio: ${semCoordenadas(e instanceof Error ? e.message : String(e))}`,
+        );
+        return null;
+      }
+    };
+    const antes = await reservasQueImpedem();
+    if (!antes) return 'bloqueio-sem-conferir';
+    if (antes.length) return recusa;
+    const id = await criarBloqueio(casa.id, r.data);
+    // a conferência depois de gravar: uma reserva do site presa no mesmo instante, ou sem conseguir conferir, o bloqueio sai
+    const depois = await reservasQueImpedem();
+    if (!depois || depois.length) {
+      await apagarBloqueio(casa.id, id);
+      return depois ? recusa : 'bloqueio-sem-conferir';
     }
-    if (impedem.length) return { aviso: 'bloqueio-cruza-reserva', parametros: { inicio: r.data.inicio, fim: r.data.fim } };
-    await criarBloqueio(casa.id, r.data);
     return 'bloqueio-salvo';
   },
   async apagar_bloqueio(casa, campos) {

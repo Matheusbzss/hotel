@@ -143,9 +143,16 @@ export interface CasaConferida {
 export interface CasaRecusada {
   ok: false;
   erro: ErroDaCasa;
-  /** Só com 'ocupada': as noites ocupadas de agora (sem as do próprio visitante), para o calendário da página se atualizar. */
+  /**
+   * Nas recusas que dependem das noites ('ocupada', 'fim-de-semana', 'pacote' e 'minimo'): as noites ocupadas de agora (sem
+   * as do próprio visitante), para o calendário da página se atualizar. A página guardada pode ter até um dia: uma sexta que
+   * ela ainda risca pode ter ficado livre, e aí o fim de semana pede a sexta (revisão de 26/11, achado 6).
+   */
   ocupadas?: string[];
 }
+
+/** As recusas da conta que dependem das noites: a recusa leva as noites ocupadas de agora. */
+const RECUSAS_COM_AS_NOITES: ReadonlySet<MotivoEstadia> = new Set(['ocupada', 'fim-de-semana', 'pacote', 'minimo']);
 
 /**
  * Confere uma casa com o contexto e faz a conta, a mesma da página: contaEstadia(tabelaDaPagina(casa), entrada, saida,
@@ -169,7 +176,7 @@ export function conferirCasa(
   const conta = contaEstadia(tabelaDaPagina(casa), e.entrada, e.saida, { ocupadas, hoje });
   if (!conta.ok) {
     const motivo = conta.motivo ?? 'datas';
-    if (motivo !== 'ocupada') return { ok: false, erro: motivo };
+    if (!RECUSAS_COM_AS_NOITES.has(motivo)) return { ok: false, erro: motivo };
     return { ok: false, erro: motivo, ocupadas: [...ocupadas].filter((n) => n >= hoje).sort() };
   }
   return {
@@ -201,13 +208,47 @@ export function cruzaComAMesmaCasa(e: Pick<EscolhaCasa, 'slug' | 'entrada' | 'sa
 }
 
 /**
- * O "Pagar de novo" de um pedido com casa (furo 4 da crítica): a conta é refeita com a tabela de AGORA e as noites
- * ocupadas de agora (sem as do próprio pedido). Conta igual: segue. Outra conta, a casa fora do ar, os hóspedes acima da
- * capacidade nova ou a saída além do limite: 'mudou' (a rota cancela o pedido e manda escolher de novo na página da casa).
- * Alguma noite tomada: 'datas'. A reserva das casas desligada: 'casa-fechada' (nada é cancelado: o freio pode voltar).
+ * A casa do carrinho que fica na lista como indisponível, fora da conta e do pedido, em vez de sumir calada: 'ocupada'
+ * (alguém reservou alguma noite enquanto ela estava no carrinho: o cliente escolhe outras datas pelo "Mudar"; furo 8 da
+ * crítica) e 'fechada' (a reserva das casas fechou para este visitante, pelo interruptor RESERVA_CASAS ou pelo pagamento
+ * online: o cliente tira a casa pelo X para seguir com o resto; revisão de 26/11, achado 1). As outras recusas tiram a
+ * casa da lista, como o passeio que passou da data.
+ */
+export type MotivoDaCasaIndisponivel = 'ocupada' | 'fechada';
+
+export function motivoDaCasaIndisponivel(c: { ok: boolean; erro?: string }): MotivoDaCasaIndisponivel | undefined {
+  if (c.ok) return undefined;
+  if (c.erro === 'ocupada') return 'ocupada';
+  return c.erro === 'casa-fechada' ? 'fechada' : undefined;
+}
+
+/**
+ * O pedido (POST /api/pedido) é recusado com 403 'casa-fechada' só quando a tela mostrava a casa fechada como reservável:
+ * o id dela veio em `ids` (a reserva fechou enquanto o cliente preenchia, e a tela relê o carrinho). A casa que a tela já
+ * mostrava fechada fica fora da conta e não trava o pedido do resto: antes, o passeio do mesmo carrinho não saía nem pelo
+ * WhatsApp, e cada envio dava o mesmo 403 (revisão de 26/11, achado 1).
+ */
+export function casaFechadaNoPedido(todas: readonly { id: string; c: { ok: boolean; erro?: string } }[], ids: readonly string[]): boolean {
+  return todas.some(({ id, c }) => motivoDaCasaIndisponivel(c) === 'fechada' && ids.includes(id));
+}
+
+/**
+ * O "Pagar de novo" de um pedido com casa VENCIDO (furo 4 da crítica; as datas tinham saído): a conta é refeita com a
+ * tabela de AGORA e as noites ocupadas de agora (sem as do próprio pedido). A troca de forma de um pedido que ainda espera
+ * o pagamento não passa por aqui: as datas continuam presas para ele e o preço é o combinado (revisão de 26/11, achado 2).
+ * - Alguma noite tomada: 'datas'. A reserva das casas desligada: 'casa-fechada' (nada é cancelado: o freio pode voltar).
+ * - A casa fora do ar, os hóspedes acima da capacidade nova, a saída além do limite, a casa sem preço ou um pacote novo
+ *   pela metade: 'mudou' (a rota cancela o pedido e manda escolher de novo na página da casa).
+ * - O fim de semana junto e o mínimo de noites, que o pedido já cumpria quando nasceu (o fim de semana muda com as noites
+ *   dos outros: a sexta ocupada que ficou livre passa a ser pedida), não cancelam: só o preço conta.
+ * - O preço: a conta de agora igual ou menor que a do pedido segue, e o cliente paga o que aceitou no pedido (os sinais
+ *   guardados na compra); maior (no cartão ou no Pix), 'mudou'.
  * O primeiro dia da conta é a própria entrada quando ela vem antes (o prazo de pagar é das formas de pagamento).
  */
 export type ConferenciaDoPagarDeNovo = { ok: true } | { ok: false; erro: 'datas' | 'mudou' | 'casa-fechada' };
+
+/** As regras que o pedido já cumpria quando nasceu: no "Pagar de novo", só o preço delas conta. */
+const REGRAS_DO_PEDIDO: ReadonlySet<string> = new Set(['fim-de-semana', 'minimo']);
 
 export function conferirOPagarDeNovo(
   r: {
@@ -217,8 +258,6 @@ export function conferirOPagarDeNovo(
     hospedes: number;
     totalCentavos: number;
     totalPixCentavos?: number;
-    sinalCentavos: number;
-    sinalPixCentavos: number;
   },
   ctx: ContextoDasCasas,
   agora: Date = new Date(),
@@ -226,14 +265,18 @@ export function conferirOPagarDeNovo(
   const primeira = primeiraEntradaPossivel(agora);
   const hoje = r.data < primeira ? r.data : primeira;
   const c = conferirCasa({ tipo: 'casa', slug: r.casa.slug, entrada: r.data, saida: r.saida, hospedes: r.hospedes }, ctx, agora, { hoje });
-  if (!c.ok)
-    return { ok: false, erro: c.erro === 'ocupada' ? 'datas' : c.erro === 'casa-fechada' || c.erro === 'casa' ? 'casa-fechada' : 'mudou' };
-  const igual =
-    c.totalCentavos === r.totalCentavos &&
-    c.totalPixCentavos === (r.totalPixCentavos ?? r.totalCentavos) &&
-    c.sinalCentavos === r.sinalCentavos &&
-    c.sinalPixCentavos === r.sinalPixCentavos;
-  return igual ? { ok: true } : { ok: false, erro: 'mudou' };
+  // a conta de agora cabe na do pedido: igual ou menor, nas duas formas
+  const cabe = (agoraCentavos: { totalCentavos: number; totalPixCentavos: number }): ConferenciaDoPagarDeNovo =>
+    agoraCentavos.totalCentavos <= r.totalCentavos && agoraCentavos.totalPixCentavos <= (r.totalPixCentavos ?? r.totalCentavos)
+      ? { ok: true }
+      : { ok: false, erro: 'mudou' };
+  if (c.ok) return cabe(c);
+  if (c.erro === 'casa-fechada' || c.erro === 'casa') return { ok: false, erro: 'casa-fechada' };
+  if (c.erro === 'ocupada') return { ok: false, erro: 'datas' };
+  const daCasa = ctx.casas.get(r.casa.slug);
+  if (!REGRAS_DO_PEDIDO.has(c.erro) || !daCasa) return { ok: false, erro: 'mudou' };
+  // o fim de semana ou o mínimo: a conta das mesmas noites, pela tabela de agora, sem a regra
+  return cabe(contaEstadia(tabelaDaPagina(daCasa.casa), r.data, r.saida, { ocupadas: daCasa.ocupadas, hoje }));
 }
 
 /* ------------------------------------------------------------------ */

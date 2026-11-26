@@ -106,8 +106,10 @@ export async function GET(req: Request) {
  * Adiciona um item (ou troca o que está sendo mudado): confere com as regras do checkout e grava. O carrinho é lido
  * ANTES de conferir (crítica de 26/11, furo 2): o contexto das casas nasce com os itens dele e a escolha nova, e assim a
  * primeira casa de um carrinho vazio ou só de passeio entra, e pôr um passeio num carrinho com casa mantém a casa. A
- * casa recusada por noite ocupada volta com as noites ocupadas de agora (`ocupadas`), para o calendário da página se
- * atualizar; a mesma casa duas vezes com noites que se cruzam também é 'ocupada', menos a que está sendo trocada.
+ * casa recusada pelas noites (a ocupada, o fim de semana, o pacote, o mínimo) volta com as noites ocupadas de agora
+ * (`ocupadas`), para o calendário da página se atualizar. A mesma casa duas vezes com noites que se cruzam é
+ * 'ja-no-carrinho' (nenhuma noite está ocupada: é a casa que já está no carrinho dele; revisão de 26/11, achado 10), menos
+ * a que está sendo trocada no "Mudar".
  */
 export async function POST(req: Request) {
   const corpo = (await req.json().catch(() => null)) as { escolha?: unknown; idioma?: unknown; substituir?: unknown } | null;
@@ -138,7 +140,7 @@ export async function POST(req: Request) {
         outros.map((i) => i.escolha),
       )
     ) {
-      return falha('ocupada', 400);
+      return falha('ja-no-carrinho', 400);
     }
     const novo = { id: randomUUID(), escolha: conferida.escolha };
     // o "Mudar" troca o item no mesmo lugar

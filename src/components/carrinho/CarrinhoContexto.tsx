@@ -4,11 +4,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Idioma } from '@/i18n/config';
 import type { EscolhaItem, ItemVisivel, SugestaoVisivel } from '@/lib/carrinho';
 
-/** O que o servidor respondeu ao "adicionar": na casa recusada por noite ocupada, as noites ocupadas de agora. */
+/** O que o servidor respondeu ao "adicionar": na casa recusada pelas noites, as noites ocupadas de agora. */
 export interface ResultadoDoAdicionar {
   ok: boolean;
   erro?: string;
-  /** Só na casa recusada com 'ocupada': as noites ocupadas de agora, para o calendário da página se atualizar. */
+  /**
+   * Só na casa recusada pelas noites ('ocupada', 'fim-de-semana', 'pacote' e 'minimo'): as noites ocupadas de agora, para o
+   * calendário da página se atualizar.
+   */
   ocupadas?: string[];
 }
 
@@ -127,7 +130,7 @@ export function CarrinhoProvider({ idioma, children }: { idioma: Idioma; childre
         });
         const j = (await r.json().catch(() => null)) as Resposta | null;
         if (!r.ok || !j?.ok) {
-          // a casa recusada por noite ocupada traz as noites de agora, para o calendário da página se atualizar
+          // a casa recusada pelas noites traz as noites de agora, para o calendário da página se atualizar
           const ocupadas = noitesDaResposta(j?.ocupadas);
           if (ocupadas) return { ok: false, erro: j?.erro ?? 'rede', ocupadas };
           return { ok: false, erro: j?.erro ?? 'rede' };

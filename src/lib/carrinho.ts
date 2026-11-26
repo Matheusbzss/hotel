@@ -1,4 +1,5 @@
 import type { IdLugar, Malas, Veiculo } from '@/data/transfer';
+import type { MotivoDaCasaIndisponivel } from './casa-no-carrinho';
 
 /**
  * O carrinho: o que o cliente escolheu em cada item fica guardado (tabela carrinhos, com o código no cookie). O preço e o
@@ -96,10 +97,12 @@ export interface ItemVisivel {
     chegadaPixCentavos: number;
   };
   /**
-   * Só na casa que alguém reservou enquanto ela estava no carrinho (alguma noite ficou ocupada): ela continua no carrinho,
-   * com o aviso e o "Mudar" para escolher outras datas, mas fica fora da conta e do pedido (crítica de 26/11, furo 8).
+   * Só na casa que não dá para pagar agora, que continua no carrinho com o aviso, fora da conta e do pedido (e nunca some
+   * calada): 'ocupada', alguém reservou alguma noite enquanto ela estava no carrinho, e o "Mudar" leva a outras datas
+   * (crítica de 26/11, furo 8); 'fechada', a reserva das casas fechou para este visitante (o interruptor RESERVA_CASAS ou o
+   * pagamento online), e o cliente tira a casa pelo X para seguir com o resto (revisão de 26/11, achado 1).
    */
-  indisponivel?: true;
+  indisponivel?: MotivoDaCasaIndisponivel;
 }
 
 /** Um passeio sugerido, já com o preço para o grupo do carrinho. */

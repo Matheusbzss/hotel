@@ -436,17 +436,24 @@ export async function apagarTarifa(casa: CasaPainel, tarifaId: string): Promise<
   if (casa.ativo) refazerPaginas(TAG_CASAS);
 }
 
-export async function criarBloqueio(casaId: string, b: { inicio: string; fim: string; referencia: string }): Promise<void> {
+/** Grava um bloqueio à mão e devolve o id dele (o "Bloquear datas" do painel o apaga se a conferência de depois achar reserva). */
+export async function criarBloqueio(casaId: string, b: { inicio: string; fim: string; referencia: string }): Promise<string> {
+  let id: string;
   if (usarBanco()) {
-    const { error } = await supabase()
+    const { data, error } = await supabase()
       .from('casas_bloqueios')
-      .insert({ casa_id: casaId, inicio: b.inicio, fim: b.fim, origem: 'manual', referencia: b.referencia || null });
+      .insert({ casa_id: casaId, inicio: b.inicio, fim: b.fim, origem: 'manual', referencia: b.referencia || null })
+      .select('id')
+      .single();
     if (error) throw erroDoBanco(error);
+    id = data.id;
   } else {
     const novo: Bloqueio = { id: randomUUID(), inicio: b.inicio, fim: b.fim, origem: 'manual', ...(b.referencia ? { referencia: b.referencia } : {}) };
     await mudarArquivo(casaId, (c) => ({ ...c, bloqueios: [...c.bloqueios, novo].sort((x, y) => x.inicio.localeCompare(y.inicio)) }));
+    id = novo.id;
   }
   refazerPaginas(TAG_CALENDARIO);
+  return id;
 }
 
 /** Só o bloqueio feito à mão sai pelo painel: os outros vêm das reservas e do Airbnb. */

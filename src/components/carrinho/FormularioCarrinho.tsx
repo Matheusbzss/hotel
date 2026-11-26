@@ -294,8 +294,13 @@ export function FormularioCarrinho({
   // a casa de temporada (Etapa 7): cobra hoje o sinal; tem as regras de cancelamento dela; só se paga pelo site
   const comCasa = temCasa(itens);
   const soCasa = comCasa && !temPasseio && !transfers.length;
-  // a casa que alguém reservou enquanto estava no carrinho: fica fora da conta e não deixa enviar
-  const casaIndisponivel = itens.find((i) => i.indisponivel);
+  // a casa que alguém reservou enquanto estava no carrinho: fica fora da conta e não deixa enviar (o "Mudar" leva a outras
+  // datas). A casa cuja reserva fechou para este visitante (o interruptor ou o pagamento online): também fora da conta, e o
+  // cliente tira a casa pelo X para seguir com o resto (revisão de 26/11, achado 1: antes ela sumia, e o pedido do resto
+  // voltava sempre recusado)
+  const casaOcupada = itens.find((i) => i.indisponivel === 'ocupada');
+  const casaFechada = itens.find((i) => i.indisponivel === 'fechada');
+  const fraseDaCasaFechada = soCasa ? C.casaFechadaSo : C.casaFechadaComOutros;
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   // o que o pedido cobra hoje: o total do passeio e do transfer e, na casa, o sinal (totaisDoCarrinho, valorDoItem)
   const totais: TotaisDasFormas = { cartaoCentavos: totalCentavos, pixCentavos: totalPixCentavos };
@@ -419,9 +424,14 @@ export function FormularioCarrinho({
     setErroGeral('');
     setLinkDoErro('');
     // a casa com alguma noite ocupada agora: o cliente escolhe outras datas (ou tira a casa) antes de enviar
-    if (casaIndisponivel) {
+    if (casaOcupada) {
       setErroGeral(textos.casa.avisoOcupada);
-      setLinkDoErro(casaIndisponivel.href);
+      setLinkDoErro(casaOcupada.href);
+      return;
+    }
+    // a casa cuja reserva fechou: o cliente tira a casa do carrinho (o X) para seguir com o resto
+    if (casaFechada) {
+      setErroGeral(fraseDaCasaFechada);
       return;
     }
     setTentou(true);
@@ -512,10 +522,14 @@ export function FormularioCarrinho({
         setErroGeral(soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros);
       } else if (corpo.erro === 'casa-esperando') {
         setErroGeral(K.casaEsperando);
+      } else if (corpo.erro === 'limite-casa') {
+        // o teto dos pedidos de casa por conexão (por hora): a frase própria, com o tempo de espera
+        setErroGeral(K.casaLimite);
       } else if (corpo.erro === 'casa-fechada') {
-        // a reserva das casas fechou: a casa sai do carrinho relido
+        // a reserva das casas fechou enquanto o cliente preenchia: no carrinho relido, a casa aparece fechada, fora da conta,
+        // e o cliente a tira pelo X para seguir com o resto
         await recarregar();
-        setErroGeral(K.mudou);
+        setErroGeral(fraseDaCasaFechada);
       } else if (corpo.erro === 'mudou') {
         // o carrinho já é um pedido que esperava o pagamento: o servidor recusou porque ele foi pago nesse meio-tempo (o
         // Pix confirmado enquanto o cliente voltava do banco) ou porque um item perdeu o prazo. A página do pedido diz o
@@ -596,7 +610,9 @@ export function FormularioCarrinho({
             noPixComDesconto: P.noPixComDesconto,
             dolar: P.dolar,
             casaTotalDaEstadia: K.casaTotalDaEstadia,
+            casaTotalDaEstadiaCartao: K.casaTotalDaEstadiaCartao,
             casaIndisponivel: K.casaIndisponivel,
+            casaFechada: K.casaFechada,
           }}
           aoRemover={remover}
         />
@@ -1074,17 +1090,20 @@ export function FormularioCarrinho({
           />
         ) : comCasa ? (
           // a casa só se paga pelo site: nunca o caminho do WhatsApp (o servidor também recusa, 403 'casa-so-online'). A casa
-          // que ficou com noite ocupada diz isso, e não que o pagamento está fora do ar
+          // que ficou com noite ocupada diz isso, e a fechada diz que a reserva dela não está disponível (e como seguir), e
+          // não que o pagamento está fora do ar
           <fieldset className="min-w-0">
             <legend className="text-lead font-semibold">{C.pagamento}</legend>
             <div className="tom-superficie mt-5 px-5 py-5">
-              {casaIndisponivel ? (
+              {casaOcupada ? (
                 <>
                   <p className="font-bold">{K.casaIndisponivel}</p>
-                  <a href={casaIndisponivel.href} className="link mt-2 inline-flex min-h-11 items-center font-semibold">
+                  <a href={casaOcupada.href} className="link mt-2 inline-flex min-h-11 items-center font-semibold">
                     {textos.casa.verDatas}
                   </a>
                 </>
+              ) : casaFechada ? (
+                <p className="font-bold">{fraseDaCasaFechada}</p>
               ) : (
                 <>
                   <p className="font-bold">{C.indisponivelTitulo}</p>
@@ -1173,7 +1192,7 @@ export function FormularioCarrinho({
             ) : comCasa ? (
               // a casa só se paga pelo site: sem o pagamento online, nenhum botão (a frase do quadro do pagamento explica)
               <p className="tom-superficie px-4 py-3 text-small font-semibold">
-                {casaIndisponivel ? K.casaIndisponivel : soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros}
+                {casaOcupada ? K.casaIndisponivel : casaFechada ? fraseDaCasaFechada : soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros}
               </p>
             ) : (
               // desligado também enquanto a página é relida para trazer as formas (esperandoFormas), com o mesmo texto

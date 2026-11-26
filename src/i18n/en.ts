@@ -182,9 +182,14 @@ const en: Dicionario = {
     aPagarHoje: 'Due today',
     casaSinalHoje: '{p}% deposit today; the balance on arrival',
     casaTotalDaEstadia: 'Stay total: {cartao} by card or {pix} with Pix',
+    casaTotalDaEstadiaCartao: 'Stay total: {cartao} by card',
     casaIndisponivel: 'Some of these nights are already booked. Tap Change to pick other dates.',
+    casaFechada: 'Booking this home on the site isn’t available right now.',
     casaEsperando:
       'There is already a home booking with this email waiting for payment. Complete that payment or wait for it to expire, within 1 hour, to place another order.',
+    casaJaNoCarrinho: 'This home is already in your cart, with dates that overlap these. To change the dates, tap Change in the cart.',
+    casaLimite:
+      'For security, we only accept a few home bookings per hour from the same internet connection. Please try again in 1 hour or email us.',
   },
   cotacao: {
     mensagem: 'Your message',
@@ -689,6 +694,9 @@ const en: Dicionario = {
       'The home booking is paid here on the site, and online payment isn’t available right now. Please try again later or email us.',
     casaSoNoSiteComOutros:
       'The home booking is paid here on the site, and online payment isn’t available right now. To finish the other items on WhatsApp, remove the home from the cart.',
+    casaFechadaSo: 'Booking this home on the site isn’t available right now. Please try again later or email us.',
+    casaFechadaComOutros:
+      'Booking this home on the site isn’t available right now. To go ahead with the other items, remove the home from the cart.',
     cancelamentoDaCasa: 'Home cancellation',
     garantiasPasseios: 'For tours',
     garantiasTransfer: 'For the transfer',

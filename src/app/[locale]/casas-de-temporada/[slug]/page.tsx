@@ -323,6 +323,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
             adicionando: d.carrinho.adicionando,
             erroConexao: d.carrinho.erroConexao,
             erroTemporario: d.carrinho.erroTemporario,
+            jaNoCarrinho: d.carrinho.casaJaNoCarrinho,
             reservaEmBreve: t.reservaEmBreve,
             pedir: t.pedir,
             avisemeTitulo: t.avisemeTitulo,

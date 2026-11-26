@@ -31,7 +31,14 @@ import {
   type SugestaoVisivel,
   type TrechoEscolhido,
 } from './carrinho';
-import { EsquemaEscolhaCasa, conferirCasa, linhasDoItemDaCasa, type CasaConferida, type ContextoDasCasas } from './casa-no-carrinho';
+import {
+  EsquemaEscolhaCasa,
+  conferirCasa,
+  linhasDoItemDaCasa,
+  motivoDaCasaIndisponivel,
+  type CasaConferida,
+  type ContextoDasCasas,
+} from './casa-no-carrinho';
 import { SINAL_PORCENTO } from './diarias';
 import type { FormaPagamento } from './formas-pagamento';
 import { formatarHora, horasDisponiveis } from './horarios';
@@ -199,17 +206,18 @@ export function conferirEscolha(bruta: unknown, contexto: ContextoDasCasas, agor
 }
 
 /** A casa recusada porque alguma noite ficou ocupada: continua no carrinho como indisponível (furo 8 da crítica). */
-export const casaOcupada = (c: Conferida): boolean => !c.ok && c.erro === 'ocupada';
+export const casaOcupada = (c: Conferida): boolean => motivoDaCasaIndisponivel(c) === 'ocupada';
 
 /**
  * O que ainda vale: o item cuja data ou horário passou sai da conta. A casa que alguém reservou enquanto estava no
- * carrinho fica, indisponível, com o aviso e o "Mudar" (itemVisivel): nunca some calada, nem é apagada na próxima vez
- * que o cliente mexe no carrinho.
+ * carrinho, e a casa cuja reserva fechou para este visitante (o interruptor ou o pagamento online, que podem voltar),
+ * ficam, indisponíveis, com o aviso (itemVisivel): nunca somem caladas, nem são apagadas na próxima vez que o cliente
+ * mexe no carrinho.
  */
 export const itensQueValem = (itens: ItemCarrinho[], contexto: ContextoDasCasas, agora?: Date) =>
   itens.filter((i) => {
     const c = conferirEscolha(i.escolha, contexto, agora);
-    return c.ok || casaOcupada(c);
+    return c.ok || motivoDaCasaIndisponivel(c) !== undefined;
   });
 
 /* ------------------------------------------------------------------ */
@@ -223,7 +231,8 @@ const quando = (data: string, hora: string, idioma: Idioma) =>
 /**
  * A casa como o cliente vê no carrinho e no checkout: o nome, a primeira foto, as diárias com as datas, os hóspedes e a
  * linha do sinal; o "Mudar" leva à página da casa com as datas e os hóspedes. Os totais são os da estadia inteira, e o
- * sinal (o que se paga hoje) vai em `casa`. A casa com noite ocupada agora volta indisponível, sem preço.
+ * sinal (o que se paga hoje) vai em `casa`. A casa com noite ocupada agora, ou com a reserva das casas fechada para este
+ * visitante, volta indisponível (com o motivo), sem preço e com o X para tirar.
  */
 function itemVisivelDaCasa(
   item: ItemCarrinho,
@@ -233,8 +242,10 @@ function itemVisivelDaCasa(
   contexto: ContextoDasCasas,
 ): ItemVisivel | null {
   const e = item.escolha as EscolhaCasa;
-  if (!c.ok && !casaOcupada(c)) return null;
-  const casa = 'casa' in c ? c.casa : contexto.casas.get(e.slug)?.casa;
+  const indisponivel = motivoDaCasaIndisponivel(c);
+  // a casa que vale vem da conferência; a indisponível (a noite ocupada ou a reserva fechada), do contexto. As outras
+  // recusas tiram a casa da lista, como o passeio que passou da data
+  const casa = 'casa' in c ? c.casa : indisponivel ? contexto.casas.get(e.slug)?.casa : undefined;
   if (!casa) return null;
   const linhas = linhasDoItemDaCasa(
     e,
@@ -258,8 +269,8 @@ function itemVisivelDaCasa(
     href: `${rota(idioma, `/casas-de-temporada/${casa.slug}`)}?mudar=${item.id}#reservar`,
   };
   // indisponível: as datas e os hóspedes, sem a linha do sinal e sem preço (fica fora da conta e do pedido)
-  if (!('casa' in c))
-    return { ...comum, detalhes: linhas.slice(0, 2), totalCentavos: 0, totalPixCentavos: 0, escolha: e, indisponivel: true };
+  if (indisponivel) return { ...comum, detalhes: linhas.slice(0, 2), totalCentavos: 0, totalPixCentavos: 0, escolha: e, indisponivel };
+  if (!('casa' in c)) return null;
   return {
     ...comum,
     detalhes: linhas,
@@ -674,7 +685,7 @@ export async function carrinhosDoFunil(desde?: string): Promise<CarrinhoNoFunil[
   return inicio ? juntos.filter((c) => Date.parse(c.criadoEm) >= Date.parse(inicio)) : juntos;
 }
 
-/** Os itens que ainda valem, já com o texto e o preço no idioma (a casa ocupada agora, indisponível). */
+/** Os itens que ainda valem, já com o texto e o preço no idioma (a casa ocupada agora ou fechada, indisponível). */
 export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas): ItemVisivel[] {
   return itens.map((i) => itemVisivel(i, idioma, d, contexto)).filter((i): i is ItemVisivel => i !== null);
 }

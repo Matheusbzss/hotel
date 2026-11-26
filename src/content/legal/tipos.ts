@@ -23,7 +23,7 @@ export type TextoLegal = 'termos' | 'cancelamento' | 'privacidade';
  * - termos: 2026-11-11, o domínio oficial orlanativa.online.
  * - cancelamento: 2026-11-13, a primeira linha do "Em resumo" (a tabela do topo): "O passeio for cancelado por chuva,
  *   vento ou mar".
- * - privacidade: 2026-11-25 (Pacote 31), o item 3 passou a dizer que o site mostra o idioma pelo idioma do celular ou
+ * - privacidade: 2026-11-26 (Pacote 31), o item 3 passou a dizer que o site mostra o idioma pelo idioma do celular ou
  *   do navegador e pelo país aproximado do acesso, e o item 5, que um cookie guarda o idioma por 1 ano e que o país sai
  *   do endereço IP e não é guardado (a troca automática do espanhol na página inicial e a faixa que sugere o espanhol,
  *   src/i18n/chegada.ts). Antes, 2026-11-14: o item 5 passou a dizer que o Google e a Meta usam cookies para medir e
@@ -32,5 +32,5 @@ export type TextoLegal = 'termos' | 'cancelamento' | 'privacidade';
 export const ATUALIZADO_EM: Readonly<Record<TextoLegal, string>> = {
   termos: '2026-11-11',
   cancelamento: '2026-11-13',
-  privacidade: '2026-11-25',
+  privacidade: '2026-11-26',
 };

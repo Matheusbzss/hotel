@@ -525,10 +525,10 @@ test('a privacidade: o país aproximado e o cookie do idioma nos itens 3 e 5, na
   assert.equal(IDADE_COOKIE_IDIOMA / 86400, 365);
 });
 
-test('a data da privacidade foi para 25/11/2026 nas três versões, e só a dela (e a dos termos online, do mesmo pacote)', () => {
-  assert.equal(ATUALIZADO_EM.privacidade, '2026-11-25');
-  assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-25');
-  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-25');
+test('a data da privacidade foi para 26/11/2026 (o dia da publicação) nas três versões, e só a dela (e a dos termos online, do mesmo pacote)', () => {
+  assert.equal(ATUALIZADO_EM.privacidade, '2026-11-26');
+  assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-26');
+  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-26');
   // os outros textos de hoje ficam com as datas deles; o cancelamento online, com a do dia de ligar
   assert.equal(ATUALIZADO_EM.termos, '2026-11-11');
   assert.equal(ATUALIZADO_EM.cancelamento, '2026-11-13');

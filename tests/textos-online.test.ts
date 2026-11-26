@@ -50,10 +50,10 @@ test('com o interruptor desligado, os textos legais são os de hoje, os mesmos o
   // para o público) nem da revisão de hoje do mesmo texto: a versão online traz o texto de hoje (em 14/11, a privacidade
   // de hoje ganhou os anúncios do Google e da Meta, e a versão online também)
   // Pacote 31 (25/11): até aqui era uma data só para os três (a do dia de ligar); o item "Recebedor" dos termos mudou e
-  // a data dos termos foi para 2026-11-25. A privacidade também foi, no mesmo pacote: os itens 3 e 5 ganharam o idioma
+  // a data dos termos foi para 2026-11-26. A privacidade também foi, no mesmo pacote: os itens 3 e 5 ganharam o idioma
   // da visita (o país aproximado e o cookie do idioma). O cancelamento online não mudou nesse dia
-  assert.equal(ATUALIZADO_EM_ONLINE.termos, '2026-11-25');
-  assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-25');
+  assert.equal(ATUALIZADO_EM_ONLINE.termos, '2026-11-26');
+  assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-26');
   assert.equal(ATUALIZADO_EM_ONLINE.cancelamento, '2026-11-24');
   assert.deepEqual(Object.keys(ATUALIZADO_EM_ONLINE).sort(), [...NOMES].sort());
   for (const nome of NOMES) {
@@ -315,8 +315,8 @@ test('com os e-mails ligados (e o pagamento online desligado), a privacidade de 
   assert.deepEqual(comEmails.atualizadoEm, { ...ATUALIZADO_EM, privacidade: ATUALIZADO_EM_EMAILS });
   // 2026-11-23: o dia em que a proteção contra robôs foi ligada no ar (a linha da Vercel e da Kasada na página).
   // Pacote 31 (25/11): o texto de hoje ganhou o idioma da visita (itens 3 e 5) e esta versão o traz junto; a data dela
-  // nunca fica antes da do texto de hoje, então foi para 2026-11-25
-  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-25');
+  // nunca fica antes da do texto de hoje, então foi para 2026-11-26
+  assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-26');
   assert.ok(ATUALIZADO_EM_EMAILS >= ATUALIZADO_EM.privacidade);
   // com o pagamento online no ar, a versão dele (que já traz os e-mails), com ou sem a chave
   assert.equal(textosLegais(true, true).privacidade, PRIVACIDADE_ONLINE);

@@ -294,7 +294,7 @@ test('comAjustesAR() falha alto com par órfão, repetido ou sem efeito, e sem p
  * do passeio cancelado por chuva, vento ou mar (13/11); a privacidade ganhou os anúncios do Google e da Meta (14/11) e,
  * no Pacote 31, o idioma da visita nos itens 3 e 5 (25/11).
  */
-const ULTIMA_REVISAO = { termos: '2026-11-11', cancelamento: '2026-11-13', privacidade: '2026-11-25' } as const;
+const ULTIMA_REVISAO = { termos: '2026-11-11', cancelamento: '2026-11-13', privacidade: '2026-11-26' } as const;
 
 test('a data de revisão de cada texto legal é uma data válida e não voltou para antes da última revisão dele', () => {
   // uma revisão legítima futura pode avançar a data de um texto, nunca recuá-la

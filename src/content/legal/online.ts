@@ -34,27 +34,27 @@ const P = DESCONTO_PIX_PORCENTO;
  * diante cada um muda sozinho, como em ATUALIZADO_EM (src/content/legal/tipos.ts). Mudou o texto online de um deles?
  * Troque só a data dele. Nunca antes do dia de ligar nem da data do mesmo texto em ATUALIZADO_EM: esta versão traz também
  * o que os textos de hoje mudaram (em 2026-11-14, os anúncios do Google e da Meta na privacidade).
- * - termos: 2026-11-25 (Pacote 31), o item "Recebedor" do Pix passou a dizer que o app do banco mostra o nome da Stripe
+ * - termos: 2026-11-26 (Pacote 31), o item "Recebedor" do Pix passou a dizer que o app do banco mostra o nome da Stripe
  *   (o que se viu no Pix de verdade de 24/11), sem a EBANX. Até aqui valia uma data só para os três textos: trocar essa
  *   data levaria o 25/11 também ao cancelamento, que não mudou.
- * - privacidade: 2026-11-25 (Pacote 31), o idioma da visita nos itens 3 e 5 (o país aproximado e o cookie do idioma),
+ * - privacidade: 2026-11-26 (Pacote 31), o idioma da visita nos itens 3 e 5 (o país aproximado e o cookie do idioma),
  *   que entrou no texto de hoje (ATUALIZADO_EM.privacidade) e vem junto nesta versão. Antes, 2026-11-24, o dia de ligar.
  * - cancelamento: 2026-11-24, o dia de ligar.
  */
 export const ATUALIZADO_EM_ONLINE: Readonly<Record<TextoLegal, string>> = {
-  termos: '2026-11-25',
+  termos: '2026-11-26',
   cancelamento: '2026-11-24',
-  privacidade: '2026-11-25',
+  privacidade: '2026-11-26',
 };
 /**
  * A data da versão de hoje com os e-mails ligados (a privacidade que cita os e-mails, o Resend e o lembrete do
  * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel (foi em
  * 2026-11-15) ou em que o texto que ela mostra mudar. Em 2026-11-23 a proteção contra robôs foi ligada no ar e a página
  * ganhou a linha da Vercel e da Kasada (privacidadeComRobos, mais abaixo): era esta a versão que estava valendo. Em
- * 2026-11-25 (Pacote 31), o texto de hoje ganhou o idioma da visita nos itens 3 e 5, e esta versão o traz junto. Nunca
+ * 2026-11-26 (Pacote 31), o texto de hoje ganhou o idioma da visita nos itens 3 e 5, e esta versão o traz junto. Nunca
  * antes de ATUALIZADO_EM.privacidade.
  */
-export const ATUALIZADO_EM_EMAILS = '2026-11-25';
+export const ATUALIZADO_EM_EMAILS = '2026-11-26';
 
 /* ------------------------------------------------------------------ */
 /* Termos de uso: o pagamento, a seção nova do Pix e o contato        */

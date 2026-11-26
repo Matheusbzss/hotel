@@ -413,8 +413,17 @@ test('a faixa: depois de carregar, pela regra; "Ver en español" grava a versão
   assert.match(faixa, /document\.querySelectorAll\('img, video'\)\)\s*\.filter\(\(m\) => !m\.closest\('\.sugestao-idioma, \.cabecalho'\)\)/);
   assert.match(faixa, /\[0\.25, 0\.5, 0\.75\]\.filter/);
   assert.match(faixa, /return acertos\.length >= 2;/);
-  assert.match(faixa, /const chaveDaFoto = caminhoPublico;/);
+  // e sem tapar texto da página (o título da inicial fica em cima da foto: em tela baixa, a faixa o tapava), comparando
+  // com as linhas de texto, e não com as caixas (as fotos da galeria são botões embaixo da faixa); medida de novo
+  // quando a largura da tela muda (girar o tablet muda o topo da casa)
+  assert.match(faixa, /function tapaTexto\(caixa: DOMRect\): boolean \{/);
+  assert.match(faixa, /document\.createTreeWalker\(raiz, NodeFilter\.SHOW_TEXT\)/);
+  assert.match(faixa, /trecho\.getClientRects\(\)/);
+  assert.match(faixa, /el\.closest\('\.sugestao-idioma, \.cabecalho, \.sr-only, \[aria-hidden="true"\]'\)/);
+  assert.match(faixa, /const ler = \(\) => setLargura\(document\.documentElement\.clientWidth\);/);
+  assert.match(faixa, /const chaveDaFoto = `\$\{caminhoPublico\}\|\$\{largura\}`;/);
   assert.match(faixa, /useLayoutEffect\(\(\) => \{\s*if \(!sugerido \|\| !conferindo \|\| !caixa\.current\) return;/);
+  assert.match(faixa, /setFoto\(\{ chave: chaveDaFoto, sim: porCimaDeFoto\(r\) && !tapaTexto\(r\) \}\);/);
   assert.match(faixa, /if \(!conferindo && !foto\?\.sim\) return null;/);
   assert.equal(faixa.match(/ref=\{caixa\}/g)?.length, 1);
   assert.match(faixa, /style=\{conferindo \? \{ visibility: 'hidden' \} : undefined\}/);

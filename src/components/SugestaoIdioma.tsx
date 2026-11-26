@@ -42,6 +42,47 @@ function porCimaDeFoto(caixa: DOMRect): boolean {
 }
 
 /**
+ * A faixa taparia texto da página? Mesmo por cima de foto, ela não pode tapar o título que fica em cima da foto (o da
+ * página inicial, em tela baixa, com o celular deitado ou com a letra grande), pela mesma decisão do dono ("não tapar o
+ * título"; conferência final do Pacote 31). Compara a caixa da faixa com o TEXTO visível de main, linha a linha, e não
+ * com as caixas dos elementos: as fotos da galeria dos passeios são botões que ficam embaixo da faixa, e a faixa tem de
+ * continuar ali. Pula a própria faixa, a cápsula, o que está escondido e o que é só enfeite (aria-hidden).
+ */
+function tapaTexto(caixa: DOMRect): boolean {
+  const raiz = document.querySelector('main');
+  if (!raiz) return false;
+  const andar = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+  const trecho = document.createRange();
+  for (let no = andar.nextNode(); no; no = andar.nextNode()) {
+    if (!no.textContent?.trim()) continue;
+    trecho.selectNodeContents(no);
+    for (const linha of trecho.getClientRects()) {
+      const x = Math.min(linha.right, caixa.right) - Math.max(linha.left, caixa.left);
+      const y = Math.min(linha.bottom, caixa.bottom) - Math.max(linha.top, caixa.top);
+      if (x <= 2 || y <= 2) continue;
+      const el = no.parentElement;
+      // o texto só para leitor de tela (sr-only) fica numa caixa de 1 px, mas a linha dele mede o texto inteiro
+      if (!el || el.closest('.sugestao-idioma, .cabecalho, .sr-only, [aria-hidden="true"]')) break;
+      if (getComputedStyle(el).visibility === 'hidden') break;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** A largura da área da página, que muda ao girar o tablet ou mudar a janela (a altura muda com a barra do Safari). */
+function useLarguraDaTela(): number {
+  const [largura, setLargura] = useState(0);
+  useEffect(() => {
+    const ler = () => setLargura(document.documentElement.clientWidth);
+    ler();
+    window.addEventListener('resize', ler);
+    return () => window.removeEventListener('resize', ler);
+  }, []);
+  return largura;
+}
+
+/**
  * A faixa discreta que sugere o espanhol nas páginas em português e em inglês (Pacote 31, 25/11; Fase 4, Etapa 3:
  * "nas outras páginas, no máximo uma faixa discreta sugerindo a outra versão"). O dono escolheu a posição A em 25/11:
  * uma faixa fina logo abaixo da cápsula do topo (embaixo da tela já ficam o aviso de cookies e a barra do carrinho). As
@@ -72,15 +113,18 @@ export function SugestaoIdioma({ idioma, textos }: { idioma: 'pt' | 'en'; textos
     setBusca(window.location.search);
   }, [idioma, caminhoPublico]);
 
-  // a conferência da foto (porCimaDeFoto), uma vez por página: até ela ser feita, a faixa é desenhada escondida, só
-  // para ser medida. O useLayoutEffect mede e decide antes de o navegador pintar: nada pisca
+  // a conferência do lugar (por cima de foto e sem tapar texto), uma vez por página e por largura da tela (girar o
+  // tablet muda o desenho do topo da casa): até ela ser feita, a faixa é desenhada escondida, só para ser medida. O
+  // useLayoutEffect mede e decide antes de o navegador pintar: nada pisca
   const caixa = useRef<HTMLDivElement>(null);
-  const chaveDaFoto = caminhoPublico;
+  const largura = useLarguraDaTela();
+  const chaveDaFoto = `${caminhoPublico}|${largura}`;
   const [foto, setFoto] = useState<{ chave: string; sim: boolean } | null>(null);
   const conferindo = foto?.chave !== chaveDaFoto;
   useLayoutEffect(() => {
     if (!sugerido || !conferindo || !caixa.current) return;
-    setFoto({ chave: chaveDaFoto, sim: porCimaDeFoto(caixa.current.getBoundingClientRect()) });
+    const r = caixa.current.getBoundingClientRect();
+    setFoto({ chave: chaveDaFoto, sim: porCimaDeFoto(r) && !tapaTexto(r) });
   });
 
   // a página também é conferida aqui, e não só no efeito: numa navegação por dentro do site (para o checkout, por

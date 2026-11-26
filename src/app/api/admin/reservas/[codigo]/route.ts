@@ -12,6 +12,7 @@ import {
   motivoCombinaComAData,
   motivoDoFormulario,
   planoDoCancelamento,
+  regraDosVouchers,
   registroDoCancelamento,
   travaDaDesistencia,
   voucherACompletar,
@@ -45,7 +46,6 @@ import {
   marcarDevolucaoDoRetido,
   pagoPeloRetidoReativado,
   pedidoNuncaPago,
-  reativarRetidoEscondido,
   recebidoDoPedido,
   ultimoVoucherDoPedido,
   valorDoVoucherPorFora,
@@ -71,7 +71,16 @@ import {
 } from '@/lib/reembolsos-a-resolver';
 import { linhaDoCancelamento } from '@/lib/email/marcas';
 import { hotelDoPainel, passoDoHotel } from '@/lib/hospedagem';
+import {
+  DatasIndisponiveis,
+  conferirDatasDoPedidoPago,
+  liberarBloqueiosDaSessao,
+  liberarDatasDosVouchers,
+  prenderDatasDoPedido,
+} from '@/lib/pedido-carrinho';
+import { avisarDatasNaoPresas } from '@/lib/rede-das-casas';
 import { transferenciaDoPixOferecida } from '@/lib/resumo-do-painel';
+import { datasASoltar } from '@/lib/trava-das-casas';
 import {
   atualizarItem,
   atualizarReserva,
@@ -125,6 +134,25 @@ const valorDoVoucher = (pedido: Reserva, item: Reserva): number =>
     },
     pedido.pagamento.metodo === 'pix' ? 'pix' : 'cartao',
   );
+
+/**
+ * Etapa 7, pacote 2: as datas das casas que deixaram de valer com esta ação do painel (o voucher devolvido por outro meio, o
+ * "Marcar reembolsado", o "foi o voucher …" de um reembolso feito direto na Stripe, o cancelamento sem reembolso do pedido
+ * inteiro ou de um voucher) voltam a ficar livres: datasASoltar (src/lib/trava-das-casas.ts) compara os vouchers lidos no
+ * começo da requisição com os relidos agora, e liberarDatasDosVouchers solta pelo item do pedido, só a origem 'site'. Depois
+ * dos e-mails e num try: uma falha aqui só fica no registro (a rede de segurança de hora em hora solta o que sobrar), e a
+ * ação, já gravada, volta como deu certo. As páginas das casas refazem o calendário (calendarioMudou só nas rotas). O pedido
+ * sem casa não lê nada a mais.
+ */
+async function soltarDatasQueDeixaramDeValer(codigoDoPedido: string, antes: readonly Reserva[]): Promise<void> {
+  if (!antes.some(ehCasa)) return;
+  try {
+    const soltar = datasASoltar(antes, await vouchersDoPedido(codigoDoPedido));
+    if (soltar.length && (await liberarDatasDosVouchers(soltar)) > 0) calendarioMudou();
+  } catch (e) {
+    console.error(`[admin] não deu para soltar as datas da casa do pedido ${codigoDoPedido}: ${mensagem(e)}`);
+  }
+}
 
 /** O reembolso feito direto na Stripe sem voucher (a linha de aviso no histórico) ainda espera a resposta da equipe. */
 const semVoucherAberto = (pedido: Pick<Reserva, 'historico'>, id: string): boolean =>
@@ -194,6 +222,14 @@ async function devolverPagamentoRetido(alvo: Reserva, codigoDoPedido: string): P
  * (reativarPedidoRetido: a forma, o valor, o pagamento, a hora da cobrança; os avisos de valor diferente e de pagamento
  * depois do horário). Só a requisição que gravou manda o aviso de compra e o e-mail do pagamento aprovado (pedidoPago,
  * como um pagamento normal): o duplo toque e a aba antiga não gravam nada. Devolve o erro do painel, ou null.
+ *
+ * Etapa 7, pacote 2 (crítica de 26/11, 3.10): o pedido com casa prende as datas de cada casa de novo ANTES de reativar, todas
+ * ou nenhuma, pela função do banco que confere todos os bloqueios (prenderDatasDoPedido, com a sessão paga como referência).
+ * Alguma noite já é de outra reserva ou de um bloqueio: nada é reativado, e a volta é 'reativar-datas-ocupadas' (devolva o
+ * pagamento); o banco fora do ar: 'datas-sem-conferir'. Se a reativação não for gravada por este toque (a outra ação já
+ * escolhida, o pedido mudou), o que ele prendeu sai; o toque repetido de uma reativação que deu certo não solta nada. Depois de
+ * reativar, as datas são conferidas de novo no pedido pago (a rede de segurança pode ter soltado a trava recém-presa no meio):
+ * faltando, presas de novo; sem conseguir, o "Aviso:" e o e-mail à equipe.
  */
 async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva[]): Promise<ErroDoPainel | null> {
   const retido = alvo.pagamento.retido;
@@ -208,24 +244,66 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
     console.error(`[admin] não deu para reler o pagamento parado do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e)}`);
     return 'stripe-fora';
   }
+  const comCasa = vouchers.some(ehCasa);
+  if (comCasa) {
+    try {
+      await prenderDatasDoPedido(vouchers, retido.sessaoId, { todas: true });
+    } catch (e) {
+      // nada foi reativado: o que a tentativa passou para a sessão paga (uma trava que tinha sobrado do pedido) não fica presa
+      await liberarBloqueiosDaSessao(retido.sessaoId).catch((e2) =>
+        console.error(`[admin] não deu para soltar as datas da reativação recusada do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e2)}`),
+      );
+      if (e instanceof DatasIndisponiveis) return 'reativar-datas-ocupadas';
+      console.error(`[admin] não deu para prender as datas da casa do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e)}`);
+      return 'datas-sem-conferir';
+    }
+  }
   const outros = vouchers.filter((v) => v.codigo !== alvo.codigo);
   // num objeto, e não numa variável solta (ele muda lá dentro): a cada volta da trava a leitura recomeça
   const gravado: { reativou?: boolean; repetida?: boolean } = {};
   const reativada = await atualizarReserva(alvo.codigo, (r) => {
     gravado.reativou = false;
     gravado.repetida = acaoDoRetidoRepetida(r, 'reativar_retido');
-    // Etapa 7: o pedido com casa nunca se reativa por aqui (reativarRetidoEscondido; a rota já recusou antes)
-    if (reativarRetidoEscondido(vouchers)) return null;
     if (!acaoDoRetidoOferecida(r, 'reativar_retido') || r.pagamento.retido?.paymentIntentId !== retido.paymentIntentId) return null;
     for (const linha of reativarPedidoRetido(r, outros, new Date(), linhaDaReativacao)) registrar(r, linha);
+    if (comCasa) registrar(r, LINHA_DAS_DATAS_NA_REATIVACAO);
     gravado.reativou = true;
     return r;
   });
-  if (!gravado.reativou) return gravado.repetida ? null : 'acao-nao-vale';
+  if (!gravado.reativou) {
+    // este toque não reativou: as datas que ele prendeu (com a sessão paga) saem; a reativação de outro toque fica com elas
+    if (comCasa && !gravado.repetida) {
+      await liberarBloqueiosDaSessao(retido.sessaoId).catch((e) =>
+        console.error(`[admin] não deu para soltar as datas da reativação recusada do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e)}`),
+      );
+    }
+    return gravado.repetida ? null : 'acao-nao-vale';
+  }
   await religarIrmaos(alvo);
   // o aviso de compra (a Meta) e o e-mail do pagamento aprovado com os vouchers, uma vez, como num pagamento normal
   if (reativada) await pedidoPago(reativada, leitura);
+  if (comCasa) await conferirAsDatasDaReativacao(alvo, retido.sessaoId);
   return null;
+}
+
+/** A linha do histórico da reativação de um pedido com casa: as datas presas de novo. Só para a equipe. */
+const LINHA_DAS_DATAS_NA_REATIVACAO = 'Datas da casa presas de novo para o pedido reativado';
+
+/**
+ * A conferência de depois da reativação de um pedido com casa: relido, cada casa do pedido pago tem a trava (a rede de
+ * segurança de hora em hora pode ter soltado, no meio, a trava recém-presa de um pedido que ela ainda lia como cancelado).
+ * Faltando, é presa de novo; sem conseguir, o "Aviso:" e o e-mail à equipe (a reserva continua paga). Um erro aqui só fica no
+ * registro: a reativação já está gravada, e a rede de segurança confere de novo na próxima hora.
+ */
+async function conferirAsDatasDaReativacao(alvo: Reserva, sessaoId: string): Promise<void> {
+  const codigo = alvo.pedido?.codigo ?? alvo.codigo;
+  try {
+    const relidos = await vouchersDoPedido(codigo);
+    const { semTrava } = await conferirDatasDoPedidoPago(relidos, sessaoId);
+    if (semTrava.length && relidos[0]) await avisarDatasNaoPresas(relidos[0], semTrava);
+  } catch (e) {
+    console.error(`[admin] não deu para conferir as datas da casa do pedido reativado ${codigo}: ${mensagem(e)}`);
+  }
 }
 
 /**
@@ -483,6 +561,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       if (!confirmou) return voltar('falta-confirmar');
       if (!(await completarCancelados(pendentes, codigoDoPedido))) return voltar('cancelamento-pela-metade');
       for (const c of cancelamentosDosVouchers(alvo, pendentes)) agendarEmailSemReembolso(codigoDoPedido, alcanceDoEmail(c));
+      // Etapa 7, pacote 2: a casa cancelada sem reembolso solta as datas (o calendário do painel só libera a noite depois de
+      // cancelar a reserva), depois dos e-mails
+      await soltarDatasQueDeixaramDeValer(codigoDoPedido, vouchers);
     }
     // o toque repetido (o duplo toque, a aba antiga): a escolha já está gravada
     if (cancelamentoJaFeito(alvo, escolha)) return voltar();
@@ -510,7 +591,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       const conferencia = conferirNaTrava(r, depois, escolha, registro, agora, ciente);
       lido.conferencia = conferencia;
       if (conferencia.resultado !== 'gravar') return null;
-      for (const linha of aplicarCancelamento(r, registro, conferencia.trava)) registrar(r, linha);
+      // Etapa 7, pacote 2: o motivo no histórico com a regra dos vouchers cancelados (a das casas, a dos passeios ou as duas)
+      for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar))) registrar(r, linha);
       return r;
     });
     const resultado = lido.conferencia?.resultado ?? 'nao-encontrado';
@@ -518,6 +600,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (resultado !== 'gravar') return voltar(resultado);
     if (!(await completarCancelados(resto, codigoDoPedido))) return voltar('cancelamento-pela-metade');
     agendarEmailSemReembolso(codigoDoPedido, alcanceDoEmail(registro));
+    // Etapa 7, pacote 2: as casas canceladas sem reembolso soltam as datas, depois do e-mail
+    await soltarDatasQueDeixaramDeValer(codigoDoPedido, vouchers);
     return voltar();
   }
 
@@ -589,6 +673,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (marcaOVoucherPorFora(gravado, new Date(), item)) {
       await atualizarItem(voucher, 'reembolsado', `Item ${voucher} marcado como devolvido no painel (por outro meio)`);
     }
+    // Etapa 7, pacote 2: a casa devolvida por outro meio (também a transferência do Pix pago há mais de 90 dias) solta as datas
+    await soltarDatasQueDeixaramDeValer(codigoDoPedido, vouchers);
     return voltar();
   }
 
@@ -615,6 +701,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // Pacote 28: agora se sabe de qual voucher foi o reembolso feito direto na Stripe: o e-mail do reembolso ao cliente,
     // depois da resposta, um por reembolso (o repetido não sai de novo: a marca e a chave de idempotência)
     agendarEmailDoReembolso(codigoDoPedido, id);
+    // Etapa 7, pacote 2: o voucher da casa deixou de valer: as datas saem, depois do e-mail
+    await soltarDatasQueDeixaramDeValer(codigoDoPedido, vouchers);
     return voltar();
   }
 
@@ -631,9 +719,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ao cliente ou reativar o
   // pedido. A regra é a mesma dos botões da página (acaoDoRetidoOferecida); a ação já feita volta como a que deu certo,
   // sem gravar nada, e a que não vale mais (a outra já escolhida, o pedido mudou) volta com acao-nao-vale
-  // Etapa 7: o pedido com casa não se reativa (as datas podem já ser de outra pessoa); só devolver (reativarRetidoEscondido,
-  // a mesma regra que esconde o botão na página). O formulário de uma aba antiga volta com a frase, sem gravar nada
-  if (acao === 'reativar_retido' && reativarRetidoEscondido(vouchers)) return voltar('reativar-com-casa');
+  // Etapa 7, pacote 2: o pedido com casa também se reativa, prendendo as datas de novo antes (reativarPagamentoRetido); com
+  // alguma noite já de outra pessoa, a volta é 'reativar-datas-ocupadas' e nada é gravado
   if (acao === 'devolver_retido' || acao === 'reativar_retido') {
     if (!daStripe || !acaoDoRetidoOferecida(alvo, acao)) {
       const repetida = acaoDoRetidoRepetida(alvo, acao);
@@ -655,6 +742,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (!confirmou) return voltar('falta-confirmar');
     const erro =
       acao === 'devolver_retido' ? await devolverPagamentoRetido(alvo, codigoDoPedido) : await reativarPagamentoRetido(alvo, vouchers);
+    // a reativação de um pedido com casa prendeu as datas de novo (ou soltou as de um toque que não reativou): as páginas das
+    // casas refazem o calendário (calendarioMudou só nas rotas; um erro dele fica no registro)
+    if (acao === 'reativar_retido' && vouchers.some(ehCasa)) calendarioMudou();
     return voltar(erro ?? undefined);
   }
 
@@ -791,5 +881,7 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   }
   // Pacote 28: o pedido cancelado no painel (WhatsApp ou checkout antigo): o e-mail "Pedido cancelado", uma vez por pedido
   if (virouCancelado && atualizada) agendarEmailDoCancelamento(codigoDoPedido);
+  // Etapa 7, pacote 2: o "Marcar reembolsado" de um pedido com casa solta as datas dela, depois dos e-mails
+  if (atualizada) await soltarDatasQueDeixaramDeValer(codigoDoPedido, vouchers);
   return voltar();
 }

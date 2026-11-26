@@ -285,21 +285,52 @@ async function bloqueiosDaCasaNoComputador(): Promise<Map<string, Pick<Bloqueio,
 export function prenderNoComputador(estadias: readonly EstadiaDoPedido[], referencia: string): Promise<boolean> {
   return naFila(async () => {
     const daCasa = await bloqueiosDaCasaNoComputador();
-    const nova = prenderNoArquivo(await lerBloqueiosDoSite(), (id) => daCasa.get(id) ?? [], estadias, referencia, randomUUID);
+    const nova = prenderNoArquivo(
+      await lerBloqueiosDoSite(),
+      (id) => daCasa.get(id) ?? [],
+      estadias,
+      referencia,
+      randomUUID,
+      new Date().toISOString(),
+    );
     if (!nova) return false;
     await gravarBloqueiosDoSite(nova);
     return true;
   });
 }
 
-/** Solta do arquivo as estadias de uma sessão ou de uns itens. Devolve quantas saíram. */
-export function soltarNoComputador(filtro: { referencia: string } | { itens: readonly string[] }): Promise<number> {
+/**
+ * Solta do arquivo as estadias de uma sessão, de uns itens ou de pares item e referência (a rede de segurança: nunca só pelo
+ * item). Devolve quantas saíram.
+ */
+export function soltarNoComputador(
+  filtro: { referencia: string } | { itens: readonly string[] } | { pares: readonly { item: string; referencia: string }[] },
+): Promise<number> {
   return naFila(async () => {
     const atuais = await lerBloqueiosDoSite();
-    const sai = (b: BloqueioNoArquivo) => ('referencia' in filtro ? b.referencia === filtro.referencia : filtro.itens.includes(b.itemPedidoId));
+    const sai = (b: BloqueioNoArquivo) =>
+      'referencia' in filtro
+        ? b.referencia === filtro.referencia
+        : 'itens' in filtro
+          ? filtro.itens.includes(b.itemPedidoId)
+          : filtro.pares.some((p) => p.item === b.itemPedidoId && p.referencia === b.referencia);
     const ficam = atuais.filter((b) => !sai(b));
     if (ficam.length !== atuais.length) await gravarBloqueiosDoSite(ficam);
     return atuais.length - ficam.length;
+  });
+}
+
+/** Todas as estadias do site presas no arquivo do computador (a rede de segurança lê). */
+export const bloqueiosDoSiteNoComputador = (): Promise<BloqueioNoArquivo[]> => lerBloqueiosDoSite();
+
+/** A rede de segurança no arquivo: passa para `para` só a estadia deste item que ainda está com a referência vista. */
+export function renomearVistaNoComputador(item: string, vista: string, para: string): Promise<number> {
+  return naFila(async () => {
+    const atuais = await lerBloqueiosDoSite();
+    const muda = (b: BloqueioNoArquivo) => b.itemPedidoId === item && b.referencia === vista;
+    const quantas = atuais.filter(muda).length;
+    if (quantas) await gravarBloqueiosDoSite(atuais.map((b) => (muda(b) ? { ...b, referencia: para } : b)));
+    return quantas;
   });
 }
 

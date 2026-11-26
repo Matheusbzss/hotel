@@ -4,7 +4,15 @@ import { supabase, usarBanco } from './banco';
 import type { CarrinhoGuardado, Conferida } from './carrinho-servidor';
 import type { TrechoEscolhido } from './carrinho';
 import { argsDePrenderDatas, type BloqueioDoSite } from './casas-banco';
-import { bloqueiosDoSiteQueCruzam, itensPresosNoComputador, prenderNoComputador, renomearNoComputador, soltarNoComputador } from './casas';
+import {
+  bloqueiosDoSiteNoComputador,
+  bloqueiosDoSiteQueCruzam,
+  itensPresosNoComputador,
+  prenderNoComputador,
+  renomearNoComputador,
+  renomearVistaNoComputador,
+  soltarNoComputador,
+} from './casas';
 import type { FormaPagamento } from './formas-pagamento';
 import type { Origem } from './origem';
 import { obterOpcao, temOpcoes } from './precos';
@@ -20,7 +28,7 @@ import {
   type TrechoTransfer,
 } from './reservas';
 import { codigoDoPedido } from './reservas-banco';
-import { depoisDoNaoDeu, itensAPrender, type EstadiaDoPedido, type ReservaQueSegura } from './trava-das-casas';
+import { depoisDoNaoDeu, itensAPrender, type EstadiaDoPedido, type ReservaQueSegura, type TravaVista } from './trava-das-casas';
 
 /**
  * O pedido do carrinho: a reserva de cada item (um voucher por item, um pagamento só) e, nas casas, o bloqueio
@@ -268,10 +276,15 @@ async function itensComBloqueio(itens: readonly string[]): Promise<string[]> {
  * 3. se ela disser que não deu, confere pelo item: preso por outro toque do mesmo cliente no meio-tempo (os dois toques no
  *    "Pagar de novo" levam a mesma sessão, furo 7) é sucesso, e passa para esta sessão; faltando, sai DatasIndisponiveis.
  * Qualquer outro erro (o banco fora do ar) segue para quem chamou: a sessão nova não pode chegar ao cliente sem as datas
- * presas. Devolve se o pedido tem casa (para a rota refazer o calendário).
+ * presas. Devolve se o pedido tem casa (para a rota refazer o calendário). Com `todas` (o "Reativar" do pedido cancelado com
+ * o pagamento parado, pacote 2), também os vouchers que o cancelamento deixou 'cancelado': todos voltam a valer juntos.
  */
-export async function prenderDatasDoPedido(vouchers: readonly Reserva[], sessaoId: string): Promise<boolean> {
-  const estadias = await estadiasDoPedido(vouchers);
+export async function prenderDatasDoPedido(
+  vouchers: readonly Reserva[],
+  sessaoId: string,
+  { todas = false }: { todas?: boolean } = {},
+): Promise<boolean> {
+  const estadias = await estadiasDoPedido(vouchers, { todas });
   if (!estadias.length) return false;
   const faltam = itensAPrender(
     estadias,
@@ -418,4 +431,95 @@ export async function pedidoDeCasaEsperando(email: string, exceto?: string): Pro
     .limit(1);
   if (erroItens) throw erroDoBanco(erroItens);
   return casas.length > 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* A rede de segurança de hora em hora (pacote 2; src/lib/rede-das-casas.ts) */
+
+/**
+ * As travas do site das estadias que ainda não acabaram (a saída depois de `hoje`), com o item, a referência e a hora de
+ * cada uma. A trava sem o item do pedido (não deveria existir: a função do banco sempre grava o item) fica de fora: sem ele
+ * não dá para saber de quem é, e a rede nunca solta só pela referência.
+ */
+export async function travasDoSite(hoje: string): Promise<TravaVista[]> {
+  if (!usarBanco()) {
+    return (await bloqueiosDoSiteNoComputador())
+      .filter((b) => b.fim > hoje)
+      .map((b) => ({
+        itemPedidoId: b.itemPedidoId,
+        referencia: b.referencia,
+        casaId: b.casaId,
+        inicio: b.inicio,
+        fim: b.fim,
+        ...(b.criadoEm ? { criadoEm: b.criadoEm } : {}),
+      }));
+  }
+  const { data, error } = await supabase()
+    .from('casas_bloqueios')
+    .select('casa_id, inicio, fim, referencia, item_pedido_id, criado_em')
+    .eq('origem', 'site')
+    .gt('fim', hoje);
+  if (error) throw erroDoBanco(error);
+  return data.flatMap((b) =>
+    b.item_pedido_id
+      ? [
+          {
+            itemPedidoId: b.item_pedido_id,
+            referencia: b.referencia ?? '',
+            casaId: b.casa_id,
+            inicio: b.inicio,
+            fim: b.fim,
+            criadoEm: b.criado_em,
+          },
+        ]
+      : [],
+  );
+}
+
+/** O voucher de cada item (no banco, pela tabela dos itens; nos arquivos, o item já é o código do voucher). */
+export async function vouchersDosItens(itens: readonly string[]): Promise<Map<string, string>> {
+  if (!itens.length) return new Map();
+  if (!usarBanco()) return new Map(itens.map((i) => [i, i]));
+  const { data, error } = await supabase()
+    .from('itens_pedido')
+    .select('id, voucher_codigo')
+    .in('id', [...new Set(itens)]);
+  if (error) throw erroDoBanco(error);
+  return new Map(data.flatMap((l): [string, string][] => (l.voucher_codigo ? [[l.id, l.voucher_codigo]] : [])));
+}
+
+/** Solta a trava vista pela rede, pelo item E pela referência que a rede viu (nunca só pelo item). Devolve quantas saíram. */
+export async function soltarTravaVista(t: Pick<TravaVista, 'itemPedidoId' | 'referencia'>): Promise<number> {
+  if (!usarBanco()) return soltarNoComputador({ pares: [{ item: t.itemPedidoId, referencia: t.referencia }] });
+  const { data, error } = await supabase()
+    .from('casas_bloqueios')
+    .delete()
+    .eq('origem', 'site')
+    .eq('item_pedido_id', t.itemPedidoId)
+    .eq('referencia', t.referencia)
+    .select('id');
+  if (error) throw erroDoBanco(error);
+  return data.length;
+}
+
+/** Passa para a sessão `para` a trava vista pela rede, só se ela ainda estiver com a referência vista. Devolve quantas mudaram. */
+export async function renomearTravaVista(t: Pick<TravaVista, 'itemPedidoId' | 'referencia'>, para: string): Promise<number> {
+  if (!usarBanco()) return renomearVistaNoComputador(t.itemPedidoId, t.referencia, para);
+  const { data, error } = await supabase()
+    .from('casas_bloqueios')
+    .update({ referencia: para })
+    .eq('origem', 'site')
+    .eq('item_pedido_id', t.itemPedidoId)
+    .eq('referencia', t.referencia)
+    .select('id');
+  if (error) throw erroDoBanco(error);
+  return data.length;
+}
+
+/** Os vouchers de casa cuja saída ainda não chegou (depois de `hoje`): a rede confere se os pagos têm a trava. */
+export async function vouchersDeCasaAFrente(hoje: string): Promise<string[]> {
+  if (!usarBanco()) return (await listarReservas()).filter((r) => ehCasa(r) && r.saida > hoje).map((r) => r.codigo);
+  const { data, error } = await supabase().from('itens_pedido').select('voucher_codigo').eq('tipo', 'casa').gt('data_fim', hoje);
+  if (error) throw erroDoBanco(error);
+  return data.flatMap((l) => (l.voucher_codigo ? [l.voucher_codigo] : []));
 }

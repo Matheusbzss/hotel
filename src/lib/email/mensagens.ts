@@ -26,6 +26,8 @@ export type TipoEmail =
   // Pacote 33: o cancelamento sem reembolso pela equipe, o pedido inteiro e um voucher só
   | 'pedido-cancelado-sem-reembolso'
   | 'voucher-cancelado'
+  // Etapa 7, pacote 2: a casa paga sem as datas presas (outra reserva ou um bloqueio ocupa as noites), só para a equipe
+  | 'datas-da-casa-equipe'
   | 'lembrete-1'
   | 'lembrete-2';
 
@@ -396,8 +398,8 @@ export function emailAvisoDoPagamentoRetido(d: {
   linkPainel: string;
   site: SiteDoEmail;
   /**
-   * Etapa 7: o pedido tem casa. O "Reativar" fica escondido nesses pedidos (as datas da casa podem já ser de outra pessoa:
-   * reativar precisaria prender as datas de novo, o que fica para o pacote 2): no painel, só o "Devolver".
+   * Etapa 7: o pedido tem casa. Desde o pacote 2, o "Reativar" prende as datas da casa de novo e, se outra pessoa já
+   * reservou alguma noite, o painel recusa e diz para devolver.
    */
   comCasa?: boolean;
 }): MensagemEmail {
@@ -410,8 +412,34 @@ export function emailAvisoDoPagamentoRetido(d: {
     paragrafos: [
       `${chegou} O dinheiro está parado na Stripe: nada foi devolvido ao cliente.`,
       d.comCasa
-        ? 'Este pedido tem casa de temporada: as datas dela podem já ter sido reservadas por outra pessoa, e o painel não oferece reativar. Abra o pedido no painel e devolva o dinheiro ao cliente. O cliente ainda não recebeu nenhum e-mail sobre este pagamento.'
+        ? 'Este pedido tem casa de temporada. Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido. Reativar prende as datas da casa de novo; se outra pessoa já reservou alguma noite, o painel recusa e você devolve. O cliente ainda não recebeu nenhum e-mail sobre este pagamento.'
         : 'Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido (ele fica pago e o cliente recebe o e-mail com os vouchers). O cliente ainda não recebeu nenhum e-mail sobre este pagamento.',
+    ],
+    codigo: { rotulo: 'Pedido', valor: d.codigo },
+    botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
+    rodape: { linhas: ['Aviso automático do site para a equipe.'] },
+    site: d.site,
+  });
+}
+
+/**
+ * Etapa 7, pacote 2: o aviso à equipe (EMAIL_RESPOSTA, em português) da casa paga sem as datas presas: o pagamento chegou e
+ * as noites já eram de outra reserva ou de um bloqueio (o pagamento que chegou depois de a sessão vencer, uma trava que se
+ * perdeu e a rede de segurança não conseguiu prender de novo). A reserva continua paga e nada foi devolvido: a equipe
+ * confere o calendário da casa e decide com o cliente. Cada linha é um "Aviso:" do histórico (sem o "Aviso: " do começo).
+ * Nenhum dado do cliente: estão no painel.
+ */
+export function emailAvisoDasDatasDaCasa(d: { codigo: string; linhas: string[]; linkPainel: string; site: SiteDoEmail }): MensagemEmail {
+  const pago = `O pedido ${d.codigo} foi pago, mas as datas de uma casa não ficaram presas para ele.`;
+  return mensagem({
+    idioma: 'pt',
+    assunto: `Casa paga sem as datas presas: ${d.codigo}`,
+    preCabecalho: pago,
+    titulo: 'Casa paga sem as datas presas',
+    paragrafos: [
+      `${pago} Outra reserva ou um bloqueio ocupa essas noites. A reserva continua paga e nada foi devolvido ao cliente.`,
+      ...d.linhas.map((linha) => `Atenção: ${linha}.`),
+      'Abra o pedido e o calendário da casa no painel: se as noites forem mesmo de outra pessoa, fale com o cliente antes de confirmar e, se for o caso, devolva o pagamento pelo painel.',
     ],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
@@ -484,14 +512,26 @@ export function emailPedidoCancelado(d: DadosDoPedido & { nadaCobrado: boolean; 
 export interface MotivoDoEmail {
   tipo: 'fora-da-politica' | 'nao-compareceu' | 'outro';
   texto?: string;
+  /**
+   * Etapa 7, pacote 2: a política dos vouchers cancelados (regraDosVouchers, src/lib/cancelar-sem-reembolso.ts): a dos
+   * passeios e do transfer (o padrão), a das casas de temporada ou as duas (o pedido inteiro com casa e passeio).
+   */
+  regra?: 'passeios' | 'casas' | 'as-duas';
 }
 
-/** O motivo e a regra da política: o item 6 nos dois motivos dela; no "outro", que as regras estão na política. */
+/**
+ * O motivo e a regra da política: o item 6 nos dois motivos dela; no "outro", que as regras estão na política. Na casa, o
+ * motivo e a regra das casas (a menos de 30 dias da entrada, fora dos 7 dias da compra); com casa e passeio, as duas.
+ */
 function frasesDoMotivo(T: TextosEmail, m: MotivoDoEmail): string[] {
   const S = T.semReembolso;
-  const motivo =
-    m.tipo === 'outro' ? fmt(S.motivoOutro, { texto: m.texto ?? '' }) : m.tipo === 'nao-compareceu' ? S.motivoNaoCompareceu : S.motivoForaDaPolitica;
-  return [motivo, m.tipo === 'outro' ? S.regraGeral : S.regra];
+  if (m.tipo === 'outro') return [fmt(S.motivoOutro, { texto: m.texto ?? '' }), S.regraGeral];
+  const doPasseio = [m.tipo === 'nao-compareceu' ? S.motivoNaoCompareceu : S.motivoForaDaPolitica, S.regra];
+  const daCasa = [m.tipo === 'nao-compareceu' ? S.motivoNaoCompareceu : S.motivoForaDaPoliticaCasa, S.regraCasa];
+  if (m.regra === 'casas') return daCasa;
+  // as duas: o motivo de cada política, sem repetir o "não compareceu", que é o mesmo
+  if (m.regra === 'as-duas') return [...new Set([...doPasseio, ...daCasa])];
+  return doPasseio;
 }
 
 /**

@@ -67,6 +67,10 @@ export const linhaDoCancelamento = (evento: string, ...statusLidos: string[]): s
 /** Pacote 28: o aviso à equipe (EMAIL_RESPOSTA) do pedido que ficou pago (um por pedido). Não começa com "Aviso:". */
 export const MARCA_DO_AVISO_DO_PEDIDO_PAGO = 'E-mail à equipe: aviso do pedido pago';
 
+/** Etapa 7, pacote 2: o e-mail à equipe da casa paga sem as datas presas, um por voucher (o código vai entre parênteses). */
+export const MARCA_DO_AVISO_DAS_DATAS_DA_CASA = 'E-mail à equipe: aviso das datas da casa não presas';
+export const marcaDoAvisoDasDatasDaCasa = (voucher: string): string => `${MARCA_DO_AVISO_DAS_DATAS_DA_CASA} (${voucher})`;
+
 /**
  * Pacote 33: o e-mail do cancelamento sem reembolso pela equipe: o do pedido inteiro ("Pedido cancelado", um por pedido) e o
  * de um voucher só ("Voucher cancelado", um por voucher). Não começam com a marca do "Pedido cancelado" de antes ("E-mail ao

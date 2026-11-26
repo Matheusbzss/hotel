@@ -83,6 +83,9 @@ export const ajustesAR: AjustesAR = {
     // Etapa 7, a casa no carrinho: a seña e as frases com verbo em vos
     casaSinalHoje: 'Seña del {p}% hoy; el resto, al llegar',
     casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Tocá Cambiar para elegir otras fechas.',
+    // pacote 2: a casa que mudou ou saiu do ar ("tocá")
+    casaMudou: 'Las condiciones de esta casa cambiaron para esas fechas. Tocá Cambiar para elegir de nuevo.',
+    casaForaDoAr: 'Esta casa ya no está disponible para reservar. Tocá Cambiar para ver las otras casas.',
     casaEsperando:
       'Ya hay un pedido de casa con este e-mail esperando el pago. Completá ese pago o esperá a que venza, en hasta 1 hora, para hacer otro pedido.',
     // revisão de 26/11: a mesma casa já no carrinho ("tocá") e o teto dos pedidos de casa por conexão ("intentá", "escribinos")

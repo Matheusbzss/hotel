@@ -8,12 +8,13 @@ import { isIdioma, rota } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { emailLigado } from '@/lib/email/enviar';
 import { pagamentoOnlineNoAr } from '@/lib/formas-pagamento';
+import { reservaCasasNoAr } from '@/lib/reserva-casas';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/termos-de-uso'>): Promise<Metadata> {
   const { locale } = await params;
   if (!isIdioma(locale)) return {};
-  const doc = texto(textosLegais(pagamentoOnlineNoAr(), emailLigado()).termos, locale);
+  const doc = texto(textosLegais(pagamentoOnlineNoAr(), emailLigado(), reservaCasasNoAr()).termos, locale);
   return {
     title: doc.titulo,
     description: doc.descricao,
@@ -28,7 +29,7 @@ export default async function Pagina({ params }: PageProps<'/[locale]/termos-de-
   const d = dicionario(locale);
   // com o pagamento online no ar para o público, a versão dele (src/content/legal/online.ts); sem ele e com os e-mails
   // ligados (RESEND_API_KEY), a de hoje com a privacidade dos e-mails; senão, a de hoje
-  const legais = textosLegais(pagamentoOnlineNoAr(), emailLigado());
+  const legais = textosLegais(pagamentoOnlineNoAr(), emailLigado(), reservaCasasNoAr());
   return (
     <PaginaLegal
       doc={texto(legais.termos, locale)}

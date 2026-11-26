@@ -3,12 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { dicionario } from '@/i18n';
-import { isIdioma, type Idioma } from '@/i18n/config';
+import { fmt, isIdioma, type Idioma } from '@/i18n/config';
 import { supabase, usarBanco } from './banco';
 import type { Json } from './banco-tipos';
-import type { ItemCarrinho, ItemVisivel } from './carrinho';
+import { cobradoHoje, totaisDoCarrinho, type ItemCarrinho, type ItemVisivel } from './carrinho';
 import { PASTA_CARRINHOS, itemVisivel, novoCodigoCarrinho, type CarrinhoGuardado, type LembretesDoCarrinho } from './carrinho-servidor';
-import { SEM_CASAS } from './casa-no-carrinho';
+import { contextoDasCasas } from './casas-carrinho';
 import { cotacaoDolar } from './dolar';
 import { emailLigado, enviarEmail, falhaDaConta, saiu } from './email/enviar';
 import { cabecalhosDeSair, chaveDosLinks, decifrarEmail, idiomaDoLink, lerLink, linkDeSair, linkDeVoltar } from './email/links';
@@ -487,12 +487,15 @@ export async function enviarLembretes(agora: Date = new Date()): Promise<ResumoD
           pular('limite-do-dia');
           continue;
         }
-        // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida). Sem o contexto das
-        // casas (SEM_CASAS), o carrinho com casa não recebe lembrete no pacote 1 da reserva das casas: a casa volta null e o
-        // carrinho cai em 'item-fora-do-site' (o lembrete com o sinal da casa fica para o pacote 2)
+        // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida). Desde o pacote 2 da
+        // reserva das casas, o carrinho com casa também recebe o lembrete: o contexto das casas é lido para ele (as noites
+        // ocupadas de agora e se a reserva das casas está aberta para o público; o carrinho sem casa não lê nada a mais). A
+        // casa indisponível (alguém reservou as noites, a reserva fechou, as condições mudaram, a casa saiu do ar) não vira
+        // lembrete: o carrinho cai em 'item-fora-do-site', como o passeio que passou
         const d = dicionario(c.idioma);
-        const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, SEM_CASAS, agora));
-        if (visiveis.some((v) => v === null)) {
+        const contexto = await contextoDasCasas({ escolhas: c.itens.map((i) => i.escolha), admin: false });
+        const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, contexto, agora));
+        if (visiveis.some((v) => v === null || v.indisponivel)) {
           pular('item-fora-do-site');
           continue;
         }
@@ -510,18 +513,26 @@ export async function enviarLembretes(agora: Date = new Date()): Promise<ResumoD
         const formas = await formasDoCarrinho(itensPagaveisDoCarrinho(itens), agora);
         const comPix = formas.includes('pix');
         const comCartao = formas.includes('cartao');
-        const totalPix = itens.reduce((s, i) => s + i.totalPixCentavos, 0);
-        const totalCartao = itens.reduce((s, i) => s + i.totalCentavos, 0);
+        // o que o carrinho cobra hoje (totaisDoCarrinho, cobradoHoje): no passeio e no transfer, o total de sempre (o mesmo
+        // número de antes); na casa, o sinal, com a linha do total da estadia nas formas que valem
+        const { totalCentavos: totalCartao, totalPixCentavos: totalPix } = totaisDoCarrinho(itens);
         const sair = `${urlDoSite()}/api/email/sair?t=${linkDeSair(c.id, c.idioma, chave, c.email)}`;
         const voltar = `${urlDoSite()}/api/carrinho/voltar?t=${linkDeVoltar(c.id, c.idioma, n, chave, agora)}`;
+        const brl = (centavos: number) => valorNoIdioma(centavos, c.idioma, taxa).valor;
+        const totalDaEstadia = (i: ItemVisivel): string[] =>
+          !i.casa
+            ? []
+            : comPix
+              ? [fmt(d.carrinho.casaTotalDaEstadia, { pix: brl(i.totalPixCentavos), cartao: brl(i.totalCentavos) })]
+              : [fmt(d.carrinho.casaTotalDaEstadiaCartao, { cartao: brl(i.totalCentavos) })];
         const mensagemDoEmail = emailLembrete({
           idioma: c.idioma,
           n,
           itens: itens.map((i) => ({
             nome: i.titulo,
-            linhas: i.detalhes,
-            ...(comPix ? { pix: valorNoIdioma(i.totalPixCentavos, c.idioma, taxa) } : {}),
-            ...(comCartao ? { cartao: valorNoIdioma(i.totalCentavos, c.idioma, taxa) } : {}),
+            linhas: [...i.detalhes, ...totalDaEstadia(i)],
+            ...(comPix ? { pix: valorNoIdioma(cobradoHoje(i, 'pix'), c.idioma, taxa) } : {}),
+            ...(comCartao ? { cartao: valorNoIdioma(cobradoHoje(i, 'cartao'), c.idioma, taxa) } : {}),
           })),
           totais: {
             ...(comPix ? { pix: valorNoIdioma(totalPix, c.idioma, taxa) } : {}),

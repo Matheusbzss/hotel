@@ -567,7 +567,8 @@ test('a rota do cancelamento sem reembolso: a caixa, o motivo e a trava antes de
     'await atualizarReserva(primeiro.codigo, (r) => {',
     'const conferencia = conferirNaTrava(r, depois, escolha, registro, agora, ciente);',
     "if (conferencia.resultado !== 'gravar') return null;",
-    'for (const linha of aplicarCancelamento(r, registro, conferencia.trava)) registrar(r, linha);',
+    // Etapa 7, pacote 2: o motivo no histórico com a regra dos vouchers cancelados (a das casas, a dos passeios ou as duas)
+    'for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar))) registrar(r, linha);',
     "if (resultado === 'repetida') return voltar();",
     'if (resultado !== \'gravar\') return voltar(resultado);',
     "if (!(await completarCancelados(resto, codigoDoPedido))) return voltar('cancelamento-pela-metade');",
@@ -795,7 +796,11 @@ test('a página do cliente: "Pedido cancelado" com o motivo e a regra nos 4 idio
   assert.match(status, /\{r\.status === 'cancelado' && r\.semReembolso && politica && \(/);
   const publica = codigo('lib', 'reserva-publica.ts');
   assert.match(publica, /const semReembolso = canceladoSemReembolso\(r\) \? cancelamentoDoVoucher\(r\.pagamento, r\.codigo\) : undefined;/);
-  assert.match(publica, /\.\.\.\(semReembolso \? \{ semReembolso: frasesDoCancelamentoSemReembolso\(d\.pedido, semReembolso\) \} : \{\}\),/);
+  // Etapa 7, pacote 2: na casa, o motivo e a regra das casas (ehCasa)
+  assert.match(
+    publica,
+    /\.\.\.\(semReembolso \? \{ semReembolso: frasesDoCancelamentoSemReembolso\(d\.pedido, semReembolso, ehCasa\(r\)\) \} : \{\}\),/,
+  );
   // o voucher cancelado não tem PDF: a rota do voucher só entrega o que vale (statusDoVoucher, a regra do item)
   const pdf = codigo('app', 'api', 'voucher', '[codigo]', 'route.ts');
   assert.match(pdf, /if \(statusDoVoucher\(reserva\) !== 'pago'\) return semVoucher\(new URL\(pagina, req\.url\)\);/);

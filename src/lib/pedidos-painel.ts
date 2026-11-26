@@ -198,9 +198,11 @@ export const ERROS_DO_PAINEL = {
     'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
   // o pagamento parado de um pedido cancelado (Pacote 22): a reativação relê o pagamento na Stripe antes de gravar
   'stripe-fora': 'Não deu para conferir o pagamento na Stripe agora. Nada foi feito. Tente de novo em instantes.',
-  // Etapa 7: o pedido com casa não se reativa pelo painel (reativarRetidoEscondido)
-  'reativar-com-casa':
-    'Este pedido tem casa de temporada: o painel não reativa, porque as datas da casa podem já ser de outra pessoa. Devolva o pagamento ao cliente. Nada foi feito.',
+  // Etapa 7, pacote 2: o "Reativar" do pedido com casa prende as datas de novo antes de reativar (retidoComCasa)
+  'reativar-datas-ocupadas':
+    'As datas desta casa já foram reservadas por outra pessoa (ou bloqueadas no calendário): o pedido não foi reativado. Devolva o pagamento ao cliente. Nada foi feito.',
+  'datas-sem-conferir':
+    'Não deu para prender as datas da casa agora: o pedido não foi reativado. Nada foi feito. Tente de novo em instantes.',
   'voucher-maior-que-o-resto':
     'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
   // Pacote 29: o campo "Gravar o hotel" do pedido com o hotel a informar
@@ -216,7 +218,7 @@ export const ERROS_DO_PAINEL = {
     'O texto escrito só vai ao cliente com "Outro motivo". Escolha "Outro motivo" ou deixe o texto vazio. Nada foi feito.',
   // revisão do Pacote 33: o motivo que a data do serviço não deixa (motivosQueCombinam, src/lib/cancelar-sem-reembolso.ts)
   'motivo-fora-da-data':
-    'Este motivo não combina com a data do serviço: "Fora da política" vale só a menos de 24 horas do início ou depois dele, e "Não compareceu", só depois do início. Abra de novo "Cancelar sem reembolso…" e escolha outro motivo. Nada foi feito.',
+    'Este motivo não combina com a data do serviço: "Fora da política" vale só a menos de 24 horas do início ou depois dele (na casa de temporada, a menos de 30 dias da entrada e fora dos 7 dias da compra), e "Não compareceu", só depois do início. Abra de novo "Cancelar sem reembolso…" e escolha outro motivo. Nada foi feito.',
   'cancelamento-nao-vale':
     'Este pedido não pode ser cancelado sem reembolso no status em que está: só o pedido pago pela Stripe, sem contestação. Nada foi feito.',
   'reembolso-a-resolver':
@@ -1257,16 +1259,17 @@ export function concluirDevolucaoDoRetido(
 export const pagamentoRetidoADecidir = (r: PedidoComPagamentoRetido): boolean => acaoDoRetidoOferecida(r, 'devolver_retido');
 
 /**
- * Etapa 7 (a reserva das casas, pacote 1): o "Reativar o pedido (fica pago)" fica escondido no pedido com casa. Reativar
- * deixaria a casa paga sem as datas presas (elas saíram quando o pedido foi cancelado, e outra pessoa pode ter reservado
- * as mesmas noites); prender de novo, ou recusar com a frase das datas, é do pacote 2 (crítica de 26/11, 3.10). Até lá, o
- * painel só oferece devolver, e a rota recusa o reativar que chegar de uma aba antiga.
+ * Etapa 7 (a reserva das casas): o pedido cancelado com o pagamento parado tem casa. No pacote 1 o "Reativar" ficava
+ * escondido nele; desde o pacote 2 (crítica de 26/11, 3.10) o "Reativar o pedido (fica pago)" prende as datas da casa de novo
+ * antes de reativar (a rota do painel, prenderDatasDoPedido) e recusa com o motivo quando outra pessoa já reservou alguma
+ * noite ('reativar-datas-ocupadas': devolva o pagamento). O painel mostra a frase RETIDO_COM_CASA embaixo da de sempre, e o
+ * e-mail à equipe diz o mesmo.
  */
-export const reativarRetidoEscondido = (vouchers: readonly Pick<Reserva, 'tipo'>[]): boolean => vouchers.some((v) => v.tipo === 'casa');
+export const retidoComCasa = (vouchers: readonly Pick<Reserva, 'tipo'>[]): boolean => vouchers.some((v) => v.tipo === 'casa');
 
-/** A frase vermelha que o pedido com casa e o pagamento parado ganha embaixo da de sempre (reativarRetidoEscondido). */
+/** A frase que o pedido com casa e o pagamento parado ganha embaixo da de sempre (retidoComCasa). */
 export const RETIDO_COM_CASA =
-  'Este pedido tem casa de temporada: o painel não reativa, porque as datas da casa podem já ser de outra pessoa. Devolva ao cliente.';
+  'Este pedido tem casa de temporada: reativar prende as datas da casa de novo. Se outra pessoa já reservou alguma noite, o painel recusa e você devolve ao cliente.';
 
 /** A frase vermelha do cartão do pedido com o pagamento parado. */
 export const fraseDoPagamentoRetido = (centavos: number): string =>

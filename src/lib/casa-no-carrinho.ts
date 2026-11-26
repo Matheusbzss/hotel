@@ -65,6 +65,11 @@ export interface ContextoDasCasas {
   lido: boolean;
   aberta: boolean;
   casas: ReadonlyMap<string, CasaNoContexto>;
+  /**
+   * As casas do carrinho que saíram do ar (pelo slug): só o nome e a primeira foto, para a linha "indisponível" do carrinho
+   * antigo (pacote 2: a casa não some calada). Lidas só quando alguma casa do carrinho não está entre as do site.
+   */
+  foraDoAr?: ReadonlyMap<string, { nome: Texto; foto: string }>;
 }
 
 /** O contexto do carrinho sem casa: nada lido, e a casa que aparecer é recusada com 'casa'. */
@@ -211,16 +216,28 @@ export function cruzaComAMesmaCasa(e: Pick<EscolhaCasa, 'slug' | 'entrada' | 'sa
  * A casa do carrinho que fica na lista como indisponível, fora da conta e do pedido, em vez de sumir calada: 'ocupada'
  * (alguém reservou alguma noite enquanto ela estava no carrinho: o cliente escolhe outras datas pelo "Mudar"; furo 8 da
  * crítica) e 'fechada' (a reserva das casas fechou para este visitante, pelo interruptor RESERVA_CASAS ou pelo pagamento
- * online: o cliente tira a casa pelo X para seguir com o resto; revisão de 26/11, achado 1). As outras recusas tiram a
- * casa da lista, como o passeio que passou da data.
+ * online: o cliente tira a casa pelo X para seguir com o resto; revisão de 26/11, achado 1). Desde o pacote 2, também a casa
+ * de um carrinho antigo que deixou de valer como está: 'mudou' (a capacidade baixou, entrou um pacote de feriado nas noites,
+ * o mínimo subiu, a sexta ficou livre e o fim de semana pede as três noites, a saída passou do limite de datas, as datas
+ * ficaram sem preço: o "Mudar" leva à página da casa, que mostra a regra) e 'fora-do-ar' (a casa saiu do ar: o "Mudar" leva à
+ * lista das casas). Só a data que passou (e a escolha que nem dá para ler) tira a casa da lista, como o passeio que passou.
  */
-export type MotivoDaCasaIndisponivel = 'ocupada' | 'fechada';
+export type MotivoDaCasaIndisponivel = 'ocupada' | 'fechada' | 'mudou' | 'fora-do-ar';
+
+/** As recusas da casa que, num carrinho antigo, deixam a casa na lista com o "Mudar" (o motivo 'mudou'). */
+const RECUSAS_QUE_MUDARAM: ReadonlySet<string> = new Set(['hospedes', 'pacote', 'minimo', 'fim-de-semana', 'fora-do-limite', 'preco']);
 
 export function motivoDaCasaIndisponivel(c: { ok: boolean; erro?: string }): MotivoDaCasaIndisponivel | undefined {
-  if (c.ok) return undefined;
+  if (c.ok || !c.erro) return undefined;
   if (c.erro === 'ocupada') return 'ocupada';
-  return c.erro === 'casa-fechada' ? 'fechada' : undefined;
+  if (c.erro === 'casa-fechada') return 'fechada';
+  if (c.erro === 'slug') return 'fora-do-ar';
+  return RECUSAS_QUE_MUDARAM.has(c.erro) ? 'mudou' : undefined;
 }
+
+/** A casa indisponível que o cliente troca pelo "Mudar" (a ocupada, a que mudou e a que saiu do ar); a fechada sai pelo X. */
+export const casaParaMudar = (motivo: MotivoDaCasaIndisponivel | undefined): boolean =>
+  motivo === 'ocupada' || motivo === 'mudou' || motivo === 'fora-do-ar';
 
 /**
  * O pedido (POST /api/pedido) é recusado com 403 'casa-fechada' só quando a tela mostrava a casa fechada como reservável:

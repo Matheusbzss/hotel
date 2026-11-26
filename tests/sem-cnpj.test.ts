@@ -108,12 +108,14 @@ test('o endereço é o do cadastro na Receita Federal (Pacote 32), igual nos ter
   // a cidade dos outros textos (o cancelamento, o voucher, os dados para o Google) é a mesma do endereço
   assert.ok(EMPRESA.enderecoCidade.startsWith(`${EMPRESA.cidade} - ${EMPRESA.uf}`));
   // as três versões que o site pode mostrar: a de hoje, a de hoje com os e-mails e a do pagamento online
-  for (const [online, emails] of [
-    [false, false],
-    [false, true],
-    [true, true],
+  for (const [online, emails, casas] of [
+    [false, false, false],
+    [false, true, false],
+    [true, true, false],
+    // Etapa 7, pacote 3: a versão com as casas de temporada
+    [true, true, true],
   ] as const) {
-    const legais = textosLegais(online, emails);
+    const legais = textosLegais(online, emails, casas);
     for (const doc of [legais.termos, legais.privacidade]) {
       for (const [idioma, texto] of Object.entries(doc)) {
         const frases = frasesDoDocumento(texto);

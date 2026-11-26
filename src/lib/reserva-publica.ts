@@ -446,8 +446,9 @@ export function paraPublico(r: Reserva, idioma: Idioma): ReservaPublica {
     ...(reembolsoPartes ? { reembolsoPartes } : {}),
     // o pagamento que chegou com o pedido cancelado, enquanto a equipe decide (Pacote 22)
     ...(status === 'cancelado' && pagamentoRetidoADecidir(r) ? { pagamentoRetido: true as const } : {}),
-    // o voucher que a equipe cancelou sem reembolso (Pacote 33): o motivo e a regra, no idioma da página
-    ...(semReembolso ? { semReembolso: frasesDoCancelamentoSemReembolso(d.pedido, semReembolso) } : {}),
+    // o voucher que a equipe cancelou sem reembolso (Pacote 33): o motivo e a regra, no idioma da página (na casa, os das
+    // casas de temporada: Etapa 7, pacote 2)
+    ...(semReembolso ? { semReembolso: frasesDoCancelamentoSemReembolso(d.pedido, semReembolso, ehCasa(r)) } : {}),
   };
   if (ehCasa(r)) {
     const casa = casaPublica(r, idioma, d);

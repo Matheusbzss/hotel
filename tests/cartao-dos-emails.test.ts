@@ -35,7 +35,8 @@ test('as frases do cartão: ao cliente e à equipe, com os de reembolso, cancela
   );
   assert.equal(
     fraseDosEmails('equipe', 30),
-    'pedido pago, pedido de desistência, reembolso que falhou e pagamento que chegou num pedido cancelado',
+    // Etapa 7, pacote 2: a casa paga sem as datas presas
+    'pedido pago, pedido de desistência, reembolso que falhou, pagamento que chegou num pedido cancelado e casa paga sem as datas presas',
   );
   // os dois lembretes têm o mesmo nome e aparecem uma vez
   assert.equal(nomesDosEmails('cliente').filter((n) => n.includes('lembretes')).length, 1);

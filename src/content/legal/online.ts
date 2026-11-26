@@ -3,6 +3,15 @@ import { DESCONTO_PIX_PORCENTO } from '../../config/precos.ts';
 import type { IdiomaConteudo, Traduzido } from '../../i18n/conteudo.ts';
 import { comAjustesAR, type ParAR } from './argentino.ts';
 import { AJUSTES_AR_CANCELAMENTO, CANCELAMENTO } from './cancelamento.ts';
+import {
+  ATUALIZADO_EM_CASAS,
+  MUDANCAS_CANCELAMENTO_CASAS,
+  MUDANCAS_PRIVACIDADE_CASAS,
+  MUDANCAS_TERMOS_CASAS,
+  NOVOS_PARES_CANCELAMENTO_CASAS,
+  NOVOS_PARES_PRIVACIDADE_CASAS,
+  NOVOS_PARES_TERMOS_CASAS,
+} from './casas.ts';
 import { comMudancas, juntarMudancas, paresQueFicam, type MudancasDoDocumento } from './mudancas.ts';
 import { AJUSTES_AR_PRIVACIDADE, PRIVACIDADE } from './privacidade.ts';
 import { AJUSTES_AR_TERMOS, TERMOS } from './termos.ts';
@@ -569,6 +578,35 @@ export const AJUSTES_AR_CANCELAMENTO_ONLINE = CANCELAMENTO_ON.pares;
 export const AJUSTES_AR_PRIVACIDADE_ONLINE = PRIVACIDADE_ON.pares;
 export const AJUSTES_AR_PRIVACIDADE_EMAILS = PRIVACIDADE_EM.pares;
 
+/*
+ * A versão com as casas de temporada (Etapa 7, pacote 3; src/content/legal/casas.ts): a do pagamento online mais as regras
+ * das casas nos termos e no cancelamento e a reserva da casa e os hóspedes na privacidade. Os pares argentinos são os da
+ * versão online que continuam valendo (as frases novas não têm verbo em "tú").
+ */
+const TERMOS_CA = outraVersao(TERMOS_ONLINE, MUDANCAS_TERMOS_CASAS, AJUSTES_AR_TERMOS_ONLINE, NOVOS_PARES_TERMOS_CASAS);
+const CANCELAMENTO_CA = outraVersao(
+  CANCELAMENTO_ONLINE,
+  MUDANCAS_CANCELAMENTO_CASAS,
+  AJUSTES_AR_CANCELAMENTO_ONLINE,
+  NOVOS_PARES_CANCELAMENTO_CASAS,
+);
+const PRIVACIDADE_CA = outraVersao(
+  PRIVACIDADE_ONLINE,
+  MUDANCAS_PRIVACIDADE_CASAS,
+  AJUSTES_AR_PRIVACIDADE_ONLINE,
+  NOVOS_PARES_PRIVACIDADE_CASAS,
+);
+
+/** Os Termos de Uso com o pagamento online e a reserva das casas no ar, nos quatro idiomas. */
+export const TERMOS_CASAS = TERMOS_CA.doc;
+/** A Política de Cancelamento com o pagamento online e a reserva das casas no ar, nos quatro idiomas. */
+export const CANCELAMENTO_CASAS = CANCELAMENTO_CA.doc;
+/** A Política de Privacidade com o pagamento online, os e-mails e a reserva das casas no ar, nos quatro idiomas. */
+export const PRIVACIDADE_CASAS = PRIVACIDADE_CA.doc;
+export const AJUSTES_AR_TERMOS_CASAS = TERMOS_CA.pares;
+export const AJUSTES_AR_CANCELAMENTO_CASAS = CANCELAMENTO_CA.pares;
+export const AJUSTES_AR_PRIVACIDADE_CASAS = PRIVACIDADE_CA.pares;
+
 /** Os três textos legais da versão que vale e a data de cada um. */
 export interface TextosLegais {
   termos: Traduzido<DocumentoLegal>;
@@ -586,8 +624,18 @@ export interface TextosLegais {
  *   privacidade que cita os e-mails, o Resend, o lembrete do carrinho e o prazo do e-mail no carrinho; só a data da
  *   privacidade muda, e os termos e o cancelamento ficam com as deles;
  * - senão, o texto de hoje, sem mudar nada, com a data de cada um.
+ * Com a reserva das casas aberta para o público (`casas`: RESERVA_CASAS=publico, reservaCasasNoAr em
+ * src/lib/reserva-casas.ts; só com o pagamento online), a versão do pagamento online com as casas (src/content/legal/casas.ts),
+ * com a data ATUALIZADO_EM_CASAS nos três textos (os três mudam).
  */
-export function textosLegais(online: boolean, emails: boolean = false): TextosLegais {
+export function textosLegais(online: boolean, emails: boolean = false, casas: boolean = false): TextosLegais {
+  if (online && casas)
+    return {
+      termos: TERMOS_CASAS,
+      cancelamento: CANCELAMENTO_CASAS,
+      privacidade: PRIVACIDADE_CASAS,
+      atualizadoEm: { termos: ATUALIZADO_EM_CASAS, cancelamento: ATUALIZADO_EM_CASAS, privacidade: ATUALIZADO_EM_CASAS },
+    };
   if (online)
     return {
       termos: TERMOS_ONLINE,

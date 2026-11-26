@@ -1,6 +1,7 @@
 // com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
 import { AVISO_DESISTENCIA, dentroDoArrependimento } from './desistencia.ts';
 import { segundosAteOInicio, type ItemAgendado } from './formas-pagamento.ts';
+import { hojeEmBuzios } from './validacao.ts';
 import { agruparPedidos, provedorDaReserva, reembolsoParaResolver, voucherAtivo, voucherPago, type ErroDoPainel } from './pedidos-painel.ts';
 import { reembolsosFalhos } from './reembolsos-a-resolver.ts';
 import type { Reserva } from './reservas';
@@ -34,6 +35,10 @@ import {
  *   dentro dos 7 dias (travaDaDesistencia).
  * - O motivo combina com a data do serviço (motivosQueCombinam): "não compareceu" só depois do início, e "fora da
  *   política" (menos de 24 horas) só a menos de 24 horas do início ou depois dele.
+ * - Na casa de temporada (Etapa 7, pacote 2), a regra é a das casas e não a dos passeios: "fora da política" só com a entrada
+ *   a menos de 30 dias (dias de calendário, no horário de Brasília) e fora dos 7 dias do arrependimento, ou com a estadia já
+ *   começada; o painel diz o que a regra manda (linhasDaRegraDasCasas), e o histórico, o e-mail e a página do pedido levam o
+ *   motivo e a regra das casas. Nada aqui devolve dinheiro: o reembolso continua só pelo "Reembolsar" com o "Confirmo".
  */
 
 export const ACOES_SEM_REEMBOLSO = ['cancelar_sem_reembolso', 'cancelar_item_sem_reembolso'] as const;
@@ -244,12 +249,99 @@ export function escolhasDoCancelamento(vouchers: readonly Reserva[], agora: Date
 /* ------------------------------------------------------------------ */
 /* O motivo                                                            */
 
-/** O motivo como o painel escreve na escolha da tela de resumo. */
+/** O motivo como o painel escreve na escolha da tela de resumo (nos passeios e no transfer). */
 export const ROTULO_DO_MOTIVO: Record<MotivoSemReembolso, string> = {
   'fora-da-politica': 'Fora da política: o cancelamento foi pedido com menos de 24 horas de antecedência',
   'nao-compareceu': 'Não compareceu no horário e no local combinados',
   outro: 'Outro motivo (escreva abaixo)',
 };
+
+/* ------------------------------------------------------------------ */
+/* A regra das casas (Etapa 7, pacote 2)                               */
+
+/**
+ * Qual política de cancelamento vale para os vouchers a cancelar: a dos passeios e do transfer (24 horas, item 6 da
+ * política), a das casas de temporada (30 dias e os 7 dias do arrependimento: CANCELAMENTO_DAS_CASAS, src/data/regras-casas.ts)
+ * ou as duas (o pedido inteiro com casa e passeio). Decidida pelos vouchers, nunca guardada: o voucher não muda de tipo.
+ */
+export type RegraDoCancelamento = 'passeios' | 'casas' | 'as-duas';
+
+export function regraDosVouchers(vouchers: readonly Pick<ItemAgendado, 'tipo'>[]): RegraDoCancelamento {
+  const casas = vouchers.filter((v) => v.tipo === 'casa').length;
+  if (!casas) return 'passeios';
+  return casas === vouchers.length ? 'casas' : 'as-duas';
+}
+
+/** Até quantos dias antes da entrada a casa se cancela com o sinal de volta (decisão do dono de 25/11/2026). */
+export const ANTECEDENCIA_DAS_CASAS_DIAS = 30;
+
+/**
+ * Os dias de calendário de hoje até a entrada na casa, pelas datas no horário de Brasília (o de Búzios): a conta da regra dos
+ * 30 dias. Hoje 26/11 e a entrada 26/12: 30 dias (ainda devolve o sinal); a entrada 25/12: 29 dias. Negativo depois da
+ * entrada; NaN quando a data não dá para ler.
+ */
+export function diasAteAEntrada(entrada: string, agora: Date): number {
+  const hoje = Date.parse(`${hojeEmBuzios(agora)}T12:00:00Z`);
+  const dia = /^\d{4}-\d{2}-\d{2}$/.test(entrada) ? Date.parse(`${entrada}T12:00:00Z`) : Number.NaN;
+  return Math.round((dia - hoje) / DIA_MS);
+}
+
+/** O voucher como a regra do motivo lê: quando começa e, na casa, a compra (os 7 dias do arrependimento). */
+export type ItemDoMotivo = ItemAgendado & Partial<Pick<Reserva, 'pagamento' | 'criadaEm'>>;
+
+/**
+ * "Fora da política" combina com esta casa: a entrada é daqui a menos de 30 dias (ou a estadia já começou) e a compra não
+ * está dentro dos 7 dias do arrependimento com a estadia ainda por começar (aí a devolução é total). Na dúvida (a data que
+ * não dá para ler), deixa passar, como nos passeios.
+ */
+function foraDaPoliticaDaCasa(v: ItemDoMotivo, agora: Date): boolean {
+  const comecou = segundosAteOInicio(v, agora) <= 0;
+  if (comecou) return true;
+  const dias = diasAteAEntrada(v.data, agora);
+  if (dias >= ANTECEDENCIA_DAS_CASAS_DIAS) return false;
+  const compra = v.pagamento ? compraDoPedido({ pagamento: v.pagamento, criadaEm: v.criadaEm ?? '' }) : undefined;
+  return dentroDoArrependimento(compra, agora) !== true;
+}
+
+/** O motivo como o painel escreve, com a regra que vale para os vouchers a cancelar (a das casas, a dos passeios ou as duas). */
+export function rotuloDoMotivo(m: MotivoSemReembolso, regra: RegraDoCancelamento): string {
+  if (m !== 'fora-da-politica' || regra === 'passeios') return ROTULO_DO_MOTIVO[m];
+  return regra === 'casas'
+    ? 'Fora da política: o cancelamento foi pedido a menos de 30 dias da entrada na casa, fora dos 7 dias da compra'
+    : 'Fora da política: no passeio, com menos de 24 horas de antecedência; na casa, a menos de 30 dias da entrada, fora dos 7 dias da compra';
+}
+
+const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+/**
+ * A linha da tela de resumo do "Cancelar sem reembolso…" que diz à equipe o que a regra das casas manda agora, uma por casa
+ * a cancelar, e de quando a conta é feita (crítica de 26/11, furo 16): os dias de calendário até a entrada, contados de hoje,
+ * no horário de Brasília. Se o cliente pediu antes, vale o dia da mensagem dele (item 8 da política). Ela não decide nada:
+ * quem decide é a equipe, e só "Outro motivo" fica quando a regra manda devolver.
+ */
+export function linhasDaRegraDasCasas(aCancelar: readonly (ItemDoMotivo & { codigo?: string })[], agora: Date): string[] {
+  const hoje = hojeEmBuzios(agora);
+  return aCancelar
+    .filter((v) => v.tipo === 'casa')
+    .map((v) => {
+      const dias = diasAteAEntrada(v.data, agora);
+      const quem = v.codigo ? `${v.codigo}: ` : '';
+      const conta = `dias de calendário até a entrada (${dataBr(v.data)}), contados de hoje, ${dataBr(hoje)}, no horário de Brasília; se o cliente pediu o cancelamento antes, conte do dia da mensagem dele`;
+      if (segundosAteOInicio(v, agora) <= 0) {
+        return `${quem}a estadia já começou (entrada em ${dataBr(v.data)} às 15h): pela regra das casas, a agência fica com o sinal e não cobra o restante.`;
+      }
+      const compra = v.pagamento ? compraDoPedido({ pagamento: v.pagamento, criadaEm: v.criadaEm ?? '' }) : undefined;
+      if (dentroDoArrependimento(compra, agora) === true) {
+        return `${quem}a compra está dentro dos 7 dias do arrependimento e a entrada ainda não chegou: pela lei e pela regra das casas, a devolução é total (faltam ${dias} dias, ${conta}).`;
+      }
+      if (Number.isNaN(dias)) return `${quem}não deu para ler a data da entrada: confira a regra das casas no pedido.`;
+      const manda =
+        dias >= ANTECEDENCIA_DAS_CASAS_DIAS
+          ? 'pela regra das casas, o cancelamento devolve o sinal inteiro'
+          : 'pela regra das casas, a agência fica com o sinal e não cobra o restante';
+      return `${quem}faltam ${dias === 1 ? '1 dia' : `${dias} dias`} para a entrada (${conta}): ${manda}.`;
+    });
+}
 
 /** O motivo que veio no formulário, ou o erro do painel. O texto só vale (e só é exigido) com "outro". */
 export type MotivoDoFormulario = { ok: true; motivo: MotivoSemReembolso; texto?: string } | { ok: false; erro: ErroDoPainel };
@@ -274,27 +366,37 @@ const ANTECEDENCIA_DA_POLITICA_S = 24 * 3600;
  * cliente é o que conta, item 8 da política), e o item 3 dá reembolso integral: o e-mail diria ao cliente um motivo
  * impossível. O início que não dá para ler (segundosAteOInicio devolve NaN) deixa passar. A tela mostra só estes, e a rota
  * confere de novo (motivo-fora-da-data).
+ * Na casa de temporada (Etapa 7, pacote 2), "fora da política" segue a regra das casas e não a das 24 horas: só com a
+ * entrada a menos de 30 dias (dias de calendário, no horário de Brasília) e fora dos 7 dias do arrependimento, ou com a
+ * estadia já começada (foraDaPoliticaDaCasa). Com a entrada a 30 dias ou mais, todo pedido feito até agora veio com essa
+ * antecedência, e a regra devolve o sinal; dentro dos 7 dias da compra, antes da entrada, a devolução é total.
  */
-export function motivosQueCombinam(aCancelar: readonly ItemAgendado[], agora: Date): MotivoSemReembolso[] {
+export function motivosQueCombinam(aCancelar: readonly ItemDoMotivo[], agora: Date): MotivoSemReembolso[] {
   const faltam = aCancelar.map((v) => segundosAteOInicio(v, agora));
   return MOTIVOS_SEM_REEMBOLSO.filter((m) =>
     m === 'nao-compareceu'
       ? faltam.every((s) => !(s > 0))
       : m === 'fora-da-politica'
-        ? faltam.every((s) => !(s >= ANTECEDENCIA_DA_POLITICA_S))
+        ? aCancelar.every((v, i) => (v.tipo === 'casa' ? foraDaPoliticaDaCasa(v, agora) : !(faltam[i] >= ANTECEDENCIA_DA_POLITICA_S)))
         : true,
   );
 }
 
-export const motivoCombinaComAData = (motivo: MotivoSemReembolso, aCancelar: readonly ItemAgendado[], agora: Date): boolean =>
+export const motivoCombinaComAData = (motivo: MotivoSemReembolso, aCancelar: readonly ItemDoMotivo[], agora: Date): boolean =>
   motivosQueCombinam(aCancelar, agora).includes(motivo);
 
 /**
  * A frase da tela de resumo quando algum motivo da política não aparece (a data do serviço não deixa), para a equipe
- * entender por que a lista é mais curta; undefined quando os três aparecem.
+ * entender por que a lista é mais curta; undefined quando os três aparecem. Na casa, a regra das casas (30 dias e os 7 dias).
  */
-export function motivosQueNaoAparecem(valem: readonly MotivoSemReembolso[]): string | undefined {
+export function motivosQueNaoAparecem(valem: readonly MotivoSemReembolso[], regra: RegraDoCancelamento = 'passeios'): string | undefined {
   if (!valem.includes('fora-da-politica')) {
+    if (regra === 'casas') {
+      return '"Fora da política" e "Não compareceu" não aparecem: a entrada na casa é daqui a 30 dias ou mais, ou a compra ainda está dentro dos 7 dias do arrependimento, e, pela regra das casas, o cancelamento nesses casos devolve o sinal inteiro.';
+    }
+    if (regra === 'as-duas') {
+      return '"Fora da política" e "Não compareceu" não aparecem: algum serviço ainda começa daqui a 24 horas ou mais, ou a entrada na casa é daqui a 30 dias ou mais (ou a compra ainda está dentro dos 7 dias do arrependimento), e, pela política, o cancelamento nesses casos tem reembolso.';
+    }
     return '"Fora da política" e "Não compareceu" não aparecem: o serviço ainda começa daqui a 24 horas ou mais, e, pela política (item 3), o cancelamento pedido com 24 horas ou mais de antecedência tem reembolso integral.';
   }
   if (!valem.includes('nao-compareceu')) return '"Não compareceu" só aparece depois do horário de início do serviço.';
@@ -303,7 +405,13 @@ export function motivosQueNaoAparecem(valem: readonly MotivoSemReembolso[]): str
 
 /** As frases do motivo e da regra que as páginas do cliente usam (as chaves pedido.motivo* e pedido.regra* do dicionário). */
 export type TextosDoMotivo = Record<
-  'motivoForaDaPolitica' | 'motivoNaoCompareceu' | 'motivoOutro' | 'regraSemReembolso' | 'regraGeralSemReembolso',
+  | 'motivoForaDaPolitica'
+  | 'motivoForaDaPoliticaCasa'
+  | 'motivoNaoCompareceu'
+  | 'motivoOutro'
+  | 'regraSemReembolso'
+  | 'regraSemReembolsoCasa'
+  | 'regraGeralSemReembolso',
   string
 >;
 
@@ -312,27 +420,35 @@ export type TextosDoMotivo = Record<
  * src/lib/reserva-publica.ts): a regra do item 6 da política de cancelamento, com a ressalva do começo dele (fora das
  * situações dos itens 2, 4 e 5, o cancelamento com menos de 24 horas e o não comparecimento não dão direito a reembolso),
  * nos dois motivos da política; no "outro", o texto como a equipe escreveu e que as regras estão na política. Os mesmos
- * textos do e-mail (src/lib/email/textos.ts, semReembolso).
+ * textos do e-mail (src/lib/email/textos.ts, semReembolso). Na casa de temporada (`casa`; Etapa 7, pacote 2), o motivo e a
+ * regra das casas: a menos de 30 dias da entrada, fora dos 7 dias da compra, o sinal não volta e o restante não é cobrado.
  */
 export function frasesDoCancelamentoSemReembolso(
   P: TextosDoMotivo,
   c: Pick<CancelamentoSemReembolso, 'motivo' | 'texto'>,
+  casa = false,
 ): { motivo: string; regra: string } {
   const motivo =
     c.motivo === 'outro'
       ? P.motivoOutro.replace('{texto}', () => c.texto ?? '')
       : c.motivo === 'nao-compareceu'
         ? P.motivoNaoCompareceu
-        : P.motivoForaDaPolitica;
-  return { motivo, regra: c.motivo === 'outro' ? P.regraGeralSemReembolso : P.regraSemReembolso };
+        : casa
+          ? P.motivoForaDaPoliticaCasa
+          : P.motivoForaDaPolitica;
+  return { motivo, regra: c.motivo === 'outro' ? P.regraGeralSemReembolso : casa ? P.regraSemReembolsoCasa : P.regraSemReembolso };
 }
 
-/** O motivo como o histórico do pedido escreve. */
-const MOTIVO_NO_HISTORICO: Record<MotivoSemReembolso, string> = {
-  'fora-da-politica': 'fora da política (o cancelamento foi pedido com menos de 24 horas de antecedência)',
-  'nao-compareceu': 'não compareceu no horário e no local combinados',
-  outro: 'outro',
-};
+/** O motivo como o histórico do pedido escreve, com a regra que vale para os vouchers cancelados. */
+function motivoNoHistorico(m: MotivoSemReembolso, regra: RegraDoCancelamento): string {
+  if (m === 'nao-compareceu') return 'não compareceu no horário e no local combinados';
+  if (m === 'outro') return 'outro';
+  if (regra === 'casas') return 'fora da política das casas (o cancelamento foi pedido a menos de 30 dias da entrada, fora dos 7 dias da compra)';
+  if (regra === 'as-duas') {
+    return 'fora da política (no passeio, com menos de 24 horas de antecedência; na casa, a menos de 30 dias da entrada, fora dos 7 dias da compra)';
+  }
+  return 'fora da política (o cancelamento foi pedido com menos de 24 horas de antecedência)';
+}
 
 /* ------------------------------------------------------------------ */
 /* A gravação                                                          */
@@ -358,11 +474,14 @@ export function registroDoCancelamento(
 /** O começo da linha do histórico do cancelamento sem reembolso. Não começa com "Aviso:": nada a resolver depois. */
 export const INICIO_DO_CANCELAMENTO_SEM_REEMBOLSO = 'Cancelado sem reembolso no painel';
 
-/** A linha do histórico: o alcance, os vouchers que deixam de valer, que nada é devolvido e o motivo. */
-export function linhaDoCancelamentoSemReembolso(c: CancelamentoSemReembolso): string {
+/**
+ * A linha do histórico: o alcance, os vouchers que deixam de valer, que nada é devolvido e o motivo (no "fora da política",
+ * com a regra dos vouchers cancelados: a dos passeios, a das casas ou as duas).
+ */
+export function linhaDoCancelamentoSemReembolso(c: CancelamentoSemReembolso, regra: RegraDoCancelamento = 'passeios'): string {
   const quais =
     c.vouchers.length === 1 ? `o voucher ${c.vouchers[0]} deixa de valer` : `os vouchers ${emFrase(c.vouchers)} deixam de valer`;
-  const motivo = c.motivo === 'outro' ? `outro, escrito para o cliente: «${c.texto ?? ''}»` : MOTIVO_NO_HISTORICO[c.motivo];
+  const motivo = c.motivo === 'outro' ? `outro, escrito para o cliente: «${c.texto ?? ''}»` : motivoNoHistorico(c.motivo, regra);
   return `${INICIO_DO_CANCELAMENTO_SEM_REEMBOLSO} (${c.alcance === 'pedido' ? 'o pedido inteiro' : 'um voucher só'}): ${quais}, e nada é devolvido ao cliente. Motivo: ${motivo}`;
 }
 
@@ -370,13 +489,18 @@ export function linhaDoCancelamentoSemReembolso(c: CancelamentoSemReembolso): st
  * A primeira gravação do cancelamento, dentro da trava de versão, no primeiro voucher a cancelar (relido): o cancelamento
  * entra no JSON do pagamento (o que é do pedido: nos arquivos, levado aos outros vouchers; no banco, a linha do pedido), o
  * voucher fica 'cancelado' e saem as linhas do histórico (a do cancelamento e, com a trava, a do aviso). O status do pedido
- * NÃO muda. Devolve as linhas para quem grava registrar.
+ * NÃO muda. Devolve as linhas para quem grava registrar. `regra`: a política dos vouchers cancelados (regraDosVouchers).
  */
-export function aplicarCancelamento(r: Reserva, registro: CancelamentoSemReembolso, trava: TravaDosSeteDias | null): string[] {
+export function aplicarCancelamento(
+  r: Reserva,
+  registro: CancelamentoSemReembolso,
+  trava: TravaDosSeteDias | null,
+  regra: RegraDoCancelamento = 'passeios',
+): string[] {
   const antes: unknown = r.pagamento.semReembolso;
   r.pagamento.semReembolso = [...(Array.isArray(antes) ? (antes as CancelamentoSemReembolso[]) : []), registro];
   if (registro.vouchers.includes(r.codigo)) r.statusItem = 'cancelado';
-  return [linhaDoCancelamentoSemReembolso(registro), ...(trava ? [linhaDaTravaDosSeteDias(trava, 'cancelamento')] : [])];
+  return [linhaDoCancelamentoSemReembolso(registro, regra), ...(trava ? [linhaDaTravaDosSeteDias(trava, 'cancelamento')] : [])];
 }
 
 /** Um voucher com o que é do pedido (status, pagamento, histórico, valores, ids) tirado de outro voucher relido. */

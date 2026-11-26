@@ -194,6 +194,10 @@ const es: Dicionario = {
     casaTotalDaEstadiaCartao: 'Total de la estadía: {cartao} con tarjeta',
     casaIndisponivel: 'Alguna noche de esas fechas ya está ocupada. Toca Cambiar para elegir otras fechas.',
     casaFechada: 'La reserva de esta casa en el sitio no está disponible ahora.',
+    // pacote 2: a casa de um carrinho antigo que deixou de valer como está (a capacidade, um pacote novo, o mínimo, o fim de
+    // semana) e a que saiu do ar: ficam no carrinho, fora da conta, com o "Mudar"
+    casaMudou: 'Las condiciones de esta casa cambiaron para esas fechas. Toca Cambiar para elegir de nuevo.',
+    casaForaDoAr: 'Esta casa ya no está disponible para reservar. Toca Cambiar para ver las otras casas.',
     casaEsperando:
       'Ya hay un pedido de casa con este e-mail esperando el pago. Completa ese pago o espera a que venza, en hasta 1 hora, para hacer otro pedido.',
     casaJaNoCarrinho:
@@ -306,6 +310,11 @@ const es: Dicionario = {
     canceladoSemReembolsoComParteTexto: 'El resto de tu pedido fue cancelado por nuestro equipo, sin reembolso.',
     voucherCanceladoSemReembolso: 'Cancelado, sin reembolso',
     motivoForaDaPolitica: 'Motivo: la cancelación se pidió con menos de 24 horas de anticipación al servicio.',
+    // Etapa 7, pacote 2: o motivo e a regra das casas de temporada (30 dias e os 7 dias da compra), sem verbo em "tú"
+    motivoForaDaPoliticaCasa:
+      'Motivo: la cancelación se pidió a menos de 30 días de la entrada a la casa, fuera de los 7 días posteriores a la compra.',
+    regraSemReembolsoCasa:
+      'Según nuestra política de cancelación de las casas de temporada, cuando la cancelación se hace a menos de 30 días de la entrada (fuera de los 7 días posteriores a la compra), lo que se pagó en el sitio no se devuelve, y el resto de la estadía no se cobra.',
     motivoNaoCompareceu: 'Motivo: inasistencia en el horario y lugar acordados.',
     motivoOutro: 'Motivo: {texto}',
     regraSemReembolso:

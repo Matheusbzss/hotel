@@ -26,6 +26,10 @@ export interface TextosLista {
   casaIndisponivel: string;
   /** A casa cuja reserva fechou para este visitante: o aviso, no lugar do preço; ela sai pelo X. */
   casaFechada: string;
+  /** Pacote 2: a casa de um carrinho antigo que mudou (capacidade, pacote, mínimo, fim de semana), com o "Mudar". */
+  casaMudou: string;
+  /** Pacote 2: a casa que saiu do ar, com o "Mudar" para a lista das casas. */
+  casaForaDoAr: string;
 }
 
 /**
@@ -34,7 +38,7 @@ export interface TextosLista {
  * o Pix embaixo, com o desconto (src/lib/preco-destaque.ts). Com `soCartao` (o checkout sem o Pix, pelo prazo ou pelo limite de
  * valor), só o preço no cartão, que é o que o pedido vai cobrar. Na casa, o preço é o sinal (o que se paga hoje), com a
  * linha do total da estadia embaixo (sem o Pix, só a do cartão); a casa indisponível mostra o aviso no lugar do preço: a
- * ocupada, com o "Mudar"; a fechada (a reserva das casas fechou), só com o X.
+ * ocupada, a que mudou e a que saiu do ar (pacote 2), com o "Mudar"; a fechada (a reserva das casas fechou), só com o X.
  */
 export function ListaCarrinho({
   itens,
@@ -107,9 +111,15 @@ export function ListaCarrinho({
                 // reserva agora); o X de cima tira a casa, e o resto do carrinho segue
                 <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-small">
                   <p className="max-w-full flex-1 font-semibold text-(--color-tinta)" role="status">
-                    {i.indisponivel === 'fechada' ? T.casaFechada : T.casaIndisponivel}
+                    {i.indisponivel === 'fechada'
+                      ? T.casaFechada
+                      : i.indisponivel === 'mudou'
+                        ? T.casaMudou
+                        : i.indisponivel === 'fora-do-ar'
+                          ? T.casaForaDoAr
+                          : T.casaIndisponivel}
                   </p>
-                  {i.indisponivel === 'ocupada' && (
+                  {i.indisponivel !== 'fechada' && (
                     <a href={i.href} className="link ml-auto">
                       {T.mudar}
                     </a>

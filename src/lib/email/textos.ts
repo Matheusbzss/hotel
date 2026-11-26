@@ -175,6 +175,9 @@ export interface TextosEmail {
     motivoOutro: string;
     /** A regra do item 6 da política, com a ressalva do começo dele, nos dois motivos dela. */
     regra: string;
+    /** Etapa 7, pacote 2: o motivo "fora da política" e a regra das casas de temporada (30 dias e os 7 dias da compra). */
+    motivoForaDaPoliticaCasa: string;
+    regraCasa: string;
     /** No motivo "outro": as regras estão na política (o link do rodapé). */
     regraGeral: string;
   };
@@ -318,6 +321,9 @@ const PT: TextosEmail = {
     regra:
       'Pela nossa política de cancelamento (item 6), fora das situações dos itens 2, 4 e 5, cancelamentos feitos com menos de 24 horas de antecedência e o não comparecimento no horário e local combinados não dão direito a reembolso, porque a vaga já foi reservada e paga ao operador.',
     regraGeral: 'As regras de cancelamento e reembolso estão na nossa política de cancelamento.',
+    motivoForaDaPoliticaCasa: 'Motivo: o cancelamento foi pedido a menos de 30 dias da entrada na casa, fora dos 7 dias depois da compra.',
+    regraCasa:
+      'Pela nossa política de cancelamento das casas de temporada, quando o cancelamento é feito a menos de 30 dias da entrada (fora dos 7 dias depois da compra), o sinal pago no site não é devolvido, e o restante da estadia não é cobrado.',
   },
   lembrete: {
     assunto1: 'Seu carrinho está guardado',
@@ -458,6 +464,10 @@ const EN: TextosEmail = {
     regra:
       'Under our cancellation policy (item 6), except in the situations described in items 2, 4 and 5, cancellations made less than 24 hours in advance and failing to show up at the agreed time and place are not refundable, because the place has already been booked and paid to the operator.',
     regraGeral: 'The cancellation and refund rules are in our cancellation policy.',
+    motivoForaDaPoliticaCasa:
+      'Reason: the cancellation was requested less than 30 days before check-in at the home, outside the 7 days after purchase.',
+    regraCasa:
+      'Under our holiday home cancellation policy, when the cancellation is made less than 30 days before check-in (outside the 7 days after purchase), the amount paid on the site is not refunded, and the rest of the stay is not charged.',
   },
   lembrete: {
     assunto1: 'Your cart is saved',
@@ -600,6 +610,10 @@ const ES: TextosEmail = {
     regra:
       'Según nuestra política de cancelación (punto 6), fuera de las situaciones de los puntos 2, 4 y 5, las cancelaciones con menos de 24 horas de anticipación y la inasistencia en el horario y lugar acordados no dan derecho a reembolso, porque el lugar ya fue reservado y pagado al operador.',
     regraGeral: 'Las reglas de cancelación y reembolso están en nuestra política de cancelación.',
+    motivoForaDaPoliticaCasa:
+      'Motivo: la cancelación se pidió a menos de 30 días de la entrada a la casa, fuera de los 7 días posteriores a la compra.',
+    regraCasa:
+      'Según nuestra política de cancelación de las casas de temporada, cuando la cancelación se hace a menos de 30 días de la entrada (fuera de los 7 días posteriores a la compra), lo que se pagó en el sitio no se devuelve, y el resto de la estadía no se cobra.',
   },
   lembrete: {
     assunto1: 'Tu carrito sigue guardado',

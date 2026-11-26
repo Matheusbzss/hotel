@@ -19,6 +19,14 @@ export function modoReservaCasas(valor: string | undefined = process.env.RESERVA
 }
 
 /**
+ * A reserva das casas está aberta para todo mundo (RESERVA_CASAS=publico): os textos legais ganham as regras das casas
+ * (src/content/legal/casas.ts; textosLegais só as põe com o pagamento online no ar, porque a casa nunca abre sem ele). As
+ * páginas legais são estáticas: o valor é lido no build, e o dono liga com um novo deploy. No modo 'admin' o público ainda
+ * não reserva casa, e os textos continuam os do pagamento online.
+ */
+export const reservaCasasNoAr = (): boolean => modoReservaCasas() === 'publico';
+
+/**
  * A regra, sem variável de ambiente nem rede: a reserva das casas vale para este visitante quando o interruptor deixa (no
  * 'publico', todos; no 'admin', só o admin) e o pagamento online vale para ele.
  */

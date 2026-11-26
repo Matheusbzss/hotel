@@ -18,6 +18,7 @@ import {
   variacao,
   verPorSemana,
   type CarrinhoNoFunil,
+  type CasasNoPainel,
   type Fatia,
   type Funil,
   type Lembretes,
@@ -226,6 +227,32 @@ const LINHA_DE_STATUS = 'flex flex-wrap items-center justify-between gap-x-3 gap
 const NOME_DA_LINHA = 'grow basis-20';
 
 /** Os e-mails automáticos (Etapa 6): ligados só com a chave do Resend na Vercel. */
+/**
+ * Etapa 7, pacote 2: as casas de temporada. As reservas pagas no período e os sinais recebidos por elas; o que falta receber
+ * na chegada é só das estadias de hoje em diante (pagas em qualquer data): o painel não marca o restante recebido, e a
+ * estadia que já começou sai da conta.
+ */
+function Casas({ c }: { c: CasasNoPainel }) {
+  return (
+    <dl className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-small text-tinta-suave">Reservas pagas no período</dt>
+        <dd className="font-bold tabular-nums">{c.reservas}</dd>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-small text-tinta-suave">Sinais recebidos no período</dt>
+        <dd className="font-bold tabular-nums">{formatarPreco(c.sinaisCentavos)}</dd>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-small text-tinta-suave">
+          Falta receber na chegada ({contagem(c.aReceber.estadias, 'estadia', 'estadias')} de hoje em diante)
+        </dt>
+        <dd className="font-bold tabular-nums">{formatarPreco(c.aReceber.centavos)}</dd>
+      </div>
+    </dl>
+  );
+}
+
 function Emails() {
   const ligado = emailLigado();
   const itens: [string, boolean][] = [
@@ -537,6 +564,15 @@ export default async function Estatisticas({ searchParams }: { searchParams: Pro
           </div>
         </details>
       )}
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <Cartao
+          titulo="Casas de temporada"
+          nota="O sinal é pago no site e o restante na chegada. O que falta receber conta só as estadias de hoje em diante"
+        >
+          <Casas c={e.casas} />
+        </Cartao>
+      </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <Cartao

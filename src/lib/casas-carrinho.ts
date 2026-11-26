@@ -1,7 +1,8 @@
 import 'server-only';
+import type { Texto } from '@/data/passeios';
 import { SEM_CASAS, noitesDaCasa, slugsDasCasas, type ContextoDasCasas } from './casa-no-carrinho';
 import type { CarrinhoGuardado } from './carrinho-servidor';
-import { bloqueiosDasCasasAgora, casasDaPagina } from './casas';
+import { bloqueiosDasCasasAgora, casasDaPagina, listarCasas } from './casas';
 import { itensDeCasaDoCarrinho } from './pedido-carrinho';
 import { casasAbertasPara } from './reserva-casas';
 
@@ -29,9 +30,13 @@ export async function contextoDasCasas({
   const casas = todas.filter((c) => slugs.includes(c.slug));
   const bloqueios = await bloqueiosDasCasasAgora(casas.map((c) => c.id));
   const proprios = new Set(itensProprios);
+  // pacote 2: a casa do carrinho que saiu do ar fica na lista, indisponível, com o nome e a foto (só lida quando falta alguma)
+  const faltam = slugs.filter((s) => !casas.some((c) => c.slug === s));
+  const foraDoAr = faltam.length ? await casasForaDoAr(faltam) : undefined;
   return {
     lido: true,
     aberta,
+    ...(foraDoAr?.size ? { foraDoAr } : {}),
     casas: new Map(
       casas.map((casa) => [
         casa.slug,
@@ -45,6 +50,21 @@ export async function contextoDasCasas({
       ]),
     ),
   };
+}
+
+/**
+ * O nome e a primeira foto das casas que saíram do ar (o painel lê todas, no ar ou não). Uma falha aqui não derruba o
+ * carrinho: a casa fora do ar só deixa de aparecer, como antes do pacote 2.
+ */
+async function casasForaDoAr(slugs: readonly string[]): Promise<Map<string, { nome: Texto; foto: string }>> {
+  try {
+    return new Map(
+      (await listarCasas()).filter((c) => slugs.includes(c.slug)).map((c) => [c.slug, { nome: c.nome, foto: c.fotos[0] ?? '' }]),
+    );
+  } catch (e) {
+    console.error(`[carrinho] não deu para ler as casas fora do ar: ${e instanceof Error ? e.message : String(e)}`);
+    return new Map();
+  }
 }
 
 /**

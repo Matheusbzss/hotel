@@ -26,9 +26,9 @@ import {
   aCobrarHojeNoPainel,
   agruparPedidos,
   linhasDaCasaNoPainel,
-  reativarRetidoEscondido,
   recebidoDoPedido,
   reembolsoNoPainel,
+  retidoComCasa,
   valorRecebido,
 } from '../src/lib/pedidos-painel.ts';
 import { cartaoEmDestaque } from '../src/lib/preco-destaque.ts';
@@ -363,13 +363,17 @@ test('o reembolso nunca passa do sinal pago: "Reembolsar tudo" da casa é o sina
   for (const opcao of [...opcoesDoReembolso(sozinha), ...opcoesDoReembolso(junto)]) assert.ok(opcao.centavos <= 115400);
 });
 
-test('o "Reativar" fica escondido no pedido com casa (só o "Devolver"); o pedido sem casa continua com os dois', () => {
-  assert.equal(reativarRetidoEscondido([CASA]), true);
-  assert.equal(reativarRetidoEscondido(casaComPasseio()), true);
-  assert.equal(reativarRetidoEscondido([PASSEIO]), false);
-  assert.match(ERROS_DO_PAINEL['reativar-com-casa'], /casa de temporada.*Devolva o pagamento ao cliente\. Nada foi feito\.$/);
-  assert.match(RETIDO_COM_CASA, /não reativa/);
-  // o e-mail à equipe do pagamento parado: no pedido com casa, só devolver
+test('o pedido com casa e o pagamento parado: desde o pacote 2, o "Reativar" prende as datas de novo ou recusa com o motivo', () => {
+  assert.equal(retidoComCasa([CASA]), true);
+  assert.equal(retidoComCasa(casaComPasseio()), true);
+  assert.equal(retidoComCasa([PASSEIO]), false);
+  assert.match(
+    ERROS_DO_PAINEL['reativar-datas-ocupadas'],
+    /já foram reservadas por outra pessoa.*Devolva o pagamento ao cliente\. Nada foi feito\.$/,
+  );
+  assert.match(ERROS_DO_PAINEL['datas-sem-conferir'], /Nada foi feito\. Tente de novo em instantes\.$/);
+  assert.match(RETIDO_COM_CASA, /reativar prende as datas da casa de novo/);
+  // o e-mail à equipe do pagamento parado: no pedido com casa, as duas escolhas, e o que acontece com as datas
   const site = {
     url: 'https://orlanativa.online',
     logo: 'https://orlanativa.online/logo.png',
@@ -384,8 +388,8 @@ test('o "Reativar" fica escondido no pedido com casa (só o "Devolver"); o pedid
     comCasa: true,
   });
   assert.match(comCasa.texto, /Este pedido tem casa de temporada/);
-  assert.match(comCasa.texto, /devolva o dinheiro ao cliente/);
-  assert.doesNotMatch(comCasa.texto, /reativar o pedido \(ele fica pago/);
+  assert.match(comCasa.texto, /devolver o dinheiro ao cliente, ou reativar o pedido/);
+  assert.match(comCasa.texto, /Reativar prende as datas da casa de novo; se outra pessoa já reservou alguma noite, o painel recusa/);
   const semCasa = emailAvisoDoPagamentoRetido({
     codigo: 'ON-PAS001',
     valor: 'R$ 154,00',
@@ -685,17 +689,18 @@ test('o bloqueio à mão confere as reservas do site antes E depois de gravar e,
   tem(casas, ".eq('casa_id', casaId).eq('origem', 'site').lt('inicio', fim).gt('fim', inicio);");
 });
 
-test('o painel: o bloco da casa, o "a cobrar hoje" no pedido em aberto, o valor do voucher com o sinal guardado e o "Reativar" escondido', () => {
+test('o painel: o bloco da casa, o "a cobrar hoje" no pedido em aberto, o valor do voucher com o sinal guardado e o "Reativar" que prende as datas', () => {
   const pagina = codigo('src', 'app', 'admin', 'page.tsx');
   tem(pagina, '{linhasDaCasaNoPainel(r, status).map((linha) => (');
   tem(pagina, '<DetalhesCasa r={i} status={p.status} />');
   tem(pagina, 'const cobrar = aCobrarHojeNoPainel(p);');
   tem(pagina, "{cobrar ? 'a cobrar hoje no Pix' : 'no Pix'}");
-  tem(pagina, ".filter((acao) => !(acao === 'reativar_retido' && reativarRetidoEscondido(p.itens)))");
-  // a rota: o reativar que chega de uma aba antiga é recusado, antes e dentro da trava
+  // pacote 2: o "Reativar" aparece também no pedido com casa, com a frase das datas embaixo
+  tem(pagina, '{r.pagamento.retido && pagamentoRetidoADecidir(r) && retidoComCasa(p.itens) && (');
+  // a rota: o pedido com casa prende as datas de novo ANTES de reativar, ou recusa com o motivo
   const rota = codigo('src', 'app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
-  tem(rota, "if (acao === 'reativar_retido' && reativarRetidoEscondido(vouchers)) return voltar('reativar-com-casa');");
-  tem(rota, 'if (reativarRetidoEscondido(vouchers)) return null;');
+  tem(rota, 'await prenderDatasDoPedido(vouchers, retido.sessaoId, { todas: true });');
+  tem(rota, "if (e instanceof DatasIndisponiveis) return 'reativar-datas-ocupadas';");
   // o reembolso de um voucher: o sinal GUARDADO na compra (furo 19), nunca a conta de hoje
   tem(rota, '...(ehCasa(item) ? { sinalCentavos: item.sinalCentavos, sinalPixCentavos: item.sinalPixCentavos } : {})');
   // o cancelamento do pedido em aberto com casa refaz o calendário das páginas das casas

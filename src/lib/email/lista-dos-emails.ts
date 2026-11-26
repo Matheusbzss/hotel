@@ -28,6 +28,8 @@ export const EMAILS_AUTOMATICOS: Record<TipoEmail, { para: DestinoDoEmail; nome:
   'desistencia-equipe': { para: 'equipe', nome: 'pedido de desistência' },
   'reembolso-falho-equipe': { para: 'equipe', nome: 'reembolso que falhou' },
   'pagamento-retido-equipe': { para: 'equipe', nome: 'pagamento que chegou num pedido cancelado' },
+  // Etapa 7, pacote 2: a casa paga sem as datas presas
+  'datas-da-casa-equipe': { para: 'equipe', nome: 'casa paga sem as datas presas' },
 };
 
 /** Os nomes dos e-mails de um destino, na ordem da lista e sem repetir. */

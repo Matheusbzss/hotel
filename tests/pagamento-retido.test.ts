@@ -454,7 +454,11 @@ test('a rota dentro da trava: o duplo toque e a aba antiga não gravam nada, e a
     reativarNaRota,
     /if \(!acaoDoRetidoOferecida\(r, 'reativar_retido'\) \|\| r\.pagamento\.retido\?\.paymentIntentId !== retido\.paymentIntentId\) return null;/,
   );
-  assert.match(reativarNaRota, /if \(!gravado\.reativou\) return gravado\.repetida \? null : 'acao-nao-vale';/);
+  // Etapa 7, pacote 2: o toque que não reativou solta as datas da casa que prendeu (o repetido, não), e volta como antes
+  assert.match(
+    reativarNaRota,
+    /if \(!gravado\.reativou\) \{\s+if \(comCasa && !gravado\.repetida\) \{[^]*?liberarBloqueiosDaSessao\(retido\.sessaoId\)[^]*?\}\s+return gravado\.repetida \? null : 'acao-nao-vale';\s+\}/,
+  );
   assert.equal(reativarNaRota.match(/pedidoPago\(/g)?.length, 1);
   assert.ok(reativarNaRota.indexOf('pedidoPago(') > reativarNaRota.indexOf('if (!gravado.reativou)'));
   // no banco, os outros vouchers que o cancelamento levou a 'cancelado' voltam a 'ativo': relidos DEPOIS da gravação

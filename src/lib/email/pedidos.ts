@@ -20,14 +20,14 @@ import {
   avisoDoPagamentoRetidoPorEmail,
   avisoDoReembolsoFalho,
   provedorDaReserva,
-  reativarRetidoEscondido,
+  retidoComCasa,
   recebidoDoPedido,
 } from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, ehCasa, ehPasseio, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
 import { stripe } from '../stripe';
-import { avisosDasDatasNaoPresas } from '../trava-das-casas';
+import { avisosDasDatasNaoPresas, voucherDoAvisoDasDatas } from '../trava-das-casas';
 import { formatarDataIso } from '../validacao';
 import { chegadaDasCasas } from '../voucher-casa';
 import { linkWhatsApp } from '../whatsapp';
@@ -47,6 +47,7 @@ import {
   avisoDoEmailDoReembolsoQueNaoSaiu,
   avisoDoEmailSemReembolsoQueNaoSaiu,
   emailDoReembolsoJaSaiu,
+  marcaDoAvisoDasDatasDaCasa,
   marcaDoAvisoDeReembolsoFalho,
   marcaDoAvisoDoPagamentoRetido,
   marcaDoEmailDoReembolso,
@@ -63,9 +64,10 @@ import {
   planoDoEmailDoReembolso,
   versaoParaMarcar,
 } from './regras-dos-avisos';
-import type { AlcanceDoEmailSemReembolso } from '../cancelar-sem-reembolso';
+import { regraDosVouchers, type AlcanceDoEmailSemReembolso } from '../cancelar-sem-reembolso';
 import {
   emailAvisoDaDesistencia,
+  emailAvisoDasDatasDaCasa,
   emailAvisoDoPagamentoRetido,
   emailAvisoDoPedidoPago,
   emailAvisoDoReembolsoFalho,
@@ -538,8 +540,8 @@ export async function enviarAvisoDoPagamentoRetido(codigo: string, paymentIntent
     valor: formatarCifra(aviso.centavos, 'pt-BR'),
     linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
     site: siteDoEmail(),
-    // Etapa 7: no pedido com casa, o painel só oferece devolver (o "Reativar" fica escondido: reativarRetidoEscondido)
-    ...(reativarRetidoEscondido(lista) ? { comCasa: true } : {}),
+    // Etapa 7: no pedido com casa, o "Reativar" prende as datas de novo, ou o painel recusa e a equipe devolve (retidoComCasa)
+    ...(retidoComCasa(lista) ? { comCasa: true } : {}),
   });
   const resultado = await enviarEmail({
     tipo: 'pagamento-retido-equipe',
@@ -742,12 +744,17 @@ export async function enviarEmailSemReembolso(codigo: string, alcance: AlcanceDo
     linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
     site: siteDoEmail(),
   };
-  const motivo = { tipo: regra.cancelamento.motivo, ...(regra.cancelamento.texto ? { texto: regra.cancelamento.texto } : {}) };
+  // Etapa 7, pacote 2: o motivo e a regra das casas na casa de temporada; com casa e passeio, as duas políticas
+  const cancelados = lista.filter((v) => (alcance.tipo === 'pedido' ? regra.cancelados.includes(v.codigo) : v.codigo === alcance.voucher));
+  const motivo = {
+    tipo: regra.cancelamento.motivo,
+    ...(regra.cancelamento.texto ? { texto: regra.cancelamento.texto } : {}),
+    regra: regraDosVouchers(cancelados),
+  };
   const linkPolitica = `${urlDoSite()}${rota(idioma, '/politica-de-cancelamento')}`;
   let mensagem: MensagemEmail;
   if (alcance.tipo === 'pedido') {
     // os vouchers cancelados agora, sem link (não valem mais); com uma parte já devolvida, "o restante do seu pedido"
-    const cancelados = lista.filter((v) => regra.cancelados.includes(v.codigo));
     mensagem = emailPedidoCanceladoSemReembolso({
       ...base,
       itens: itensDoEmail(cancelados, idioma, false),
@@ -844,3 +851,51 @@ export async function enviarAvisoDoPedidoPago(codigo: string): Promise<void> {
 export function agendarAvisoDoPedidoPago(codigo: string): void {
   depoisDaResposta(`pedido-pago-equipe ${codigo}`, () => enviarAvisoDoPedidoPago(codigo));
 }
+
+/**
+ * Etapa 7, pacote 2: o aviso à equipe (EMAIL_RESPOSTA; padrão, financeiro@) da casa paga sem as datas presas: o aviso da
+ * Stripe (o pagamento que chegou depois de a sessão vencer) ou a rede de segurança de hora em hora não conseguiram prender as
+ * noites, porque outra reserva ou um bloqueio já as ocupa. Lido das linhas "Aviso:" que quem conferiu gravou no histórico
+ * (avisoDasDatasNaoPresas, src/lib/trava-das-casas.ts), uma por voucher, e só das que ainda não saíram (a marca
+ * marcaDoAvisoDasDatasDaCasa por voucher e a chave de idempotência). Só com o pedido ainda pago ou contestado. Nada é
+ * devolvido sozinho: a equipe decide. Sai mesmo que o aviso do pedido pago já tenha saído (o pedido que virou pago pela
+ * página do cliente manda aquele e-mail antes de o aviso da Stripe conferir as datas). Sem a chave do Resend, não sai: a
+ * linha continua destacada no painel.
+ */
+export async function enviarAvisoDasDatasDaCasa(codigo: string): Promise<void> {
+  if (!emailLigado()) {
+    console.log(`[email] desligado (sem RESEND_API_KEY): datas-da-casa-equipe ${codigo}`);
+    return;
+  }
+  const lista = await vouchers(codigo);
+  const r = lista[0];
+  if (!r || (r.status !== 'pago' && r.status !== 'contestado')) return;
+  const pedido = r.pedido?.codigo ?? r.codigo;
+  const novas = avisosDasDatasNaoPresas(r.historico).flatMap((linha) => {
+    const voucher = voucherDoAvisoDasDatas(linha);
+    return voucher && !r.historico.some((h) => h.evento.startsWith(marcaDoAvisoDasDatasDaCasa(voucher))) ? [{ linha, voucher }] : [];
+  });
+  if (!novas.length) return;
+  const mensagem = emailAvisoDasDatasDaCasa({
+    codigo: pedido,
+    linhas: novas.map((n) => n.linha),
+    linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
+    site: siteDoEmail(),
+  });
+  const resultado = await enviarEmail({
+    tipo: 'datas-da-casa-equipe',
+    referencia: pedido,
+    para: responderPara(),
+    assunto: mensagem.assunto,
+    html: mensagem.html,
+    texto: mensagem.texto,
+    chave: `datas-da-casa-equipe/${novas.map((n) => n.voucher).join('+')}`,
+  });
+  if (saiu(resultado)) for (const n of novas) await anotar(r.codigo, marcaDoAvisoDasDatasDaCasa(n.voucher));
+}
+
+/** Agenda o aviso à equipe da casa paga sem as datas presas para depois da resposta (o aviso da Stripe e a rede respondem na hora). */
+export function agendarAvisoDasDatasDaCasa(codigo: string): void {
+  depoisDaResposta(`datas-da-casa-equipe ${codigo}`, () => enviarAvisoDasDatasDaCasa(codigo));
+}
+

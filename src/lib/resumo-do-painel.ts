@@ -2,16 +2,18 @@
 import { fmt, type Idioma } from '../i18n/config.ts';
 import {
   CIENTE_DOS_SETE_DIAS,
-  ROTULO_DO_MOTIVO,
   avisoDosSeteDias,
   botaoDoCancelamento,
   confirmacaoDoCancelamento,
   continuamValendo,
   escolhasDoCancelamento,
+  linhasDaRegraDasCasas,
   motivosQueCombinam,
   motivosQueNaoAparecem,
   planoDoCancelamento,
   reembolsoACaminhoDoSite,
+  regraDosVouchers,
+  rotuloDoMotivo,
   type EscolhaDoCancelamento,
 } from './cancelar-sem-reembolso.ts';
 import { formatarCifra } from './cifra.ts';
@@ -357,6 +359,13 @@ export const avisoDoPixForaDoPrazo = (pagoEm: string, dias: number, comTransfere
   'deve passar. A política de cancelamento promete, nesse caso, devolver por transferência para uma conta que o cliente indicar' +
   (comTransferencia ? ' (veja "Devolver por transferência", embaixo).' : '.');
 
+/**
+ * Etapa 7, pacote 2: o aviso no cartão do pedido com casa pago no Pix há mais de 90 dias (a casa se reserva com até um ano
+ * de antecedência): a devolução do sinal sai pelo caminho da transferência do Pacote 33, na tela de resumo.
+ */
+export const AVISO_DO_PIX_DA_CASA_FORA_DO_PRAZO =
+  'Pix pago há mais de 90 dias: a Stripe não devolve mais por Pix. Se for devolver o sinal da casa, abra "Reembolsar na Stripe…" e use "Devolver por transferência".';
+
 /** O e-mail na tela sem a Stripe: a devolução por outro meio não manda e-mail ao cliente (como hoje, depois de uma falha). */
 export const SEM_EMAIL_NA_TRANSFERENCIA =
   'Na devolução por transferência, o site não manda e-mail ao cliente: avise-o pelo e-mail ou pelo WhatsApp do pedido.';
@@ -626,7 +635,10 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
   const escolhas = escolhasDoCancelamento(p.itens, c.agora);
   // só os motivos que combinam com a data do serviço (a rota confere de novo: motivo-fora-da-data)
   const motivos = motivosQueCombinam(plano.cancelar, c.agora);
-  const semAlgumMotivo = motivosQueNaoAparecem(motivos);
+  // Etapa 7, pacote 2: a casa segue a regra das casas (30 dias e os 7 dias do arrependimento), e não a das 24 horas
+  const regra = regraDosVouchers(plano.cancelar);
+  const semAlgumMotivo = motivosQueNaoAparecem(motivos, regra);
+  const regraDasCasas = linhasDaRegraDasCasas(plano.cancelar, c.agora);
   const formulario: FormularioDoResumo = {
     acao: escolha.acao,
     codigoNaRota: doItem ?? r.codigo,
@@ -640,7 +652,7 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
         tipo: 'escolha',
         nome: 'motivo',
         rotulo: 'Motivo',
-        opcoes: motivos.map((m) => ({ valor: m, rotulo: ROTULO_DO_MOTIVO[m] })),
+        opcoes: motivos.map((m) => ({ valor: m, rotulo: rotuloDoMotivo(m, regra) })),
         ...(semAlgumMotivo ? { ajuda: semAlgumMotivo } : {}),
       },
       {
@@ -678,6 +690,8 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
         rotulo: 'Forma de pagamento',
         valor: [`${formaNoPainel}${pais}`, ...(r.pagamento.pagoEm ? [`Pago em ${dataHora(r.pagamento.pagoEm)}`] : [])],
       },
+      // o que a regra das casas manda agora, e de quando a conta é feita (crítica de 26/11, furo 16): só informa
+      ...(regraDasCasas.length ? [{ rotulo: 'Regra das casas', valor: regraDasCasas }] : []),
       { rotulo: 'Idioma da compra', valor: [NOME_DO_IDIOMA[r.idioma]] },
       { rotulo: 'E-mail que o cliente recebe', valor: linhasDoEmailSemReembolso(p, escolha, continuam, c.emailLigado) },
     ],

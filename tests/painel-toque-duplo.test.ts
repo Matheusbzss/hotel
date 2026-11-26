@@ -191,7 +191,8 @@ test('a rota das ações manuais: a repetida volta antes de qualquer gravação,
   // que veio sem a caixa volta com falta-confirmar, também antes dos dois
   assert.match(
     MANUAIS,
-    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(semConfirmar\) return voltar\('falta-confirmar'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+agendarAvisoDoPedidoPago\(codigoDoPedido\);\s+\}\s+if \(virouCancelado && atualizada\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s*$/,
+    // Etapa 7, pacote 2: depois dos e-mails, as datas da casa que deixou de valer (o "Marcar reembolsado") saem
+    /if \(foraDeHora\) return voltar\('acao-nao-vale'\);\s+if \(semConfirmar\) return voltar\('falta-confirmar'\);\s+if \(virouPago && atualizada\) \{\s+await avisarCompra\(atualizada\);\s+agendarEmailDoPedido\('pagamento-aprovado', codigoDoPedido\);\s+agendarAvisoDoPedidoPago\(codigoDoPedido\);\s+\}\s+if \(virouCancelado && atualizada\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+if \(atualizada\) await soltarDatasQueDeixaramDeValer\(codigoDoPedido, vouchers\);\s+return voltar\(\);\s+\}\s*$/,
   );
   assert.equal(MANUAIS.match(/acaoManualRepetida\(/g)?.length, 1);
   assert.equal(MANUAIS.match(/registrar\(/g)?.length, 1);
@@ -692,7 +693,8 @@ test('a rota do voucher por outro meio: a linha e o valor na trava, uma vez; a m
   // a marca do voucher: uma chamada só, pela regra (quem gravou, ou a linha de mais de um minuto com o voucher pago)
   assert.match(
     porFora,
-    /if \(marcaOVoucherPorFora\(gravado, new Date\(\), item\)\) \{\s+await atualizarItem\(voucher, 'reembolsado', `Item \$\{voucher\} marcado como devolvido no painel \(por outro meio\)`\);\s+\}\s+return voltar\(\);/,
+    // Etapa 7, pacote 2: depois, as datas da casa devolvida por outro meio saem
+    /if \(marcaOVoucherPorFora\(gravado, new Date\(\), item\)\) \{\s+await atualizarItem\(voucher, 'reembolsado', `Item \$\{voucher\} marcado como devolvido no painel \(por outro meio\)`\);\s+\}\s+await soltarDatasQueDeixaramDeValer\(codigoDoPedido, vouchers\);\s+return voltar\(\);/,
   );
   assert.equal(porFora.match(/atualizarItem\(/g)?.length, 1);
   assert.ok(porFora.indexOf('await atualizarReserva(') < porFora.indexOf('await atualizarItem('));
@@ -739,7 +741,8 @@ test('a rota do voucher da Stripe: a marca e a linha numa gravação só, com a 
   // conferência relida lá dentro, e só então a marca e a linha de sempre
   assert.match(
     daStripe,
-    /await atualizarReserva\(voucher, \(r\) => \{\s+if \(!voucherDaStripeAindaLiga\(r, id\)\) return null;\s+r\.statusItem = 'reembolsado';\s+return registrar\(r, linhaDoVoucherLigado\(id, voucher\)\);\s+\}\);\s+agendarEmailDoReembolso\(codigoDoPedido, id\);\s+return voltar\(\);/,
+    // Etapa 7, pacote 2: depois do e-mail, as datas da casa que deixou de valer saem
+    /await atualizarReserva\(voucher, \(r\) => \{\s+if \(!voucherDaStripeAindaLiga\(r, id\)\) return null;\s+r\.statusItem = 'reembolsado';\s+return registrar\(r, linhaDoVoucherLigado\(id, voucher\)\);\s+\}\);\s+agendarEmailDoReembolso\(codigoDoPedido, id\);\s+await soltarDatasQueDeixaramDeValer\(codigoDoPedido, vouchers\);\s+return voltar\(\);/,
   );
   // nada de atualizar_item (sem trava, sempre grava a linha) nesta ação
   assert.doesNotMatch(daStripe, /atualizarItem\(/);

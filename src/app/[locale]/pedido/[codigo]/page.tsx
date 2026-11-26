@@ -110,12 +110,18 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // (um voucher reembolsado, por exemplo), a primeira frase diz que o restante foi cancelado sem reembolso: a caixa do
   // reembolso parcial vem logo embaixo
   const motivosDoSemReembolso = [...new Set(itens.flatMap((r) => (r.semReembolso ? [r.semReembolso.motivo] : [])))];
-  const regraDaPolitica = itens.some((r) => r.semReembolso?.regra === d.pedido.regraSemReembolso);
+  // as regras da política dos vouchers cancelados, sem repetir: a dos passeios (item 6) e, na casa de temporada, a das casas
+  // (Etapa 7, pacote 2); só "outro" nos motivos, a de que as regras estão na política
+  const regrasDaPolitica = [
+    ...new Set(
+      itens.flatMap((r) => (r.semReembolso && r.semReembolso.regra !== d.pedido.regraGeralSemReembolso ? [r.semReembolso.regra] : [])),
+    ),
+  ];
   const frasesDoSemReembolso = canceladoSemReembolso
     ? [
         reembolso > 0 ? d.pedido.canceladoSemReembolsoComParteTexto : d.pedido.canceladoSemReembolsoTexto,
         ...(motivosDoSemReembolso.length === 1 ? motivosDoSemReembolso : []),
-        regraDaPolitica ? d.pedido.regraSemReembolso : d.pedido.regraGeralSemReembolso,
+        ...(regrasDaPolitica.length ? regrasDaPolitica : [d.pedido.regraGeralSemReembolso]),
       ]
     : [];
   const esperando = status === 'aguardando_whatsapp';

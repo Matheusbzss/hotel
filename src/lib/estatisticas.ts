@@ -193,6 +193,19 @@ export interface Lembretes {
   pagos: number;
 }
 
+/**
+ * O cartão "Casas de temporada" (Etapa 7, pacote 2): as reservas de casa pagas no período (os vouchers vendidos, como no
+ * faturamento: o cancelado sem reembolso conta, porque o dinheiro ficou), os sinais recebidos por elas (o sinal na forma
+ * paga) e o que falta receber na chegada. Este último só das estadias de hoje em diante, em qualquer data de pagamento: o
+ * painel não tem onde marcar o restante recebido, e a estadia que já começou sai da conta (crítica de 26/11, furo 23 a).
+ * Só o voucher que ainda vale num pedido pago; no pedido contestado, nada se espera.
+ */
+export interface CasasNoPainel {
+  reservas: number;
+  sinaisCentavos: number;
+  aReceber: { centavos: number; estadias: number };
+}
+
 export interface Estatisticas {
   resumo: Resumo;
   resumoAnterior?: Resumo;
@@ -216,6 +229,26 @@ export interface Estatisticas {
   funilAnterior?: Funil;
   lembretes: Lembretes;
   lembretesAnterior?: Lembretes;
+  casas: CasasNoPainel;
+}
+
+/** O que fica para a chegada numa casa, na forma paga: o total da estadia menos o sinal, os dois guardados na compra. */
+function chegadaDaCasa(i: Reserva): number {
+  if (i.tipo !== 'casa') return 0;
+  const pix = i.pagamento.metodo === 'pix';
+  const total = pix ? (i.totalPixCentavos ?? i.totalCentavos) : i.totalCentavos;
+  return total - (pix ? i.sinalPixCentavos : i.sinalCentavos);
+}
+
+/** O cartão das casas: as do período (vendidas) e o que falta receber das estadias de hoje em diante (casasNoPainel). */
+function casasDe(pagos: readonly PedidoPainel[], vendidas: readonly Reserva[], hoje: string): CasasNoPainel {
+  const casas = vendidas.filter((i) => i.tipo === 'casa');
+  const aFrente = pagos.flatMap((p) => p.itens).filter((i) => i.tipo === 'casa' && voucherPago(i) && i.data >= hoje);
+  return {
+    reservas: casas.length,
+    sinaisCentavos: valorDosItens(casas),
+    aReceber: { centavos: aFrente.reduce((soma, i) => soma + chegadaDaCasa(i), 0), estadias: aFrente.length },
+  };
 }
 
 const NOME_PAIS: Record<string, string> = {
@@ -379,7 +412,12 @@ export function lembretesDe(carrinhos: CarrinhoNoFunil[], p: Periodo): Lembretes
   };
 }
 
-export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoFunil[], escolhido: PeriodoEscolhido): Estatisticas {
+export function calcularEstatisticas(
+  reservas: Reserva[],
+  carrinhos: CarrinhoNoFunil[],
+  escolhido: PeriodoEscolhido,
+  agora: Date = new Date(),
+): Estatisticas {
   const { periodo, anterior } = escolhido;
   const pagos = agruparPedidos(reservas).filter((p) => p.status === 'pago');
   const doPeriodo = (intervalo: Periodo) => pagos.filter((p) => dentro(diaDoPagamento(p), intervalo));
@@ -448,6 +486,7 @@ export function calcularEstatisticas(reservas: Reserva[], carrinhos: CarrinhoNoF
     },
     funil: funilDe(carrinhos, periodo),
     lembretes: lembretesDe(carrinhos, periodo),
+    casas: casasDe(pagos, itens, hojeEmBuzios(agora)),
   };
 }
 

@@ -212,12 +212,16 @@ export const casaOcupada = (c: Conferida): boolean => motivoDaCasaIndisponivel(c
  * O que ainda vale: o item cuja data ou horário passou sai da conta. A casa que alguém reservou enquanto estava no
  * carrinho, e a casa cuja reserva fechou para este visitante (o interruptor ou o pagamento online, que podem voltar),
  * ficam, indisponíveis, com o aviso (itemVisivel): nunca somem caladas, nem são apagadas na próxima vez que o cliente
- * mexe no carrinho.
+ * mexe no carrinho. Desde o pacote 2, também a casa de um carrinho antigo que mudou (capacidade, pacote, mínimo, fim de
+ * semana, limite de datas, preço) e a que saiu do ar (só enquanto o painel ainda tem o nome dela).
  */
 export const itensQueValem = (itens: ItemCarrinho[], contexto: ContextoDasCasas, agora?: Date) =>
   itens.filter((i) => {
     const c = conferirEscolha(i.escolha, contexto, agora);
-    return c.ok || motivoDaCasaIndisponivel(c) !== undefined;
+    const motivo = motivoDaCasaIndisponivel(c);
+    // a casa fora do ar só fica com o nome dela (a apagada de vez, sem nome nem foto, sai, como o passeio que acabou)
+    if (motivo === 'fora-do-ar') return i.escolha.tipo === 'casa' && Boolean(contexto.foraDoAr?.has(i.escolha.slug));
+    return c.ok || motivo !== undefined;
   });
 
 /* ------------------------------------------------------------------ */
@@ -228,11 +232,22 @@ export const itensQueValem = (itens: ItemCarrinho[], contexto: ContextoDasCasas,
 const quando = (data: string, hora: string, idioma: Idioma) =>
   `${formatarDataIso(data, LOCALE_INTL[idioma])}${PONTO_PRESO}${formatarHora(hora, idioma)}`;
 
+/** Os textos das linhas da casa no carrinho, no idioma (casas.* e carrinho.casaSinalHoje). */
+const textosDoItem = (d: Dicionario) => ({
+  ajusteResultado: d.casas.ajusteResultado,
+  nDiarias: d.casas.nDiarias,
+  umaDiaria: d.casas.umaDiaria,
+  hospede: d.casas.linha.hospede,
+  hospedes: d.casas.linha.hospedes,
+  sinalHoje: d.carrinho.casaSinalHoje,
+});
+
 /**
  * A casa como o cliente vê no carrinho e no checkout: o nome, a primeira foto, as diárias com as datas, os hóspedes e a
  * linha do sinal; o "Mudar" leva à página da casa com as datas e os hóspedes. Os totais são os da estadia inteira, e o
- * sinal (o que se paga hoje) vai em `casa`. A casa com noite ocupada agora, ou com a reserva das casas fechada para este
- * visitante, volta indisponível (com o motivo), sem preço e com o X para tirar.
+ * sinal (o que se paga hoje) vai em `casa`. A casa com noite ocupada agora, com a reserva das casas fechada para este
+ * visitante ou, desde o pacote 2, a de um carrinho antigo que deixou de valer como está (a que mudou e a que saiu do ar),
+ * volta indisponível (com o motivo), sem preço, com o "Mudar" (menos a fechada) e com o X para tirar.
  */
 function itemVisivelDaCasa(
   item: ItemCarrinho,
@@ -243,24 +258,30 @@ function itemVisivelDaCasa(
 ): ItemVisivel | null {
   const e = item.escolha as EscolhaCasa;
   const indisponivel = motivoDaCasaIndisponivel(c);
-  // a casa que vale vem da conferência; a indisponível (a noite ocupada ou a reserva fechada), do contexto. As outras
-  // recusas tiram a casa da lista, como o passeio que passou da data
+  // pacote 2: a casa que saiu do ar continua na lista, indisponível, com o nome e a foto que o contexto leu do painel; o
+  // "Mudar" leva à lista das casas
+  if (indisponivel === 'fora-do-ar') {
+    const fora = contexto.foraDoAr?.get(e.slug);
+    if (!fora) return null;
+    const [diarias, hospedes] = linhasDoItemDaCasa(e, idioma, LOCALE_INTL[idioma], textosDoItem(d), SINAL_PORCENTO);
+    return {
+      id: item.id,
+      tipo: 'casa',
+      titulo: texto(fora.nome, idioma),
+      foto: fora.foto,
+      href: rota(idioma, '/casas-de-temporada'),
+      detalhes: [diarias, hospedes],
+      totalCentavos: 0,
+      totalPixCentavos: 0,
+      escolha: e,
+      indisponivel,
+    };
+  }
+  // a casa que vale vem da conferência; a indisponível (a noite ocupada, a reserva fechada, a que mudou), do contexto. A
+  // data que passou tira a casa da lista, como o passeio
   const casa = 'casa' in c ? c.casa : indisponivel ? contexto.casas.get(e.slug)?.casa : undefined;
   if (!casa) return null;
-  const linhas = linhasDoItemDaCasa(
-    e,
-    idioma,
-    LOCALE_INTL[idioma],
-    {
-      ajusteResultado: d.casas.ajusteResultado,
-      nDiarias: d.casas.nDiarias,
-      umaDiaria: d.casas.umaDiaria,
-      hospede: d.casas.linha.hospede,
-      hospedes: d.casas.linha.hospedes,
-      sinalHoje: d.carrinho.casaSinalHoje,
-    },
-    SINAL_PORCENTO,
-  );
+  const linhas = linhasDoItemDaCasa(e, idioma, LOCALE_INTL[idioma], textosDoItem(d), SINAL_PORCENTO);
   const comum = {
     id: item.id,
     tipo: 'casa' as const,

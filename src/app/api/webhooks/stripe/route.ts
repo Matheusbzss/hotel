@@ -13,9 +13,10 @@ import {
   type EntregaDoEvento,
 } from '@/lib/pagamento-stripe';
 import { calendarioMudou } from '@/lib/casas';
-import { conferirDatasDoPedidoPago, liberarBloqueiosDaSessao } from '@/lib/pedido-carrinho';
+import { conferirDatasDoPedidoPago, liberarBloqueiosDaSessao, liberarDatasDosVouchers } from '@/lib/pedido-carrinho';
+import { avisarDatasNaoPresas } from '@/lib/rede-das-casas';
 import { atualizarItem, atualizarReserva, ehCasa, obterReservaDoPedido, registrar, type Reserva } from '@/lib/reservas';
-import { avisoDasDatasNaoPresas } from '@/lib/trava-das-casas';
+import { datasASoltar } from '@/lib/trava-das-casas';
 import { construirEvento, criarReembolso, expirarSessao, obterSessao, sessaoDoPagamento, stripe } from '@/lib/stripe';
 import { vouchersDoPedido } from '../../pedido/pedido-stripe';
 import {
@@ -205,9 +206,11 @@ async function soltarAsDatasDaSessao(codigo: string, sessaoId: string): Promise<
  * pedido para pago (quem pagou o Pix no app do banco e voltou antes do aviso) roda durante a renderização, e lá o
  * calendarioMudou (revalidateTag) lança erro (furo 3). O aviso sempre chega (a Stripe reenvia por até 3 dias) e acha o pedido
  * já pago pela página: por isso conta o pedido pago por esta sessão, e não só o que "virou pago agora". Só no pedido com
- * casa (o que tem pagamento.cobrar): o pedido de passeio e transfer não lê nada a mais. A casa sem a trava é presa agora;
- * se as noites já forem de outra pessoa, fica um "Aviso:" no histórico (uma vez por voucher) para a equipe decidir, e a
- * reserva continua paga. Um erro do banco segue para a rota (500), e a Stripe manda o aviso de novo.
+ * casa (o que tem pagamento.cobrar): o pedido de passeio e transfer não lê nada a mais. A casa sem a trava é presa agora
+ * (também a do pagamento que chegou depois de a sessão vencer: o pedido vencido virando pago, cujas datas tinham saído);
+ * se as noites já forem de outra pessoa, fica um "Aviso:" no histórico (uma vez por voucher) e sai o e-mail à equipe
+ * (avisarDatasNaoPresas, src/lib/rede-das-casas.ts): a reserva continua paga, nada volta sozinho ao cliente, e a equipe
+ * decide. Um erro do banco segue para a rota (500), e a Stripe manda o aviso de novo.
  */
 async function conferirAsDatasDaCasa(reserva: Reserva, sessaoId: string): Promise<string> {
   const codigo = reserva.pedido?.codigo ?? reserva.codigo;
@@ -216,15 +219,27 @@ async function conferirAsDatasDaCasa(reserva: Reserva, sessaoId: string): Promis
   const { prendeu, semTrava } = await conferirDatasDoPedidoPago(vouchers, sessaoId);
   if (prendeu) calendarioMudou();
   if (!semTrava.length) return prendeu ? '; datas da casa presas de novo' : '';
-  const linhas = semTrava.map(avisoDasDatasNaoPresas);
-  await atualizarReserva(reserva.codigo, (r) => {
-    const faltam = linhas.filter((l) => !r.historico.some((h) => h.evento === l));
-    if (!faltam.length) return null;
-    for (const l of faltam) registrar(r, l);
-    return r;
-  });
+  await avisarDatasNaoPresas(reserva, semTrava);
   console.error(`[webhook stripe] o pedido ${codigo} foi pago sem as datas da casa presas: ${semTrava.map((v) => v.codigo).join(', ')}`);
   return '; AVISO: datas da casa não presas';
+}
+
+/**
+ * Etapa 7, pacote 2: as datas das casas que deixaram de valer com este aviso (o reembolso total ou de um voucher, o efeito do
+ * reembolso que falhou, a contestação perdida) voltam a ficar livres: datasASoltar (src/lib/trava-das-casas.ts) compara os
+ * vouchers de antes com os relidos agora, e liberarDatasDosVouchers solta pelo item do pedido, só a origem 'site'. Depois dos
+ * e-mails e num try: uma falha aqui só fica no registro (a rede de segurança de hora em hora solta o que sobrar) e nunca faz
+ * a Stripe reenviar o aviso. As páginas das casas refazem o calendário (calendarioMudou só nas rotas). O pedido sem casa não
+ * lê nada a mais.
+ */
+async function soltarAsDatasQueDeixaramDeValer(codigo: string, antes: readonly Reserva[]): Promise<void> {
+  if (!antes.some(ehCasa)) return;
+  try {
+    const soltar = datasASoltar(antes, await vouchersDoPedido(codigo));
+    if (soltar.length && (await liberarDatasDosVouchers(soltar)) > 0) calendarioMudou();
+  } catch (e) {
+    console.error(`[webhook stripe] falha ao soltar as datas da casa de ${codigo}: ${mensagem(e)}`);
+  }
 }
 
 /**
@@ -380,6 +395,8 @@ async function cobrancaReembolsada(cobranca: Stripe.Charge): Promise<Resultado> 
   )) {
     agendarEmailDoReembolso(codigo, re.id);
   }
+  // Etapa 7, pacote 2: a casa devolvida (o pedido inteiro ou o voucher dela) solta as datas, depois dos e-mails
+  await soltarAsDatasQueDeixaramDeValer(codigo, vouchers);
   return {
     codigo,
     resultado: plano.total ? 'reembolso total' : `reembolso parcial (${plano.itens.length} item(ns), ${cifra(plano.reembolsadoCentavos)})`,
@@ -429,6 +446,9 @@ async function reembolsoFalhou(reembolso: Stripe.Refund): Promise<Resultado> {
   // o e-mail à equipe, depois da resposta e lido da linha já gravada: um por reembolso (a devolução falha de um
   // pagamento repetido fica só no histórico)
   agendarAvisoDoReembolsoFalho(codigo, atual.id);
+  // Etapa 7, pacote 2: o efeito do reembolso que falhou também tira a validade da casa (o voucher ou o pedido inteiro
+  // devolvido): as datas dela saem, depois dos e-mails
+  await soltarAsDatasQueDeixaramDeValer(codigo, vouchers);
   const aplicado = lido.efeito?.pedido ? ' (o aviso do reembolso não tinha chegado: aplicado ao pedido agora)' : '';
   return { codigo, resultado: `aviso de reembolso falho registrado${aplicado}` };
 }
@@ -466,6 +486,9 @@ async function reembolsoAtualizado(reembolso: Stripe.Refund): Promise<Resultado>
 async function contestacao(disputa: Stripe.Dispute): Promise<Resultado> {
   const codigo = await codigoDoPagamento(disputa.payment_intent);
   if (!codigo) return { codigo, resultado: 'contestação sem o código do pedido' };
+  // Etapa 7, pacote 2: os vouchers de antes, para a contestação perdida (o pedido devolvido) soltar as datas da casa. Uma
+  // falha nesta leitura não muda nada da contestação: só a rede de segurança solta depois
+  const antes = await vouchersDoPedido(codigo).catch(() => [] as Reserva[]);
   const atual = await stripe().disputes.retrieve(disputa.id);
   // na perdida, o valor cobrado limita a soma do que voltou ao cliente: só aí a cobrança é relida
   const cobranca = leituraDaContestacao(atual).reembolsoCentavos ? idDe(atual.charge) : null;
@@ -479,5 +502,7 @@ async function contestacao(disputa: Stripe.Dispute): Promise<Resultado> {
     gravar: atualizarReserva,
     registrar,
   });
+  // perdida: o pedido virou reembolsado, e as datas da casa voltam a ficar livres (enquanto está aberta, continuam presas)
+  await soltarAsDatasQueDeixaramDeValer(codigo, antes);
   return { codigo, resultado };
 }

@@ -81,9 +81,11 @@ test('achado 1: a casa com a reserva fechada fica no carrinho como indisponível
     AGORA,
   );
   assert.equal(motivoDaCasaIndisponivel(ocupada), 'ocupada');
-  // as outras recusas tiram a casa da lista, como o passeio que passou da data; a casa que vale não fica indisponível
-  assert.equal(motivoDaCasaIndisponivel(conferirCasa(escolha('2026-12-12', '2026-12-14'), contexto(), AGORA)), undefined);
-  assert.equal(motivoDaCasaIndisponivel({ ok: false, erro: 'slug' }), undefined);
+  // desde o pacote 2, a casa de um carrinho antigo que mudou (aqui, o fim de semana) e a que saiu do ar também ficam, com o
+  // "Mudar"; só a data que passou tira a casa da lista, como o passeio. A casa que vale não fica indisponível
+  assert.equal(motivoDaCasaIndisponivel(conferirCasa(escolha('2026-12-12', '2026-12-14'), contexto(), AGORA)), 'mudou');
+  assert.equal(motivoDaCasaIndisponivel({ ok: false, erro: 'slug' }), 'fora-do-ar');
+  assert.equal(motivoDaCasaIndisponivel(conferirCasa(escolha('2026-11-20', '2026-11-23'), contexto(), AGORA)), undefined);
   assert.equal(motivoDaCasaIndisponivel(conferirCasa(escolha('2026-12-14', '2026-12-16'), contexto(), AGORA)), undefined);
   // fechada, ela fica fora da conta (e do pedido): o carrinho cobra só o passeio
   const passeio: ItemVisivel = {
@@ -283,8 +285,12 @@ test('achado 1, no código: a casa fechada aparece com o motivo, sem o "Mudar", 
     'if (indisponivel) return { ...comum, detalhes: linhas.slice(0, 2), totalCentavos: 0, totalPixCentavos: 0, escolha: e, indisponivel };',
   );
   const lista = codigo('src', 'components', 'carrinho', 'ListaCarrinho.tsx');
-  tem(lista, "{i.indisponivel === 'fechada' ? T.casaFechada : T.casaIndisponivel}");
-  tem(lista, "{i.indisponivel === 'ocupada' && (");
+  // desde o pacote 2, também a casa que mudou e a que saiu do ar, com o "Mudar" (só a fechada fica sem ele)
+  tem(
+    lista,
+    "{i.indisponivel === 'fechada' ? T.casaFechada : i.indisponivel === 'mudou' ? T.casaMudou : i.indisponivel === 'fora-do-ar' ? T.casaForaDoAr : T.casaIndisponivel}",
+  );
+  tem(lista, "{i.indisponivel !== 'fechada' && (");
   const formulario = codigo('src', 'components', 'carrinho', 'FormularioCarrinho.tsx');
   tem(formulario, "const casaFechada = itens.find((i) => i.indisponivel === 'fechada');");
   tem(formulario, 'const fraseDaCasaFechada = soCasa ? C.casaFechadaSo : C.casaFechadaComOutros;');

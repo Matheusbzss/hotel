@@ -757,8 +757,11 @@ test('o contexto das casas é obrigatório em todo lugar que confere o carrinho,
   tem(carrinho, 'export function itemVisivel(item: ItemCarrinho, idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas, agora?: Date)');
   tem(carrinho, 'export function itensVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas)');
   tem(carrinho, 'export function sugestoesVisiveis(itens: ItemCarrinho[], idioma: Idioma, d: Dicionario, contexto: ContextoDasCasas,');
-  // a casa recusada por noite ocupada, ou com a reserva das casas fechada, fica no carrinho (indisponível), e não some calada
-  tem(carrinho, 'return c.ok || motivoDaCasaIndisponivel(c) !== undefined;');
+  // a casa recusada por noite ocupada, ou com a reserva das casas fechada, fica no carrinho (indisponível), e não some calada;
+  // desde o pacote 2, também a que mudou e a que saiu do ar (essa, só enquanto o painel tem o nome dela)
+  tem(carrinho, 'const motivo = motivoDaCasaIndisponivel(c);');
+  tem(carrinho, "if (motivo === 'fora-do-ar') return i.escolha.tipo === 'casa' && Boolean(contexto.foraDoAr?.has(i.escolha.slug));");
+  tem(carrinho, 'return c.ok || motivo !== undefined;');
   const rota = codigo('src', 'app', 'api', 'carrinho', 'route.ts');
   const post = rota.slice(rota.indexOf('export async function POST('));
   const leitura = onde(post, 'const guardado = await lerCarrinho(cookie);');

@@ -51,7 +51,7 @@ import {
   naoPagoNoPainel,
   oQueFazerNaContestacao,
   pagamentoRetidoADecidir,
-  reativarRetidoEscondido,
+  retidoComCasa,
   reembolsoNoPainel,
   reembolsoParaResolver,
   seloDoPedidoNoPainel,
@@ -65,7 +65,7 @@ import {
   type ReembolsoNoPainel,
 } from '@/lib/pedidos-painel';
 import type { ReembolsoSemVoucher } from '@/lib/reembolsos-a-resolver';
-import { enderecoDoResumo } from '@/lib/resumo-do-painel';
+import { AVISO_DO_PIX_DA_CASA_FORA_DO_PRAZO, enderecoDoResumo, pixForaDoPrazoDaStripe } from '@/lib/resumo-do-painel';
 import { pedidoCanceladoSemReembolso } from '@/lib/sem-reembolso';
 import { AVISO_DA_SESSAO_VENCIDA } from '@/lib/sessao-do-painel';
 import { textoPessoas } from '@/lib/pessoas';
@@ -606,16 +606,14 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
   const semReembolso = segredoDoPainelCriado() && planoDoCancelamento(p.itens, { acao: 'cancelar_sem_reembolso' }, new Date()).ok;
   // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ou reativar, cada um
   // com a sua caixa "Confirmo", pela mesma regra que a rota confere de novo dentro da trava (acaoDoRetidoOferecida)
-  // (Etapa 7: no pedido com casa, só o "Devolver": reativarRetidoEscondido esconde o "Reativar", e a rota recusa)
+  // (Etapa 7, pacote 2: no pedido com casa, o "Reativar" prende as datas de novo, ou a rota recusa com o motivo)
   const retido = r.pagamento.retido;
   const botoesDoRetido = retido
-    ? ACOES_DO_PAGAMENTO_RETIDO.filter((acao) => acaoDoRetidoOferecida(r, acao))
-        .filter((acao) => !(acao === 'reativar_retido' && reativarRetidoEscondido(p.itens)))
-        .map((acao) =>
-          acao === 'devolver_retido'
-            ? { acao, ...botaoDevolverRetido(retido.valorCentavos), cor: 'bg-erro-claro' }
-            : { acao, ...BOTAO_REATIVAR_RETIDO, cor: 'bg-superficie' },
-        )
+    ? ACOES_DO_PAGAMENTO_RETIDO.filter((acao) => acaoDoRetidoOferecida(r, acao)).map((acao) =>
+        acao === 'devolver_retido'
+          ? { acao, ...botaoDevolverRetido(retido.valorCentavos), cor: 'bg-erro-claro' }
+          : { acao, ...BOTAO_REATIVAR_RETIDO, cor: 'bg-superficie' },
+      )
     : [];
   return (
     <div className="flex min-w-0 flex-col items-start gap-3">
@@ -653,6 +651,10 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
           {reembolso.tipo === 'stripe' && <ReembolsoStripe p={p} filtro={filtro} busca={busca} />}
           {semReembolso && <CancelarSemReembolso p={p} filtro={filtro} busca={busca} />}
         </div>
+      )}
+      {/* Etapa 7, pacote 2: a casa paga no Pix há mais de 90 dias devolve o sinal por transferência (a tela de resumo) */}
+      {reembolso.tipo === 'stripe' && p.itens.some(ehCasa) && pixForaDoPrazoDaStripe(r, new Date()) && (
+        <p className="max-w-xl text-small font-semibold text-[#7a1f12]">{AVISO_DO_PIX_DA_CASA_FORA_DO_PRAZO}</p>
       )}
       {/* no contestado, a frase no lugar da caixa "Reembolsar na Stripe…" (o que fazer fica na frase vermelha de cima) */}
       {reembolso.tipo === 'contestado' && <p className="max-w-xl text-small text-tinta-suave">{SEM_REEMBOLSO_NA_CONTESTACAO}</p>}
@@ -784,7 +786,7 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">{fraseDoPagamentoRetido(r.pagamento.retido.valorCentavos)}</p>
         )}
         {/* Etapa 7: no pedido com casa, o "Reativar" não aparece (as datas podem já ser de outra pessoa) */}
-        {r.pagamento.retido && pagamentoRetidoADecidir(r) && reativarRetidoEscondido(p.itens) && (
+        {r.pagamento.retido && pagamentoRetidoADecidir(r) && retidoComCasa(p.itens) && (
           <p className="mt-1 text-small font-semibold text-[#7a1f12]">{RETIDO_COM_CASA}</p>
         )}
         {desistenciaParaResponder(p.itens) && (

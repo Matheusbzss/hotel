@@ -47,6 +47,8 @@ export interface BloqueioNoArquivo extends EstadiaDoPedido {
   id: string;
   /** A sessão de pagamento corrente (cs_…), como a referência no banco. */
   referencia: string;
+  /** Quando a estadia foi presa (como casas_bloqueios.criado_em): a rede de segurança não mexe na trava recém-criada. */
+  criadoEm?: string;
 }
 
 const cruza = (a: { inicio: string; fim: string }, b: { inicio: string; fim: string }) => a.inicio < b.fim && b.inicio < a.fim;
@@ -62,6 +64,7 @@ export function prenderNoArquivo(
   estadias: readonly EstadiaDoPedido[],
   referencia: string,
   novoId: () => string,
+  criadoEm?: string,
 ): BloqueioNoArquivo[] | null {
   if (!referencia.trim()) throw new Error('prenderNoArquivo: falta a referência (a sessão de pagamento).');
   for (const [i, e] of estadias.entries()) {
@@ -70,7 +73,101 @@ export function prenderNoArquivo(
     if (atuais.some((b) => b.casaId === e.casaId && cruza(b, e))) return null;
     if (estadias.some((o, j) => j > i && o.casaId === e.casaId && cruza(o, e))) return null;
   }
-  return [...atuais, ...estadias.map((e) => ({ ...e, id: novoId(), referencia }))];
+  return [...atuais, ...estadias.map((e) => ({ ...e, id: novoId(), referencia, ...(criadoEm ? { criadoEm } : {}) }))];
+}
+
+/* ------------------------------------------------------------------ */
+/* As datas que deixam de valer (pacote 2: o dinheiro depois do pagamento) */
+
+/** O voucher como as regras das datas leem: o código, o tipo, o status do pedido e o do item. */
+export interface VoucherDaTrava {
+  codigo: string;
+  tipo?: string;
+  status: StatusReserva;
+  statusItem?: StatusItem;
+}
+
+/**
+ * O voucher de casa segura as datas: o pedido espera o pagamento ou está pago (também o contestado: enquanto a contestação
+ * está aberta, as datas continuam presas; 3.9 do plano de 26/11) e o voucher ainda vale (nem cancelado nem devolvido
+ * sozinho). O pedido vencido, cancelado ou devolvido não segura nada.
+ */
+export const seguraAsDatas = (v: VoucherDaTrava): boolean =>
+  v.tipo === 'casa' &&
+  (v.status === 'pendente' || v.status === 'pago' || v.status === 'contestado') &&
+  v.statusItem !== 'cancelado' &&
+  v.statusItem !== 'reembolsado';
+
+/**
+ * AS DATAS A SOLTAR depois de uma saída de dinheiro ou de um cancelamento (o reembolso pela Stripe do pedido inteiro ou de
+ * um voucher, o efeito do reembolso que falhou, a contestação perdida, o reembolso por outro meio e o "Marcar reembolsado",
+ * o "foi o voucher …" de um reembolso feito direto na Stripe, o cancelamento sem reembolso do pedido inteiro ou de um
+ * voucher): as casas que seguravam as datas ANTES (os vouchers lidos no começo) e não seguram mais DEPOIS (relidos depois de
+ * gravar). Só o que a ação mudou: uma casa que já não segurava nada antes (as datas dela já saíram por outro caminho) não
+ * entra, nem uma que voltou a valer no meio-tempo. Sem banco: quem solta é liberarDatasDosVouchers
+ * (src/lib/pedido-carrinho.ts), pelo item do pedido e só a origem 'site'.
+ */
+export function datasASoltar<T extends VoucherDaTrava>(antes: readonly T[], depois: readonly T[]): T[] {
+  return depois.filter((v) => v.tipo === 'casa' && !seguraAsDatas(v) && antes.some((a) => a.codigo === v.codigo && seguraAsDatas(a)));
+}
+
+/* ------------------------------------------------------------------ */
+/* A rede de segurança de hora em hora (/api/casas/sincronizar)         */
+
+/** Uma estadia do site presa agora (uma linha de casas_bloqueios com origem 'site'), como a rede de segurança lê. */
+export interface TravaVista {
+  itemPedidoId: string;
+  /** A referência que a rede VIU (a sessão de pagamento): é com ela, e com o item, que a rede solta ou renomeia. */
+  referencia: string;
+  casaId: string;
+  inicio: string;
+  fim: string;
+  criadoEm?: string;
+}
+
+/** O voucher da trava como a rede decide: o status, a sessão corrente do pedido e desde quando ele espera o pagamento. */
+export interface VoucherDaRede extends VoucherDaTrava {
+  pagamentoExternoId?: string;
+  /** A criação da sessão corrente (pendenteDesde, src/app/api/pedido/pedido-stripe.ts). */
+  pendenteDesde?: string;
+}
+
+/** A trava mais nova que isto fica para a próxima rodada: o pedido que acabou de nascer, o "Pagar de novo", a reativação. */
+export const MARGEM_DA_REDE_MS = 10 * 60_000;
+/** Pendente há mais que isto (a sessão dura no máximo 61 minutos): o aviso da Stripe se perdeu, e a rede consulta a Stripe. */
+export const PENDENTE_DEMAIS_MS = 2 * 3_600_000;
+
+export type DecisaoDaTrava = { acao: 'manter' } | { acao: 'soltar' } | { acao: 'renomear'; para: string } | { acao: 'consultar' };
+
+/**
+ * O que a rede de segurança faz com uma trava do site (crítica de 26/11, furo 5), pelo voucher do item relido agora:
+ * - recém-criada (menos de 10 minutos): nada, fica para a próxima rodada (o pedido nascendo, o "Pagar de novo", a reativação);
+ * - o item sem voucher (o pedido sumiu) ou que não é casa: soltar;
+ * - o pedido pago ou contestado com o voucher valendo: manter;
+ * - o pedido pendente há mais de 2 horas (a sessão já venceu e o aviso da Stripe se perdeu): consultar a Stripe antes
+ *   (`consultou` diz que a rede já consultou nesta rodada);
+ * - o pedido pendente com a trava presa a uma sessão antiga (a troca de forma desfeita que não gravou): passar para a sessão
+ *   corrente, para a trava sair junto com ela;
+ * - o resto (o pedido vencido, cancelado ou devolvido; o voucher cancelado ou devolvido sozinho): soltar.
+ * Quem grava solta e renomeia pelo item E pela referência vista (nunca só pelo item): um "Pagar de novo" no meio-tempo
+ * passa a trava para a sessão nova, e a rede não a apaga.
+ */
+export function decidirATrava(
+  t: Pick<TravaVista, 'referencia' | 'criadoEm'>,
+  v: VoucherDaRede | null,
+  agora: Date,
+  { consultou = false }: { consultou?: boolean } = {},
+): DecisaoDaTrava {
+  const criada = t.criadoEm ? Date.parse(t.criadoEm) : Number.NaN;
+  if (!Number.isNaN(criada) && agora.getTime() - criada < MARGEM_DA_REDE_MS) return { acao: 'manter' };
+  if (!v || v.tipo !== 'casa') return { acao: 'soltar' };
+  if (v.status === 'pendente' && seguraAsDatas(v)) {
+    const desde = v.pendenteDesde ? Date.parse(v.pendenteDesde) : Number.NaN;
+    if (!consultou && !Number.isNaN(desde) && agora.getTime() - desde > PENDENTE_DEMAIS_MS) return { acao: 'consultar' };
+    if (v.pagamentoExternoId && t.referencia !== v.pagamentoExternoId) return { acao: 'renomear', para: v.pagamentoExternoId };
+    return { acao: 'manter' };
+  }
+  return seguraAsDatas(v) ? { acao: 'manter' } : { acao: 'soltar' };
 }
 
 /* ------------------------------------------------------------------ */
@@ -99,6 +196,9 @@ export const avisoDasDatasNaoPresas = (v: { codigo: string; casa: { nome: string
 export const avisosDasDatasNaoPresas = (historico: readonly { evento: string }[]): string[] => [
   ...new Set(historico.filter((h) => h.evento.startsWith(INICIO_DO_AVISO_DAS_DATAS)).map((h) => h.evento.slice('Aviso: '.length))),
 ];
+
+/** O voucher de uma linha do aviso das datas não presas (com ou sem o "Aviso: " do começo), ou undefined. */
+export const voucherDoAvisoDasDatas = (linha: string): string | undefined => /, voucher ([A-Z0-9-]+)\) não ficaram presas/.exec(linha)?.[1];
 
 /* ------------------------------------------------------------------ */
 /* O bloqueio à mão do painel por cima de uma reserva do site           */

@@ -300,6 +300,10 @@ export function FormularioCarrinho({
   // voltava sempre recusado)
   const casaOcupada = itens.find((i) => i.indisponivel === 'ocupada');
   const casaFechada = itens.find((i) => i.indisponivel === 'fechada');
+  // pacote 2: a casa de um carrinho antigo que mudou, ou que saiu do ar: também fora da conta, e o cliente troca pelo "Mudar"
+  // (a página da casa, ou a lista das casas) ou tira pelo X antes de enviar
+  const casaQueMudou = itens.find((i) => i.indisponivel === 'mudou' || i.indisponivel === 'fora-do-ar');
+  const fraseDaCasaQueMudou = casaQueMudou?.indisponivel === 'fora-do-ar' ? K.casaForaDoAr : K.casaMudou;
   const fraseDaCasaFechada = soCasa ? C.casaFechadaSo : C.casaFechadaComOutros;
   const { totalCentavos, totalPixCentavos } = totaisDoCarrinho(itens);
   // o que o pedido cobra hoje: o total do passeio e do transfer e, na casa, o sinal (totaisDoCarrinho, valorDoItem)
@@ -427,6 +431,12 @@ export function FormularioCarrinho({
     if (casaOcupada) {
       setErroGeral(textos.casa.avisoOcupada);
       setLinkDoErro(casaOcupada.href);
+      return;
+    }
+    // a casa que mudou ou saiu do ar: o "Mudar" (ou o X) antes de enviar
+    if (casaQueMudou) {
+      setErroGeral(fraseDaCasaQueMudou);
+      setLinkDoErro(casaQueMudou.href);
       return;
     }
     // a casa cuja reserva fechou: o cliente tira a casa do carrinho (o X) para seguir com o resto
@@ -613,6 +623,8 @@ export function FormularioCarrinho({
             casaTotalDaEstadiaCartao: K.casaTotalDaEstadiaCartao,
             casaIndisponivel: K.casaIndisponivel,
             casaFechada: K.casaFechada,
+            casaMudou: K.casaMudou,
+            casaForaDoAr: K.casaForaDoAr,
           }}
           aoRemover={remover}
         />
@@ -1102,6 +1114,13 @@ export function FormularioCarrinho({
                     {textos.casa.verDatas}
                   </a>
                 </>
+              ) : casaQueMudou ? (
+                <>
+                  <p className="font-bold">{fraseDaCasaQueMudou}</p>
+                  <a href={casaQueMudou.href} className="link mt-2 inline-flex min-h-11 items-center font-semibold">
+                    {K.mudar}
+                  </a>
+                </>
               ) : casaFechada ? (
                 <p className="font-bold">{fraseDaCasaFechada}</p>
               ) : (
@@ -1192,7 +1211,15 @@ export function FormularioCarrinho({
             ) : comCasa ? (
               // a casa só se paga pelo site: sem o pagamento online, nenhum botão (a frase do quadro do pagamento explica)
               <p className="tom-superficie px-4 py-3 text-small font-semibold">
-                {casaOcupada ? K.casaIndisponivel : casaFechada ? fraseDaCasaFechada : soCasa ? C.casaSoNoSite : C.casaSoNoSiteComOutros}
+                {casaOcupada
+                  ? K.casaIndisponivel
+                  : casaQueMudou
+                    ? fraseDaCasaQueMudou
+                    : casaFechada
+                      ? fraseDaCasaFechada
+                      : soCasa
+                        ? C.casaSoNoSite
+                        : C.casaSoNoSiteComOutros}
               </p>
             ) : (
               // desligado também enquanto a página é relida para trazer as formas (esperandoFormas), com o mesmo texto
@@ -1218,7 +1245,8 @@ export function FormularioCarrinho({
             {/* a casa com noite ocupada (o 409 'datas'): o caminho para escolher outras datas na página dela */}
             {erroGeral && linkDoErro && (
               <a href={linkDoErro} className="link block text-small font-semibold">
-                {textos.casa.verDatas}
+                {/* a casa que saiu do ar leva à lista das casas: "Mudar", e não "Ver datas" */}
+                {casaQueMudou?.indisponivel === 'fora-do-ar' && linkDoErro === casaQueMudou.href ? K.mudar : textos.casa.verDatas}
               </a>
             )}
             {/* as garantias do quadro do passeio, perto do botão (Pacote 27): só as que valem para este carrinho. Desde o

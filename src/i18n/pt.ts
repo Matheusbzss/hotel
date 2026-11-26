@@ -197,6 +197,10 @@ const pt = {
     casaIndisponivel: 'Alguma noite dessas datas já está ocupada. Toque em Mudar para escolher outras datas.',
     // a casa cuja reserva fechou para este visitante (o interruptor ou o pagamento online): fica no carrinho, fora da conta
     casaFechada: 'A reserva desta casa pelo site não está disponível agora.',
+    // pacote 2: a casa de um carrinho antigo que deixou de valer como está (a capacidade, um pacote novo, o mínimo, o fim de
+    // semana) e a que saiu do ar: ficam no carrinho, fora da conta, com o "Mudar"
+    casaMudou: 'As condições desta casa mudaram para essas datas. Toque em Mudar para escolher de novo.',
+    casaForaDoAr: 'Esta casa não está mais disponível para reserva. Toque em Mudar para ver as outras casas.',
     casaEsperando:
       'Já existe um pedido de casa com este e-mail esperando o pagamento. Termine esse pagamento ou espere ele vencer, em até 1 hora, para fazer outro pedido.',
     // a mesma casa já está no carrinho com noites que se cruzam (na página da casa, sem passar pelo "Mudar")
@@ -321,6 +325,10 @@ const pt = {
     // a linha do voucher cancelado sem reembolso na página do pedido (o motivo vem embaixo)
     voucherCanceladoSemReembolso: 'Cancelado, sem reembolso',
     motivoForaDaPolitica: 'Motivo: o cancelamento foi pedido com menos de 24 horas de antecedência do serviço.',
+    // Etapa 7, pacote 2: o motivo e a regra das casas de temporada (30 dias e os 7 dias da compra), sem verbo em "tú"
+    motivoForaDaPoliticaCasa: 'Motivo: o cancelamento foi pedido a menos de 30 dias da entrada na casa, fora dos 7 dias depois da compra.',
+    regraSemReembolsoCasa:
+      'Pela nossa política de cancelamento das casas de temporada, quando o cancelamento é feito a menos de 30 dias da entrada (fora dos 7 dias depois da compra), o sinal pago no site não é devolvido, e o restante da estadia não é cobrado.',
     motivoNaoCompareceu: 'Motivo: não houve comparecimento no horário e no local combinados.',
     // {texto}: o motivo como a equipe escreveu (decisão do dono de 25/11, P4)
     motivoOutro: 'Motivo: {texto}',

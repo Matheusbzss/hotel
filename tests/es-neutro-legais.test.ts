@@ -5,11 +5,17 @@ import { AJUSTES_AR_CANCELAMENTO, CANCELAMENTO } from '../src/content/legal/canc
 import { AJUSTES_AR_PRIVACIDADE, PRIVACIDADE } from '../src/content/legal/privacidade.ts';
 import { AJUSTES_AR_TERMOS, TERMOS } from '../src/content/legal/termos.ts';
 import {
+  AJUSTES_AR_CANCELAMENTO_CASAS,
   AJUSTES_AR_CANCELAMENTO_ONLINE,
+  AJUSTES_AR_PRIVACIDADE_CASAS,
   AJUSTES_AR_PRIVACIDADE_ONLINE,
+  AJUSTES_AR_TERMOS_CASAS,
   AJUSTES_AR_TERMOS_ONLINE,
+  CANCELAMENTO_CASAS,
   CANCELAMENTO_ONLINE,
+  PRIVACIDADE_CASAS,
   PRIVACIDADE_ONLINE,
+  TERMOS_CASAS,
   TERMOS_ONLINE,
 } from '../src/content/legal/online.ts';
 import { ATUALIZADO_EM, type DocumentoLegal } from '../src/content/legal/tipos.ts';
@@ -28,6 +34,10 @@ const DOCS: Record<string, { doc: Traduzido<DocumentoLegal>; pares: readonly Par
   'termos-online': { doc: TERMOS_ONLINE, pares: AJUSTES_AR_TERMOS_ONLINE },
   'cancelamento-online': { doc: CANCELAMENTO_ONLINE, pares: AJUSTES_AR_CANCELAMENTO_ONLINE },
   'privacidade-online': { doc: PRIVACIDADE_ONLINE, pares: AJUSTES_AR_PRIVACIDADE_ONLINE },
+  // Etapa 7, pacote 3: as versões com as casas de temporada (src/content/legal/casas.ts)
+  'termos-casas': { doc: TERMOS_CASAS, pares: AJUSTES_AR_TERMOS_CASAS },
+  'cancelamento-casas': { doc: CANCELAMENTO_CASAS, pares: AJUSTES_AR_CANCELAMENTO_CASAS },
+  'privacidade-casas': { doc: PRIVACIDADE_CASAS, pares: AJUSTES_AR_PRIVACIDADE_CASAS },
 };
 
 /** A forma de um valor: as chaves (em ordem) e o tipo de cada folha; uma lista guarda o tamanho. */
@@ -125,6 +135,10 @@ const PARES_ESPERADOS: Record<string, number> = {
   'termos-online': 12,
   'cancelamento-online': 12,
   'privacidade-online': 13,
+  // Etapa 7, pacote 3: as versões com as casas, as mesmas da versão online (as frases novas não têm vos)
+  'termos-casas': 12,
+  'cancelamento-casas': 12,
+  'privacidade-casas': 13,
 };
 
 test('só as frases dos pares mudam entre es e es-ar, e cada par é usado uma vez', () => {

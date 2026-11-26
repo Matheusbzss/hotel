@@ -185,6 +185,10 @@ const en: Dicionario = {
     casaTotalDaEstadiaCartao: 'Stay total: {cartao} by card',
     casaIndisponivel: 'Some of these nights are already booked. Tap Change to pick other dates.',
     casaFechada: 'Booking this home on the site isn’t available right now.',
+    // pacote 2: a casa de um carrinho antigo que deixou de valer como está (a capacidade, um pacote novo, o mínimo, o fim de
+    // semana) e a que saiu do ar: ficam no carrinho, fora da conta, com o "Mudar"
+    casaMudou: 'The conditions for this home changed for these dates. Tap Change to choose again.',
+    casaForaDoAr: 'This home is no longer available to book. Tap Change to see the other homes.',
     casaEsperando:
       'There is already a home booking with this email waiting for payment. Complete that payment or wait for it to expire, within 1 hour, to place another order.',
     casaJaNoCarrinho: 'This home is already in your cart, with dates that overlap these. To change the dates, tap Change in the cart.',
@@ -290,6 +294,11 @@ const en: Dicionario = {
     canceladoSemReembolsoComParteTexto: 'The rest of your order has been cancelled by our team, without a refund.',
     voucherCanceladoSemReembolso: 'Cancelled, without a refund',
     motivoForaDaPolitica: 'Reason: the cancellation was requested less than 24 hours before the service.',
+    // Etapa 7, pacote 2: o motivo e a regra das casas de temporada (30 dias e os 7 dias da compra), sem verbo em "tú"
+    motivoForaDaPoliticaCasa:
+      'Reason: the cancellation was requested less than 30 days before check-in at the home, outside the 7 days after purchase.',
+    regraSemReembolsoCasa:
+      'Under our holiday home cancellation policy, when the cancellation is made less than 30 days before check-in (outside the 7 days after purchase), the amount paid on the site is not refunded, and the rest of the stay is not charged.',
     motivoNaoCompareceu: 'Reason: no-show at the agreed time and place.',
     motivoOutro: 'Reason: {texto}',
     regraSemReembolso:

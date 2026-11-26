@@ -13,12 +13,11 @@ import { valorRecebido } from './pedidos-painel';
 import { textoPessoas } from './pessoas';
 import { formatarPreco } from './precos';
 import { statusDoVoucher } from './reserva-publica';
-import { CANCELAMENTO_DAS_CASAS, REGRAS_DAS_CASAS } from '@/data/regras-casas';
-import { HORA_ENTRADA_CASA } from './diarias';
-import { ehCasa, ehTransfer, type Reserva, type ReservaCasa, type ReservaPasseio, type ReservaTransfer } from './reservas';
+import { ehCasa, ehTransfer, type Reserva, type ReservaPasseio, type ReservaTransfer } from './reservas';
 import { transferVisivel, type TrechoVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM, formatarDataIso } from './validacao';
 import { LOGO_VOUCHER_PNG_BASE64 } from './logo-voucher';
+import { conteudoDoVoucherDaCasa } from './voucher-casa';
 import { AVISOS_VOUCHER as AVISOS, IMPORTANTE_VOUCHER as IMPORTANTE } from './voucher-textos';
 
 /** As cores do site: a tinta azul-noite, a superfície do cartão, o verde-água das ações e o cinza das notas. */
@@ -78,7 +77,7 @@ function link(pdf: PDFDocument, page: PDFPage, url: string, x: number, y: number
   else page.node.set(PDFName.of('Annots'), pdf.context.obj([anotacao]));
 }
 
-/** O que muda entre o voucher de passeio e o de transfer: os campos do cartão, a mensagem do WhatsApp e os avisos. */
+/** O que muda entre o voucher de passeio, o de transfer e o da casa: os campos do cartão, a mensagem do WhatsApp e os avisos. */
 interface ConteudoVoucher {
   /** Cada campo: o rótulo e um ou mais parágrafos (cada parágrafo quebra em linhas sozinho). */
   campos: [string, string[]][];
@@ -161,54 +160,15 @@ function conteudoTransfer(reserva: ReservaTransfer, d: Dicionario): ConteudoVouc
   };
 }
 
-/**
- * O voucher da casa de temporada (Etapa 7), no mínimo, só com textos que o site já tem: a casa, a entrada às 15h e a saída
- * às 12h, os hóspedes, o nome, o que foi pago no site (o sinal) e o que fica para a chegada; nos avisos, a entrada e a
- * saída, a recepção e o cadastro dos hóspedes e as regras de cancelamento das casas. Sem endereço: a equipe manda a
- * localização pelo WhatsApp depois do pagamento. O voucher completo da casa (os rótulos novos, o total da estadia, a frase
- * da localização) fica para a parte 2 do pacote 1.
- */
-function conteudoCasa(reserva: ReservaCasa, d: Dicionario): ConteudoVoucher {
-  const idioma = reserva.idioma;
-  const locale = LOCALE_INTL[idioma];
-  const entrada = fmt(d.horario.dataHora, { data: formatarDataIso(reserva.data, locale), hora: formatarHora(HORA_ENTRADA_CASA, idioma) });
-  const saida = fmt(d.horario.dataHora, { data: formatarDataIso(reserva.saida, locale), hora: formatarHora('12:00', idioma) });
-  const hospedes = reserva.hospedes === 1 ? d.casas.linha.hospede : fmt(d.casas.linha.hospedes, { n: reserva.hospedes });
-  const pago = valorRecebido(reserva);
-  const total = reserva.pagamento.metodo === 'pix' ? (reserva.totalPixCentavos ?? reserva.totalCentavos) : reserva.totalCentavos;
-  return {
-    campos: [
-      [d.nav.casas, [reserva.casa.nome]],
-      [d.casas.chegada, [entrada]],
-      [d.casas.saida, [saida]],
-      [d.casas.hospedes, [hospedes]],
-      [d.reserva.nome, [reserva.cliente.nome]],
-      [d.reserva.total, [formatarPreco(pago, idioma)]],
-      [d.casas.naChegada, [formatarPreco(total - pago, idioma)]],
-    ],
-    mensagem: fmt(d.reserva.msgVoucher, {
-      codigo: reserva.codigo,
-      passeio: reserva.casa.nome,
-      data: entrada,
-      pessoas: hospedes,
-      hotel: reserva.casa.nome,
-    }),
-    avisos: [
-      noIdioma(REGRAS_DAS_CASAS.entradaSaida, idioma),
-      noIdioma(REGRAS_DAS_CASAS.recepcao, idioma),
-      noIdioma(REGRAS_DAS_CASAS.cadastro, idioma),
-      ...CANCELAMENTO_DAS_CASAS.map((regra) => noIdioma(regra, idioma)),
-    ],
-  };
-}
-
 export async function gerarVoucherPdf(reserva: Reserva, urlReserva: string): Promise<Uint8Array> {
   const idioma = reserva.idioma;
   const d = dicionario(idioma);
-  const conteudo = ehTransfer(reserva)
+  // a casa de temporada (Etapa 7): a chegada e a saída com a hora, as diárias, o sinal pago, o restante na chegada e o total
+  // da estadia, só na forma paga, e os avisos das casas, sem endereço (conteudoDoVoucherDaCasa, src/lib/voucher-casa.ts)
+  const conteudo: ConteudoVoucher = ehTransfer(reserva)
     ? conteudoTransfer(reserva, d)
     : ehCasa(reserva)
-      ? conteudoCasa(reserva, d)
+      ? conteudoDoVoucherDaCasa(reserva, d)
       : conteudoPasseio(reserva, d);
 
   const pdf = await PDFDocument.create();

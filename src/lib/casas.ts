@@ -319,6 +319,33 @@ export async function itensPresosNoComputador(itens: readonly string[]): Promise
 }
 
 /**
+ * As estadias do site (origem 'site') de uma casa que cruzam as noites de `inicio` até a véspera de `fim`, com o item do
+ * pedido de cada uma, lidas agora (sem cache): é o que o "Bloquear datas" do painel confere antes de gravar
+ * (reservasDoSiteNasDatas, src/lib/pedido-carrinho.ts; crítica de 26/11, furo 6). No computador sem o banco, o arquivo da
+ * trava.
+ */
+export async function bloqueiosDoSiteQueCruzam(
+  casaId: string,
+  inicio: string,
+  fim: string,
+): Promise<(BloqueioLido & { itemPedidoId: string })[]> {
+  if (usarBanco()) {
+    const { data, error } = await supabase()
+      .from('casas_bloqueios')
+      .select('casa_id, inicio, fim, item_pedido_id')
+      .eq('casa_id', casaId)
+      .eq('origem', 'site')
+      .lt('inicio', fim)
+      .gt('fim', inicio);
+    if (error) throw erroDoBanco(error);
+    return data.flatMap((b) => (b.item_pedido_id ? [{ casaId: b.casa_id, inicio: b.inicio, fim: b.fim, itemPedidoId: b.item_pedido_id }] : []));
+  }
+  return (await lerBloqueiosDoSite())
+    .filter((b) => b.casaId === casaId && b.inicio < fim && inicio < b.fim)
+    .map((b) => ({ casaId: b.casaId, inicio: b.inicio, fim: b.fim, itemPedidoId: b.itemPedidoId }));
+}
+
+/**
  * O centro PÚBLICO do círculo do mapa de uma casa no ar (casas.centro_lat e casas.centro_lng, deslocado do ponto que o
  * dono marca no painel): só o servidor lê, para recortar a foto de satélite. Sem o ponto marcado, null e nada de mapa.
  */

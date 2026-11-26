@@ -227,6 +227,9 @@ const en: Dicionario = {
       'Your order has been saved. Complete the payment with our team on WhatsApp; each item gets its voucher as soon as the payment is confirmed.',
     confirmadoTitulo: 'Order confirmed!',
     confirmadoTexto: 'Your vouchers are ready, one for each item. On the day, just show them on your phone.',
+    // Etapa 7: the paid order with a home; see pt.ts
+    casaNoPedido:
+      'For the home, the balance is paid on arrival, by Pix, cash or card. Our team will send you the exact location on WhatsApp and ask for the guests’ details.',
     canceladoTitulo: 'Order cancelled',
     canceladoTexto: 'This order has been cancelled. If you have any questions, talk to us.',
     verVoucher: 'View voucher',
@@ -752,6 +755,17 @@ const en: Dicionario = {
     naoEncontrada: 'Booking not found',
     naoEncontradaTexto: 'Check the link you received or email us.',
     codigoReserva: 'Booking code',
+    // the holiday home (Etapa 7); see pt.ts
+    casa: 'Home',
+    casaConfirmadoTexto:
+      'Your booking is confirmed and your voucher is ready. Our team will send you the exact location of the home on WhatsApp.',
+    casaProximo1:
+      'Our team will send you the exact location of the home on WhatsApp and arrange your arrival time with you (check-in is from {hora}).',
+    casaProximo2:
+      'On WhatsApp, the team will also ask for the details of all guests: full name, ID and, if arriving by car, the license plate.',
+    casaProximo3: 'On arrival, you pay the balance, {valor}, by Pix, cash or card.',
+    casaMsgVoucher: 'Hi! My booking is confirmed. Voucher {codigo} — {casa}, from {entrada} to {saida}, {hospedes}.',
+    casaLocalizacao: 'Our team sends the exact location of the home on WhatsApp.',
   },
   casas: {
     titulo: 'Holiday homes',
@@ -898,6 +912,13 @@ const en: Dicionario = {
     mapaCirculo: 'The circle, {m} m in radius, shows the area, not the exact location of the house.',
     chegadaSeguranca: 'Arrival and safety',
     itemNaStripe: '{casa}: {p}% deposit',
+    // the voucher and the order and booking pages of a home (Etapa 7); see pt.ts
+    quandoEntra: '{data}, from {hora}',
+    quandoSai: '{data}, by {hora}',
+    diarias: 'Nights',
+    sinalPago: 'Deposit paid',
+    totalDaEstadia: 'Stay total',
+    formasNaChegada: 'by Pix, cash or card',
   },
   contato: {
     titulo: 'Get in touch',

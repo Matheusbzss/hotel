@@ -177,6 +177,8 @@ export const FRASES_ARGENTINAS: [string, string][] = [
   ['acá', 'aquí'],
   // trocas extras relatadas pelos tradutores (a confirmar com o dono; o es-ar guarda a palavra argentina)
   ['una seña', 'un anticipo'],
+  // Etapa 7 (26/11): o rótulo do voucher da casa ("Seña pagada"; no neutro, o anticipo é masculino)
+  ['Seña pagada', 'Anticipo pagado'],
   ['Seña', 'Anticipo'],
   ['seña', 'anticipo'],
   ['resúmenes', 'estados de cuenta'],

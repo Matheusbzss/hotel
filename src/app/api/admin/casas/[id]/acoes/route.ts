@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
 import { EsquemaBloqueio, EsquemaTarifa, faltaParaPublicar, lerCoordenadas, type CasaPainel } from '@/lib/casa';
 import { apagarBloqueio, apagarTarifa, criarBloqueio, criarTarifa, importarAgora, obterCasaPainel, publicarCasa } from '@/lib/casas';
-import { marcarPontoDaCasa } from '@/lib/casas-painel';
+import { marcarPontoDaCasa, semCoordenadas } from '@/lib/casas-painel';
+import { reservasDoSiteNasDatas } from '@/lib/pedido-carrinho';
+import { reservasQueImpedemOBloqueio, type ReservaQueSegura } from '@/lib/trava-das-casas';
 
 export const runtime = 'nodejs';
 
 type Campos = Record<string, string>;
 
+/** O aviso que aparece na página da casa e, quando ele precisa, o que vai junto no endereço da volta (só datas). */
+type Volta = string | { aviso: string; parametros: Record<string, string> };
+
 /** Cada ação devolve o aviso que aparece na página da casa. */
-const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<string>> = {
+const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<Volta>> = {
   async publicar(casa) {
     if (faltaParaPublicar(casa).length) return 'falta';
     await publicarCasa(casa.id, true);
@@ -42,9 +47,28 @@ const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<string
     await apagarTarifa(casa, campos.id);
     return 'tarifa-apagada';
   },
+  /**
+   * Bloquear datas à mão. Antes de gravar, as reservas do site que cruzam as noites (crítica de 26/11, furo 6): a paga ou a
+   * que espera o pagamento recusa o bloqueio, com a lista na página (as datas voltam no endereço, e a página relê as reservas
+   * de agora): bloquear por cima poria duas pessoas na mesma casa, e uma delas pagou. A equipe cancela ou devolve a reserva
+   * no painel dos pedidos e então bloqueia. Sem migração: uma consulta antes da inserção (a função do banco que prende as
+   * datas do site já confere os bloqueios à mão: a reserva que chegar depois do bloqueio é recusada). Sem conseguir
+   * conferir (o banco não respondeu), nada é bloqueado: nunca por cima do que não se viu.
+   */
   async novo_bloqueio(casa, campos) {
     const r = EsquemaBloqueio.safeParse(campos);
     if (!r.success) return 'bloqueio-invalido';
+    let impedem: ReservaQueSegura[];
+    try {
+      impedem = reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casa.id, r.data.inicio, r.data.fim));
+    } catch (e) {
+      // como os outros registros desta rota: sem nenhum número com cara de coordenada (semCoordenadas)
+      console.error(
+        `[casas] não deu para conferir as reservas do site antes do bloqueio: ${semCoordenadas(e instanceof Error ? e.message : String(e))}`,
+      );
+      return 'bloqueio-sem-conferir';
+    }
+    if (impedem.length) return { aviso: 'bloqueio-cruza-reserva', parametros: { inicio: r.data.inicio, fim: r.data.fim } };
     await criarBloqueio(casa.id, r.data);
     return 'bloqueio-salvo';
   },
@@ -69,8 +93,11 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/casas/[id
   const acao = ACOES[campos.acao];
   if (!acao) return NextResponse.json({ ok: false }, { status: 400 });
   const volta = new URL(`/admin/casas/${id}`, req.url);
-  const aviso = await acao(casa, campos);
+  const resultado = await acao(casa, campos);
+  const aviso = typeof resultado === 'string' ? resultado : resultado.aviso;
   volta.searchParams.set('aviso', aviso);
+  if (typeof resultado !== 'string')
+    for (const [chave, valor] of Object.entries(resultado.parametros)) volta.searchParams.set(chave, valor);
   // o aviso do mapa aparece na própria parte do mapa: a página já abre nela
   if (aviso.startsWith('ponto-')) volta.hash = 'no-mapa';
   return NextResponse.redirect(volta, 303);

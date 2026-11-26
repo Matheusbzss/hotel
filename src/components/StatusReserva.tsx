@@ -76,7 +76,9 @@ export interface DesistenciaDaReserva {
  * A página da reserva (um voucher), em todos os estados: confirmando o pagamento, pagar de novo, pago com o
  * voucher, expirado, cancelado, reembolsado, contestado. Quem decide o status é o servidor: aqui a página só
  * pergunta a ele e se redesenha (router.refresh) quando ele muda. O WhatsApp da equipe só aparece quando o
- * servidor liberou (mostrarWhatsApp: só pago).
+ * servidor liberou (mostrarWhatsApp: só pago). Na casa de temporada (Etapa 7), a grade da casa (a chegada a partir das
+ * 15h, a saída até as 12h, as diárias, os hóspedes e os valores), os próximos passos da casa e a mensagem do WhatsApp com
+ * as datas; sem endereço.
  */
 export function StatusReserva({
   inicial: r,
@@ -229,6 +231,18 @@ export function StatusReserva({
   const dataHoraTrecho = (tr: { data: string; hora: string }) =>
     fmt(textos.dataHora, { data: formatarDataIso(tr.data, locale), hora: tr.hora });
   const trajeto = t ? `${t.ida.saida} → ${t.ida.destino}` : '';
+  // a casa de temporada (Etapa 7): as datas com as horas, as diárias, os hóspedes e os valores guardados na compra. Em
+  // aberto, o total da estadia nas formas que a faixa mostra (a faixa é o sinal de hoje); pago, só os valores da forma paga
+  // (crítica de 26/11, furo 20: com as duas formas, quem pagou o sinal no cartão pediria o desconto do Pix na chegada)
+  const c = r.casa;
+  const formaPaga: FormaPagamento = r.forma ?? 'cartao';
+  const pagaNaForma = c
+    ? formaPaga === 'pix'
+      ? { sinal: c.sinalPixCentavos, total: c.totalPixCentavos, chegada: c.chegadaPixCentavos }
+      : { sinal: c.sinalCentavos, total: c.totalCentavos, chegada: c.chegadaCentavos }
+    : null;
+  // em aberto, a faixa é o sinal de hoje; o total da estadia vai na grade, nas mesmas formas e na mesma ordem da faixa
+  const totalDaEstadia = c ? partesDoTotal(c.totalCentavos, c.totalPixCentavos, formasNaFaixa, primeiraForma) : [];
 
   const msgVoucher = t
     ? textos.transferMsgVoucher
@@ -236,7 +250,9 @@ export function StatusReserva({
         .replace('{trajeto}', trajeto)
         .replace('{data}', dataHoraTrecho(t.ida))
         .replace('{pessoas}', pessoas)
-    : textos.msgVoucher
+    : c
+      ? fmt(textos.casaMsgVoucher, { codigo: r.codigo, casa: r.passeioNome, entrada: c.entradaCurta, saida: c.saidaCurta, hospedes: pessoas })
+      : textos.msgVoucher
         .replace('{codigo}', r.codigo)
         .replace('{passeio}', nomePasseio)
         .replace('{data}', dataHora)
@@ -319,6 +335,67 @@ export function StatusReserva({
                 <dt className={ROTULO_DA_GRADE}>{textos.transferCadeirinhas}</dt>
                 <dd className="font-bold">{t.cadeirinhas}</dd>
               </div>
+            )}
+          </dl>
+        ) : c ? (
+          // a casa: sem endereço (a equipe manda a localização exata pelo WhatsApp depois do pagamento)
+          <dl className={GRADE_DO_VOUCHER}>
+            <div className="col-span-2">
+              <dt className={ROTULO_DA_GRADE}>{textos.casa}</dt>
+              <dd className="text-lead font-semibold leading-tight">{r.passeioNome}</dd>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <dt className={ROTULO_DA_GRADE}>{textos.casaChegada}</dt>
+              <dd className="font-bold">{c.quandoEntra}</dd>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <dt className={ROTULO_DA_GRADE}>{textos.casaSaida}</dt>
+              <dd className="font-bold">{c.quandoSai}</dd>
+            </div>
+            <div>
+              <dt className={ROTULO_DA_GRADE}>{textos.casaDiarias}</dt>
+              <dd className="font-bold">{c.diarias}</dd>
+            </div>
+            <div>
+              <dt className={ROTULO_DA_GRADE}>{textos.casaHospedes}</dt>
+              <dd className="font-bold">{pessoas}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className={ROTULO_DA_GRADE}>{textos.nome}</dt>
+              <dd className="font-bold">{r.nome}</dd>
+            </div>
+            {r.status === 'pago' && pagaNaForma ? (
+              <>
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className={ROTULO_DA_GRADE}>{textos.casaSinalPago}</dt>
+                  <dd className="numeros font-bold">{valorTela(pagaNaForma.sinal)}</dd>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <dt className={ROTULO_DA_GRADE}>{textos.casaTotalDaEstadia}</dt>
+                  <dd className="numeros font-bold">{valorTela(pagaNaForma.total)}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className={ROTULO_DA_GRADE}>{textos.casaNaChegada}</dt>
+                  <dd className="numeros font-bold">{valorTela(pagaNaForma.chegada)}</dd>
+                  <dd className="text-small">{textos.casaFormasNaChegada}</dd>
+                </div>
+              </>
+            ) : (
+              online && (
+                // em aberto: o total da estadia nas formas da faixa (o sinal de hoje é o valor da faixa, logo abaixo)
+                <div className="col-span-2">
+                  <dt className={ROTULO_DA_GRADE}>{textos.casaTotalDaEstadia}</dt>
+                  <dd className="numeros font-bold">
+                    {totalDaEstadia.map((parte, n) => (
+                      <span key={parte.forma ?? 'total'}>
+                        {n > 0 && ' · '}
+                        {valorTela(parte.centavos, parte.forma && rotuloNaLista(totalDaEstadia, parte.forma))}
+                      </span>
+                    ))}
+                  </dd>
+                  <dd className="text-small">{textos.casaSinalHoje}</dd>
+                </div>
+              )
             )}
           </dl>
         ) : (
@@ -417,7 +494,9 @@ export function StatusReserva({
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <h1 className="display text-head">{textos.confirmadoTitulo}</h1>
-          <p className="mt-4 max-w-[46ch] text-lead">{t ? textos.transferConfirmado : textos.confirmadoTexto}</p>
+          <p className="mt-4 max-w-[46ch] text-lead">
+            {t ? textos.transferConfirmado : c ? textos.casaConfirmadoTexto : textos.confirmadoTexto}
+          </p>
           {frasesDoPago.length > 0 && (
             <div className="mt-4 max-w-[46ch] space-y-2 bg-superficie px-5 py-4">
               {frasesDoPago.map((frase, n) => (
@@ -437,9 +516,22 @@ export function StatusReserva({
           <div className="mt-6 bg-superficie px-5 py-5">
             <h2 className="font-bold">{textos.proximos}</h2>
             <ul className="mt-3 list-disc space-y-2 pl-5">
-              <li>{t ? textos.transferEspera : r.horario?.busca ? textos.proximo1Busca : textos.proximo1Saida}</li>
-              <li>{textos.proximo2}</li>
-              <li>{textos.proximo3}</li>
+              {c && pagaNaForma ? (
+                // a casa: a localização e a chegada pelo WhatsApp, o cadastro dos hóspedes, o restante na chegada (da forma
+                // paga) e o número do voucher; nada de remarcar com 24 horas, que é dos passeios
+                <>
+                  <li>{textos.casaProximo1}</li>
+                  <li>{textos.casaProximo2}</li>
+                  <li>{fmt(textos.casaProximo3, { valor: formatarCentavos(pagaNaForma.chegada, locale) })}</li>
+                  <li>{textos.proximo2}</li>
+                </>
+              ) : (
+                <>
+                  <li>{t ? textos.transferEspera : r.horario?.busca ? textos.proximo1Busca : textos.proximo1Saida}</li>
+                  <li>{textos.proximo2}</li>
+                  <li>{textos.proximo3}</li>
+                </>
+              )}
             </ul>
           </div>
           {/* discreto, embaixo de tudo: a desistência pela mesma ferramenta da compra (Decreto 7.962/2013) */}

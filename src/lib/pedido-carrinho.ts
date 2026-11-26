@@ -4,7 +4,7 @@ import { supabase, usarBanco } from './banco';
 import type { CarrinhoGuardado, Conferida } from './carrinho-servidor';
 import type { TrechoEscolhido } from './carrinho';
 import { argsDePrenderDatas, type BloqueioDoSite } from './casas-banco';
-import { itensPresosNoComputador, prenderNoComputador, renomearNoComputador, soltarNoComputador } from './casas';
+import { bloqueiosDoSiteQueCruzam, itensPresosNoComputador, prenderNoComputador, renomearNoComputador, soltarNoComputador } from './casas';
 import type { FormaPagamento } from './formas-pagamento';
 import type { Origem } from './origem';
 import { obterOpcao, temOpcoes } from './precos';
@@ -12,6 +12,7 @@ import {
   ehCasa,
   listarReservas,
   obterPedido,
+  obterReserva,
   type NovaReserva,
   type Reserva,
   type ReservaCasa,
@@ -19,7 +20,7 @@ import {
   type TrechoTransfer,
 } from './reservas';
 import { codigoDoPedido } from './reservas-banco';
-import { depoisDoNaoDeu, itensAPrender, type EstadiaDoPedido } from './trava-das-casas';
+import { depoisDoNaoDeu, itensAPrender, type EstadiaDoPedido, type ReservaQueSegura } from './trava-das-casas';
 
 /**
  * O pedido do carrinho: a reserva de cada item (um voucher por item, um pagamento só) e, nas casas, o bloqueio
@@ -348,6 +349,44 @@ export async function conferirDatasDoPedidoPago(
     }
   }
   return { prendeu, semTrava };
+}
+
+/**
+ * As reservas do site que seguram noites de uma casa entre `inicio` e a véspera de `fim`, com os status de agora (o do
+ * pedido e o do item): é o que o "Bloquear datas" do painel confere antes de gravar (reservasQueImpedemOBloqueio,
+ * src/lib/trava-das-casas.ts; crítica de 26/11, furo 6). A estadia cujo pedido não se acha mais fica de fora.
+ */
+export async function reservasDoSiteNasDatas(casaId: string, inicio: string, fim: string): Promise<ReservaQueSegura[]> {
+  const bloqueios = await bloqueiosDoSiteQueCruzam(casaId, inicio, fim);
+  if (!bloqueios.length) return [];
+  // o voucher de cada item: no banco, pela tabela dos itens; nos arquivos, o item já é o código do voucher
+  let voucherDoItem = new Map(bloqueios.map((b) => [b.itemPedidoId, b.itemPedidoId]));
+  if (usarBanco()) {
+    const { data, error } = await supabase()
+      .from('itens_pedido')
+      .select('id, voucher_codigo')
+      .in(
+        'id',
+        bloqueios.map((b) => b.itemPedidoId),
+      );
+    if (error) throw erroDoBanco(error);
+    voucherDoItem = new Map(data.flatMap((l): [string, string][] => (l.voucher_codigo ? [[l.id, l.voucher_codigo]] : [])));
+  }
+  const lista: ReservaQueSegura[] = [];
+  for (const b of bloqueios) {
+    const voucher = voucherDoItem.get(b.itemPedidoId);
+    const r = voucher ? await obterReserva(voucher) : null;
+    if (!r) continue;
+    lista.push({
+      voucher: r.codigo,
+      pedido: r.pedido?.codigo ?? r.codigo,
+      status: r.status,
+      ...(r.statusItem ? { statusItem: r.statusItem } : {}),
+      inicio: b.inicio,
+      fim: b.fim,
+    });
+  }
+  return lista;
 }
 
 /**

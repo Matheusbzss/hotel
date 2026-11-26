@@ -8,6 +8,9 @@ export const SINAL_PORCENTO = 50;
 /** A hora de entrada nas casas: é dela que se conta a antecedência mínima do pagamento de uma estadia. */
 export const HORA_ENTRADA_CASA = '15:00';
 
+/** A hora de saída das casas, no dia da saída (o voucher e as páginas do pedido e da reserva). */
+export const HORA_SAIDA_CASA = '12:00';
+
 export interface PeriodoPreco {
   nome: Texto;
   /** Primeira noite do período (AAAA-MM-DD). */

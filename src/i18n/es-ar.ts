@@ -357,6 +357,10 @@ export const ajustesAR: AjustesAR = {
     whatsappTexto:
       'Tu reserva quedó registrada. Completá el pago con nuestro equipo por WhatsApp; el voucher se libera apenas se confirma el pago.',
     naoEncontradaTexto: 'Revisá el enlace que recibiste o escribinos por e-mail.',
+    // Etapa 7, a casa paga: o "con vos" da chegada e o "pagás" do restante
+    casaProximo1:
+      'Nuestro equipo te envía por WhatsApp la ubicación exacta de la casa y coordina con vos la hora de llegada (la entrada es desde las {hora}).',
+    casaProximo3: 'Al llegar, pagás el resto, {valor}, con Pix, efectivo o tarjeta.',
   },
   casas: {
     texto: 'Casas de alta gama con vista al mar, para grupos grandes. La reserva se hace acá en el sitio, con una seña del 50%.',
@@ -379,6 +383,8 @@ export const ajustesAR: AjustesAR = {
     avisemeTexto: 'Dejanos tu nombre y tu e-mail y te avisamos cuando abra la reserva de esta casa.',
     // Etapa 7: o nome da casa na tela de pagamento da Stripe, com a seña
     itemNaStripe: '{casa}: seña del {p}%',
+    // Etapa 7: o voucher e as páginas do pedido e da reserva da casa, com a seña
+    sinalPago: 'Seña pagada',
   },
   contato: {
     titulo: 'Contactanos',

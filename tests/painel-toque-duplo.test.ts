@@ -507,10 +507,11 @@ test('no pedido da Stripe a regra dá só o "Cancelar" de sempre, e a rota conti
       for (const nome of ORDEM) assert.deepEqual(naTrava(r, nome), naTrava(r, nome, false), `${status} ${metodo} ${nome}`);
     }
   // a rota: as três conferências do pedido da Stripe ficam como eram, antes da trava (marcar pago recusado, cancelar pela
-  // sessão, "reembolsado" só de onde a Stripe deixa), e a regra dos botões só entra fora da Stripe
+  // sessão, "reembolsado" só de onde a Stripe deixa), e a regra dos botões só entra fora da Stripe. Desde a reserva das
+  // casas (26/11), o cancelamento de um pedido com casa refaz o calendário das páginas das casas, depois do e-mail agendado
   assert.match(
     MANUAIS,
-    /if \(daStripe\) \{\s+if \(manual\.status === 'pago'\) return voltar\('so-pelo-aviso'\);\s+if \(manual\.status === 'cancelado'\) \{\s+const r = await cancelarPedidoAberto\(codigoDoPedido, 'Cancelado no admin'\);\s+if \(r && r\.status !== 'cancelado'\) return voltar\('ja-pago'\);\s+if \(r\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+return voltar\(\);\s+\}\s+if \(!podeMudar\(alvo\.status, manual\.status\)\) return voltar\('acao-nao-vale'\);\s+\}/,
+    /if \(daStripe\) \{\s+if \(manual\.status === 'pago'\) return voltar\('so-pelo-aviso'\);\s+if \(manual\.status === 'cancelado'\) \{\s+const r = await cancelarPedidoAberto\(codigoDoPedido, 'Cancelado no admin'\);\s+if \(r && r\.status !== 'cancelado'\) return voltar\('ja-pago'\);\s+if \(r\) agendarEmailDoCancelamento\(codigoDoPedido\);\s+if \(r && vouchers\.some\(ehCasa\)\) calendarioMudou\(\);\s+return voltar\(\);\s+\}\s+if \(!podeMudar\(alvo\.status, manual\.status\)\) return voltar\('acao-nao-vale'\);\s+\}/,
   );
   assert.match(
     MANUAIS,
@@ -540,9 +541,11 @@ test('a página e a rota chamam a mesma regra: os botões do Acoes e a conferên
   );
   assert.match(acoes, /pago_cartao: corrigir \? 'Corrigir: foi no cartão' : `Pago no cartão \(\$\{formatarPreco\(p\.totalCentavos\)\}\)`,/);
   assert.match(acoes, /marcar_pago: 'Marcar como pago',\s+cancelar: 'Cancelar',\s+reembolsado: 'Marcar reembolsado',/);
-  // a lista dos status em aberto mora na regra: a página a importa (o valor do pedido em aberto continua a usá-la)
+  // a lista dos status em aberto mora na regra: a página a importa (o valor do pedido em aberto continua a usá-la; desde a
+  // reserva das casas, 26/11, com o preço no Pix do que o pedido cobra hoje: no pedido sem casa, o total de sempre)
   assert.doesNotMatch(pagina, /const EM_ABERTO\b/);
-  assert.match(pagina, /if \(EM_ABERTO\.includes\(p\.status\) && p\.totalPixCentavos !== undefined\) \{/);
+  assert.match(pagina, /const precoPix = cobrar \? cobrar\.pix : p\.totalPixCentavos;/);
+  assert.match(pagina, /if \(EM_ABERTO\.includes\(p\.status\) && precoPix !== undefined\) \{/);
   // a rota: a mesma chamada, uma vez, dentro da trava (com o pedido relido, `r`) e depois da repetida
   assert.equal(ROTA.match(/acaoManualOferecida\(/g)?.length, 1);
   const trava = MANUAIS.slice(MANUAIS.indexOf('await atualizarReserva(alvo.codigo, (r) => {'));

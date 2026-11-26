@@ -405,7 +405,15 @@ async function tirarDaLista(email: string): Promise<void> {
 /* ------------------------------------------------------------------ */
 /* O agendamento                                                       */
 
-export type MotivoDoResumo = MotivoParaPular | 'limite-do-dia' | 'item-fora-do-site' | 'outro-envio' | 'nao-saiu' | 'fim-do-tempo';
+export type MotivoDoResumo =
+  | MotivoParaPular
+  | 'limite-do-dia'
+  | 'item-fora-do-site'
+  | 'outro-envio'
+  | 'nao-saiu'
+  | 'fim-do-tempo'
+  // um erro num carrinho só (crítica de 26/11, furo 13): ele fica de fora desta rodada, e os outros seguem
+  | 'erro-no-carrinho';
 
 /** Quanto tempo uma rodada envia (a rota tem 60 s; sobra folga para responder). */
 const TEMPO_DA_RODADA_MS = 40_000;
@@ -461,87 +469,102 @@ export async function enviarLembretes(agora: Date = new Date()): Promise<ResumoD
         pular('fim-do-tempo');
         break;
       }
-      const decisao = decidirLembrete(c, agora, {
-        descadastrado: fora.has(c.email),
-        jaComprou: jaComprou(c.email, c.criadoEm, pedidos, agora),
-        copiaVirouPedido: compraramNaCopia.has(c.id),
-      });
-      if ('pular' in decisao) {
-        pular(decisao.pular);
-        continue;
-      }
-      if (hoje >= LEMBRETES_POR_DIA) {
-        pular('limite-do-dia');
-        continue;
-      }
-      // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida). Sem o contexto das
-      // casas (SEM_CASAS), o carrinho com casa não recebe lembrete no pacote 1 da reserva das casas: a casa volta null e o
-      // carrinho cai em 'item-fora-do-site' (o lembrete com o sinal da casa fica para o pacote 2)
-      const d = dicionario(c.idioma);
-      const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, SEM_CASAS, agora));
-      if (visiveis.some((v) => v === null)) {
-        pular('item-fora-do-site');
-        continue;
-      }
-      const n = decisao.lembrete;
-      if (!(await marcarLembrete(c.id, n, agora))) {
-        pular('outro-envio');
-        continue;
-      }
+      // um try por carrinho (crítica de 26/11, furo 13): um carrinho que lança erro (um item que o código ainda não sabe
+      // ler, uma falha do banco ao marcar) fica de fora desta rodada, com o lembrete desmarcado, e os outros seguem. Antes,
+      // o erro de um só parava a rodada de todos os lembretes
+      let marcado: 1 | 2 | null = null;
+      try {
+        const decisao = decidirLembrete(c, agora, {
+          descadastrado: fora.has(c.email),
+          jaComprou: jaComprou(c.email, c.criadoEm, pedidos, agora),
+          copiaVirouPedido: compraramNaCopia.has(c.id),
+        });
+        if ('pular' in decisao) {
+          pular(decisao.pular);
+          continue;
+        }
+        if (hoje >= LEMBRETES_POR_DIA) {
+          pular('limite-do-dia');
+          continue;
+        }
+        // cada item precisa valer como está no site agora (o passeio existe, a hora ainda é oferecida). Sem o contexto das
+        // casas (SEM_CASAS), o carrinho com casa não recebe lembrete no pacote 1 da reserva das casas: a casa volta null e o
+        // carrinho cai em 'item-fora-do-site' (o lembrete com o sinal da casa fica para o pacote 2)
+        const d = dicionario(c.idioma);
+        const visiveis = c.itens.map((i) => itemVisivel(i, c.idioma, d, SEM_CASAS, agora));
+        if (visiveis.some((v) => v === null)) {
+          pular('item-fora-do-site');
+          continue;
+        }
+        const n = decisao.lembrete;
+        if (!(await marcarLembrete(c.id, n, agora))) {
+          pular('outro-envio');
+          continue;
+        }
+        marcado = n;
 
-      if (!taxas.has(c.idioma)) taxas.set(c.idioma, c.idioma === 'pt' ? null : await cotacaoDolar().catch(() => null));
-      const taxa = taxas.get(c.idioma) ?? null;
-      const itens = visiveis as ItemVisivel[];
-      // o preço só das formas que o checkout ofereceria agora: o Pix some fora do prazo ou acima do limite dele
-      const formas = await formasDoCarrinho(itensPagaveisDoCarrinho(itens), agora);
-      const comPix = formas.includes('pix');
-      const comCartao = formas.includes('cartao');
-      const totalPix = itens.reduce((s, i) => s + i.totalPixCentavos, 0);
-      const totalCartao = itens.reduce((s, i) => s + i.totalCentavos, 0);
-      const sair = `${urlDoSite()}/api/email/sair?t=${linkDeSair(c.id, c.idioma, chave, c.email)}`;
-      const voltar = `${urlDoSite()}/api/carrinho/voltar?t=${linkDeVoltar(c.id, c.idioma, n, chave, agora)}`;
-      const mensagemDoEmail = emailLembrete({
-        idioma: c.idioma,
-        n,
-        itens: itens.map((i) => ({
-          nome: i.titulo,
-          linhas: i.detalhes,
-          ...(comPix ? { pix: valorNoIdioma(i.totalPixCentavos, c.idioma, taxa) } : {}),
-          ...(comCartao ? { cartao: valorNoIdioma(i.totalCentavos, c.idioma, taxa) } : {}),
-        })),
-        totais: {
-          ...(comPix ? { pix: valorNoIdioma(totalPix, c.idioma, taxa) } : {}),
-          ...(comCartao ? { cartao: valorNoIdioma(totalCartao, c.idioma, taxa) } : {}),
-        },
-        linkVoltar: voltar,
-        linkSair: sair,
-        site,
-      });
-      const resultado = await enviarEmail({
-        tipo: n === 1 ? 'lembrete-1' : 'lembrete-2',
-        referencia: referenciaDoCarrinho(c.id),
-        para: c.email,
-        assunto: mensagemDoEmail.assunto,
-        html: mensagemDoEmail.html,
-        texto: mensagemDoEmail.texto,
-        // o "cancelar inscrição" do próprio aplicativo de e-mail, num toque (RFC 8058)
-        cabecalhos: cabecalhosDeSair(sair),
-        chave: `lembrete-${n}/${c.id}`,
-      });
-      if (saiu(resultado)) {
-        if (n === 1) resumo.enviados.primeiro++;
-        else resumo.enviados.segundo++;
-        hoje++;
-        continue;
+        if (!taxas.has(c.idioma)) taxas.set(c.idioma, c.idioma === 'pt' ? null : await cotacaoDolar().catch(() => null));
+        const taxa = taxas.get(c.idioma) ?? null;
+        const itens = visiveis as ItemVisivel[];
+        // o preço só das formas que o checkout ofereceria agora: o Pix some fora do prazo ou acima do limite dele
+        const formas = await formasDoCarrinho(itensPagaveisDoCarrinho(itens), agora);
+        const comPix = formas.includes('pix');
+        const comCartao = formas.includes('cartao');
+        const totalPix = itens.reduce((s, i) => s + i.totalPixCentavos, 0);
+        const totalCartao = itens.reduce((s, i) => s + i.totalCentavos, 0);
+        const sair = `${urlDoSite()}/api/email/sair?t=${linkDeSair(c.id, c.idioma, chave, c.email)}`;
+        const voltar = `${urlDoSite()}/api/carrinho/voltar?t=${linkDeVoltar(c.id, c.idioma, n, chave, agora)}`;
+        const mensagemDoEmail = emailLembrete({
+          idioma: c.idioma,
+          n,
+          itens: itens.map((i) => ({
+            nome: i.titulo,
+            linhas: i.detalhes,
+            ...(comPix ? { pix: valorNoIdioma(i.totalPixCentavos, c.idioma, taxa) } : {}),
+            ...(comCartao ? { cartao: valorNoIdioma(i.totalCentavos, c.idioma, taxa) } : {}),
+          })),
+          totais: {
+            ...(comPix ? { pix: valorNoIdioma(totalPix, c.idioma, taxa) } : {}),
+            ...(comCartao ? { cartao: valorNoIdioma(totalCartao, c.idioma, taxa) } : {}),
+          },
+          linkVoltar: voltar,
+          linkSair: sair,
+          site,
+        });
+        const resultado = await enviarEmail({
+          tipo: n === 1 ? 'lembrete-1' : 'lembrete-2',
+          referencia: referenciaDoCarrinho(c.id),
+          para: c.email,
+          assunto: mensagemDoEmail.assunto,
+          html: mensagemDoEmail.html,
+          texto: mensagemDoEmail.texto,
+          // o "cancelar inscrição" do próprio aplicativo de e-mail, num toque (RFC 8058)
+          cabecalhos: cabecalhosDeSair(sair),
+          chave: `lembrete-${n}/${c.id}`,
+        });
+        if (saiu(resultado)) {
+          if (n === 1) resumo.enviados.primeiro++;
+          else resumo.enviados.segundo++;
+          hoje++;
+          continue;
+        }
+        // o envio terminou (saiu ou não): daqui em diante, nada de desmarcar no erro
+        marcado = null;
+        pular('nao-saiu');
+        if (!falhaDaConta(resultado)) {
+          // o Resend recusou ESTE e-mail (o endereço não presta): o lembrete fica marcado, para não tentar para sempre
+          continue;
+        }
+        // sem cota, o Resend fora do ar ou a chave/domínio com problema: a reserva volta e a próxima rodada tenta de novo
+        await desmarcarLembrete(c.id, n).catch((e) => console.error(`[lembretes] ${referenciaDoCarrinho(c.id)}: ${mensagem(e)}`));
+        break;
+      } catch (e) {
+        pular('erro-no-carrinho');
+        console.error(`[lembretes] ${referenciaDoCarrinho(c.id)}: o carrinho ficou de fora desta rodada: ${mensagem(e)}`);
+        // reservado e não enviado: a reserva volta, e a próxima rodada tenta de novo
+        const n = marcado;
+        if (n) await desmarcarLembrete(c.id, n).catch((e2) => console.error(`[lembretes] ${referenciaDoCarrinho(c.id)}: ${mensagem(e2)}`));
       }
-      pular('nao-saiu');
-      if (!falhaDaConta(resultado)) {
-        // o Resend recusou ESTE e-mail (o endereço não presta): o lembrete fica marcado, para não tentar para sempre
-        continue;
-      }
-      // sem cota, o Resend fora do ar ou a chave/domínio com problema: a reserva volta e a próxima rodada tenta de novo
-      await desmarcarLembrete(c.id, n).catch((e) => console.error(`[lembretes] ${referenciaDoCarrinho(c.id)}: ${mensagem(e)}`));
-      break;
     }
     return resumo;
   } catch (e) {

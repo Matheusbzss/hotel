@@ -239,6 +239,10 @@ const pt = {
       'Seu pedido foi registrado. Finalize o pagamento com a nossa equipe pelo WhatsApp; cada item ganha o seu voucher assim que o pagamento for confirmado.',
     confirmadoTitulo: 'Pedido confirmado!',
     confirmadoTexto: 'Seus vouchers estão prontos, um para cada item. No dia, é só mostrar no celular.',
+    // o pedido pago com casa (Etapa 7): o que acontece com a casa depois do pagamento (o mesmo texto do e-mail do pagamento
+    // aprovado, src/lib/email/textos.ts)
+    casaNoPedido:
+      'Na casa, o restante é pago na chegada, em Pix, dinheiro ou cartão. A nossa equipe manda pelo WhatsApp a localização exata e pede o cadastro dos hóspedes.',
     canceladoTitulo: 'Pedido cancelado',
     canceladoTexto: 'Este pedido foi cancelado. Se tiver dúvidas, fale com a gente.',
     verVoucher: 'Ver voucher',
@@ -829,6 +833,19 @@ const pt = {
     naoEncontrada: 'Reserva não encontrada',
     naoEncontradaTexto: 'Confira o link recebido ou escreva para a gente por e-mail.',
     codigoReserva: 'Código da reserva',
+    // a casa de temporada (Etapa 7): o voucher, a página da reserva paga e a mensagem do WhatsApp. Sem endereço: a equipe
+    // manda a localização exata pelo WhatsApp depois do pagamento (item 7 dos termos). {hora}: a entrada (HORA_ENTRADA_CASA)
+    casa: 'Casa',
+    casaConfirmadoTexto:
+      'Sua reserva está confirmada e o voucher está pronto. A nossa equipe manda pelo WhatsApp a localização exata da casa.',
+    casaProximo1:
+      'A nossa equipe manda pelo WhatsApp a localização exata da casa e combina com você o horário da chegada (a entrada é a partir das {hora}).',
+    casaProximo2:
+      'Pelo WhatsApp, a equipe também pede o cadastro de todos os hóspedes: nome completo, documento e, se vierem de carro, a placa.',
+    // {valor}: o restante da forma paga (o que falta da estadia depois do sinal)
+    casaProximo3: 'Na chegada, você paga o restante, {valor}, em Pix, dinheiro ou cartão.',
+    casaMsgVoucher: 'Olá! Minha reserva está confirmada. Voucher {codigo} — {casa}, de {entrada} a {saida}, {hospedes}.',
+    casaLocalizacao: 'A localização exata da casa é enviada pela nossa equipe pelo WhatsApp.',
   },
   casas: {
     titulo: 'Casas de temporada',
@@ -977,6 +994,14 @@ const pt = {
     chegadaSeguranca: 'Chegada e segurança',
     // o nome da casa na tela de pagamento da Stripe, que cobra só o sinal (Etapa 7)
     itemNaStripe: '{casa}: sinal de {p}%',
+    // o voucher e as páginas do pedido e da reserva da casa (Etapa 7): a chegada e a saída com a hora, as diárias, o sinal
+    // pago, o total da estadia e como se paga o restante na chegada
+    quandoEntra: '{data}, a partir das {hora}',
+    quandoSai: '{data}, até as {hora}',
+    diarias: 'Diárias',
+    sinalPago: 'Sinal pago',
+    totalDaEstadia: 'Total da estadia',
+    formasNaChegada: 'em Pix, dinheiro ou cartão',
   },
   contato: {
     titulo: 'Fale com a gente',

@@ -18,7 +18,7 @@ import { formatarCifra } from '@/lib/cifra';
 import { estadoDaDesistencia } from '@/lib/desistencia';
 import { textoDolar } from '@/lib/dolar';
 import { linkEmail } from '@/lib/email';
-import { formasDoPagamento, mostrarWhatsApp, type FormaPagamento, type MotivoSemPix } from '@/lib/formas-pagamento';
+import { formasDoPagamento, mostrarWhatsApp, valorACobrar, type FormaPagamento, type MotivoSemPix } from '@/lib/formas-pagamento';
 import { frasesDoReembolso } from '@/lib/frases-do-reembolso';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import { formasDaFaixa, partesDoTotal, type ParteDoTotal } from '@/lib/partes-do-total';
@@ -37,7 +37,7 @@ import {
   totaisDasFormas,
   type ReservaPublica,
 } from '@/lib/reserva-publica';
-import { obterPedido, provedorDaReserva, type StatusReserva } from '@/lib/reservas';
+import { ehCasa, obterPedido, provedorDaReserva, type StatusReserva } from '@/lib/reservas';
 import { pedidoCanceladoSemReembolso } from '@/lib/sem-reembolso';
 import { textoDoContestado } from '@/lib/texto-do-contestado';
 import { formatarDataIso } from '@/lib/validacao';
@@ -86,7 +86,14 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
   // com um item só, o voucher é o próprio pedido
   if (!primeira.pedido) redirect(`${rota(locale, `/reserva/${primeira.codigo}`)}?t=${encodeURIComponent(token)}`);
 
-  const { status, pedido } = primeira;
+  const { status } = primeira;
+  // o pedido com casa (Etapa 7) cobra hoje o sinal da casa mais o resto (pagamento.cobrar, gravado na criação; sem ele, a
+  // mesma conta de valorDoItem): em aberto, a faixa e a mensagem mostram o que ele cobra; fechado, o que foi pago, nunca o
+  // total da estadia, que a Stripe nunca recebe. O pedido sem casa continua com os números de sempre (o do pedido gravado)
+  const cobrado = reservas.some(ehCasa)
+    ? (primeira.pagamento.cobrar ?? { cartao: valorACobrar(itensPagaveis(reservas), 'cartao'), pix: valorACobrar(itensPagaveis(reservas), 'pix') })
+    : undefined;
+  const pedido = cobrado ? { ...primeira.pedido, totalCentavos: cobrado.cartao, totalPixCentavos: cobrado.pix } : primeira.pedido;
   const provedor = provedorDaReserva(primeira);
   const itens = reservas.map((r) => paraPublico(r, locale));
   const pago = status === 'pago';
@@ -155,14 +162,18 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
     const texto = formatarDataIso(data, intl);
     return hora ? fmt(d.horario.dataHora, { data: texto, hora }) : texto;
   };
-  const quando = (r: ReservaPublica) => dataHora(r.data, r.transfer?.ida.hora ?? r.horario?.texto);
+  // a casa: as diárias com a entrada e a saída ("2 diárias, de seg 14/12 a qua 16/12"); o resto, a data e a hora
+  const quando = (r: ReservaPublica) => (r.casa ? r.casa.periodo : dataHora(r.data, r.transfer?.ida.hora ?? r.horario?.texto));
   // a volta do transfer, quando tem
   const volta = (r: ReservaPublica) => {
     const v = r.transfer?.volta;
     return v ? fmt(d.carrinho.volta, { quando: dataHora(v.data, v.hora) }) : '';
   };
+  // o pedido pago com uma casa que ainda vale: o que acontece com ela depois do pagamento (o restante na chegada, a
+  // localização e o cadastro dos hóspedes pelo WhatsApp), como no e-mail do pagamento aprovado
+  const casaValendo = itens.some((r) => r.casa && r.status === 'pago');
   const cabecalho: Record<StatusReserva, { titulo: string; texto: string | string[] }> = {
-    pago: { titulo: d.pedido.confirmadoTitulo, texto: d.pedido.confirmadoTexto },
+    pago: { titulo: d.pedido.confirmadoTitulo, texto: casaValendo ? [d.pedido.confirmadoTexto, d.pedido.casaNoPedido] : d.pedido.confirmadoTexto },
     aguardando_whatsapp: { titulo: d.pedido.registradoTitulo, texto: d.pedido.registradoTexto },
     pendente: { titulo: d.pedido.confirmando, texto: d.pedido.confirmandoTexto },
     expirado: { titulo: d.pedido.tempoEsgotado, texto: d.pedido.tempoEsgotadoTexto },
@@ -393,6 +404,8 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                   <p className="font-[family-name:var(--font-semi)] font-semibold leading-snug">{nomeItem(r)}</p>
                   <p className="text-small">{quando(r)}</p>
                   {volta(r) && <p className="text-small">{volta(r)}</p>}
+                  {/* a casa: a entrada às 15h e a saída às 12h */}
+                  {r.casa && <p className="text-small">{d.casas.regraHorario}</p>}
                   <p className="text-small">{r.pessoasTexto}</p>
                   {pago && r.status !== 'pago' ? (
                     // um item cancelado ou reembolsado sozinho, num pedido pago: o voucher dele não vale mais. O cancelado
@@ -419,6 +432,19 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                       <p className="mt-1.5 text-small">
                         {d.reserva.voucher} <span className="numeros whitespace-nowrap font-semibold">{r.codigo}</span>
                       </p>
+                      {/* a casa paga: o sinal pago e o que fica para a chegada, só da forma paga (crítica de 26/11, furo 20: com as
+                          duas formas, quem pagou o sinal no cartão pediria o desconto do Pix na chegada) */}
+                      {r.casa && (
+                        <>
+                          <p className="numeros mt-1 text-small">
+                            {d.casas.sinalPago}: {brl(r.forma === 'pix' ? r.casa.sinalPixCentavos : r.casa.sinalCentavos)}
+                          </p>
+                          <p className="numeros text-small">
+                            {d.casas.naChegada}: {brl(r.forma === 'pix' ? r.casa.chegadaPixCentavos : r.casa.chegadaCentavos)},{' '}
+                            {d.casas.formasNaChegada}
+                          </p>
+                        </>
+                      )}
                       <p className="mt-2 flex flex-wrap gap-x-5">
                         <a href={linkDoVoucher(r)} className="link inline-flex min-h-11 items-center font-semibold">
                           {d.pedido.verVoucher}
@@ -434,7 +460,15 @@ export default async function PaginaPedido({ params, searchParams }: PageProps<'
                       </p>
                     </>
                   ) : (
-                    <p className="numeros mt-1.5 text-small">{linhaDeValores(partes(r.totalCentavos, r.totalPixCentavos))}</p>
+                    <>
+                      <p className="numeros mt-1.5 text-small">{linhaDeValores(partes(r.totalCentavos, r.totalPixCentavos))}</p>
+                      {/* na casa, o valor da linha é o sinal de hoje (paraPublico); embaixo, o total da estadia, como no carrinho */}
+                      {r.casa && (
+                        <p className="mt-1 text-small">
+                          {fmt(d.carrinho.casaTotalDaEstadia, { pix: brl(r.casa.totalPixCentavos), cartao: brl(r.casa.totalCentavos) })}
+                        </p>
+                      )}
+                    </>
                   )}
                 </li>
               ))}

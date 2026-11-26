@@ -297,7 +297,9 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // observações do checkout, que vinham do neutro com "niños"), a linha do cartão (P9, "los ingresás"), o aviso do celular
   // perto do QR do Pix (P2, "tocá… pegalo"), a troca do Pix para o cartão (P1, "¿No podés…? Pagá…") e o Pix como segunda
   // opção depois do cartão recusado (P8, "Si tenés… pagá con Pix")
-  dicionario: 178,
+  // + 3 da reserva das casas, parte 2 (26/11): o voucher e a página da reserva paga, com a "Seña pagada", o "coordina con
+  // vos" da chegada e o "pagás el resto" na chegada
+  dicionario: 181,
   // + 1 do Pacote 34 (P11): a resposta de "¿Qué hacer en Búzios con chicos?", que dizia "niños" no es-ar
   guia: 139,
   // + 1 do Pacote 34 (P11): a descrição da lancha de Cabo Frio, que dizia "niños" no es-ar
@@ -321,7 +323,8 @@ const FRASES_COM_VERSAO_ARGENTINA: Record<string, number> = {
   // Etapa 6: os e-mails automáticos e as páginas "Consultar mi pedido" e de sair da lista (as frases com verbo)
   // + 3 da revisão de 13/11: a confirmação da desistência (guardá, escribinos) e o "podés ignorar" do lembrete
   // + 1 do Pacote 28 (25/11): o prazo do reembolso no cartão ("el resumen de la tarjeta"; no neutro, "el estado de cuenta")
-  email: 19,
+  // + 1 da reserva das casas, parte 2 (26/11): o Pix vencido do pedido com casa ("pagá de nuevo mientras sigan libres")
+  email: 20,
   consulta: 10,
   // Etapa 7: as comodidades da rede ("hamaca paraguaya") e da lavanderia ("lavarropas")
   casas: 2,
@@ -359,8 +362,8 @@ test('(a) toda chave de ajustesAR existe no es.ts com o mesmo tipo, e o es-ar te
   andar(ajustesAR, ES, '');
   assert.equal(
     entradas,
-    150,
-    `${entradas} entradas em src/i18n/es-ar.ts; esperava 150 (138 textos + 12 listas inteiras; 7 da reserva das casas, Etapa 7, de 26/11: carrinho.casaSinalHoje, casaIndisponivel e casaEsperando, checkout.umPagamentoComCasa, casaSoNoSite e casaSoNoSiteComOutros e casas.itemNaStripe; das 143 de antes, 131 textos + 12 listas inteiras; 23 do Pacote 34, bloco do carrinho ao pagamento: os 17 textos de crianças com "chicos" (13 de comum, 2 do grupo e 2 do boletim), a lista do rodapé dos preços, checkout.observacoesAjuda, checkout.cartaoAvista, checkout.pixNoCelular, pedido.recusadoPixComApp e pedido.pagarComCartao; das 120 de antes, 109 textos + 11 listas inteiras: 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora), 2 do Pacote 30 (checkout.aceiteAoPagar e aceiteAoContinuar, no lugar de checkout.erros.aceite), 1 do Pacote 31 (nav.sugestaoIdioma.pergunta, a faixa que sugere o espanhol), 5 do Pacote 34 (carrinho.erroConexao, erroTemporario, faltaData, faltaHorario e faltaDataEHorario, os avisos do cartão de reserva) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
+    153,
+    `${entradas} entradas em src/i18n/es-ar.ts; esperava 153 (141 textos + 12 listas inteiras; 3 da reserva das casas, parte 2, de 26/11: reserva.casaProximo1 e casaProximo3 e casas.sinalPago; das 150 de antes, 7 da reserva das casas, Etapa 7, de 26/11: carrinho.casaSinalHoje, casaIndisponivel e casaEsperando, checkout.umPagamentoComCasa, casaSoNoSite e casaSoNoSiteComOutros e casas.itemNaStripe; das 143 de antes, 131 textos + 12 listas inteiras; 23 do Pacote 34, bloco do carrinho ao pagamento: os 17 textos de crianças com "chicos" (13 de comum, 2 do grupo e 2 do boletim), a lista do rodapé dos preços, checkout.observacoesAjuda, checkout.cartaoAvista, checkout.pixNoCelular, pedido.recusadoPixComApp e pedido.pagarComCartao; das 120 de antes, 109 textos + 11 listas inteiras: 11 dos textos são da Etapa 4, 1 da Etapa 5 (checkout.semStripe), 8 da Etapa 7 (a página da casa), 1 do Pacote 19 (pedido.contestadoTextoVarios), 1 do Pacote 20 (comum.robo), 1 do Pacote 22 (pedido.pagamentoRetido), 1 do Pacote 29 (checkout.pixDeFora), 2 do Pacote 30 (checkout.aceiteAoPagar e aceiteAoContinuar, no lugar de checkout.erros.aceite), 1 do Pacote 31 (nav.sugestaoIdioma.pergunta, a faixa que sugere o espanhol), 5 do Pacote 34 (carrinho.erroConexao, erroTemporario, faltaData, faltaHorario e faltaDataEHorario, os avisos do cartão de reserva) e as duas listas das garantias curtas, a de hoje e a do pagamento online, são da Etapa 8). Mudou uma frase argentina de propósito? Atualize este número.`,
   );
   // o dicionário mesclado: as mesmas chaves, na mesma ordem, com listas do mesmo tamanho
   const chaves = (v: unknown): unknown =>

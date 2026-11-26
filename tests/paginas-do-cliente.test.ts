@@ -749,8 +749,14 @@ test('a faixa das duas páginas passa pela regra única (formasDaFaixa), na faix
     /const daFaixa = partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, formasNaFaixa, primeiraForma\);\s+const brlTela = daFaixa\.map\(/,
   );
   // a outra chamada é a da mensagem do WhatsApp: os dois valores, sem as formas, como antes, só que na mesma ordem
-  assert.equal(status.match(/partesDoTotal\(/g)?.length, 2);
+  // (desde a reserva das casas, 26/11, a terceira é o total da estadia da casa em aberto, na grade do voucher: pelas
+  // mesmas formas e na mesma ordem da faixa, que mostra o sinal de hoje)
+  assert.equal(status.match(/partesDoTotal\(/g)?.length, 3);
   assert.match(status, /partesDoTotal\(r\.totalCentavos, r\.totalPixCentavos, undefined, primeiraForma\)/);
+  assert.match(
+    status,
+    /const totalDaEstadia = c \? partesDoTotal\(c\.totalCentavos, c\.totalPixCentavos, formasNaFaixa, primeiraForma\) : \[\];/,
+  );
   // o pedido: a faixa e as linhas de cada item, pelas mesmas formas (as de antes eram pagamento?.formas)
   assert.match(pedido, /const formasAbertas = formasDaFaixa\(status, pagamento\);/);
   assert.match(

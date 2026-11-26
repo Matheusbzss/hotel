@@ -1004,9 +1004,15 @@ test('o e-mail do Pix vencido não sai com o pagamento online desligado (o freio
   const inicio = codigo.indexOf("case 'pix-vencido': {");
   assert.notEqual(inicio, -1);
   const caso = codigo.slice(inicio, codigo.indexOf("case 'link-do-pedido':", inicio));
+  // (desde a reserva das casas, 26/11, o pedido com casa leva junto o que fica para a chegada em cada forma que vale:
+  // chegadas(formas), das mesmas formas; o pedido sem casa não ganha nada: {})
   assert.match(
     caso,
-    /const enviado = await enviarSeAlgumaFormaVale\(itensPagaveis\(lista\), new Date\(\), \(formas\) =>\s+despachar\(emailPixVencido\(\{ \.\.\.base, totais: totaisQueValem\(formas, ambos\) \}\), `pix-vencido\/\$\{sessao \|\| pedido\}`\),\s+\);/,
+    /const enviado = await enviarSeAlgumaFormaVale\(itensPagaveis\(lista\), new Date\(\), \(formas\) =>\s+despachar\(emailPixVencido\(\{ \.\.\.base, totais: totaisQueValem\(formas, ambos\), \.\.\.chegadas\(formas\) \}\), `pix-vencido\/\$\{sessao \|\| pedido\}`\),\s+\);/,
+  );
+  assert.match(
+    caso,
+    /const pix = formas\.includes\('pix'\) \? casaNaForma\('pix'\) : undefined;\s+const cartao = formas\.includes\('cartao'\) \? casaNaForma\('cartao'\) : undefined;/,
   );
   assert.match(
     caso,

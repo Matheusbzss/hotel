@@ -543,13 +543,29 @@ export function ReservaCasa({
                       onClick={() => escolherPacote(p)}
                     >
                       <span className="block font-semibold">{opcaoTexto(p)}</span>
-                      <span className="mt-1 block text-small">
-                        <span className="numeros font-semibold">{cifra(v.totalPixCentavos)}</span>{' '}
-                        <span className="text-(--color-sucesso)">{T.noPix}</span>
-                      </span>
-                      <span className="block text-small text-(--color-tinta-suave)">
-                        <span className="numeros">{cifra(v.totalCentavos)}</span> {T.noCartao}
-                      </span>
+                      {/* o preço de cima é o da forma em destaque (decisão D1-A de 25/11): o cartão em espanhol e inglês, com o
+                          Pix embaixo e o desconto; o Pix em português */}
+                      {cartaoPrimeiro ? (
+                        <>
+                          <span className="mt-1 block text-small">
+                            <span className="numeros font-semibold">{cifra(v.totalCentavos)}</span> {T.noCartao}
+                          </span>
+                          <span className="block text-small text-(--color-tinta-suave)">
+                            <span className="numeros">{cifra(v.totalPixCentavos)}</span>{' '}
+                            <span className="text-(--color-sucesso)">{rotuloPix}</span>
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="mt-1 block text-small">
+                            <span className="numeros font-semibold">{cifra(v.totalPixCentavos)}</span>{' '}
+                            <span className="text-(--color-sucesso)">{T.noPix}</span>
+                          </span>
+                          <span className="block text-small text-(--color-tinta-suave)">
+                            <span className="numeros">{cifra(v.totalCentavos)}</span> {T.noCartao}
+                          </span>
+                        </>
+                      )}
                     </button>
                   );
                 })}

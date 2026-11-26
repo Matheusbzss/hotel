@@ -11,8 +11,10 @@ import { LOCALE_INTL, fmt, isIdioma, rota } from '@/i18n/config';
 import { COOKIE_ADMIN, sessaoValida } from '@/lib/admin-auth';
 import { cambioParaTela } from '@/lib/cambio-tela';
 import { estadoDaDesistencia } from '@/lib/desistencia';
+import { HORA_ENTRADA_CASA, SINAL_PORCENTO } from '@/lib/diarias';
 import { linkEmail } from '@/lib/email';
 import { formasDoPagamento, mostrarPontoDeEncontro, mostrarWhatsApp } from '@/lib/formas-pagamento';
+import { formatarHora } from '@/lib/horarios';
 import { ipDaRequisicao } from '@/lib/limite-ip';
 import {
   itensPagaveis,
@@ -116,7 +118,14 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
         // a linha do ponto de encontro, decidida aqui no servidor: some na reserva que não vale mais
         encontroLiberado={mostrarPontoDeEncontro(publica.status)}
         contato={contato}
-        linkNovaReserva={rota(locale, publica.tipo === 'transfer' ? '/transfer' : `/passeios/${publica.passeioSlug}`)}
+        linkNovaReserva={rota(
+          locale,
+          publica.tipo === 'transfer'
+            ? '/transfer'
+            : publica.tipo === 'casa'
+              ? `/casas-de-temporada/${publica.passeioSlug}`
+              : `/passeios/${publica.passeioSlug}`,
+        )}
         urlPagina={urlPagina}
         pagamento={pagamento}
         desistencia={desistencia}
@@ -154,6 +163,18 @@ export default async function PaginaReserva({ params, searchParams }: PageProps<
           // o Pix que vem depois do cartão, em espanhol e inglês: "con Pix (−10%)" (revisão do Pacote 29)
           noPixComDesconto: d.preco.noPixComDesconto,
           dolar: d.preco.dolar,
+          // a casa de temporada (Etapa 7): os rótulos da grade, o sinal de hoje no pedido em aberto e o primeiro passo, com a
+          // hora da entrada no idioma (casaConfirmadoTexto, os outros passos e a mensagem vêm de d.reserva)
+          casaChegada: d.casas.chegada,
+          casaSaida: d.casas.saida,
+          casaDiarias: d.casas.diarias,
+          casaHospedes: d.casas.hospedes,
+          casaSinalPago: d.casas.sinalPago,
+          casaNaChegada: d.casas.naChegada,
+          casaTotalDaEstadia: d.casas.totalDaEstadia,
+          casaFormasNaChegada: d.casas.formasNaChegada,
+          casaSinalHoje: fmt(d.carrinho.casaSinalHoje, { p: SINAL_PORCENTO }),
+          casaProximo1: fmt(d.reserva.casaProximo1, { hora: formatarHora(HORA_ENTRADA_CASA, locale) }),
         }}
       />
     </main>

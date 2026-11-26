@@ -236,11 +236,13 @@ test('a grade do voucher: no celular, o vão menor e os rótulos sem passar da c
   // nada que impeça o rótulo de quebrar ou que segure a largura
   for (const c of rotulo)
     assert.doesNotMatch(c, /nowrap|truncate|break-normal|break-keep|hyphens-(none|manual)|^(min-)?w-/, rotulo.join(' '));
-  // as duas grades e todos os rótulos delas (os 13: 6 do transfer, 7 do passeio) com as duas listas
-  assert.equal(reserva.match(/<dl\b/g)?.length, 2);
-  assert.equal(reserva.match(/<dl className=\{GRADE_DO_VOUCHER\}>/g)?.length, 2);
+  // as três grades e todos os rótulos delas (os 23: 6 do transfer, 7 do passeio e, desde a reserva das casas de 26/11,
+  // 10 da casa: a casa, a chegada, a saída, as diárias, os hóspedes, o nome, o sinal pago, o total da estadia e a chegada
+  // do pago, e o total da estadia do pedido em aberto) com as duas listas
+  assert.equal(reserva.match(/<dl\b/g)?.length, 3);
+  assert.equal(reserva.match(/<dl className=\{GRADE_DO_VOUCHER\}>/g)?.length, 3);
   const rotulos = reserva.match(/<dt\b[^>]*>/g) ?? [];
-  assert.equal(rotulos.length, 13);
+  assert.equal(rotulos.length, 23);
   for (const dt of rotulos) assert.equal(dt, '<dt className={ROTULO_DA_GRADE}>');
   // a data e o horário do passeio continuam lado a lado no celular, meia grade cada um, como antes
   assert.match(reserva, /<div>\s*<dt className=\{ROTULO_DA_GRADE\}>\{textos\.data\}<\/dt>/);
@@ -387,8 +389,17 @@ test('a faixa da reserva: o valor e o rótulo juntos (Inteiro e @container), e o
     'a caixa dos valores',
   );
   for (const c of ['numeros', 'overflow-hidden', 'text-lead', 'font-semibold']) assert.ok(caixa.includes(c), `${c}: ${caixa.join(' ')}`);
-  // os valores da faixa saem todos do valorTela
-  assert.equal(reserva.match(/valorTela\(/g)?.length, 1);
+  // os valores da faixa saem todos do valorTela: uma chamada, no brlTela. Desde a reserva das casas (26/11), a grade da casa
+  // usa o mesmo valorTela para o sinal pago, o total da estadia e a chegada, e para o total da estadia em aberto: fora dela,
+  // continua uma chamada só
+  const inicioDaCasa = reserva.indexOf(') : c ? (');
+  // a grade da casa vai até a do passeio, que começa pelo rótulo do passeio
+  const fimDaCasa = reserva.indexOf('{textos.passeio}', inicioDaCasa);
+  assert.ok(inicioDaCasa > 0 && fimDaCasa > inicioDaCasa, 'a grade da casa');
+  const semAGradeDaCasa = reserva.slice(0, inicioDaCasa) + reserva.slice(fimDaCasa);
+  assert.equal(semAGradeDaCasa.match(/valorTela\(/g)?.length, 1);
+  assert.match(semAGradeDaCasa, /const brlTela = daFaixa\.map\([^]*?\{valorTela\(parte\.centavos,/);
+  assert.equal(reserva.slice(inicioDaCasa, fimDaCasa).match(/valorTela\(/g)?.length, 4);
   // o Inteiro só quebra abaixo de 14rem da caixa com @container (a faixa); acima disso, fica numa linha só
   assert.match(
     codigo('components', 'ComDolar.tsx'),

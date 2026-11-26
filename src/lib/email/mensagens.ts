@@ -66,6 +66,11 @@ export interface DadosDoPedido {
   linkPedido: string;
   itens: ItemDoPedido[];
   site: SiteDoEmail;
+  /**
+   * Etapa 7: o pedido tem casa de temporada. Os valores em aberto são o que se paga agora (o sinal da casa mais o resto),
+   * com o rótulo "A pagar agora", e o Pix vencido diz que as datas da casa ficaram livres de novo.
+   */
+  comCasa?: boolean;
 }
 
 /** Os totais nas duas formas, quando a forma ainda não está fechada. */
@@ -98,8 +103,24 @@ const saudacao = (T: TextosEmail, nome: string): string => {
 
 const linhaTotal = (rotulo: string, v: ValorEmail): LinhaTotal => ({ rotulo, valor: v.valor, ...(v.dolar ? { nota: v.dolar } : {}) });
 
-function totaisDasFormas(T: TextosEmail, t: TotaisDasFormas): LinhaTotal[] {
-  return [...(t.pix ? [linhaTotal(T.comum.totalNoPix, t.pix)] : []), ...(t.cartao ? [linhaTotal(T.comum.totalNoCartao, t.cartao)] : [])];
+/**
+ * Os totais nas formas que valem. No pedido com casa (Etapa 7, `aPagarAgora`), o valor é o que se paga agora (o sinal da
+ * casa mais o resto do pedido), com o rótulo "A pagar agora no Pix" no lugar de "Total no Pix": o total da estadia nunca
+ * aparece como o valor a pagar.
+ */
+function totaisDasFormas(T: TextosEmail, t: TotaisDasFormas, aPagarAgora = false): LinhaTotal[] {
+  return [
+    ...(t.pix ? [linhaTotal(aPagarAgora ? T.comum.aPagarNoPix : T.comum.totalNoPix, t.pix)] : []),
+    ...(t.cartao ? [linhaTotal(aPagarAgora ? T.comum.aPagarNoCartao : T.comum.totalNoCartao, t.cartao)] : []),
+  ];
+}
+
+/**
+ * Etapa 7: a casa de um pedido no e-mail, quando a forma de pagamento já está escolhida (o pedido online e o pago): o que
+ * fica para pagar na chegada à casa (o total da estadia menos o sinal, na mesma forma; com mais de uma casa, a soma).
+ */
+export interface CasaDoEmail {
+  chegada: ValorEmail;
 }
 
 function itensDoPedido(T: TextosEmail, itens: ItemDoPedido[]): ItemEmail[] {
@@ -141,7 +162,14 @@ function mensagem(conteudo: ConteudoEmail): MensagemEmail {
  * online desligado; o e-mail manda para a página do pedido, onde está o botão, e não traz o número) e o que espera o
  * pagamento online (cartão ou Pix pela Stripe).
  */
-export function emailPedidoRecebido(d: DadosDoPedido & { caminho: 'whatsapp' | 'online'; totais: TotaisDasFormas }): MensagemEmail {
+export function emailPedidoRecebido(
+  d: DadosDoPedido & {
+    caminho: 'whatsapp' | 'online';
+    totais: TotaisDasFormas;
+    /** Etapa 7: o pedido com casa (sempre online): o que se paga agora e o que fica para a chegada à casa. */
+    casa?: CasaDoEmail;
+  },
+): MensagemEmail {
   const T = textosEmail(d.idioma);
   const R = T.pedidoRecebido;
   return mensagem({
@@ -152,7 +180,10 @@ export function emailPedidoRecebido(d: DadosDoPedido & { caminho: 'whatsapp' | '
     paragrafos: [d.caminho === 'whatsapp' ? R.textoWhatsapp : R.textoOnline],
     tituloItens: R.itens,
     itens: itensDoPedido(T, d.itens),
-    totais: totaisDasFormas(T, d.totais),
+    totais: [
+      ...totaisDasFormas(T, d.totais, Boolean(d.comCasa || d.casa)),
+      ...(d.casa ? [linhaTotal(T.comum.naChegadaDaCasa, d.casa.chegada)] : []),
+    ],
     botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
     depois: d.caminho === 'online' ? [R.notaOnline] : [],
   });
@@ -171,6 +202,11 @@ export function emailPagamentoAprovado(
     anexos: boolean;
     /** O link do WhatsApp da equipe, com o código do pedido já escrito. */
     whatsapp?: string;
+    /**
+     * Etapa 7: o pedido com casa. O total pago é o que entrou (o sinal da casa mais o resto); embaixo, o que fica para a
+     * chegada à casa, na forma paga, e o parágrafo do restante, da localização e do cadastro dos hóspedes pelo WhatsApp.
+     */
+    casa?: CasaDoEmail;
   },
 ): MensagemEmail {
   const T = textosEmail(d.idioma);
@@ -181,27 +217,41 @@ export function emailPagamentoAprovado(
     assunto: fmt(A.assunto, { codigo: d.codigo }),
     preCabecalho: A.preCabecalho,
     titulo: A.titulo,
-    paragrafos: [A.texto, ...(d.anexos ? [A.anexos] : [])],
+    paragrafos: [A.texto, ...(d.casa ? [A.casa] : []), ...(d.anexos ? [A.anexos] : [])],
     tituloItens: A.vouchers,
     itens: itensDoPedido(T, d.itens),
-    totais: [linhaTotal(forma ? `${T.comum.totalPago} (${forma})` : T.comum.totalPago, d.total)],
+    totais: [
+      linhaTotal(forma ? `${T.comum.totalPago} (${forma})` : T.comum.totalPago, d.total),
+      ...(d.casa ? [linhaTotal(T.comum.naChegadaDaCasa, d.casa.chegada)] : []),
+    ],
     botao: { texto: T.comum.abrirPedido, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
     ...(d.whatsapp ? { depois: [A.whatsapp], botaoSecundario: { texto: A.botaoWhatsapp, href: d.whatsapp, cor: 'whats' as const } } : {}),
   });
 }
 
-/** (3) O Pix venceu sem pagamento: nada foi cobrado, e o link do pedido leva ao "pagar de novo". */
-export function emailPixVencido(d: DadosDoPedido & { totais: TotaisDasFormas }): MensagemEmail {
+/**
+ * (3) O Pix venceu sem pagamento: nada foi cobrado, e o link do pedido leva ao "pagar de novo". No pedido com casa
+ * (Etapa 7, `comCasa`), os valores são o que se paga agora (o sinal da casa mais o resto), o parágrafo diz que as datas
+ * da casa ficaram livres de novo (o "Pagar de novo" prende de novo, enquanto continuarem livres) e, embaixo dos valores, o
+ * que fica para a chegada à casa em cada forma que ainda vale (`chegadas`): a forma ainda não está escolhida de novo, e o
+ * restante da chegada é o da mesma forma do sinal ("Na chegada à casa (Pix)").
+ */
+export function emailPixVencido(d: DadosDoPedido & { totais: TotaisDasFormas; chegadas?: TotaisDasFormas }): MensagemEmail {
   const T = textosEmail(d.idioma);
   const V = T.pixVencido;
+  const chegada = (forma: string, v: ValorEmail) => linhaTotal(`${T.comum.naChegadaDaCasa} (${forma})`, v);
   return mensagem({
     ...basePedido(T, d),
     assunto: fmt(V.assunto, { codigo: d.codigo }),
     preCabecalho: V.preCabecalho,
     titulo: V.titulo,
-    paragrafos: [V.texto, V.convite],
+    paragrafos: [V.texto, ...(d.comCasa ? [V.casa] : []), V.convite],
     itens: itensDoPedido(T, d.itens),
-    totais: totaisDasFormas(T, d.totais),
+    totais: [
+      ...totaisDasFormas(T, d.totais, Boolean(d.comCasa)),
+      ...(d.chegadas?.pix ? [chegada(T.comum.formaPix, d.chegadas.pix)] : []),
+      ...(d.chegadas?.cartao ? [chegada(T.comum.formaCartao, d.chegadas.cartao)] : []),
+    ],
     botao: { texto: V.botao, href: d.linkPedido, alternativo: T.comum.linkAlternativo },
   });
 }
@@ -345,6 +395,11 @@ export function emailAvisoDoPagamentoRetido(d: {
   valor: string;
   linkPainel: string;
   site: SiteDoEmail;
+  /**
+   * Etapa 7: o pedido tem casa. O "Reativar" fica escondido nesses pedidos (as datas da casa podem já ser de outra pessoa:
+   * reativar precisaria prender as datas de novo, o que fica para o pacote 2): no painel, só o "Devolver".
+   */
+  comCasa?: boolean;
 }): MensagemEmail {
   const chegou = `Chegou um pagamento de ${d.valor} para o pedido ${d.codigo}, que estava cancelado.`;
   return mensagem({
@@ -354,7 +409,9 @@ export function emailAvisoDoPagamentoRetido(d: {
     titulo: 'Pagamento num pedido cancelado',
     paragrafos: [
       `${chegou} O dinheiro está parado na Stripe: nada foi devolvido ao cliente.`,
-      'Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido (ele fica pago e o cliente recebe o e-mail com os vouchers). O cliente ainda não recebeu nenhum e-mail sobre este pagamento.',
+      d.comCasa
+        ? 'Este pedido tem casa de temporada: as datas dela podem já ter sido reservadas por outra pessoa, e o painel não oferece reativar. Abra o pedido no painel e devolva o dinheiro ao cliente. O cliente ainda não recebeu nenhum e-mail sobre este pagamento.'
+        : 'Abra o pedido no painel e escolha: devolver o dinheiro ao cliente, ou reativar o pedido (ele fica pago e o cliente recebe o e-mail com os vouchers). O cliente ainda não recebeu nenhum e-mail sobre este pagamento.',
     ],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
@@ -514,18 +571,32 @@ export function emailAvisoDoPedidoPago(d: {
    * assunto e um parágrafo avisam a equipe para pedir o hotel pelo WhatsApp e gravar no painel.
    */
   hotelAInformar?: boolean;
+  /**
+   * Etapa 7: o pedido tem casa de temporada. Um parágrafo diz o que fazer (mandar a localização exata e pedir o cadastro
+   * dos hóspedes pelo WhatsApp) e quanto fica para a chegada (`chegada`, já escrito). Com `datasNaoPresas` (as linhas
+   * "Aviso:" do histórico de uma casa paga sem as datas presas, sem o "Aviso: " do começo), o assunto avisa e cada linha vira
+   * um parágrafo: a equipe confere o calendário da casa antes de confirmar com o cliente.
+   */
+  casa?: { chegada: string; datasNaoPresas?: string[] };
 }): MensagemEmail {
   const forma = d.forma === 'pix' ? ' no Pix' : d.forma === 'cartao' ? ' no cartão' : '';
   const origem = d.origem === 'stripe' ? 'pela Stripe' : 'marcado como pago no painel';
   const pago = `O pedido ${d.codigo} foi pago: ${d.valor}${forma}, ${origem}.`;
   const hotel =
     'Atenção: o cliente ainda não sabe o hotel (marcou "Ainda não sei" no checkout). Peça o nome da hospedagem pelo WhatsApp antes do passeio e grave no painel, no campo "Gravar o hotel".';
+  const casa = d.casa
+    ? [
+        `Casa de temporada: mande ao cliente pelo WhatsApp a localização exata da casa e peça o cadastro de todos os hóspedes (nome completo, documento e, se vierem de carro, a placa). O restante, ${d.casa.chegada}, é pago na chegada, em Pix, dinheiro ou cartão.`,
+        ...(d.casa.datasNaoPresas ?? []).map((linha) => `Atenção: ${linha}.`),
+      ]
+    : [];
+  const semDatas = Boolean(d.casa?.datasNaoPresas?.length);
   return mensagem({
     idioma: 'pt',
-    assunto: `Pedido pago: ${d.codigo} (${d.valor})${d.hotelAInformar ? ' · hotel a informar' : ''}`,
+    assunto: `Pedido pago: ${d.codigo} (${d.valor})${d.hotelAInformar ? ' · hotel a informar' : ''}${semDatas ? ' · datas da casa não presas' : ''}`,
     preCabecalho: pago,
     titulo: 'Pedido pago',
-    paragrafos: [pago, `Primeiro serviço: ${d.primeiroServico}.`, ...(d.hotelAInformar ? [hotel] : [])],
+    paragrafos: [pago, `Primeiro serviço: ${d.primeiroServico}.`, ...(d.hotelAInformar ? [hotel] : []), ...casa],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     tituloItens: 'Itens',
     itens: d.itens.map((i) => ({ nome: i.nome, linhas: i.linhas })),

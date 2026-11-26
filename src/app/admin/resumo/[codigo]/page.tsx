@@ -52,8 +52,8 @@ const DICIONARIO_PT = dicionario('pt');
 function descrever(r: Reserva): string {
   const data = formatarDataIso(r.data, 'pt-BR');
   if (ehTransfer(r)) return `Transfer privado — ${transferVisivel(r, 'pt', DICIONARIO_PT).veiculo} · ${data}`;
-  // a casa: o nome e a entrada e a saída (o bloco completo do resumo fica para a parte 2 do pacote 1 das casas)
-  if (ehCasa(r)) return `${r.casa.nome} · ${data} a ${formatarDataIso(r.saida, 'pt-BR')}`;
+  // a casa: o nome, a entrada às 15h e a saída às 12h (o valor de cada voucher, ao lado, já é o sinal pago: valorRecebido)
+  if (ehCasa(r)) return `${r.casa.nome} · entrada ${data} às 15h, saída ${formatarDataIso(r.saida, 'pt-BR')} às 12h`;
   return `${r.passeio.nome}${r.passeio.opcao ? ` — ${r.passeio.opcao.nome}` : ''} · ${data}`;
 }
 

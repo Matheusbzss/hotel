@@ -19,6 +19,7 @@ import {
   type ConferenciaNaTrava,
   type EscolhaDoCancelamento,
 } from '@/lib/cancelar-sem-reembolso';
+import { calendarioMudou } from '@/lib/casas';
 import { desistenciaParaResponder, desistenciaRespondida, linhaDaDesistenciaRespondida } from '@/lib/desistencia';
 import {
   agendarAvisoDoPedidoPago,
@@ -44,6 +45,7 @@ import {
   marcarDevolucaoDoRetido,
   pagoPeloRetidoReativado,
   pedidoNuncaPago,
+  reativarRetidoEscondido,
   recebidoDoPedido,
   ultimoVoucherDoPedido,
   valorDoVoucherPorFora,
@@ -73,6 +75,7 @@ import { transferenciaDoPixOferecida } from '@/lib/resumo-do-painel';
 import {
   atualizarItem,
   atualizarReserva,
+  ehCasa,
   ehPasseio,
   ehTransfer,
   provedorDaReserva,
@@ -108,10 +111,18 @@ const ACOES_MANUAIS: Record<string, { status: StatusReserva; evento: string; met
 
 const mensagem = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** O valor de um voucher na forma em que o pedido foi pago (no Pix, com o desconto; na casa, o sinal). */
+/**
+ * O valor de um voucher na forma em que o pedido foi pago (no Pix, com o desconto; na casa, o sinal GUARDADO na compra:
+ * crítica de 26/11, furo 19, para o reembolso de um voucher nunca passar do sinal pago, mesmo se a regra do sinal mudar).
+ */
 const valorDoVoucher = (pedido: Reserva, item: Reserva): number =>
   valorDoItem(
-    { tipo: item.tipo ?? 'passeio', totalCentavos: item.totalCentavos, totalPixCentavos: item.totalPixCentavos },
+    {
+      tipo: item.tipo ?? 'passeio',
+      totalCentavos: item.totalCentavos,
+      totalPixCentavos: item.totalPixCentavos,
+      ...(ehCasa(item) ? { sinalCentavos: item.sinalCentavos, sinalPixCentavos: item.sinalPixCentavos } : {}),
+    },
     pedido.pagamento.metodo === 'pix' ? 'pix' : 'cartao',
   );
 
@@ -203,6 +214,8 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
   const reativada = await atualizarReserva(alvo.codigo, (r) => {
     gravado.reativou = false;
     gravado.repetida = acaoDoRetidoRepetida(r, 'reativar_retido');
+    // Etapa 7: o pedido com casa nunca se reativa por aqui (reativarRetidoEscondido; a rota já recusou antes)
+    if (reativarRetidoEscondido(vouchers)) return null;
     if (!acaoDoRetidoOferecida(r, 'reativar_retido') || r.pagamento.retido?.paymentIntentId !== retido.paymentIntentId) return null;
     for (const linha of reativarPedidoRetido(r, outros, new Date(), linhaDaReativacao)) registrar(r, linha);
     gravado.reativou = true;
@@ -618,6 +631,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
   // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ao cliente ou reativar o
   // pedido. A regra é a mesma dos botões da página (acaoDoRetidoOferecida); a ação já feita volta como a que deu certo,
   // sem gravar nada, e a que não vale mais (a outra já escolhida, o pedido mudou) volta com acao-nao-vale
+  // Etapa 7: o pedido com casa não se reativa (as datas podem já ser de outra pessoa); só devolver (reativarRetidoEscondido,
+  // a mesma regra que esconde o botão na página). O formulário de uma aba antiga volta com a frase, sem gravar nada
+  if (acao === 'reativar_retido' && reativarRetidoEscondido(vouchers)) return voltar('reativar-com-casa');
   if (acao === 'devolver_retido' || acao === 'reativar_retido') {
     if (!daStripe || !acaoDoRetidoOferecida(alvo, acao)) {
       const repetida = acaoDoRetidoRepetida(alvo, acao);
@@ -702,6 +718,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       // Pacote 28: o e-mail "Pedido cancelado" ao cliente, depois da resposta e uma vez por pedido. A regra
       // (emailDoCancelamentoSai) confere na hora do envio que foi o painel que cancelou e que não há dinheiro a devolver
       if (r) agendarEmailDoCancelamento(codigoDoPedido);
+      // Etapa 7: o cancelamento soltou as datas da casa (cancelarPedidoAberto, pela sessão): as páginas das casas refazem
+      // o calendário (calendarioMudou só nas rotas; um erro dele fica no registro)
+      if (r && vouchers.some(ehCasa)) calendarioMudou();
       return voltar();
     }
     // "reembolsado à mão" num pedido da Stripe continua sem botão no painel e só vale depois de pago (antes disso não há

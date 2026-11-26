@@ -10,17 +10,26 @@ import {
   inicioDoItem,
   mostrarWhatsApp,
   pagamentoOnlineNoAr,
+  valorACobrar,
   type FormaPagamento,
   type ItemPagavel,
 } from '../formas-pagamento';
 import { formatarHora } from '../horarios';
 import { gerarVoucherPdf } from '../pdf-voucher';
-import { avisoDoPagamentoRetidoPorEmail, avisoDoReembolsoFalho, provedorDaReserva, recebidoDoPedido } from '../pedidos-painel';
+import {
+  avisoDoPagamentoRetidoPorEmail,
+  avisoDoReembolsoFalho,
+  provedorDaReserva,
+  reativarRetidoEscondido,
+  recebidoDoPedido,
+} from '../pedidos-painel';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
-import { atualizarReserva, ehPasseio, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
+import { atualizarReserva, ehCasa, ehPasseio, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
 import { stripe } from '../stripe';
+import { avisosDasDatasNaoPresas } from '../trava-das-casas';
 import { formatarDataIso } from '../validacao';
+import { chegadaDasCasas } from '../voucher-casa';
 import { linkWhatsApp } from '../whatsapp';
 import { enderecoCabeNoDia } from './cota';
 import { depoisDaResposta } from './depois';
@@ -158,11 +167,14 @@ function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean): I
         ? `${p.passeioNome} (${p.opcaoNome})`
         : p.passeioNome;
     const volta = p.transfer?.volta;
-    const linhas = [
-      dataHora(p.data, p.transfer?.ida.hora ?? p.horario?.texto),
-      ...(volta ? [fmt(d.carrinho.volta, { quando: dataHora(volta.data, volta.hora) })] : []),
-      p.pessoasTexto,
-    ];
+    // a casa (Etapa 7): as diárias com as datas, a entrada às 15h e a saída às 12h, e os hóspedes; sem endereço
+    const linhas = p.casa
+      ? [p.casa.periodo, d.casas.regraHorario, p.pessoasTexto]
+      : [
+          dataHora(p.data, p.transfer?.ida.hora ?? p.horario?.texto),
+          ...(volta ? [fmt(d.carrinho.volta, { quando: dataHora(volta.data, volta.hora) })] : []),
+          p.pessoasTexto,
+        ];
     const t = encodeURIComponent(v.token);
     const voucher =
       comVouchers && statusDoVoucher(v) === 'pago'
@@ -274,8 +286,20 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
 
   const idioma = opcoes.idioma ?? r.idioma;
   const taxa = idioma === 'pt' ? null : await cotacaoDolar().catch(() => null);
-  const totalCartao = r.pedido?.totalCentavos ?? r.totalCentavos;
-  const totalPix = (r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos) ?? totalCartao;
+  // o pedido com casa (Etapa 7) cobra hoje o sinal da casa mais o resto (pagamento.cobrar, gravado na criação; sem ele, a
+  // mesma conta de valorDoItem): os e-mails mostram o que se paga agora, nunca o total da estadia, e o que fica para a
+  // chegada à casa. O pedido sem casa continua com os números de sempre
+  const comCasa = lista.some(ehCasa);
+  const cobrado = comCasa
+    ? (r.pagamento.cobrar ?? { cartao: valorACobrar(itensPagaveis(lista), 'cartao'), pix: valorACobrar(itensPagaveis(lista), 'pix') })
+    : undefined;
+  const totalCartao = cobrado?.cartao ?? r.pedido?.totalCentavos ?? r.totalCentavos;
+  const totalPix = cobrado ? cobrado.pix : ((r.pedido ? r.pedido.totalPixCentavos : r.totalPixCentavos) ?? totalCartao);
+  /** O que fica para a chegada às casas do pedido, na forma (sem casa que ainda vale, nada). */
+  const casaNaForma = (forma: FormaPagamento) => {
+    const chegada = chegadaDasCasas(lista, forma);
+    return comCasa && chegada > 0 ? { chegada: valorNoIdioma(chegada, idioma, taxa) } : undefined;
+  };
   const base: DadosDoPedido = {
     idioma,
     nome: r.cliente.nome,
@@ -283,6 +307,7 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
     linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
     itens: itensDoEmail(lista, idioma, tipo === 'pagamento-aprovado' || tipo === 'link-do-pedido'),
     site: siteDoEmail(),
+    ...(comCasa ? { comCasa: true } : {}),
   };
   const ambos = { pix: valorNoIdioma(totalPix, idioma, taxa), cartao: valorNoIdioma(totalCartao, idioma, taxa) };
 
@@ -314,7 +339,9 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       const online = provedorDaReserva(r) === 'stripe';
       const forma = r.pagamento.metodo;
       const totais = !online ? ambos : forma === 'pix' ? { pix: ambos.pix } : { cartao: ambos.cartao };
-      mensagem = emailPedidoRecebido({ ...base, caminho: online ? 'online' : 'whatsapp', totais });
+      // a casa só se paga online: o que se paga agora na forma escolhida e o que fica para a chegada à casa
+      const casa = online ? casaNaForma(forma === 'pix' ? 'pix' : 'cartao') : undefined;
+      mensagem = emailPedidoRecebido({ ...base, caminho: online ? 'online' : 'whatsapp', totais, ...(casa ? { casa } : {}) });
       chave = `pedido-recebido/${pedido}`;
       break;
     }
@@ -326,12 +353,15 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       const recebido = recebidoDoPedido(lista);
       const forma = r.pagamento.metodo === 'whatsapp' ? undefined : r.pagamento.metodo;
       const whatsapp = mostrarWhatsApp(r.status) ? linkWhatsApp(`${dicionario(idioma).contato.msg} (${pedido})`) : undefined;
+      // a casa que ainda vale: o restante na chegada, só da forma paga (crítica de 26/11, furo 20), e o parágrafo da casa
+      const casa = casaNaForma(forma === 'pix' ? 'pix' : 'cartao');
       mensagem = emailPagamentoAprovado({
         ...base,
         total: valorNoIdioma(recebido, idioma, taxa),
         forma,
         anexos: anexos.length > 0,
         whatsapp,
+        ...(casa ? { casa } : {}),
       });
       chave = `pagamento-aprovado/${pedido}`;
       break;
@@ -341,8 +371,16 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
       // antes do primeiro serviço e dentro do limite; o cartão até 30 minutos antes); sem nenhuma, não há o que pagar e
       // nada sai, também com o pagamento online desligado às pressas (enviarSeAlgumaFormaVale, ./pix-vencido.ts, que roda
       // em node nos testes com um envio de mentira)
+      // na casa (base.comCasa), o que se paga agora (o sinal), o parágrafo das datas soltas de novo e o que fica para a
+      // chegada em cada forma que vale; a casa nunca se paga no dia da entrada (limiteParaPagar), e passado esse prazo
+      // nenhuma forma vale e nada sai
+      const chegadas = (formas: readonly FormaPagamento[]) => {
+        const pix = formas.includes('pix') ? casaNaForma('pix') : undefined;
+        const cartao = formas.includes('cartao') ? casaNaForma('cartao') : undefined;
+        return pix || cartao ? { chegadas: { ...(pix ? { pix: pix.chegada } : {}), ...(cartao ? { cartao: cartao.chegada } : {}) } } : {};
+      };
       const enviado = await enviarSeAlgumaFormaVale(itensPagaveis(lista), new Date(), (formas) =>
-        despachar(emailPixVencido({ ...base, totais: totaisQueValem(formas, ambos) }), `pix-vencido/${sessao || pedido}`),
+        despachar(emailPixVencido({ ...base, totais: totaisQueValem(formas, ambos), ...chegadas(formas) }), `pix-vencido/${sessao || pedido}`),
       );
       if (!enviado) console.log(`[email] ${tipo} ${pedido}: não enviado (nenhuma forma de pagamento vale mais para o pedido)`);
       return;
@@ -500,6 +538,8 @@ export async function enviarAvisoDoPagamentoRetido(codigo: string, paymentIntent
     valor: formatarCifra(aviso.centavos, 'pt-BR'),
     linkPainel: `${urlDoSite()}/admin?q=${encodeURIComponent(pedido)}`,
     site: siteDoEmail(),
+    // Etapa 7: no pedido com casa, o painel só oferece devolver (o "Reativar" fica escondido: reativarRetidoEscondido)
+    ...(reativarRetidoEscondido(lista) ? { comCasa: true } : {}),
   });
   const resultado = await enviarEmail({
     tipo: 'pagamento-retido-equipe',
@@ -765,6 +805,14 @@ export async function enviarAvisoDoPedidoPago(codigo: string): Promise<void> {
   if (!r || !avisoDoPedidoPagoSai(r)) return;
   const pedido = r.pedido?.codigo ?? r.codigo;
   const metodo = r.pagamento.metodo;
+  // Etapa 7: a casa de temporada que ainda vale no pedido pago: o que fica para a chegada (na forma paga) e, se o aviso da
+  // Stripe não conseguiu prender as datas de alguma casa (o "Aviso:" que ele gravou antes da resposta), a linha dela
+  const chegada = chegadaDasCasas(lista, metodo === 'pix' ? 'pix' : 'cartao');
+  const datasNaoPresas = avisosDasDatasNaoPresas(r.historico);
+  const casa =
+    lista.some(ehCasa) && (chegada > 0 || datasNaoPresas.length)
+      ? { chegada: formatarCifra(chegada, 'pt-BR'), ...(datasNaoPresas.length ? { datasNaoPresas } : {}) }
+      : undefined;
   const mensagem = emailAvisoDoPedidoPago({
     codigo: pedido,
     valor: formatarCifra(recebidoDoPedido(lista), 'pt-BR'),
@@ -776,6 +824,7 @@ export async function enviarAvisoDoPedidoPago(codigo: string): Promise<void> {
     site: siteDoEmail(),
     // Pacote 29: o cliente marcou "Ainda não sei" no hotel de algum passeio do pedido
     hotelAInformar: lista.some((v) => ehPasseio(v) && v.hospedagem.aInformar === true),
+    ...(casa ? { casa } : {}),
   });
   const resultado = await enviarEmail({
     tipo: 'pedido-pago-equipe',

@@ -236,6 +236,9 @@ const es: Dicionario = {
       'Tu pedido quedó registrado. Completa el pago con nuestro equipo por WhatsApp; cada ítem recibe su voucher apenas se confirma el pago.',
     confirmadoTitulo: '¡Pedido confirmado!',
     confirmadoTexto: 'Tus vouchers están listos, uno para cada ítem. El día del paseo, solo muéstralos en el celular.',
+    // Etapa 7: o pedido pago com casa; ver pt.ts (sem verbo em tú nem em vos: o es-ar lê a mesma frase)
+    casaNoPedido:
+      'En la casa, el resto se paga al llegar, con Pix, efectivo o tarjeta. Nuestro equipo te envía por WhatsApp la ubicación exacta y te pide el registro de los huéspedes.',
     canceladoTitulo: 'Pedido cancelado',
     canceladoTexto: 'Este pedido fue cancelado. Si tienes dudas, escríbenos.',
     verVoucher: 'Ver voucher',
@@ -775,6 +778,17 @@ const es: Dicionario = {
     naoEncontrada: 'Reserva no encontrada',
     naoEncontradaTexto: 'Revisa el enlace que recibiste o escríbenos por e-mail.',
     codigoReserva: 'Código de la reserva',
+    // a casa de temporada (Etapa 7); ver pt.ts. O casaProximo1 e o casaProximo3 têm versão argentina (con vos, pagás)
+    casa: 'Casa',
+    casaConfirmadoTexto:
+      'Tu reserva está confirmada y el voucher está listo. Nuestro equipo te envía por WhatsApp la ubicación exacta de la casa.',
+    casaProximo1:
+      'Nuestro equipo te envía por WhatsApp la ubicación exacta de la casa y coordina contigo la hora de llegada (la entrada es desde las {hora}).',
+    casaProximo2:
+      'Por WhatsApp, el equipo también te pide el registro de todos los huéspedes: nombre completo, documento y, si vienen en auto, la patente.',
+    casaProximo3: 'Al llegar, pagas el resto, {valor}, con Pix, efectivo o tarjeta.',
+    casaMsgVoucher: '¡Hola! Mi reserva está confirmada. Voucher {codigo} — {casa}, del {entrada} al {saida}, {hospedes}.',
+    casaLocalizacao: 'Nuestro equipo envía la ubicación exacta de la casa por WhatsApp.',
   },
   casas: {
     titulo: 'Casas de temporada',
@@ -921,6 +935,13 @@ const es: Dicionario = {
     mapaCirculo: 'El círculo, de {m} m de radio, muestra la zona, no el lugar exacto de la casa.',
     chegadaSeguranca: 'Llegada y seguridad',
     itemNaStripe: '{casa}: anticipo del {p}%',
+    // o voucher e as páginas do pedido e da reserva da casa (Etapa 7); ver pt.ts. O sinalPago tem versão argentina (seña)
+    quandoEntra: '{data}, desde las {hora}',
+    quandoSai: '{data}, hasta las {hora}',
+    diarias: 'Noches',
+    sinalPago: 'Anticipo pagado',
+    totalDaEstadia: 'Total de la estadía',
+    formasNaChegada: 'con Pix, efectivo o tarjeta',
   },
   contato: {
     titulo: 'Contáctanos',

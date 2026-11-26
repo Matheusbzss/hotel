@@ -19,7 +19,9 @@ import {
 import { obterCasaPainel } from '@/lib/casas';
 import { pontoDaCasa, semCoordenadas } from '@/lib/casas-painel';
 import type { Ponto } from '@/lib/circulo-casa';
+import { reservasDoSiteNasDatas } from '@/lib/pedido-carrinho';
 import { formatarPreco } from '@/lib/precos';
+import { linhaDaReservaQueSegura, reservasQueImpedemOBloqueio, type ReservaQueSegura } from '@/lib/trava-das-casas';
 import { urlDoSite } from '@/lib/site';
 import { hojeEmBuzios } from '@/lib/validacao';
 
@@ -36,6 +38,17 @@ const AVISOS: Record<string, { ok: boolean; texto: string }> = {
   'bloqueio-salvo': { ok: true, texto: 'Datas bloqueadas.' },
   'bloqueio-apagado': { ok: true, texto: 'Bloqueio apagado.' },
   'bloqueio-invalido': { ok: false, texto: 'Confira as datas: a saída vem depois da entrada.' },
+  // Etapa 7 (crítica de 26/11, furo 6): a reserva do site, paga ou esperando o pagamento, nas mesmas noites
+  'bloqueio-cruza-reserva': {
+    ok: false,
+    texto:
+      'Nada foi bloqueado: essas noites têm reserva do site, paga ou esperando o pagamento. Bloquear por cima deixaria duas pessoas na mesma casa. Para liberar as noites, cancele ou devolva antes a reserva no painel dos pedidos, e bloqueie de novo.',
+  },
+  // a conferência das reservas do site não respondeu: o bloqueio não é gravado às cegas
+  'bloqueio-sem-conferir': {
+    ok: false,
+    texto: 'Nada foi bloqueado: não deu para conferir agora as reservas do site nessas datas. Tente de novo em instantes.',
+  },
   importado: { ok: true, texto: 'Calendário do Airbnb importado.' },
   'importacao-falhou': { ok: false, texto: 'Não deu para importar o calendário do Airbnb. Os bloqueios ficaram como estavam.' },
   'sem-link': { ok: false, texto: 'Salve o link do calendário do Airbnb antes de importar.' },
@@ -69,6 +82,23 @@ async function pontoSalvo(casa: CasaPainel): Promise<Ponto | null> {
 }
 
 const ORIGEM: Record<OrigemBloqueio, string> = { site: 'Reserva do site', airbnb: 'Airbnb', manual: 'Bloqueio à mão' };
+
+/**
+ * As reservas do site que impediram o bloqueio à mão (a recusa da rota, crítica de 26/11, furo 6), lidas de novo agora com
+ * as datas que voltaram no endereço: cada uma com o link para o pedido no painel. Datas que não se leem, ou o banco que não
+ * responde, ficam sem a lista (o aviso continua).
+ */
+async function reservasQueImpediram(casaId: string, inicio: unknown, fim: unknown): Promise<ReservaQueSegura[]> {
+  const data = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (!data(inicio) || !data(fim) || !(fim > inicio)) return [];
+  try {
+    return reservasQueImpedemOBloqueio(await reservasDoSiteNasDatas(casaId, inicio, fim));
+  } catch (e) {
+    // como os outros erros desta página: sem nenhum número com cara de coordenada no registro (semCoordenadas)
+    console.error(`[casas] não deu para ler as reservas que impediram o bloqueio: ${semCoordenadas(e instanceof Error ? e.message : String(e))}`);
+    return [];
+  }
+}
 
 const dataLonga = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 const dataHora = (iso: string) =>
@@ -328,6 +358,8 @@ export default async function PaginaCasaPainel({ params, searchParams }: PagePro
   const doMapa = chave.startsWith('ponto-');
   const ponto = await pontoSalvo(casa);
   const hoje = hojeEmBuzios();
+  // o bloqueio recusado por uma reserva do site: as reservas de agora nas datas que a rota devolveu no endereço
+  const reservasNoCaminho = chave === 'bloqueio-cruza-reserva' ? await reservasQueImpediram(casa.id, q.inicio, q.fim) : [];
   // o formulário (que roda no navegador) recebe só o cadastro: nada do mapa nem dos detalhes da Etapa 7
   const {
     tarifas: _tarifas,
@@ -356,6 +388,17 @@ export default async function PaginaCasaPainel({ params, searchParams }: PagePro
         <p role={aviso.ok ? 'status' : 'alert'} className={`mt-6 px-4 py-3 font-semibold ${aviso.ok ? 'bg-[#d8f5e4] text-[#0f5132]' : 'bg-erro-claro'}`}>
           {aviso.texto}
         </p>
+      )}
+      {reservasNoCaminho.length > 0 && (
+        <ul className="mt-2 space-y-1 bg-erro-claro px-4 py-3 text-small">
+          {reservasNoCaminho.map((r) => (
+            <li key={r.voucher}>
+              <a href={`/admin?q=${encodeURIComponent(r.pedido)}`} className="font-semibold underline underline-offset-4">
+                {linhaDaReservaQueSegura(r)}
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-6 grid gap-3">

@@ -198,6 +198,9 @@ export const ERROS_DO_PAINEL = {
     'Este pagamento não tem mais nada a devolver: o site já registra como devolvido tudo o que entrou. Nada foi pedido à Stripe.',
   // o pagamento parado de um pedido cancelado (Pacote 22): a reativação relê o pagamento na Stripe antes de gravar
   'stripe-fora': 'Não deu para conferir o pagamento na Stripe agora. Nada foi feito. Tente de novo em instantes.',
+  // Etapa 7: o pedido com casa não se reativa pelo painel (reativarRetidoEscondido)
+  'reativar-com-casa':
+    'Este pedido tem casa de temporada: o painel não reativa, porque as datas da casa podem já ser de outra pessoa. Devolva o pagamento ao cliente. Nada foi feito.',
   'voucher-maior-que-o-resto':
     'Este voucher vale mais do que ainda resta deste pagamento: devolver só ele levaria tudo o que resta, e a Stripe trataria como reembolso total, com o pedido inteiro e todos os vouchers passando a reembolsado. Se é isso, use "Reembolsar tudo". Nada foi pedido à Stripe.',
   // Pacote 29: o campo "Gravar o hotel" do pedido com o hotel a informar
@@ -375,6 +378,68 @@ export function agruparPedidos(reservas: Reserva[]): PedidoPainel[] {
       };
     })
     .sort((a, b) => b.criadoEm.localeCompare(a.criadoEm));
+}
+
+/* ------------------------------------------------------------------ */
+/* A casa de temporada no painel (Etapa 7)                             */
+
+/**
+ * O que o pedido com casa cobra hoje em cada forma, para o painel: pagamento.cobrar, gravado na criação, ou, sem ele, a
+ * soma de valorDoItem dos vouchers (na casa, o sinal guardado). É o "a cobrar hoje" do pedido em aberto, no lugar do total,
+ * que na casa é o da estadia inteira (crítica de 26/11, furo 19). undefined no pedido sem casa: o painel mostra os totais de
+ * sempre, com os mesmos números de antes.
+ */
+export function aCobrarHojeNoPainel(p: Pick<PedidoPainel, 'itens'>): { cartao: number; pix: number } | undefined {
+  if (!p.itens.some((i) => i.tipo === 'casa')) return undefined;
+  return (
+    p.itens[0]?.pagamento.cobrar ?? {
+      cartao: p.itens.reduce((soma, i) => soma + valorDoItem(i, 'cartao'), 0),
+      pix: p.itens.reduce((soma, i) => soma + valorDoItem(i, 'pix'), 0),
+    }
+  );
+}
+
+/** A data como o painel escreve: "seg., 14 de dez. de 2026". */
+const dataDoPainel = (iso: string) =>
+  new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(
+    new Date(`${iso}T12:00:00Z`),
+  );
+
+/**
+ * A casa de temporada no cartão do pedido, em linhas (a página do painel desenha; o nome da casa vai antes, em negrito): a
+ * entrada às 15h e a saída às 12h, as diárias e os hóspedes e os valores GUARDADOS na compra. Em aberto, o que se cobra hoje
+ * (o sinal) nas duas formas e o total da estadia; no pedido que nunca foi pago (cancelado antes), só o total; depois de pago,
+ * o sinal pago na forma paga, o restante na chegada e o total da estadia, e, com o voucher valendo, o que mandar ao
+ * cliente pelo WhatsApp. Sem endereço.
+ */
+export function linhasDaCasaNoPainel(
+  r: Extract<Reserva, { tipo: 'casa' }>,
+  status: StatusReserva,
+): string[] {
+  const noites = Math.round((Date.parse(`${r.saida}T12:00:00Z`) - Date.parse(`${r.data}T12:00:00Z`)) / 86_400_000);
+  const totalPix = r.totalPixCentavos ?? r.totalCentavos;
+  const comuns = [
+    `Entrada ${dataDoPainel(r.data)} às 15h · saída ${dataDoPainel(r.saida)} às 12h`,
+    `${noites} ${noites === 1 ? 'diária' : 'diárias'} · ${r.hospedes} ${r.hospedes === 1 ? 'hóspede' : 'hóspedes'}`,
+  ];
+  if (EM_ABERTO.includes(status)) {
+    return [
+      ...comuns,
+      `A cobrar hoje (o sinal): ${cifra(r.sinalPixCentavos)} no Pix ou ${cifra(r.sinalCentavos)} no cartão`,
+      `Total da estadia: ${cifra(totalPix)} no Pix ou ${cifra(r.totalCentavos)} no cartão; o restante é pago na chegada`,
+    ];
+  }
+  if (pedidoNuncaPago(r)) return [...comuns, `Total da estadia: ${cifra(totalPix)} no Pix ou ${cifra(r.totalCentavos)} no cartão`];
+  const pix = r.pagamento.metodo === 'pix';
+  const total = pix ? totalPix : r.totalCentavos;
+  const sinal = pix ? r.sinalPixCentavos : r.sinalCentavos;
+  return [
+    ...comuns,
+    `Sinal pago ${pix ? 'no Pix' : 'no cartão'}: ${cifra(sinal)} · restante na chegada: ${cifra(total - sinal)} · total da estadia: ${cifra(total)}`,
+    ...(status === 'pago' && voucherPago(r)
+      ? ['Mandar ao cliente pelo WhatsApp a localização exata da casa e pedir o cadastro de todos os hóspedes']
+      : []),
+  ];
 }
 
 /** Quem cobrou, como o painel escreve embaixo da forma de pagamento. */
@@ -1190,6 +1255,18 @@ export function concluirDevolucaoDoRetido(
 
 /** O pedido tem um pagamento parado esperando a decisão da equipe (a frase vermelha, a faixa e os botões). */
 export const pagamentoRetidoADecidir = (r: PedidoComPagamentoRetido): boolean => acaoDoRetidoOferecida(r, 'devolver_retido');
+
+/**
+ * Etapa 7 (a reserva das casas, pacote 1): o "Reativar o pedido (fica pago)" fica escondido no pedido com casa. Reativar
+ * deixaria a casa paga sem as datas presas (elas saíram quando o pedido foi cancelado, e outra pessoa pode ter reservado
+ * as mesmas noites); prender de novo, ou recusar com a frase das datas, é do pacote 2 (crítica de 26/11, 3.10). Até lá, o
+ * painel só oferece devolver, e a rota recusa o reativar que chegar de uma aba antiga.
+ */
+export const reativarRetidoEscondido = (vouchers: readonly Pick<Reserva, 'tipo'>[]): boolean => vouchers.some((v) => v.tipo === 'casa');
+
+/** A frase vermelha que o pedido com casa e o pagamento parado ganha embaixo da de sempre (reativarRetidoEscondido). */
+export const RETIDO_COM_CASA =
+  'Este pedido tem casa de temporada: o painel não reativa, porque as datas da casa podem já ser de outra pessoa. Devolva ao cliente.';
 
 /** A frase vermelha do cartão do pedido com o pagamento parado. */
 export const fraseDoPagamentoRetido = (centavos: number): string =>

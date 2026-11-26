@@ -22,6 +22,8 @@ import {
   NENHUM_VOUCHER,
   SEM_REEMBOLSO_DEPOIS_DA_FALHA,
   SEM_REEMBOLSO_NA_CONTESTACAO,
+  RETIDO_COM_CASA,
+  aCobrarHojeNoPainel,
   acaoDoRetidoOferecida,
   acaoManualOferecida,
   agruparPedidos,
@@ -44,10 +46,12 @@ import {
   fraseDoPagamentoRetido,
   fraseDoReembolsoSemVoucher,
   frasesDoReembolsoNoPainel,
+  linhasDaCasaNoPainel,
   motivoNoPainel,
   naoPagoNoPainel,
   oQueFazerNaContestacao,
   pagamentoRetidoADecidir,
+  reativarRetidoEscondido,
   reembolsoNoPainel,
   reembolsoParaResolver,
   seloDoPedidoNoPainel,
@@ -310,29 +314,18 @@ function DetalhesTransfer({ r }: { r: ReservaTransfer }) {
 }
 
 /**
- * A casa de temporada no pedido (Etapa 7), o mínimo para a equipe: a casa, a entrada às 15h e a saída às 12h, as diárias,
- * os hóspedes e o que foi pago no site (o sinal) e o que fica para a chegada, na forma do pedido. Sem endereço: a equipe
- * manda a localização pelo WhatsApp depois do pagamento. O bloco completo do painel fica para a parte 2 do pacote 1.
+ * A casa de temporada no pedido (Etapa 7): a casa, a entrada às 15h e a saída às 12h, as diárias, os hóspedes e os valores
+ * guardados na compra (linhasDaCasaNoPainel, src/lib/pedidos-painel.ts): em aberto, o que se cobra hoje (o sinal) e o total
+ * da estadia; pago, o sinal pago, o restante na chegada e o total, só na forma paga, e o que mandar ao cliente pelo
+ * WhatsApp. Sem endereço: a equipe manda a localização pelo WhatsApp depois do pagamento.
  */
-function DetalhesCasa({ r, metodo }: { r: ReservaCasa; metodo: string }) {
-  const pix = metodo === 'pix';
-  const total = pix ? (r.totalPixCentavos ?? r.totalCentavos) : r.totalCentavos;
-  const sinal = pix ? r.sinalPixCentavos : r.sinalCentavos;
-  const noites = r.linhas.reduce((s, l) => s + l.noites, 0);
+function DetalhesCasa({ r, status }: { r: ReservaCasa; status: StatusReserva }) {
   return (
     <>
       <p className="font-bold">{r.casa.nome}</p>
-      <p>
-        Entrada <strong>{formatarDataIso(r.data, 'pt-BR')} às 15h</strong> · saída{' '}
-        <strong>{formatarDataIso(r.saida, 'pt-BR')} às 12h</strong>
-      </p>
-      <p>
-        {noites} {noites === 1 ? 'diária' : 'diárias'} · {r.hospedes} {r.hospedes === 1 ? 'hóspede' : 'hóspedes'}
-      </p>
-      <p>
-        Sinal{pix ? ' no Pix' : metodo === 'cartao' ? ' no cartão' : ''}: {formatarPreco(sinal)} · na chegada:{' '}
-        {formatarPreco(total - sinal)} · total {formatarPreco(total)}
-      </p>
+      {linhasDaCasaNoPainel(r, status).map((linha) => (
+        <p key={linha}>{linha}</p>
+      ))}
     </>
   );
 }
@@ -613,13 +606,16 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
   const semReembolso = segredoDoPainelCriado() && planoDoCancelamento(p.itens, { acao: 'cancelar_sem_reembolso' }, new Date()).ok;
   // o pagamento que chegou para o pedido cancelado e ficou parado na Stripe (Pacote 22): devolver ou reativar, cada um
   // com a sua caixa "Confirmo", pela mesma regra que a rota confere de novo dentro da trava (acaoDoRetidoOferecida)
+  // (Etapa 7: no pedido com casa, só o "Devolver": reativarRetidoEscondido esconde o "Reativar", e a rota recusa)
   const retido = r.pagamento.retido;
   const botoesDoRetido = retido
-    ? ACOES_DO_PAGAMENTO_RETIDO.filter((acao) => acaoDoRetidoOferecida(r, acao)).map((acao) =>
-        acao === 'devolver_retido'
-          ? { acao, ...botaoDevolverRetido(retido.valorCentavos), cor: 'bg-erro-claro' }
-          : { acao, ...BOTAO_REATIVAR_RETIDO, cor: 'bg-superficie' },
-      )
+    ? ACOES_DO_PAGAMENTO_RETIDO.filter((acao) => acaoDoRetidoOferecida(r, acao))
+        .filter((acao) => !(acao === 'reativar_retido' && reativarRetidoEscondido(p.itens)))
+        .map((acao) =>
+          acao === 'devolver_retido'
+            ? { acao, ...botaoDevolverRetido(retido.valorCentavos), cor: 'bg-erro-claro' }
+            : { acao, ...BOTAO_REATIVAR_RETIDO, cor: 'bg-superficie' },
+        )
     : [];
   return (
     <div className="flex min-w-0 flex-col items-start gap-3">
@@ -682,17 +678,24 @@ function LinkStripe({ id }: { id: string }) {
   );
 }
 
-/** A forma de pagamento e o valor: em aberto, os dois preços; depois de pago, o que entrou, com os dados do pagamento. */
+/**
+ * A forma de pagamento e o valor: em aberto, os dois preços; depois de pago, o que entrou, com os dados do pagamento. No
+ * pedido com casa em aberto (Etapa 7), os preços são o que ele cobra hoje (o sinal da casa mais o resto: aCobrarHojeNoPainel),
+ * e não o total da estadia, que a Stripe nunca recebe (crítica de 26/11, furo 19).
+ */
 function ValorDoPedido({ p }: { p: PedidoPainel }) {
   const r = p.itens[0];
   const g = r.pagamento;
-  if (EM_ABERTO.includes(p.status) && p.totalPixCentavos !== undefined) {
+  const cobrar = aCobrarHojeNoPainel(p);
+  const precoPix = cobrar ? cobrar.pix : p.totalPixCentavos;
+  if (EM_ABERTO.includes(p.status) && precoPix !== undefined) {
     return (
       <>
-        <p className="text-xl font-bold">{formatarPreco(p.totalPixCentavos)}</p>
-        <p className="text-small text-tinta-suave">no Pix</p>
-        <p className="mt-1 font-semibold">{formatarPreco(p.totalCentavos)}</p>
-        <p className="text-small text-tinta-suave">no cartão</p>
+        <p className="text-xl font-bold">{formatarPreco(precoPix)}</p>
+        <p className="text-small text-tinta-suave">{cobrar ? 'a cobrar hoje no Pix' : 'no Pix'}</p>
+        <p className="mt-1 font-semibold">{formatarPreco(cobrar ? cobrar.cartao : p.totalCentavos)}</p>
+        <p className="text-small text-tinta-suave">{cobrar ? 'a cobrar hoje no cartão' : 'no cartão'}</p>
+        {cobrar && <p className="mt-1 text-small text-tinta-suave">o sinal da casa; o restante, na chegada</p>}
         {p.provedor === 'stripe' && (
           <p className="mt-1 text-small text-tinta-suave">
             Stripe · escolheu {p.metodo === 'pix' ? 'Pix' : 'cartão'}
@@ -780,6 +783,10 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
         {r.pagamento.retido && pagamentoRetidoADecidir(r) && (
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">{fraseDoPagamentoRetido(r.pagamento.retido.valorCentavos)}</p>
         )}
+        {/* Etapa 7: no pedido com casa, o "Reativar" não aparece (as datas podem já ser de outra pessoa) */}
+        {r.pagamento.retido && pagamentoRetidoADecidir(r) && reativarRetidoEscondido(p.itens) && (
+          <p className="mt-1 text-small font-semibold text-[#7a1f12]">{RETIDO_COM_CASA}</p>
+        )}
         {desistenciaParaResponder(p.itens) && (
           <p className="mt-2 text-small font-semibold text-[#7a1f12]">
             Pedido de desistência pelo site: responder em até 1 dia útil. Antes de estornar, confirme com o titular pelo e-mail ou WhatsApp
@@ -813,7 +820,7 @@ function CartaoPedido({ p, filtro, busca }: { p: PedidoPainel; filtro: string; b
               {ehTransfer(i) ? (
                 <DetalhesTransfer r={i} />
               ) : ehCasa(i) ? (
-                <DetalhesCasa r={i} metodo={p.metodo} />
+                <DetalhesCasa r={i} status={p.status} />
               ) : (
                 <DetalhesPasseio r={i} gravarHotel={i.codigo === primeiroAInformar ? { filtro, busca } : undefined} />
               )}

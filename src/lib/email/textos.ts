@@ -35,6 +35,13 @@ export interface TextosEmail {
     /** O nome da forma de pagamento ao lado do total pago. */
     formaPix: string;
     formaCartao: string;
+    /**
+     * Etapa 7, o pedido com casa: o que se paga agora (o sinal da casa mais o resto do pedido), no lugar de "Total no Pix" e
+     * "Total no cartão", e o que fica para a chegada à casa (o total da estadia menos o sinal, na mesma forma).
+     */
+    aPagarNoPix: string;
+    aPagarNoCartao: string;
+    naChegadaDaCasa: string;
   };
   pedidoRecebido: {
     /** {codigo} é o código do pedido. */
@@ -57,6 +64,8 @@ export interface TextosEmail {
     anexos: string;
     whatsapp: string;
     botaoWhatsapp: string;
+    /** Etapa 7: o pedido com casa, o restante na chegada e a localização e o cadastro dos hóspedes pelo WhatsApp. */
+    casa: string;
   };
   pixVencido: {
     assunto: string;
@@ -65,6 +74,8 @@ export interface TextosEmail {
     texto: string;
     convite: string;
     botao: string;
+    /** Etapa 7: o pedido com casa, as datas soltas de novo (o "Pagar de novo" prende de novo, se ainda estiverem livres). */
+    casa: string;
   };
   linkDoPedido: {
     assunto: string;
@@ -206,6 +217,9 @@ const PT: TextosEmail = {
     totalNoCartao: 'Total no cartão',
     formaPix: 'Pix',
     formaCartao: 'cartão',
+    aPagarNoPix: 'A pagar agora no Pix',
+    aPagarNoCartao: 'A pagar agora no cartão',
+    naChegadaDaCasa: 'Na chegada à casa',
   },
   pedidoRecebido: {
     assunto: 'Recebemos o seu pedido {codigo}',
@@ -226,6 +240,7 @@ const PT: TextosEmail = {
     anexos: 'Os vouchers em PDF vão anexados a este e-mail.',
     whatsapp: 'Para combinar os detalhes, fale com a equipe pelo WhatsApp.',
     botaoWhatsapp: 'Falar com a equipe no WhatsApp',
+    casa: 'Na casa, o restante é pago na chegada, em Pix, dinheiro ou cartão. A nossa equipe manda pelo WhatsApp a localização exata e pede o cadastro dos hóspedes.',
   },
   pixVencido: {
     assunto: 'O Pix do pedido {codigo} venceu',
@@ -234,6 +249,7 @@ const PT: TextosEmail = {
     texto: 'O código Pix do pedido venceu antes do pagamento. Nada foi cobrado.',
     convite: 'Se ainda quiser fazer a reserva, abra o pedido e pague de novo.',
     botao: 'Pagar de novo',
+    casa: 'As datas da casa ficaram livres de novo. Para reservar, pague de novo enquanto elas continuarem livres.',
   },
   linkDoPedido: {
     assunto: 'O link do seu pedido {codigo}',
@@ -340,6 +356,9 @@ const EN: TextosEmail = {
     totalNoCartao: 'Total by card',
     formaPix: 'Pix',
     formaCartao: 'card',
+    aPagarNoPix: 'Due now with Pix',
+    aPagarNoCartao: 'Due now by card',
+    naChegadaDaCasa: 'On arrival at the home',
   },
   pedidoRecebido: {
     assunto: 'We received your order {codigo}',
@@ -361,6 +380,7 @@ const EN: TextosEmail = {
     anexos: 'Your vouchers are attached to this email as PDF files.',
     whatsapp: 'To arrange the details, talk to the team on WhatsApp.',
     botaoWhatsapp: 'Talk to the team on WhatsApp',
+    casa: "For the home, the balance is paid on arrival, by Pix, cash or card. Our team will send you the exact location on WhatsApp and ask for the guests' details.",
   },
   pixVencido: {
     assunto: 'The Pix for order {codigo} expired',
@@ -369,6 +389,7 @@ const EN: TextosEmail = {
     texto: 'The Pix code for your order expired before the payment. Nothing was charged.',
     convite: 'If you still want to book, open your order and pay again.',
     botao: 'Pay again',
+    casa: "The home's dates are free again. To book them, pay again while they're still available.",
   },
   linkDoPedido: {
     assunto: 'The link to your order {codigo}',
@@ -475,6 +496,9 @@ const ES: TextosEmail = {
     totalNoCartao: 'Total con tarjeta',
     formaPix: 'Pix',
     formaCartao: 'tarjeta',
+    aPagarNoPix: 'A pagar ahora con Pix',
+    aPagarNoCartao: 'A pagar ahora con tarjeta',
+    naChegadaDaCasa: 'Al llegar a la casa',
   },
   pedidoRecebido: {
     assunto: 'Recibimos tu pedido {codigo}',
@@ -496,6 +520,8 @@ const ES: TextosEmail = {
     anexos: 'Los vouchers en PDF van adjuntos a este e-mail.',
     whatsapp: 'Para coordinar los detalles, habla con el equipo por WhatsApp.',
     botaoWhatsapp: 'Hablar con el equipo por WhatsApp',
+    // sem verbo em tú: o es-ar usa a mesma frase
+    casa: 'En la casa, el resto se paga al llegar, con Pix, efectivo o tarjeta. Nuestro equipo te envía por WhatsApp la ubicación exacta y te pide el registro de los huéspedes.',
   },
   pixVencido: {
     assunto: 'El Pix del pedido {codigo} venció',
@@ -504,6 +530,7 @@ const ES: TextosEmail = {
     texto: 'El código Pix del pedido venció antes del pago. No se cobró nada.',
     convite: 'Si todavía quieres reservar, abre el pedido y paga de nuevo.',
     botao: 'Pagar de nuevo',
+    casa: 'Las fechas de la casa quedaron libres de nuevo. Para reservarlas, paga de nuevo mientras sigan libres.',
   },
   linkDoPedido: {
     assunto: 'El enlace de tu pedido {codigo}',
@@ -620,6 +647,8 @@ const ES_AR: TextosEmail = {
     ...ES.pixVencido,
     preCabecalho: 'No se cobró nada. Podés pagar de nuevo desde el pedido.',
     convite: 'Si todavía querés reservar, abrí el pedido y pagá de nuevo.',
+    // Etapa 7: a casa com as datas soltas de novo ("pagá")
+    casa: 'Las fechas de la casa quedaron libres de nuevo. Para reservarlas, pagá de nuevo mientras sigan libres.',
   },
   linkDoPedido: {
     ...ES.linkDoPedido,

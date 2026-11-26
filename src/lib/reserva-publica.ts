@@ -9,7 +9,7 @@ import { LOCALE_INTL, fmt, rota, type Idioma } from '@/i18n/config';
 import { texto } from '@/i18n/conteudo';
 import { nomeDoHotel } from './hospedagem';
 import { itensDaConta, type ItemVisivel } from './carrinho';
-import { linhasDoItemDaCasa } from './casa-no-carrinho';
+import { dataComDiaDaSemana, linhasDoItemDaCasa } from './casa-no-carrinho';
 import { SINAL_PORCENTO } from './diarias';
 import {
   formasDoPagamento,
@@ -31,6 +31,7 @@ import { frasesDoCancelamentoSemReembolso } from './cancelar-sem-reembolso';
 import { canceladoSemReembolso, cancelamentoDoVoucher } from './sem-reembolso';
 import { transferVisivel, type TransferVisivel } from './transfer-view';
 import { NOME_CIDADE_HOSPEDAGEM } from './validacao';
+import { chegadaESaida, noitesDaEstadia, textoDasDiarias } from './voucher-casa';
 import { whatsappDoRobo } from './whatsapp';
 import { mensagemDoErro } from './erros.ts';
 
@@ -114,7 +115,15 @@ export interface CasaPublica {
   /** A entrada (às 15h) e a saída (até as 12h), AAAA-MM-DD. */
   entrada: string;
   saida: string;
+  /** "seg., 14 de dez. de 2026, a partir das 15h" e "qua., 16 de dez. de 2026, até as 12h" (casas.quandoEntra e quandoSai). */
+  quandoEntra: string;
+  quandoSai: string;
+  /** "seg 14/12" e "qua 16/12" (na mensagem do WhatsApp do voucher pago). */
+  entradaCurta: string;
+  saidaCurta: string;
   noites: number;
+  /** "4 diárias" (casas.nDiarias). */
+  diarias: string;
   hospedes: number;
   /** "4 diárias, de qui 10/12 a seg 14/12". */
   periodo: string;
@@ -147,11 +156,18 @@ export function casaPublica(r: ReservaCasa, idioma: Idioma, d: Dicionario): Casa
     SINAL_PORCENTO,
   );
   const totalPix = r.totalPixCentavos ?? r.totalCentavos;
-  const noites = r.linhas.reduce((s, l) => s + l.noites, 0);
+  // as diárias pelas datas guardadas (as linhas da conta podem faltar numa leitura antiga)
+  const noites = noitesDaEstadia(r);
+  const { entrada: quandoEntra, saida: quandoSai } = chegadaESaida(r, idioma, d.casas);
   return {
     entrada: r.data,
     saida: r.saida,
+    quandoEntra,
+    quandoSai,
+    entradaCurta: dataComDiaDaSemana(r.data, idioma, LOCALE_INTL[idioma]),
+    saidaCurta: dataComDiaDaSemana(r.saida, idioma, LOCALE_INTL[idioma]),
     noites,
+    diarias: textoDasDiarias(noites, d.casas),
     hospedes: r.hospedes,
     periodo,
     nomeDoSinal: fmt(d.casas.itemNaStripe, { casa: r.casa.nome, p: SINAL_PORCENTO }),

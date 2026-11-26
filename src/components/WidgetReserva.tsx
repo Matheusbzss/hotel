@@ -3,12 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Idioma } from '@/i18n/config';
+import { avisoDaFalta, textoDaRecusa, type TextosDaFalta, type TextosDaRecusa } from '@/lib/aviso-reserva';
 import { formatarCifra } from '@/lib/cifra';
 import { formatarHora, horasDisponiveis, primeiroDiaComHorario } from '@/lib/horarios';
 import { textoDolar } from '@/lib/dolar';
 import { calcular, normalizarPessoas, precoPixCentavos, totalPixCentavos, type Pessoas, type TabelaPreco } from '@/lib/orcamento';
 import type { FaixaContador } from '@/lib/passeio-view';
 import { cartaoEmDestaque, rotuloPixComDesconto } from '@/lib/preco-destaque';
+import { levarAoCampo } from '@/lib/levar-ao-campo';
 import { rastrear } from '@/lib/pixel';
 import { dataPasseioValida, hojeEmBuzios, somarDias } from '@/lib/validacao';
 import { CampoData } from './CampoData';
@@ -24,7 +26,11 @@ export interface OpcaoWidget {
   tabela: TabelaPreco;
 }
 
-export interface TextosWidget {
+/**
+ * Com os avisos de src/lib/aviso-reserva.ts: o que falta, repetido perto do botão (faltaData, faltaHorario,
+ * faltaDataEHorario e semHorarioHoje), e o da recusa (erroConexao, erroAdicionar, erroTemporario e cheio).
+ */
+export interface TextosWidget extends TextosDaFalta, TextosDaRecusa {
   titulo: string;
   data: string;
   total: string;
@@ -46,7 +52,6 @@ export interface TextosWidget {
    * passeio sem taxa paga no local (temTaxaNoLocal, src/data/passeios.ts): a linha não aparece.
    */
   taxasNoLocal: string;
-  semHorarioHoje: string;
   noPix: string;
   noCartao: string;
   /** "con Pix (−{p}%)": o Pix na linha de baixo, quando o cartão é o preço grande (espanhol e inglês) */
@@ -59,8 +64,6 @@ export interface TextosWidget {
   adicionar: string;
   reservarAgora: string;
   adicionando: string;
-  erroAdicionar: string;
-  cheio: string;
 }
 
 /**
@@ -116,6 +119,9 @@ export function WidgetReserva({
   // o item do carrinho que o cliente está mudando (?mudar=): o cartão abre com o que ele tinha escolhido
   const [mudando, setMudando] = useState('');
   const dataRef = useRef<HTMLInputElement>(null);
+  // os pedaços da data e do horário: para onde a tela vai quando um deles falta (Pacote 34, ENT-02)
+  const blocoData = useRef<HTMLDivElement>(null);
+  const blocoHora = useRef<HTMLDivElement>(null);
   const idData = useId();
   const idHora = useId();
   const idioma = locale.slice(0, 2) as Idioma;
@@ -175,17 +181,22 @@ export function WidgetReserva({
   const semHorarioHoje = Boolean(primeiroDia) && grupo.data === hoje && hoje < primeiroDia;
   // no dia de hoje, os horários que já passaram ficam apagados
   const livres = hoje ? horasDisponiveis(horas, grupo.data) : horas;
+  const faltaData = !dataPasseioValida(grupo.data) || semHorarioHoje;
+  // com um horário só, ele já vem escolhido: só falta quando ele já passou hoje (e aí o que muda é a data)
+  const faltaHora = !hora || !livres.includes(hora);
+  // depois do toque sem a data ou sem o horário, o que ainda falta, repetido perto dos botões (some quando a pessoa escolhe)
+  const avisoPerto = avisoDaFalta({ data: erroData, horario: erroHora, semHorarioHoje }, T);
 
   /** Põe no carrinho: "Adicionar" abre a gaveta; "Reservar agora" segue direto para o checkout. */
   const colocar = async (destino: 'agora' | 'carrinho') => {
     setErroEnvio('');
-    if (!dataPasseioValida(grupo.data) || semHorarioHoje) {
-      setErroData(true);
-      dataRef.current?.focus();
-      return;
-    }
-    if (!hora || !livres.includes(hora)) {
-      setErroHora(true);
+    if (faltaData || faltaHora) {
+      // Pacote 34 (ENT-02): os dois campos que faltam ficam em destaque e a tela vai até o primeiro, no meio da tela,
+      // longe da cápsula do menu. Antes, sem o horário, nada se mexia e o botão parecia não funcionar
+      setErroData(faltaData);
+      setErroHora(faltaHora);
+      if (faltaData) levarAoCampo(blocoData.current, dataRef.current);
+      else levarAoCampo(blocoHora.current, blocoHora.current?.querySelector<HTMLButtonElement>('button:not(:disabled)'));
       return;
     }
     setEnviando(destino);
@@ -216,7 +227,10 @@ export function WidgetReserva({
         router.push(finalizarHref);
         return;
       }
-    } else setErroEnvio(r.erro === 'cheio' ? T.cheio : T.erroAdicionar);
+    } else {
+      // Pacote 34 (ENT-10): sem conexão, o aviso pede para conferir a internet; só os erros de data ou de horário falam deles
+      setErroEnvio(textoDaRecusa(r.erro, T));
+    }
     setEnviando('');
   };
 
@@ -285,59 +299,65 @@ export function WidgetReserva({
           </fieldset>
         )}
 
-        <label htmlFor={idData} className="rotulo mt-5">
-          {T.data}
-        </label>
-        <CampoData
-          ref={dataRef}
-          id={idData}
-          valor={grupo.data}
-          dica={T.escolhaData}
-          min={primeiroDia || undefined}
-          max={hoje ? somarDias(hoje, 366) : undefined}
-          onChange={(e) => {
-            alterar({ data: e.target.value });
-            setErroData(false);
-          }}
-          aria-invalid={erroData || semHorarioHoje}
-          aria-describedby={erroData || semHorarioHoje ? `${idData}-erro` : undefined}
-          required
-        />
-        {(erroData || semHorarioHoje) && (
-          <span id={`${idData}-erro`} className="erro-campo">
-            {semHorarioHoje ? T.semHorarioHoje : T.escolhaData}
-          </span>
-        )}
+        {/* a data e o horário, cada um no seu pedaço: com o toque em Reservar sem ele, o pedaço ganha o fundo rosado e a
+            tela vai até ele (Pacote 34, ENT-02) */}
+        <div ref={blocoData} className="bloco-campo mt-5" data-falta={erroData ? '' : undefined}>
+          <label htmlFor={idData} className="rotulo">
+            {T.data}
+          </label>
+          <CampoData
+            ref={dataRef}
+            id={idData}
+            valor={grupo.data}
+            dica={T.escolhaData}
+            min={primeiroDia || undefined}
+            max={hoje ? somarDias(hoje, 366) : undefined}
+            onChange={(e) => {
+              alterar({ data: e.target.value });
+              setErroData(false);
+            }}
+            aria-invalid={erroData || semHorarioHoje}
+            aria-describedby={erroData || semHorarioHoje ? `${idData}-erro` : undefined}
+            required
+          />
+          {(erroData || semHorarioHoje) && (
+            <span id={`${idData}-erro`} className="erro-campo">
+              {semHorarioHoje ? T.semHorarioHoje : T.escolhaData}
+            </span>
+          )}
+        </div>
 
         {horas.length > 1 && (
-          <fieldset className="mt-5 min-w-0" aria-describedby={erroHora ? `${idHora}-erro` : undefined}>
-            <legend className="rotulo">{T.rotuloHorario}</legend>
-            <div className="flex flex-wrap gap-1.5">
-              {horas.map((h) => {
-                const passou = !livres.includes(h);
-                return (
-                  <button
-                    key={h}
-                    type="button"
-                    aria-pressed={hora === h}
-                    disabled={passou}
-                    onClick={() => {
-                      setHora(h);
-                      setErroHora(false);
-                    }}
-                    className="filtro numeros min-w-[4.5rem] justify-center disabled:opacity-40"
-                  >
-                    {formatarHora(h, idioma)}
-                  </button>
-                );
-              })}
-            </div>
-            {erroHora && (
-              <span id={`${idHora}-erro`} className="erro-campo">
-                {T.escolhaHorario}
-              </span>
-            )}
-          </fieldset>
+          <div ref={blocoHora} className="bloco-campo mt-5" data-falta={erroHora ? '' : undefined}>
+            <fieldset className="min-w-0" aria-describedby={erroHora ? `${idHora}-erro` : undefined}>
+              <legend className="rotulo">{T.rotuloHorario}</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {horas.map((h) => {
+                  const passou = !livres.includes(h);
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      aria-pressed={hora === h}
+                      disabled={passou}
+                      onClick={() => {
+                        setHora(h);
+                        setErroHora(false);
+                      }}
+                      className="filtro numeros min-w-[4.5rem] justify-center disabled:opacity-40"
+                    >
+                      {formatarHora(h, idioma)}
+                    </button>
+                  );
+                })}
+              </div>
+              {erroHora && (
+                <span id={`${idHora}-erro`} className="erro-campo">
+                  {T.escolhaHorario}
+                </span>
+              )}
+            </fieldset>
+          </div>
         )}
 
         <div className="mt-5 space-y-4">
@@ -401,9 +421,10 @@ export function WidgetReserva({
               .replace('{unidade}', orc.unidades === 1 ? T.unidadeSingular : T.unidadePlural)}
           </p>
         )}
-        {erroEnvio && (
+        {/* perto dos botões: o que falta escolher lá em cima (o mesmo aviso dos campos) ou por que o envio não passou */}
+        {(avisoPerto || erroEnvio) && (
           <p className="mt-4 bg-erro-claro px-4 py-3 font-semibold text-mar" role="alert">
-            {erroEnvio}
+            {avisoPerto || erroEnvio}
           </p>
         )}
         <div className="mt-5 grid gap-2">

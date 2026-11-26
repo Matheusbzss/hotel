@@ -27,6 +27,9 @@ export function textosWidgetTransfer(d: Dicionario) {
     semCobranca: d.carrinho.semCobranca,
     adicionando: d.carrinho.adicionando,
     erroAdicionar: d.carrinho.erroAdicionar,
+    // Pacote 34 (ENT-10): sem conexão, ou o site que não gravou agora
+    erroConexao: d.carrinho.erroConexao,
+    erroTemporario: d.carrinho.erroTemporario,
     cheio: d.carrinho.cheio,
     cotacao: textosCotacao(d),
   };

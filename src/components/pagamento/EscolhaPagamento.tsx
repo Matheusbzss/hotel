@@ -17,6 +17,8 @@ export interface TextosEscolhaPagamento {
   cartaoAvista: string;
   /** A linha embaixo do Pix: como se paga pelo app do banco. */
   pixExplicacao: string;
+  /** Pacote 34 (P2): no celular o QR não serve; é o código copia e cola (checkout.pixNoCelular), depois da explicação. */
+  pixNoCelular: string;
   /** Os apps de fora do Brasil que já pagam Pix (só os confirmados). */
   pixApps: string;
   /** Pacote 29: em espanhol e inglês, que o Pix pede um app que pague Pix (sem ele, o cartão); vazia em português. */
@@ -165,6 +167,14 @@ export function EscolhaPagamento({
                   {T.pixDeFora && <span className="mb-1 block font-semibold text-(--color-tinta)">{T.pixDeFora}</span>}
                   {/* a frase dos apps de fora é vazia em português: sem ela, só a explicação, sem espaço sobrando */}
                   {T.pixApps ? `${T.pixExplicacao} ${T.pixApps}` : T.pixExplicacao}
+                  {/* Pacote 34 (P2): o que fazer no celular, onde o QR do passo seguinte não serve: um bloco na linha de baixo,
+                      com um espaço antes só para as frases não saírem coladas no texto lido em voz alta ou copiado */}
+                  {T.pixNoCelular && (
+                    <>
+                      {' '}
+                      <span className="mt-1 block">{T.pixNoCelular}</span>
+                    </>
+                  )}
                 </span>
               )}
             </label>

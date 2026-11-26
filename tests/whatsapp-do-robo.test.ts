@@ -156,11 +156,17 @@ test('os quatro lugares mostram o botão só junto da mensagem do robô (o 403 "
   assert.equal(conta(carrinho, 'setErroGeral(textos.robo)'), 1);
   assert.match(carrinho, /\} else if \(respostaDeRobo\(res\.status, corpo\)\) \{\s+setErroGeral\(textos\.robo\);/);
 
-  // pagar de novo e o "Pague com Pix" do cartão recusado: os dois só com o erro do robô, que só o 'robo' do POST /pagar põe
+  // pagar de novo, o "Pague com Pix" do cartão recusado e, desde o Pacote 34 (P1), o "Pague com cartão" embaixo do QR do
+  // Pix: os três só com o erro do robô, que só o 'robo' do POST /pagar põe
   const checkout = codigo('src', 'components', 'pagamento', 'CheckoutEmbutido.tsx');
-  assert.equal(conta(checkout, '<BotaoWhatsAppDoRobo'), 2);
-  assert.equal(conta(checkout, 'setErro(T.robo)'), 2);
-  assert.equal(checkout.match(/\} else if \(resposta\.erro === 'robo'\) \{\s+setErro\(T\.robo\);/g)?.length, 2);
+  assert.equal(conta(checkout, '<BotaoWhatsAppDoRobo'), 3);
+  assert.equal(conta(checkout, 'setErro(T.robo)'), 3);
+  assert.equal(checkout.match(/\} else if \(resposta\.erro === 'robo'\) \{\s+setErro\(T\.robo\);/g)?.length, 3);
+  // o da troca do Pix para o cartão: embaixo do erro dela, que nasce embaixo do botão, com o QR na tela
+  assert.match(
+    checkout,
+    /\{erro\}\s*<\/p>\s*\)\}\s*\{formaAtual === 'pix' && erro === T\.robo && <BotaoWhatsAppDoRobo whatsapp=\{T\.roboWhatsapp\} \/>\}/,
+  );
   // o do cartão recusado: logo embaixo do aviso (fora do respiro dele), com o aviso na tela
   assert.match(
     checkout,

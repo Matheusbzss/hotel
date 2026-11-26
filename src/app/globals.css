@@ -354,6 +354,28 @@ img {
     font-weight: 600;
     margin-top: 0.3rem;
   }
+  /* Pacote 34 (ENT-02): o pedaço do cartão de reserva com um campo (o rótulo, o campo e o aviso). Quando a pessoa toca
+     em Reservar sem ele, a tela vai até ele e ele ganha um fundo rosado por trás, um pouco maior que ele. O fundo é
+     desenhado por fora da caixa (::before), sem margem nem recuo: nada muda de lugar com ou sem ele */
+  .bloco-campo {
+    position: relative;
+    isolation: isolate;
+  }
+  .bloco-campo::before {
+    content: '';
+    position: absolute;
+    /* 6 px acima e abaixo: entre dois pedaços em destaque (a data e o horário, a 20 px um do outro), sobra um vão */
+    inset: -0.375rem -0.75rem;
+    z-index: -1;
+    border-radius: var(--radius-cartao);
+    background: color-mix(in oklab, var(--color-erro-claro) 60%, var(--color-papel));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-estado) var(--ease-padrao);
+  }
+  .bloco-campo[data-falta]::before {
+    opacity: 1;
+  }
 
   /* Filtro: célula que vira traço cheio quando escolhida */
   .filtro {

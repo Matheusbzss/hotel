@@ -198,6 +198,18 @@ export function trechosDoCartao(avaliacoes: Avaliacao[], slug: string, idioma: s
   return [...inteiras, ...cortadas].slice(0, quantos);
 }
 
+/**
+ * Pacote 34 (ENT-11): as opiniões do cartão perto da reserva, fechado e aberto. Fechado, os trechos de trechosDoCartao.
+ * Aberto (o "Ver todas as opiniões", ali mesmo, sem sair da página), os mesmos trechos no mesmo lugar e, depois deles, as
+ * outras da agência na ordem de ordenarParaPasseio, no máximo as que a página inicial mostra (MAXIMO_NO_SITE). As da
+ * cidade (sobre = 'destino') ficam fora: o cartão é "Opiniões sobre a Orla Nativa".
+ */
+export function opinioesDoCartao(avaliacoes: Avaliacao[], slug: string, idioma: string): { iniciais: Avaliacao[]; todas: Avaliacao[] } {
+  const iniciais = trechosDoCartao(avaliacoes, slug, idioma);
+  const outras = ordenarParaPasseio(avaliacoes, slug, idioma).filter((a) => !iniciais.includes(a));
+  return { iniciais, todas: [...iniciais, ...outras].slice(0, Math.max(iniciais.length, MAXIMO_NO_SITE)) };
+}
+
 /* ------------------------------------------------------------------ */
 /* A leitura pelo cache (o jeito de src/lib/casas.ts)                  */
 

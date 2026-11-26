@@ -163,7 +163,15 @@ const pt = {
     umPagamento: 'Um pagamento só e um voucher para cada item.',
     transferTitulo: 'Transfer privado: {de} → {para}',
     volta: 'Volta: {quando}',
+    // só quando o servidor recusa a data ou o horário (src/lib/aviso-reserva.ts)
     erroAdicionar: 'Não deu para adicionar. Confira a data e o horário e tente de novo.',
+    // Pacote 34 (ENT-10): o envio que não chegou ao site (sem internet) e o que o site não conseguiu gravar agora
+    erroConexao: 'Não conseguimos conectar. Confira a sua internet e toque de novo.',
+    erroTemporario: 'Não deu para adicionar agora. Tente de novo em alguns minutos.',
+    // Pacote 34 (ENT-02): perto do botão do cartão de reserva, o que falta escolher lá em cima
+    faltaData: 'Escolha a data do passeio, mais acima.',
+    faltaHorario: 'Escolha o horário, mais acima.',
+    faltaDataEHorario: 'Escolha a data e o horário, mais acima.',
     cheio: 'O carrinho aceita até 12 itens por pedido.',
     adicionando: 'Adicionando…',
     seuPedido: 'Seu pedido',
@@ -244,6 +252,11 @@ const pt = {
     recusadoPix: 'Cartão recusado? Pague com Pix e ganhe {p}% de desconto',
     dicaInternacional: 'Se o seu cartão é de fora do Brasil, confira no app do banco se as compras internacionais estão liberadas.',
     tentarOutroCartao: 'Tente com outro cartão.',
+    // Pacote 34 (P8): em espanhol e inglês, depois do cartão recusado, o Pix vem como segunda opção, para quem tem um app
+    // que pague Pix. Vazia em português: aqui o Pix continua sendo a primeira opção (todo banco brasileiro paga Pix)
+    recusadoPixComApp: '',
+    // Pacote 34 (P1): embaixo do QR do Pix, a troca para o cartão no mesmo pedido
+    pagarComCartao: 'Não consegue pagar com Pix? Pague com cartão',
     semPixPrazo: 'O Pix só vale até 2 horas antes do primeiro serviço do pedido. Agora, só dá para pagar com cartão.',
     // o pedido passa do limite de valor de um Pix (src/lib/formas-pagamento.ts): sem número, porque o limite segue o dólar
     semPixLimite: 'O Pix tem um valor máximo por pagamento, e este pedido passa dele. Para este pedido, só dá para pagar com cartão.',
@@ -362,6 +375,8 @@ const pt = {
     destinosTexto: 'Búzios, Arraial do Cabo e Cabo Frio ficam pertinho uma da outra: dá para se hospedar numa e passear nas três.',
     destinosQtd: '{n} passeios',
     destinosUm: '1 passeio',
+    // Pacote 34 (ENT-08): na vitrine da inicial, o link da cidade para a lista filtrada (a seta vem no desenho)
+    destinosVer: 'Ver os {n}',
     comoTitulo: 'Como funciona',
     // uma linha por passo (Etapa 8, menos texto): o preço com a regra de criança está na vitrine, o voucher com
     // número único e o desconto do Pix estão nas garantias
@@ -491,7 +506,7 @@ const pt = {
     },
     {
       p: 'Sou estrangeiro. Posso reservar?',
-      r: 'Pode, sim. Atendemos em português, inglês e espanhol. No checkout, informe o telefone com o código do país.',
+      r: 'Pode, sim. Atendemos em português, inglês e espanhol. No checkout, escolha o país ao lado do telefone e informe o número com o DDD.',
     },
     {
       p: 'É seguro pagar pelo site?',
@@ -504,6 +519,10 @@ const pt = {
   passeios: {
     titulo: 'Passeios',
     texto: '{n} passeios em Búzios, Arraial do Cabo e Cabo Frio, com reserva online e cancelamento grátis até 24 h antes.',
+    // Pacote 34 (ENT-08): o mesmo texto na lista filtrada, contando só os passeios mostrados e só as cidades deles. O
+    // {lugares} já vem com a preposição ("em Búzios", "no Rio de Janeiro": textoDaLista, src/lib/lista-passeios.ts)
+    textoFiltrado: '{n} passeios {lugares}, com reserva online e cancelamento grátis até 24 h antes.',
+    textoFiltradoUm: '1 passeio {lugares}, com reserva online e cancelamento grátis até 24 h antes.',
     nenhum: 'Nenhum passeio com esses filtros.',
     limpar: 'Limpar filtros',
     resultado: '{n} passeio',
@@ -545,7 +564,9 @@ const pt = {
     opinioesTitulo: 'Opiniões sobre a Orla Nativa',
     opinioesContagem: '{n} opiniões',
     opinioesContagemUma: '1 opinião',
+    // Pacote 34 (ENT-11): o "Ver todas" abre o cartão ali mesmo; aberto, o botão fecha
     opinioesVerTodas: 'Ver todas as opiniões',
+    opinioesVerMenos: 'Ver menos opiniões',
   },
   horario: {
     saida: 'Horário de saída',
@@ -665,7 +686,9 @@ const pt = {
     emailAjuda: 'Usamos o e-mail para o seu pedido e, se a compra não terminar, para mandar até 2 lembretes.',
     emailPrivacidade: 'Política de Privacidade',
     telefone: 'Telefone / WhatsApp',
-    telefoneAjuda: 'Com o código do país. Ex.: +55 21 99999-9999 ou +54 9 11 1234-5678',
+    // Pacote 34 (P5): o código do país já está na caixa ao lado do número; quem seguia a ajuda antiga digitava o código de
+    // novo (o servidor e o navegador tiram o repetido: semDdiRepetido, src/lib/validacao.ts)
+    telefoneAjuda: 'Sem o código do país (já está ao lado). Ex.: 21 99999-9999',
     ddi: 'Código do país',
     hospedagem: 'Onde você vai estar hospedado',
     cidadeHospedagem: 'Cidade da hospedagem',
@@ -693,7 +716,9 @@ const pt = {
     cartao: 'Cartão',
     // a escolha cartão x Pix e o botão de pagar (Etapa 4, pela Stripe); o {valor} já vem formatado, com centavos
     formaPagamento: 'Forma de pagamento',
-    cartaoAvista: 'Crédito ou débito, à vista. Visa e Mastercard.',
+    // Pacote 34 (P9): o "Pagar" ainda não cobra; os dados do cartão vêm no passo seguinte, no formulário da Stripe
+    cartaoAvista:
+      'Crédito ou débito, à vista. Visa e Mastercard. Os dados do cartão você informa no passo seguinte, no formulário seguro da Stripe.',
     pixExplicacao:
       'Você paga no app do seu banco, com o QR Code ou o código copia e cola que aparecem na próxima etapa. A confirmação é automática e o voucher sai na hora.',
     // vazio de propósito: em português não se explica o Pix pelos apps de fora (FASE-4, Etapa 5, item 7)
@@ -711,6 +736,12 @@ const pt = {
     irParaPagamento: 'Ir para o pagamento',
     processando: 'Processando…',
     avisoTotal: 'O pagamento é sempre do valor total da reserva.',
+    // Pacote 34 (P7): embaixo do botão de pagar, o "um pagamento só" e o "valor total" numa linha só
+    umPagamentoTotal: 'Um pagamento só, sempre do valor total, e um voucher para cada item.',
+    // Pacote 34 (P2): no celular o QR não serve (não dá para escanear a própria tela): o código copia e cola, no app
+    pixNoCelular: 'No celular, copie o código e cole no app do seu banco, em Pix Copia e Cola.',
+    // Pacote 34 (P13): o e-mail com um erro de digitação comum no domínio; {email} vira o botão que corrige
+    emailSugestao: 'Você quis dizer {email}?',
     seguro: 'Cartão processado com segurança pela Stripe. Os dados do cartão vão direto para ela e não ficam com a gente.',
     // quando o formulário da Stripe não carrega (bloqueador de anúncios, rede de empresa ou de hotel): o pedido já existe,
     // e embaixo vêm os botões "Tentar de novo" e "Enviar e-mail"
@@ -729,7 +760,7 @@ const pt = {
     erros: {
       obrigatorio: 'Preencha este campo.',
       email: 'Confira o e-mail.',
-      telefone: 'Informe o telefone com código do país e DDD.',
+      telefone: 'Confira o número, com o DDD.',
       semHorarioHoje: 'Para hoje não há mais horários. Escolha outra data.',
       generico: 'Não foi possível concluir agora. Tente de novo em alguns minutos.',
       revise: 'Revise os campos destacados.',

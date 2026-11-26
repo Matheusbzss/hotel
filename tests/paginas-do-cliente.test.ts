@@ -573,14 +573,16 @@ test('o aviso do cartão recusado guarda a decisão do 403 e, sem forma nenhuma,
   );
   assert.equal(checkout.match(/noLugarDaOfertaDoPix\(/g)?.length, 1);
   assert.equal(componente.match(/setNoLugarDoPix\(/g)?.length, 1);
-  // o aviso: o botão do Pix enquanto ele vale; senão, só o convite quando nenhuma forma vale; senão, a frase de sempre
+  // o aviso: em espanhol e inglês (Pacote 34, P8), primeiro o convite para outro cartão e, enquanto o Pix vale, o botão
+  // dele como segunda opção ("…si tenés una app que pague Pix"); em português, como sempre: o botão do Pix enquanto ele
+  // vale; senão, só o convite quando nenhuma forma vale; senão, a frase de sempre
   assert.match(
     componente,
-    /\{pixDisponivel && !semPix \? \(\s+<button [^>]*onClick=\{pagarComPix\}[^>]*>\s+\{trocando \? T\.processando : T\.recusadoPix\}\s+<\/button>\s+\) : noLugarDoPix === 'so-outro-cartao' \? \(\s+<p className="mt-2 text-small">\{T\.tentarOutroCartao\}<\/p>\s+\) : \(\s+<p className="mt-2 text-small">\s+\{fraseSemPix\(T, motivoDoServidor \?\? semPixDoServidor\)\} \{T\.tentarOutroCartao\}\s+<\/p>\s+\)\}/,
+    /\{T\.recusadoPixComApp \? \(\s+<>\s+<p className="mt-2 font-semibold">\{T\.tentarOutroCartao\}<\/p>\s+\{pixDisponivel && !semPix && \(\s+<button\s[^>]*className="botao botao-vazado mt-4 w-full"[^>]*onClick=\{pagarComPix\}[^>]*>\s+\{trocando \? T\.processando : T\.recusadoPixComApp\}\s+<\/button>\s+\)\}\s+<\/>\s+\) : pixDisponivel && !semPix \? \(\s+<button [^>]*onClick=\{pagarComPix\}[^>]*>\s+\{trocando \? T\.processando : T\.recusadoPix\}\s+<\/button>\s+\) : noLugarDoPix === 'so-outro-cartao' \? \(\s+<p className="mt-2 text-small">\{T\.tentarOutroCartao\}<\/p>\s+\) : \(\s+<p className="mt-2 text-small">\s+\{fraseSemPix\(T, motivoDoServidor \?\? semPixDoServidor\)\} \{T\.tentarOutroCartao\}\s+<\/p>\s+\)\}/,
   );
-  // a frase do Pix continua saindo de um lugar só no aviso, e o convite, dos dois ramos
+  // a frase do Pix continua saindo de um lugar só no aviso, e o convite, dos três ramos
   assert.equal(componente.match(/fraseSemPix\(/g)?.length, 1);
-  assert.equal(componente.match(/\{T\.tentarOutroCartao\}/g)?.length, 2);
+  assert.equal(componente.match(/\{T\.tentarOutroCartao\}/g)?.length, 3);
   // nenhum texto novo: o convite é o pedido.tentarOutroCartao de sempre, que a tela já recebia
   assert.match(codigo('lib', 'reserva-publica.ts'), /^\s+tentarOutroCartao: P\.tentarOutroCartao,$/m);
 });
@@ -689,10 +691,16 @@ test('a tela de pagar passa a frase do Pix gerado à escolha, que a mostra embai
     /<EscolhaPagamento\b[^>]*\spixGerado=\{pixGeradoNaEscolha\(status, formas, formaAtual\) \? T\.pixGerado : undefined\}/,
   );
   assert.equal(checkout.match(/pixGeradoNaEscolha\(/g)?.length, 1);
-  // o checkout do carrinho não passa a frase
+  // o checkout do carrinho não passa a frase à escolha. Desde o Pacote 34 (P1) ele a passa ao checkout embutido, para a
+  // troca do Pix para o cartão que esbarra no 403 'forma' (o QR já gerado ainda vale): nunca à escolha da forma
   const carrinho = codigo('components', 'carrinho', 'FormularioCarrinho.tsx');
   assert.match(carrinho, /<EscolhaPagamento\b/);
-  assert.doesNotMatch(carrinho, /pixGerado/);
+  const escolhaNoCarrinho = carrinho.slice(
+    carrinho.indexOf('<EscolhaPagamento'),
+    carrinho.indexOf('/>', carrinho.indexOf('<EscolhaPagamento')),
+  );
+  assert.doesNotMatch(escolhaNoCarrinho, /pixGerado/);
+  assert.match(carrinho, /^\s+pixGerado: O\.pixGerado,$/m);
   // a escolha: embaixo da frase de por que o Pix ficou de fora, no mesmo quadro, e só a frase recebida
   const escolha = codigo('components', 'pagamento', 'EscolhaPagamento.tsx');
   assert.match(escolha, /^\s+pixGerado\?: string;$/m);

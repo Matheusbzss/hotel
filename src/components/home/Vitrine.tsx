@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { Cidade } from '@/data/passeios';
 import { SeletorGrupo, type TextosSeletorGrupo } from '../grupo/SeletorGrupo';
@@ -7,7 +8,13 @@ import { SeletorGrupo, type TextosSeletorGrupo } from '../grupo/SeletorGrupo';
 export interface SecaoVitrine {
   id: Cidade;
   titulo: string;
+  /** "10 paseos": ao lado do nome da cidade quando não há o link `ver` (a cidade com um passeio só). */
   contagem: string;
+  /**
+   * Pacote 34 (ENT-08): "Ver los 10", o link para a lista de passeios filtrada pela cidade (?cidade=…). No celular, a
+   * fileira mostra só o primeiro cartão e um pedaço do segundo: quem não desliza para o lado acha tudo por aqui.
+   */
+  ver?: { href: string; texto: string };
   /** Os cartões da cidade, prontos do servidor (um <li> por passeio). */
   cartoes: ReactNode;
 }
@@ -71,7 +78,21 @@ export function Vitrine({
               <h3 id={`passeios-${s.id}-titulo`} className="subtitulo">
                 {s.titulo}
               </h3>
-              <span className="text-small text-(--color-tinta-suave)">{s.contagem}</span>
+              {s.ver ? (
+                // o leitor de tela ouve o nome da cidade junto ("Ver los 10, Búzios"); a área do toque tem 44 px de altura
+                <Link
+                  href={s.ver.href}
+                  prefetch={false}
+                  aria-describedby={`passeios-${s.id}-titulo`}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1 text-small font-semibold"
+                >
+                  {/* só o texto sublinhado, como os outros links; a seta fica de fora */}
+                  <span className="link">{s.ver.texto}</span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              ) : (
+                <span className="text-small text-(--color-tinta-suave)">{s.contagem}</span>
+              )}
             </div>
             <ul className="trilho">{s.cartoes}</ul>
           </section>

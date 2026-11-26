@@ -827,3 +827,57 @@ export async function registrarSessaoCriada(
   });
   return reserva ? { reserva, ...lido } : null;
 }
+
+/* ------------------------------------------------------------------ */
+/* A sessão anterior, na hora de trocar (Pacote 34, P1)                */
+
+/**
+ * O que a sessão anterior virou depois que o site tentou fechá-la para abrir outra no mesmo pedido (o cartão depois do
+ * Pix, o Pix depois do cartão recusado, o "Pagar de novo"), pela sessão relida na Stripe:
+ * - 'paga': o cliente pagou essa sessão pouco antes (o Pix pago no app do banco enquanto ele tocava em "Pagar com cartão",
+ *   ou o cartão pago em outra aba). É o pagamento do pedido: a sessão nova não pode chegar ao cliente;
+ * - 'fechada': ela já tinha vencido (ou foi fechada por outro toque), e nenhum pagamento passa mais por ela;
+ * - 'aberta': ela continua aberta (a Stripe não conseguiu fechá-la) ou pode ainda receber o pagamento (concluída sem
+ *   pagar, como um Pix que ainda vai cair). Abrir outra forma agora deixaria o cliente pagar duas vezes.
+ * Sem o banco, para ser testada em node (tests/troca-de-forma.test.ts).
+ */
+export type AnteriorDepoisDeFechar = 'paga' | 'fechada' | 'aberta';
+
+export function anteriorDepoisDeFechar(lida: Pick<Stripe.Checkout.Session, 'status' | 'payment_status'>): AnteriorDepoisDeFechar {
+  if (lida.payment_status === 'paid') return 'paga';
+  if (lida.status === 'expired') return 'fechada';
+  return 'aberta';
+}
+
+const EVENTO_TROCA_DESFEITA = 'Troca de forma desfeita';
+
+/**
+ * O pedido volta para a sessão anterior quando a troca não pôde terminar porque a Stripe não confirmou que ela fechou
+ * (anteriorDepoisDeFechar deu 'aberta'): a sessão nova, recém-gravada e já fechada na Stripe, sai, e a anterior volta a
+ * ser a corrente, com a forma dela. Assim a página continua acompanhando a sessão que o cliente ainda pode pagar (o QR do
+ * Pix na tela), e o aviso da Stripe de um pagamento nela vale como sempre. Só se a sessão corrente ainda for a nova e o
+ * pedido ainda esperar o pagamento: outro toque que gravou depois, ou o pedido pago no meio-tempo, ficam como estão.
+ * Devolve a linha do histórico, ou null sem mexer em nada. Sem o banco, para ser testada em node.
+ */
+export function sessaoAnteriorDeVolta(r: Reserva, nova: string, anterior: string, forma?: FormaPagamento): string | null {
+  if (r.pagamentoExternoId !== nova || !podeAbrirSessao(r.status)) return null;
+  r.pagamentoExternoId = anterior;
+  if (forma) r.pagamento.metodo = forma;
+  return `${EVENTO_TROCA_DESFEITA}: a sessão anterior (${anterior}) não pôde ser fechada na Stripe; a nova (${nova}) foi fechada e o pedido continua com a anterior`;
+}
+
+/** Grava sessaoAnteriorDeVolta no pedido (o mesmo caminho de registrarSessaoCriada, ao contrário). */
+export async function devolverSessaoAnterior(
+  codigo: string,
+  nova: string,
+  anterior: string,
+  forma?: FormaPagamento,
+): Promise<Reserva | null> {
+  const { atualizarReserva, obterReservaDoPedido, registrar } = await import('./reservas.ts');
+  const alvo = await obterReservaDoPedido(codigo);
+  if (!alvo) return null;
+  return atualizarReserva(alvo.codigo, (r) => {
+    const linha = sessaoAnteriorDeVolta(r, nova, anterior, forma);
+    return linha ? registrar(r, linha) : null;
+  });
+}

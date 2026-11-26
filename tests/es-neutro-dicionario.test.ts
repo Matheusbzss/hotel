@@ -27,7 +27,7 @@ const tokens = (s: string): string[] => (s.match(new RegExp(`[${LETRA}]+`, 'g'))
  */
 const PROIBIDAS_NO_NEUTRO = new Set(
   `abrí aceptás alojás armá arrepentís avisá cancelá cancelás compará completá completás cuidá disfrutá elegí elegís embarcá escaneá
-   esperá guardá hablá hacé indicá ingresá intentá llegá llegás llevá necesitás pagá pagás paseás pegá perdés podés
+   esperá guardá hablá hacé indicá ingresá ingresás intentá llegá llegás llevá necesitás pagá pagás paseás pegá pegalo perdés podés
    poné presentás probá querés recibí recibís registrás reservá revisá revisás seleccioná tenés terminás tocá
    avisame avisanos contactanos decinos dejanos envialo escribinos mandanos mostralo mostralos mostraselo
    vos sos usted ustedes
@@ -103,7 +103,12 @@ test('o espanhol da Argentina (es-ar) conserva o texto de antes, com vos e as pa
 test('o espanhol neutro traz o "tú" nas mesmas frases, com os acentos do imperativo com pronome', () => {
   assert.equal(es.home.gancho, 'Llega y disfruta. Del resto nos ocupamos nosotros.');
   assert.equal(es.meta.chamadaPasseio, 'Reserva online y cancela gratis hasta 24 h antes.');
-  assert.equal(es.preco.notaCambio, 'Pagas en reales. El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.');
+  // Pacote 34 (P10): no /es, o cartão pode ser pago na moeda do cliente, com a cotação da Stripe (o es-ar continua com
+  // "Pagás en reales": a Argentina não está na lista da Stripe)
+  assert.equal(
+    es.preco.notaCambio,
+    'En el pago puedes elegir pagar en reales o, con tarjeta, en tu moneda (con la cotización de Stripe). El ≈ US$ es aproximado: cotización del Banco Central de Brasil del {data}.',
+  );
   assert.equal(es.carrinho.semCobranca, 'Todavía no te cobramos nada: revisas todo antes de pagar.');
   assert.equal(es.home.garantias[0].recebe, 'Reembolso total o nueva fecha, tú eliges');
   assert.ok(es.transfer.como[1].includes('intenta hablar contigo y te pregunta si quieres reprogramar'));
@@ -140,7 +145,10 @@ test('o espanhol neutro traz o "tú" nas mesmas frases, com os acentos do impera
 
 /** Diferenças decididas pelo dono que não são vos nem palavra argentina. */
 const DIFERENCAS_DECIDIDAS: Record<string, string> = {
-  'checkout.telefoneAjuda': 'exemplo de telefone: chileno no es (DDI padrão +56), argentino e uruguaio no es-ar (decisão de 09/11/2026)',
+  'checkout.telefoneAjuda':
+    'exemplo de telefone: chileno no es (DDI padrão +56), argentino no es-ar (decisão de 09/11/2026; sem o código do país desde o Pacote 34)',
+  // Pacote 34 (P10): só o /es fala da moeda local da Stripe; a Argentina não está na lista (o es-ar tem "pagás" de qualquer jeito)
+  'preco.notaCambio': 'a moeda local da Stripe no cartão: o Chile está na lista da Stripe, a Argentina não (Pacote 34, P10)',
 };
 
 test('toda frase que difere entre es e es-ar se explica por vos ou palavra argentina, e nada mais muda', () => {
@@ -160,8 +168,8 @@ test('toda frase que difere entre es e es-ar se explica por vos ou palavra argen
   }
   assert.equal(
     diferentes,
-    141,
-    `${diferentes} frases diferem entre es e es-ar; esperava 141 (a pergunta da faixa que sugere o espanhol, do Pacote 31, com "querés"; a caixa dos termos do Pacote 30 trocou o erro dela pelas duas frases do aceite junto do botão; e as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22, e a frase do Pix para quem é de fora, do Pacote 29). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
+    171,
+    `${diferentes} frases diferem entre es e es-ar; esperava 171 (as 25 do bloco do carrinho ao pagamento do Pacote 34: "chicos" em todo o es-ar, nos 17 textos de crianças de comum, grupo e boletim, no rodapé dos preços, no tutorial, na pergunta da FAQ e nas observações do checkout, mais a linha do cartão com "los ingresás", o aviso do celular perto do QR do Pix, a troca do Pix para o cartão e o Pix como segunda opção depois do cartão recusado; as 5 do cartão de reserva do Pacote 34, o aviso sem conexão, o do site que não grava agora e o que falta escolher perto do botão, com "revisá", "tocá", "intentá" e "elegí"; a pergunta da faixa que sugere o espanhol, do Pacote 31, com "querés"; a caixa dos termos do Pacote 30 trocou o erro dela pelas duas frases do aceite junto do botão; e as 111 que ficaram do lote 2, o exemplo de telefone, as 11 da Etapa 4, a garantia da chuva da Etapa 8, na versão de hoje e na do pagamento online, o aviso do formulário da Stripe que não carrega, da Etapa 5, as 8 da página da casa, da Etapa 7, com as colunas da conta "Seña con Pix" e "Seña con tarjeta", e a resposta de hoje de "¿Es seguro pagar en el sitio?", da revisão para os anúncios, com "registrás" e "pagás", e a frase do pagamento contestado no pedido com mais de um voucher, do Pacote 19, e a mensagem de quem a proteção contra robôs confundiu com robô, do Pacote 20, e a frase do pagamento que chegou para o pedido cancelado, do Pacote 22, e a frase do Pix para quem é de fora, do Pacote 29). Mudou uma frase de propósito? Atualize este número (tests/es-ar.test.ts tem a contagem por fonte).`,
   );
 });
 
@@ -176,6 +184,8 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     ['recusa.vencido', ar.recusa.vencido, es.recusa.vencido],
     // Etapa 5: o formulário da Stripe que não carrega
     ['checkout.semStripe', ar.checkout.semStripe, es.checkout.semStripe],
+    // Pacote 34 (P9): os dados do cartão no passo seguinte
+    ['checkout.cartaoAvista', ar.checkout.cartaoAvista, es.checkout.cartaoAvista],
   ];
   const TRECHOS: Record<string, [string, string]> = {
     'checkout.pixExplicacao': ['Pagás en la app de tu banco', 'Pagas en la app de tu banco'],
@@ -185,6 +195,7 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
     'recusa.dados': ['Revisá el número', 'Revisa el número'],
     'recusa.vencido': ['usá otra tarjeta', 'usa otra tarjeta'],
     'checkout.semStripe': ['Probá sin el bloqueador', 'Prueba sin el bloqueador'],
+    'checkout.cartaoAvista': ['los ingresás en el paso siguiente', 'los ingresas en el paso siguiente'],
   };
   for (const [caminho, textoAr, textoEs] of PARES) {
     const [trechoAr, trechoEs] = TRECHOS[caminho];
@@ -199,7 +210,6 @@ test('Etapa 4: as frases do pagamento pela Stripe com verbo vão em vos no es-ar
   // as frases sem verbo para o cliente (impessoais) não ganham versão argentina
   for (const t of [
     (d: typeof es) => d.checkout.pixApps,
-    (d: typeof es) => d.checkout.cartaoAvista,
     (d: typeof es) => d.pedido.semPixPrazo,
     (d: typeof es) => d.pedido.confirmandoTexto,
     (d: typeof es) => d.recusa.generica,

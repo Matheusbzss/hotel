@@ -187,13 +187,18 @@ test('o transfer pede a antecedência no servidor, no cartão do transfer e no t
   assert.ok(conferir.indexOf('primeiroDiaTransfer(hoje)') < trava);
   assert.ok(trava < conferir.indexOf('precoTrecho('));
 
-  // o cartão do transfer: problema() faz a mesma conta, com o relógio do aparelho, logo depois do "informe o horário"
+  // o cartão do transfer: problema() faz a mesma conta, com o relógio do aparelho, logo depois do "informe o horário".
+  // Desde o Pacote 34 (ENT-02), problema() também diz o pedaço do cartão que falta (a tela vai até ele): a data e o
+  // horário são o pedaço 'quando'
   const widget = codigo('components', 'transfer', 'WidgetTransfer.tsx');
   assert.match(doTransfer(widget), /\btransferComAntecedencia\b/);
-  const comeco = widget.indexOf('function problema(): string {');
+  const comeco = widget.indexOf('function problema(): Falta | null {');
   assert.notEqual(comeco, -1);
   const problema = widget.slice(comeco, widget.indexOf('\n  }', comeco));
-  assert.match(problema, /if \(!hora\) return T\.erroHora;\s+if \(!transferComAntecedencia\(data, hora\)\) return erroAntecedencia;/);
+  assert.match(
+    problema,
+    /if \(!hora\) return \{ campo: 'quando', texto: T\.erroHora \};\s+if \(!transferComAntecedencia\(data, hora\)\) return \{ campo: 'quando', texto: erroAntecedencia \};/,
+  );
 
   // quando só o servidor recusa (o relógio do aparelho errado, ou o transfer de um link antigo em /transfer/checkout),
   // o código 'antecedencia' mostra a frase nova, nunca a genérica; o número de horas vem da regra, não escrito à mão

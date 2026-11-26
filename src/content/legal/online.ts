@@ -36,9 +36,11 @@ const P = DESCONTO_PIX_PORCENTO;
  * o que os textos de hoje mudaram (em 2026-11-14, os anúncios do Google e da Meta na privacidade).
  * - termos: 2026-11-26 (Pacote 31), o item "Recebedor" do Pix passou a dizer que o app do banco mostra o nome da Stripe
  *   (o que se viu no Pix de verdade de 24/11), sem a EBANX. Até aqui valia uma data só para os três textos: trocar essa
- *   data levaria o 25/11 também ao cancelamento, que não mudou.
+ *   data levaria o 25/11 também ao cancelamento, que não mudou. No mesmo dia (Pacote 32), o item 1 ganhou o endereço da
+ *   Receita Federal, que vem do texto de hoje (ATUALIZADO_EM.termos).
  * - privacidade: 2026-11-26 (Pacote 31), o idioma da visita nos itens 3 e 5 (o país aproximado e o cookie do idioma),
- *   que entrou no texto de hoje (ATUALIZADO_EM.privacidade) e vem junto nesta versão. Antes, 2026-11-24, o dia de ligar.
+ *   que entrou no texto de hoje (ATUALIZADO_EM.privacidade) e vem junto nesta versão; no mesmo dia (Pacote 32), o
+ *   endereço da Receita Federal no item 1. Antes, 2026-11-24, o dia de ligar.
  * - cancelamento: 2026-11-24, o dia de ligar.
  */
 export const ATUALIZADO_EM_ONLINE: Readonly<Record<TextoLegal, string>> = {
@@ -51,8 +53,8 @@ export const ATUALIZADO_EM_ONLINE: Readonly<Record<TextoLegal, string>> = {
  * carrinho), que só a página da privacidade mostra: troque para o dia em que a RESEND_API_KEY entrar na Vercel (foi em
  * 2026-11-15) ou em que o texto que ela mostra mudar. Em 2026-11-23 a proteção contra robôs foi ligada no ar e a página
  * ganhou a linha da Vercel e da Kasada (privacidadeComRobos, mais abaixo): era esta a versão que estava valendo. Em
- * 2026-11-26 (Pacote 31), o texto de hoje ganhou o idioma da visita nos itens 3 e 5, e esta versão o traz junto. Nunca
- * antes de ATUALIZADO_EM.privacidade.
+ * 2026-11-26 (Pacote 31), o texto de hoje ganhou o idioma da visita nos itens 3 e 5, e esta versão o traz junto; no
+ * mesmo dia (Pacote 32), o endereço da Receita Federal no item 1. Nunca antes de ATUALIZADO_EM.privacidade.
  */
 export const ATUALIZADO_EM_EMAILS = '2026-11-26';
 

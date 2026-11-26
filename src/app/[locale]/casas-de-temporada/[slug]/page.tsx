@@ -25,7 +25,7 @@ import { textosCotacao } from '@/lib/cotacao';
 import { textoDolar } from '@/lib/dolar';
 import { menorDiariaCentavos, primeiraEntradaPossivel } from '@/lib/estadia';
 import { precoPixCentavos } from '@/lib/orcamento';
-import { centroCabeNoRecorte, rotulosDoRecorte } from '@/lib/satelite-casa';
+import { centroCabeNoRecorte, rotulosDoRecorte, versaoDoRecorte } from '@/lib/satelite-casa';
 import { alternates, openGraphDaPagina } from '@/lib/site';
 
 // a página é refeita uma vez por dia, para os dias e os pacotes que já passaram saírem dela; a casa nova abre na
@@ -97,6 +97,10 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
   const comMapa = Boolean(c.centro && centroCabeNoRecorte(c.centro));
   // só os nomes das praias e a posição deles na imagem (relativa ao centro público): nenhuma coordenada vai ao HTML
   const rotulosDoMapa = comMapa && c.centro ? rotulosDoRecorte(c.centro) : [];
+  // a foto fica guardada 1 dia pelo endereço inteiro (na Vercel e no navegador): com a versão do centro no endereço,
+  // mudar o ponto no painel muda o endereço, e a foto nova chega junto com os nomes das praias. A versão é um resumo do
+  // centro, sem coordenada nenhuma
+  const imagemDoMapa = comMapa && c.centro ? `/mapa/casas/${c.slug}.webp?v=${versaoDoRecorte(c.centro)}` : undefined;
   // a página mostra a descrição (o primeiro parágrafo e o "ler mais"); o resumo fica para o Google e a prévia do link,
   // porque repete os destaques e a ficha, que estão logo acima. Sem descrição, o resumo.
   const [primeiro = texto(c.resumo, locale), ...paragrafos] = texto(c.descricao, locale)
@@ -303,6 +307,7 @@ export default async function PaginaCasa({ params }: PageProps<'/[locale]/casas-
           <MapaCasa
             slug={c.slug}
             comMapa={comMapa}
+            imagem={imagemDoMapa}
             rotulos={rotulosDoMapa}
             local={local}
             bairro={c.detalhes.textoBairro ? texto(c.detalhes.textoBairro, locale) : ''}

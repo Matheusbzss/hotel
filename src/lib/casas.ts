@@ -35,9 +35,16 @@ const arquivoDa = (id: string) => path.join(PASTA, `${id}.json`);
 /** As páginas refazem na próxima visita, já com o dado novo. */
 const refazerPaginas = (tag: string) => revalidateTag(tag, { expire: 0 });
 
+/** O arquivo de antes do Pacote 32 não tem os detalhes nem o centro: entram vazios, como no banco antes da marcação. */
+const comOsCamposNovos = (c: CasaPainel): CasaPainel => ({
+  ...c,
+  detalhes: { ...detalhesDeLinha({}), ...c.detalhes },
+  centro: c.centro ?? null,
+});
+
 async function dosArquivos(): Promise<CasaPainel[]> {
   const nomes = await fs.readdir(PASTA).catch(() => [] as string[]);
-  return Promise.all(nomes.map(async (n) => JSON.parse(await fs.readFile(path.join(PASTA, n), 'utf8')) as CasaPainel));
+  return Promise.all(nomes.map(async (n) => comOsCamposNovos(JSON.parse(await fs.readFile(path.join(PASTA, n), 'utf8')) as CasaPainel)));
 }
 
 const gravarArquivo = async (c: CasaPainel) => {
@@ -197,7 +204,18 @@ export async function criarCasa(dados: DadosCasa): Promise<string | null> {
   if (process.env.VERCEL) throw new Error('Banco de casas não configurado: faltam SUPABASE_URL e SUPABASE_SECRET_KEY na Vercel.');
   if ((await dosArquivos()).some((c) => c.slug === dados.slug)) return null;
   const id = randomUUID();
-  await gravarArquivo({ ...dados, id, ativo: false, icalToken: randomUUID(), temporadas: [], feriados: [], tarifas: [], bloqueios: [] });
+  await gravarArquivo({
+    ...dados,
+    id,
+    ativo: false,
+    icalToken: randomUUID(),
+    temporadas: [],
+    feriados: [],
+    tarifas: [],
+    bloqueios: [],
+    detalhes: detalhesDeLinha({}),
+    centro: null,
+  });
   return id;
 }
 
@@ -212,6 +230,17 @@ export async function atualizarCasa(id: string, dados: DadosCasa, atual: CasaPai
   }
   if (atual.ativo) refazerPaginas(TAG_CASAS);
 }
+
+/**
+ * No computador (.data/casas), o centro do círculo vai para o arquivo da casa, como o gatilho de casas_pontos faz no
+ * banco. Quem chama é a marcação do painel (src/lib/casas-painel.ts), que guarda o ponto à parte.
+ */
+export async function gravarCentroNoComputador(id: string, centro: Ponto): Promise<void> {
+  await mudarArquivo(id, (c) => ({ ...c, centro }));
+}
+
+/** A casa mudou no mapa: o menu, a lista e a página da casa refazem na próxima visita, já com o centro novo. */
+export const casasMudaram = (): void => refazerPaginas(TAG_CASAS);
 
 export async function publicarCasa(id: string, ativo: boolean): Promise<void> {
   if (usarBanco()) {

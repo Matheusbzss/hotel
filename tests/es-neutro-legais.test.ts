@@ -55,9 +55,12 @@ const PROIBIDAS_NO_NEUTRO = new Set(
     .filter(Boolean),
 );
 
-/** Palavras comuns terminadas em á/é/í(s) que não são "vos": advérbios, "está" e o futuro da 3ª pessoa (resolverá). */
+/**
+ * Palavras comuns terminadas em á/é/í(s) que não são "vos": advérbios, "está" e o futuro da 3ª pessoa (resolverá). E o
+ * José do endereço da empresa (Av. José Bento Ribeiro Dantas, Pacote 32), que é nome, não verbo.
+ */
 const INOCENTES = new Set(
-  'está estás así aquí ahí allí allá además demás después más través interés país sí mí tú qué será habrá podrá resolverá cobrará devolverá'.split(
+  'está estás así aquí ahí allí allá además demás después más través interés país sí mí tú qué será habrá podrá resolverá cobrará devolverá josé'.split(
     /\s+/,
   ),
 );
@@ -290,11 +293,12 @@ test('comAjustesAR() falha alto com par órfão, repetido ou sem efeito, e sem p
 
 /**
  * A última revisão de cada texto legal: o espanhol neutro não mudou o conteúdo (só a forma de tratamento), por isso não
- * mexeu nas datas. Os termos citam o domínio oficial (11/11); o "Em resumo" da política de cancelamento ganhou a linha
- * do passeio cancelado por chuva, vento ou mar (13/11); a privacidade ganhou os anúncios do Google e da Meta (14/11) e,
- * no Pacote 31, o idioma da visita nos itens 3 e 5 (25/11).
+ * mexeu nas datas. Os termos citam o domínio oficial (11/11) e, no Pacote 32, o endereço da Receita Federal (26/11); o
+ * "Em resumo" da política de cancelamento ganhou a linha do passeio cancelado por chuva, vento ou mar (13/11); a
+ * privacidade ganhou os anúncios do Google e da Meta (14/11) e, nos Pacotes 31 e 32, o idioma da visita nos itens 3 e 5
+ * e o endereço da Receita Federal no item 1 (26/11).
  */
-const ULTIMA_REVISAO = { termos: '2026-11-11', cancelamento: '2026-11-13', privacidade: '2026-11-26' } as const;
+const ULTIMA_REVISAO = { termos: '2026-11-26', cancelamento: '2026-11-13', privacidade: '2026-11-26' } as const;
 
 test('a data de revisão de cada texto legal é uma data válida e não voltou para antes da última revisão dele', () => {
   // uma revisão legítima futura pode avançar a data de um texto, nunca recuá-la

@@ -141,13 +141,17 @@ export function FormularioCasa({ casa, cidades }: { casa?: DadosCasa & { id: str
         </div>
       </Secao>
 
-      <Secao titulo="Onde fica" ajuda="O endereço exato só aparece no voucher. O ponto do mapa fica perto da casa, como o meio da praia.">
+      {/* Pacote 32: sem campos de endereço nem de coordenadas. A casa vai para o mapa pela parte "Marcar a casa no mapa"
+          da página dela no painel, e a localização exata vai pela equipe, no WhatsApp, depois da reserva. */}
+      <Secao
+        titulo="Onde fica"
+        ajuda={
+          casa
+            ? 'A praia ou o bairro aparece na página. O mapa vem da parte "Marcar a casa no mapa", mais acima.'
+            : 'A praia ou o bairro aparece na página. Depois de cadastrar, marque a casa no mapa na página dela.'
+        }
+      >
         <Textos nome="local" rotulo="Praia ou bairro" valores={casa?.local} />
-        <div className="grid gap-4 md:grid-cols-3">
-          <Campo nome="endereco" rotulo="Endereço exato" valor={casa?.endereco} />
-          <Campo nome="lat" rotulo="Ponto no mapa: latitude" tipo="number" step="any" valor={casa?.pontoAproximado.lat || ''} />
-          <Campo nome="lng" rotulo="Ponto no mapa: longitude" tipo="number" step="any" valor={casa?.pontoAproximado.lng || ''} />
-        </div>
       </Secao>
 
       <Secao titulo="Textos da página" ajuda="Na descrição, deixe uma linha em branco entre os parágrafos.">

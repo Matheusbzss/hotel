@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import sharp from 'sharp';
 import litoral from '@/data/litoral.json';
@@ -36,6 +37,17 @@ export function centroCabeNoRecorte(centro: Ponto): boolean {
     y + ALTURA_RECORTE_M / 2 <= c.y1
   );
 }
+
+/**
+ * A versão do recorte: 8 letras e números tirados do centro PÚBLICO por um resumo (sha256), do qual não se volta às
+ * coordenadas. A página da casa põe a versão no endereço da foto (/mapa/casas/<slug>.webp?v=<versão>), que fica
+ * guardada 1 dia pelo endereço inteiro, na Vercel e no navegador. Quando o dono muda o ponto no painel, o centro muda,
+ * a página refeita pede um endereço novo, e a foto nova chega junto com os nomes das praias (sem a versão, a foto velha
+ * ficava até 1 dia, com os nomes fora do lugar). O mesmo centro dá sempre a mesma versão. A rota do mapa recorta sempre
+ * o centro gravado e só deixa guardar a foto pedida com a versão desse centro (src/app/mapa/casas/[arquivo]/route.ts).
+ */
+export const versaoDoRecorte = (centro: Ponto): string =>
+  createHash('sha256').update(`${centro.lat},${centro.lng}`).digest('hex').slice(0, 8);
 
 /** Um nome escrito por cima do recorte: a posição em % da largura e da altura da imagem. */
 export interface RotuloDoMapa {

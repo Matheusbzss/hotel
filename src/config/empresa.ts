@@ -9,11 +9,13 @@ export const EMPRESA = {
   marca: 'Orla Nativa',
   slogan: 'Viagens & Passeios',
 
-  // Dados legais
+  // Dados legais. O endereço é o do cadastro da empresa na Receita Federal (Pacote 32, decisão do dono de 25-26/11/2026):
+  // a rua, o bairro e a cidade com o CEP, uma linha cada no rodapé (enderecoCompleto junta os três nos textos legais)
   razaoSocial: 'ORLA NATIVA LTDA',
   cnpj: '69.664.651/0001-82',
-  enderecoRua: 'Travessa dos Pescadores, 326',
-  enderecoCidade: 'Búzios - RJ, CEP 28950-000',
+  enderecoRua: 'Av. José Bento Ribeiro Dantas, 815',
+  enderecoBairro: 'Portal da Ferradura',
+  enderecoCidade: 'Armação dos Búzios - RJ, CEP 28951-605',
 
   // Contato
   email: 'financeiro@orlanativa.com',
@@ -45,4 +47,5 @@ export const EMPRESA = {
   descricaoFatura: 'ORLANATIVA',
 } as const;
 
-export const enderecoCompleto = `${EMPRESA.enderecoRua}, ${EMPRESA.enderecoCidade}`;
+/** "Av. José Bento Ribeiro Dantas, 815, Portal da Ferradura, Armação dos Búzios - RJ, CEP 28951-605": nos termos e na privacidade. */
+export const enderecoCompleto = `${EMPRESA.enderecoRua}, ${EMPRESA.enderecoBairro}, ${EMPRESA.enderecoCidade}`;

@@ -7,11 +7,13 @@ import { DIAMETRO_CIRCULO_M, LARGURA_RECORTE_M, type RotuloDoMapa } from '@/lib/
  * do centro PÚBLICO do círculo, deslocado do ponto da casa) com o círculo de 500 m de raio no meio, os nomes de até 3
  * praias por cima (a foto tem uns 11 m por ponto: sem nome, o turista não reconhece a região) e o texto do bairro. Sem
  * o ponto marcado no painel (`comMapa` false), só o texto: a localização exata vai pela equipe, depois da reserva. A
- * imagem só carrega quando chega perto da tela.
+ * imagem só carrega quando chega perto da tela. O painel usa este mesmo componente na prévia da parte "Marcar a casa
+ * no mapa" (Pacote 32), com a imagem da rota dele, que vale também para a casa fora do ar.
  */
 export function MapaCasa({
   slug,
   comMapa,
+  imagem = `/mapa/casas/${slug}.webp`,
   rotulos = [],
   local,
   bairro,
@@ -19,6 +21,12 @@ export function MapaCasa({
 }: {
   slug: string;
   comMapa: boolean;
+  /**
+   * O endereço do recorte de satélite. A página da casa passa o dela com a versão do centro (?v=, versaoDoRecorte em
+   * src/lib/satelite-casa.ts), para a foto guardada mudar junto quando o dono muda o ponto; o painel passa o da prévia.
+   * Sem ele, vale o endereço sem a versão, que a rota do mapa entrega sem guardar.
+   */
+  imagem?: string;
   /** Os nomes das praias no recorte, em % da imagem (src/lib/satelite-casa.ts). */
   rotulos?: RotuloDoMapa[];
   /** "Ferradurinha, Búzios". */
@@ -38,7 +46,7 @@ export function MapaCasa({
           <div className="relative aspect-[4/3] overflow-hidden rounded-(--radius-cartao) bg-(--color-superficie)">
             {/* eslint-disable-next-line @next/next/no-img-element -- a imagem já sai pronta e leve da rota do mapa */}
             <img
-              src={`/mapa/casas/${slug}.webp`}
+              src={imagem}
               alt={`${T.mapaTitulo}: ${local}`}
               width={800}
               height={600}

@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { EMPRESA } from '../src/config/empresa.ts';
+import { EMPRESA, enderecoCompleto } from '../src/config/empresa.ts';
+import { textosLegais } from '../src/content/legal/online.ts';
+import { frasesDoDocumento } from '../src/content/legal/argentino.ts';
 
 // O CNPJ da empresa aparece no rodapé, nos termos de uso e na política de privacidade (Decreto 7.962/2013)
 // e é o único que pode aparecer. O número só é digitado em src/config/empresa.ts; quem mostra lê de lá.
@@ -27,8 +29,12 @@ const TEXTO = /\.(ts|tsx|js|mjs|cjs|jsx|json|md|css|html|txt|xml|svg|webmanifest
 const FORMATADO = /(?<![\d.])(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{8}\/\d{4}-\d{2})(?!\d)/g;
 /** 14 dígitos juntos, fora de um número decimal (a posição de um pino no mapa tem 14 casas depois da vírgula). */
 const JUNTOS = /(?<![\d.,])\d{14}(?!\d|[.,]\d)/g;
-// a frase inteira: só 'ltda' acharia altDaFoto
-const PALAVRA = /cnpj|razaoSocial|enderecoRua|enderecoCidade|enderecoCompleto|orla nativa ltda|travessa dos pescadores/i;
+// a frase inteira: só 'ltda' acharia altDaFoto. O endereço vai com o número e o CEP: a avenida sozinha é a estrada
+// principal de Búzios e pode aparecer num passeio ou no transfer
+const PALAVRA =
+  /cnpj|razaoSocial|enderecoRua|enderecoBairro|enderecoCidade|enderecoCompleto|orla nativa ltda|bento ribeiro dantas, 815|28951-605|travessa dos pescadores/i;
+/** O endereço de antes do Pacote 32 (26/11/2026), que não era o da Receita Federal: não volta em lugar nenhum. */
+const ENDERECO_ANTIGO = /travessa dos pescadores|28950-000/i;
 // a palavra num comentário de código não aparece no site; o número não pode estar em lugar nenhum
 const COMENTARIO = /^\s*(\/\/|\/?\*)/;
 
@@ -88,9 +94,51 @@ test('só o rodapé, os termos e a política de privacidade falam em CNPJ, razã
 
 test('o rodapé mostra razão social, CNPJ, endereço e e-mail', () => {
   const rodape = readFileSync(RODAPE, 'utf8');
-  for (const campo of ['razaoSocial', 'cnpj', 'enderecoRua', 'enderecoCidade', 'email']) {
+  for (const campo of ['razaoSocial', 'cnpj', 'enderecoRua', 'enderecoBairro', 'enderecoCidade', 'email']) {
     assert.ok(rodape.includes(`EMPRESA.${campo}`), campo);
   }
+});
+
+test('o endereço é o do cadastro na Receita Federal (Pacote 32), igual nos termos e na privacidade de todas as versões', () => {
+  // escrito aqui de propósito, como o CNPJ: se trocarem uma letra em empresa.ts, o teste avisa
+  assert.equal(EMPRESA.enderecoRua, 'Av. José Bento Ribeiro Dantas, 815');
+  assert.equal(EMPRESA.enderecoBairro, 'Portal da Ferradura');
+  assert.equal(EMPRESA.enderecoCidade, 'Armação dos Búzios - RJ, CEP 28951-605');
+  assert.equal(enderecoCompleto, 'Av. José Bento Ribeiro Dantas, 815, Portal da Ferradura, Armação dos Búzios - RJ, CEP 28951-605');
+  // a cidade dos outros textos (o cancelamento, o voucher, os dados para o Google) é a mesma do endereço
+  assert.ok(EMPRESA.enderecoCidade.startsWith(`${EMPRESA.cidade} - ${EMPRESA.uf}`));
+  // as três versões que o site pode mostrar: a de hoje, a de hoje com os e-mails e a do pagamento online
+  for (const [online, emails] of [
+    [false, false],
+    [false, true],
+    [true, true],
+  ] as const) {
+    const legais = textosLegais(online, emails);
+    for (const doc of [legais.termos, legais.privacidade]) {
+      for (const [idioma, texto] of Object.entries(doc)) {
+        const frases = frasesDoDocumento(texto);
+        assert.equal(frases.filter((f) => f.includes(enderecoCompleto)).length, 1, `${texto.titulo} (${idioma}, online ${online})`);
+        assert.ok(!frases.some((f) => ENDERECO_ANTIGO.test(f)), `${texto.titulo} (${idioma})`);
+      }
+    }
+    // o texto mostra o endereço: a data "Atualizado em" dos termos e da privacidade é a do dia da publicação
+    assert.equal(legais.atualizadoEm.termos, '2026-11-26');
+    assert.equal(legais.atualizadoEm.privacidade, '2026-11-26');
+  }
+});
+
+test('o endereço antigo (Travessa dos Pescadores, CEP 28950-000) não aparece em lugar nenhum, nem nos documentos', () => {
+  const docs = ['README.md', 'PRODUCT.md', 'MASTER.md', 'AGENTS.md', ...arquivos('docs')].filter((a) => TEXTO.test(a));
+  const linhasDosDocs = docs.flatMap((arquivo) =>
+    readFileSync(arquivo, 'utf8')
+      .split('\n')
+      .map((linha, i) => ({ linha, onde: `${arquivo}:${i + 1}: ${linha.trim().slice(0, 120)}` })),
+  );
+  const achados = [...LINHAS, ...linhasDosDocs].filter(({ linha }) => ENDERECO_ANTIGO.test(linha));
+  assert.deepEqual(
+    achados.map((l) => l.onde),
+    [],
+  );
 });
 
 test('termos e política de privacidade trazem razão social, CNPJ e endereço em todos os idiomas', () => {

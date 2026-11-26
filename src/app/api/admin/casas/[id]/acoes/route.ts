@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { pedidoRecusado } from '@/lib/admin-auth';
-import { EsquemaBloqueio, EsquemaTarifa, faltaParaPublicar, type CasaPainel } from '@/lib/casa';
+import { EsquemaBloqueio, EsquemaTarifa, faltaParaPublicar, lerCoordenadas, type CasaPainel } from '@/lib/casa';
 import { apagarBloqueio, apagarTarifa, criarBloqueio, criarTarifa, importarAgora, obterCasaPainel, publicarCasa } from '@/lib/casas';
+import { marcarPontoDaCasa } from '@/lib/casas-painel';
 
 export const runtime = 'nodejs';
 
@@ -17,6 +18,16 @@ const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<string
   async esconder(casa) {
     await publicarCasa(casa.id, false);
     return 'escondida';
+  },
+  /**
+   * Marcar a casa no mapa (Pacote 32): as coordenadas coladas do Google Maps vão só para a função fechada do banco, que
+   * sorteia o deslocamento e grava o centro público do círculo. As coordenadas não voltam no endereço nem no log.
+   */
+  async marcar_no_mapa(casa, campos) {
+    const lidas = lerCoordenadas(typeof campos.coordenadas === 'string' ? campos.coordenadas : '');
+    if (!lidas.ok) return lidas.erro === 'fora' ? 'ponto-fora' : 'ponto-invalido';
+    if (!(await marcarPontoDaCasa(casa.id, lidas.ponto))) return 'ponto-falhou';
+    return casa.centro ? 'ponto-mudado' : 'ponto-marcado';
   },
   async nova_tarifa(casa, campos) {
     const r = EsquemaTarifa.safeParse({
@@ -47,7 +58,7 @@ const ACOES: Record<string, (casa: CasaPainel, campos: Campos) => Promise<string
   },
 };
 
-/** Publicar, esconder, as diárias por período, os bloqueios e a importação do Airbnb. */
+/** Publicar, esconder, marcar no mapa, as diárias por período, os bloqueios e a importação do Airbnb. */
 export async function POST(req: Request, ctx: RouteContext<'/api/admin/casas/[id]/acoes'>) {
   const recusado = await pedidoRecusado(req);
   if (recusado) return recusado;
@@ -58,6 +69,9 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/casas/[id
   const acao = ACOES[campos.acao];
   if (!acao) return NextResponse.json({ ok: false }, { status: 400 });
   const volta = new URL(`/admin/casas/${id}`, req.url);
-  volta.searchParams.set('aviso', await acao(casa, campos));
+  const aviso = await acao(casa, campos);
+  volta.searchParams.set('aviso', aviso);
+  // o aviso do mapa aparece na própria parte do mapa: a página já abre nela
+  if (aviso.startsWith('ponto-')) volta.hash = 'no-mapa';
   return NextResponse.redirect(volta, 303);
 }

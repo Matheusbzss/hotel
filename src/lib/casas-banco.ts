@@ -2,6 +2,9 @@ import type { CidadeCasa } from '@/data/casas';
 import type { Lista, Texto } from '@/data/passeios';
 import type { Json, Tables, TablesInsert } from './banco-tipos';
 import type { Bloqueio, CasaPainel, DadosCasa, OrigemBloqueio, Tarifa, TipoTarifa } from './casa';
+// com a extensão, para os testes (node) acharem os arquivos sem o atalho "@/"
+import { detalhesDeLinha } from './casa-detalhes.ts';
+import { centroDeLinha } from './casa-pagina.ts';
 import { somarDias } from './validacao.ts';
 
 /**
@@ -99,8 +102,7 @@ export function deLinhas(c: LinhaCasa, tarifas: LinhaTarifa[], bloqueios: LinhaB
     cidade: c.cidade as CidadeCasa,
     nome: textoDe(c.nome),
     local: textoDe(c.bairro),
-    endereco: c.endereco ?? '',
-    pontoAproximado: { lat: c.lat_aprox ?? 0, lng: c.lng_aprox ?? 0 },
+    // Pacote 32: endereco, lat_aprox e lng_aprox ficam no banco, sem leitura: nada delas chega ao painel, ao site ou ao cache
     resumo: textoDe(c.resumo),
     descricao: textoDe(c.descricao),
     quartos: c.quartos,
@@ -126,18 +128,22 @@ export function deLinhas(c: LinhaCasa, tarifas: LinhaTarifa[], bloqueios: LinhaB
     ...(c.ical_erro ? { icalErro: c.ical_erro } : {}),
     tarifas: lista,
     bloqueios: bloqueios.map(bloqueioDeLinha).sort((a, b) => a.inicio.localeCompare(b.inicio)),
+    // as colunas da migração 20261125234456 (vazias antes dela): o "Publicar" confere as câmeras e a casa marcada
+    detalhes: detalhesDeLinha(c),
+    centro: centroDeLinha(c),
   };
 }
 
-/** Os dados do formulário → as colunas da tabela. */
+/**
+ * Os dados do formulário → as colunas da tabela. Sem endereco, lat_aprox e lng_aprox (Pacote 32): salvar o cadastro não
+ * mexe nelas, e o que estiver gravado fica como está. O ponto da casa só entra pela função do banco
+ * (src/lib/casas-painel.ts), e o centro do círculo, só pelo gatilho dela.
+ */
 export const paraLinha = (d: DadosCasa): TablesInsert<'casas'> => ({
   slug: d.slug,
   cidade: d.cidade,
   nome: json(d.nome),
   bairro: json(d.local),
-  endereco: d.endereco || null,
-  lat_aprox: d.pontoAproximado.lat || null,
-  lng_aprox: d.pontoAproximado.lng || null,
   resumo: json(d.resumo),
   descricao: json(d.descricao),
   quartos: d.quartos,

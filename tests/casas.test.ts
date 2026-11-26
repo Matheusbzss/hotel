@@ -9,8 +9,6 @@ const TESTE: Casa = {
   cidade: 'buzios',
   nome: { pt: 'Teste', en: 'Test', es: 'Prueba' },
   local: { pt: 'Praia', en: 'Beach', es: 'Playa' },
-  endereco: 'Rua de teste, 1',
-  pontoAproximado: { lat: -22.75, lng: -41.88 },
   resumo: { pt: '', en: '', es: '' },
   descricao: { pt: '', en: '', es: '' },
   quartos: 5,

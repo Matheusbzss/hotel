@@ -62,7 +62,9 @@ As avaliações publicadas no painel aparecem na inicial, no cartão de opiniõe
 
 ## Casas de temporada
 
-Área separada em `/casas-de-temporada`, **desligada** (`CASAS_ATIVO = false` em `src/data/casas.ts`): mostra "Em breve", um convite para proprietários, fica fora do menu, do sitemap e do Google. Para ativar, cadastre as casas na lista `CASAS` (há um exemplo comentado no arquivo) e mude `CASAS_ATIVO` para `true`. A consulta de datas é sempre por e-mail.
+Área separada em `/casas-de-temporada`. As casas ficam no banco (tabelas `casas`, `casas_tarifas`, `casas_bloqueios` e `casas_pacotes`) e são cuidadas no painel, em `/admin/casas`; as duas de hoje foram gravadas desligadas por `scripts/cadastrar-casas.ts` (dados em `scripts/dados/casas.ts`). Sem casa no ar, a página mostra "Em breve" e fica fora do menu, do sitemap e do Google; "Casas" entra sozinha quando o painel publica a primeira. O botão de reservar continua desligado (`RESERVA_CASAS_ABERTA = false` em `src/data/casas.ts`): a página da casa mostra "A reserva desta casa abre em breve" e o "Avise-me", que cai em Cotações no painel.
+
+**Marcar a casa no mapa** (Pacote 32): na página da casa no painel, cole as coordenadas do Google Maps ("-22.75012, -41.88034"; só pontos da Região dos Lagos). O ponto exato vai só para a tabela fechada `casas_pontos`, pela função do banco `marcar_ponto_da_casa` (`src/lib/casas-painel.ts`); o banco sorteia uma vez um deslocamento de 150 a 350 m e grava o centro público do círculo em `casas.centro_lat` e `casas.centro_lng`, o único dado do mapa que a página lê. A página mostra a foto de satélite com um círculo de 500 m de raio em volta desse centro, e o painel mostra a mesma prévia. Não há endereço no cadastro: a localização exata vai pela equipe, no WhatsApp, depois da reserva. Para publicar, o painel pede também a casa marcada no mapa e a resposta sobre as câmeras.
 
 ## Variáveis de ambiente
 

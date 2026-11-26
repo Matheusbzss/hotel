@@ -529,8 +529,9 @@ test('a data da privacidade foi para 26/11/2026 (o dia da publicação) nas trê
   assert.equal(ATUALIZADO_EM.privacidade, '2026-11-26');
   assert.equal(ATUALIZADO_EM_ONLINE.privacidade, '2026-11-26');
   assert.equal(ATUALIZADO_EM_EMAILS, '2026-11-26');
-  // os outros textos de hoje ficam com as datas deles; o cancelamento online, com a do dia de ligar
-  assert.equal(ATUALIZADO_EM.termos, '2026-11-11');
+  // os termos de hoje também vão para 26/11, com o endereço da Receita Federal (Pacote 32, tests/sem-cnpj.test.ts); o
+  // cancelamento fica com a data dele (cita só a cidade, que não mudou) e o online com a do dia de ligar
+  assert.equal(ATUALIZADO_EM.termos, '2026-11-26');
   assert.equal(ATUALIZADO_EM.cancelamento, '2026-11-13');
   assert.equal(ATUALIZADO_EM_ONLINE.cancelamento, '2026-11-24');
 });

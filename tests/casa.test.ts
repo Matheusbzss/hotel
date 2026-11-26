@@ -1,15 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   EsquemaBloqueio,
   EsquemaTarifa,
+  FALTA_CAMERAS,
+  FALTA_MAPA,
+  REGIAO_DOS_LAGOS,
+  faltaNoCadastro,
   faltaParaPublicar,
+  lerCoordenadas,
   lerFormularioCasa,
   mesmosPeriodos,
   noitesOcupadas,
   slugDe,
   type CasaPainel,
 } from '../src/lib/casa.ts';
+import { REGRAS_PROPRIAS_VAZIAS, detalhesDeLinha } from '../src/lib/casa-detalhes.ts';
 import { deLinhas, linhaDeTarifa, paraLinha, tarifaDeLinha, type LinhaBloqueio, type LinhaCasa, type LinhaTarifa } from '../src/lib/casas-banco.ts';
 
 // cadastro fictício, só para conferir as regras (o site não tem casas inventadas)
@@ -25,9 +32,6 @@ const FORMULARIO: Record<string, string> = {
   'local.pt': 'Praia de Teste',
   'local.es': 'Playa de Prueba',
   'local.en': 'Test Beach',
-  endereco: 'Rua de Teste, 1',
-  lat: '-22.75',
-  lng: '-41.88',
   'resumo.pt': 'Resumo',
   'resumo.es': 'Resumen',
   'resumo.en': 'Summary',
@@ -62,6 +66,7 @@ const lido = () => {
   return r.dados;
 };
 
+/** Uma casa completa: o cadastro, as câmeras respondidas e marcada no mapa (o centro é fictício, não é de nenhuma casa). */
 const painel = (mudanca: Partial<CasaPainel> = {}): CasaPainel => ({
   ...lido(),
   id: 'id',
@@ -71,6 +76,8 @@ const painel = (mudanca: Partial<CasaPainel> = {}): CasaPainel => ({
   feriados: [],
   tarifas: [],
   bloqueios: [],
+  detalhes: { ...detalhesDeLinha({}), regrasProprias: { ...REGRAS_PROPRIAS_VAZIAS, cameras: { tem: false } } },
+  centro: { lat: -22.75, lng: -41.88 },
   ...mudanca,
 });
 
@@ -80,7 +87,6 @@ test('o formulário vira os dados da casa', () => {
   assert.equal(d.quartos, 5);
   assert.equal(d.diaria, 1500.5);
   assert.equal(d.caucao, 0);
-  assert.deepEqual(d.pontoAproximado, { lat: -22.75, lng: -41.88 });
   // os parágrafos ficam separados por uma linha em branco, como a página espera
   assert.deepEqual(d.descricao.pt.split('\n\n'), ['Primeiro parágrafo.', 'Segundo parágrafo.']);
   // as listas: uma linha por item, sem linha vazia
@@ -114,12 +120,53 @@ test('o endereço da página sai do nome', () => {
   assert.equal(slugDe('  Mansão   Azul & Sol! '), 'mansao-azul-sol');
 });
 
-test('a casa só vai ao ar com a página completa', () => {
+test('a casa só vai ao ar com a página completa, marcada no mapa e com as câmeras respondidas, sem endereço', () => {
   assert.deepEqual(faltaParaPublicar(painel()), []);
-  const falta = faltaParaPublicar(painel({ fotos: [], diaria: 0, pontoAproximado: { lat: 0, lng: 0 }, endereco: '' }));
-  assert.deepEqual(falta, ['endereço', 'ponto no mapa', 'diária', 'fotos']);
+  const falta = faltaParaPublicar(painel({ fotos: [], diaria: 0 }));
+  assert.deepEqual(falta, ['diária', 'fotos']);
   const semEspanhol = painel({ resumo: { pt: 'Resumo', es: '', en: 'Summary' } });
   assert.deepEqual(faltaParaPublicar(semEspanhol), ['resumo nos três idiomas']);
+  // Pacote 32: sem o centro público do círculo (a casa não foi marcada), não publica
+  assert.deepEqual(faltaParaPublicar(painel({ centro: null })), [FALTA_MAPA]);
+  assert.equal(FALTA_MAPA, 'casa marcada no mapa');
+  // sem a resposta das câmeras (null: o dono ainda não disse), não publica; "não tem" e "tem" valem
+  const camerasSemResposta = painel({ detalhes: detalhesDeLinha({}) });
+  assert.deepEqual(faltaParaPublicar(camerasSemResposta), [FALTA_CAMERAS]);
+  assert.equal(FALTA_CAMERAS, 'câmeras respondidas');
+  const comCameras = painel({
+    detalhes: { ...detalhesDeLinha({}), regrasProprias: { ...REGRAS_PROPRIAS_VAZIAS, cameras: { tem: true, dentro: false } } },
+  });
+  assert.deepEqual(faltaParaPublicar(comCameras), []);
+  // os dois novos vêm depois do cadastro; o cadastro sozinho (que abre o formulário) não os conta
+  const tudo = faltaParaPublicar(painel({ fotos: [], centro: null, detalhes: detalhesDeLinha({}) }));
+  assert.deepEqual(tudo, ['fotos', FALTA_MAPA, FALTA_CAMERAS]);
+  assert.deepEqual(faltaNoCadastro(painel({ fotos: [], centro: null, detalhes: detalhesDeLinha({}) })), ['fotos']);
+  // nenhum item fala em endereço nem no ponto antigo
+  assert.ok(!tudo.some((f) => /endere[çc]o|ponto no mapa/.test(f)));
+});
+
+test('o "Publicar" do painel diz ao dono o que fazer com os dois itens que não estão no formulário do cadastro', () => {
+  // a casa cadastrada pelo painel nasce sem a resposta das câmeras, e o painel ainda não tem onde responder: o item
+  // explica a quem avisar, em vez de deixar o dono parado na lista; a casa no mapa leva à parte do mapa, logo abaixo
+  const pagina = readFileSync('src/app/admin/casas/[id]/page.tsx', 'utf8');
+  assert.match(pagina, /<li key=\{f\}>\s+<ItemQueFalta item=\{f\} \/>\s+<\/li>/);
+  assert.match(pagina, /if \(item === FALTA_MAPA\) \{\s+return \(\s+<a href="#no-mapa" /);
+  // o JSX junta as linhas do texto com um espaço, como aqui
+  const cameras = /if \(item === FALTA_CAMERAS\) \{([\s\S]*?)\n {2}\}/.exec(pagina)?.[1].replace(/\s+/g, ' ') ?? '';
+  assert.match(
+    cameras,
+    /\{item\}: o painel ainda não tem onde responder isso\. Avise quem cuida do site se a casa tem câmeras de segurança e onde ficam \(ou se não tem nenhuma\), para a resposta entrar no cadastro\./,
+  );
+});
+
+test('o formulário antigo com endereço, latitude e longitude: os campos são ignorados e não vão para o banco', () => {
+  const r = lerFormularioCasa({ ...FORMULARIO, endereco: 'Rua de Teste, 1', lat: '-22.75', lng: '-41.88' });
+  assert.ok(r.ok);
+  assert.equal('endereco' in r.dados, false);
+  assert.equal('pontoAproximado' in r.dados, false);
+  // salvar o cadastro não mexe nas colunas antigas: o que estiver gravado nelas fica como está
+  const linha = paraLinha(r.dados);
+  for (const coluna of ['endereco', 'lat_aprox', 'lng_aprox', 'centro_lat', 'centro_lng']) assert.equal(coluna in linha, false, coluna);
 });
 
 test('o banco guarda centavos, e a casa volta igual', () => {
@@ -179,7 +226,105 @@ test('a casa recém-criada, sem os textos, não quebra a leitura', () => {
   assert.deepEqual(r.local, { pt: '', es: '', en: '' });
   assert.deepEqual(r.camas, { pt: [], es: [], en: [] });
   assert.equal(r.diaria, 0);
-  assert.deepEqual(r.pontoAproximado, { lat: 0, lng: 0 });
+  // sem a marcação no mapa nem as colunas da Etapa 7: sem centro e com os detalhes vazios (as câmeras sem resposta)
+  assert.equal(r.centro, null);
+  assert.equal(r.detalhes.regrasProprias.cameras, null);
+  assert.deepEqual(faltaParaPublicar(r).slice(-2), [FALTA_MAPA, FALTA_CAMERAS]);
+});
+
+test('o painel lê da casa o centro público do círculo e os detalhes, e nunca o ponto antigo nem o endereço', () => {
+  const linha = {
+    nome: { pt: 'Casa' },
+    camas: [],
+    comodidades: [],
+    regras: {},
+    cancelamento: {},
+    fotos: [],
+    // o que estiver gravado nas colunas antigas fica no banco, mas não entra na casa do painel nem do site
+    endereco: 'Rua de Teste, 1',
+    lat_aprox: -22.7,
+    lng_aprox: -41.9,
+    centro_lat: -22.75,
+    centro_lng: -41.88,
+    regras_proprias: { evento: null, fumar: null, escadas: null, cameras: { tem: false } },
+  } as unknown as LinhaCasa;
+  const c = deLinhas(linha, [], []);
+  assert.deepEqual(c.centro, { lat: -22.75, lng: -41.88 });
+  assert.deepEqual(c.detalhes.regrasProprias.cameras, { tem: false });
+  assert.equal('endereco' in c, false);
+  assert.equal('pontoAproximado' in c, false);
+  assert.ok(!JSON.stringify(c).includes('-22.7,') && !JSON.stringify(c).includes('-41.9'));
+  // sem o centro, a casa não está marcada, mesmo com o ponto antigo digitado à mão
+  assert.equal(deLinhas({ ...linha, centro_lat: null, centro_lng: null }, [], []).centro, null);
+});
+
+test('as coordenadas coladas do Google Maps: com ou sem espaços, vírgula entre os dois, ponto decimal', () => {
+  const ponto = { lat: -22.75012, lng: -41.88034 };
+  for (const colado of [
+    '-22.75012, -41.88034',
+    '-22.75012,-41.88034',
+    '  -22.75012 ,  -41.88034  ',
+    '-22.75012,\t-41.88034',
+    // o espaço que não quebra e as marcas invisíveis que às vezes vêm junto ao copiar
+    `-22.75012,${String.fromCharCode(0xa0)}-41.88034`,
+    `${String.fromCharCode(0x200e)}-22.75012, -41.88034${String.fromCharCode(0x200f)}`,
+    // o sinal de menos tipográfico
+    `${String.fromCharCode(0x2212)}22.75012, ${String.fromCharCode(0x2212)}41.88034`,
+  ]) {
+    assert.deepEqual(lerCoordenadas(colado), { ok: true, ponto }, JSON.stringify(colado));
+  }
+  // as casas que o Google Maps mostra (6 ou 7 depois do ponto) passam como estão
+  assert.deepEqual(lerCoordenadas('-22.7501234, -41.8803456'), { ok: true, ponto: { lat: -22.7501234, lng: -41.8803456 } });
+});
+
+test('as coordenadas: o que não é o par do Google Maps é recusado, sem gravar nada', () => {
+  for (const lixo of [
+    '',
+    '   ',
+    'casa da praia',
+    '-22.75012',
+    '-22.75012 -41.88034',
+    '-22,75012, -41,88034',
+    '-22.75012; -41.88034',
+    '-22.75012, -41.88034, 3',
+    '(-22.75012, -41.88034)',
+    '-23, -42',
+    '-22.75, -41.88',
+    `22°45'00.4"S 41°52'49.2"W`,
+    'https://maps.google.com/?q=-22.75012,-41.88034',
+    '-22.75012, -41.88034abc',
+    '--22.75012, -41.88034',
+    '-22.75012e1, -41.88034',
+    'NaN, NaN',
+  ]) {
+    assert.deepEqual(lerCoordenadas(lixo), { ok: false, erro: 'formato' }, JSON.stringify(lixo));
+  }
+});
+
+test('as coordenadas: só um ponto da Região dos Lagos do RJ, com as bordas valendo', () => {
+  const R = REGIAO_DOS_LAGOS;
+  assert.deepEqual(R, { latMin: -23.2, latMax: -22.3, lngMin: -42.6, lngMax: -41.6 });
+  // Búzios, Cabo Frio e Arraial do Cabo (pontos quaisquer das cidades, não de casas)
+  for (const colado of ['-22.7500, -41.8800', '-22.8800, -42.0200', '-22.9700, -42.0300']) assert.ok(lerCoordenadas(colado).ok, colado);
+  assert.ok(lerCoordenadas('-23.2000, -42.6000').ok);
+  assert.ok(lerCoordenadas('-22.3000, -41.6000').ok);
+  for (const fora of [
+    // o sinal de menos esquecido, a latitude e a longitude trocadas, o Rio de Janeiro, o norte de Macaé, o oeste de
+    // Saquarema, o mar ao sul de Arraial, o mar a leste de Búzios e o polo sul
+    '22.75012, 41.88034',
+    '-41.88034, -22.75012',
+    '-22.9068, -43.1729',
+    '-22.2000, -41.8000',
+    '-22.9000, -42.6001',
+    '-23.2001, -42.0000',
+    '-22.7500, -41.5999',
+    '-90.0000, 180.0000',
+  ]) {
+    assert.deepEqual(lerCoordenadas(fora), { ok: false, erro: 'fora' }, fora);
+  }
+  // longe demais para ser coordenada: é formato, não "fora"
+  assert.deepEqual(lerCoordenadas('-95.0000, -41.8800'), { ok: false, erro: 'formato' });
+  assert.deepEqual(lerCoordenadas('-22.7500, -181.0000'), { ok: false, erro: 'formato' });
 });
 
 test('a tarifa: a última noite no site, o dia seguinte no banco', () => {

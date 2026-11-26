@@ -47,6 +47,13 @@ export interface CasaPainel extends Casa {
   icalErro?: string;
   tarifas: Tarifa[];
   bloqueios: Bloqueio[];
+  /** Os detalhes da Etapa 7 (quartos, comodidades, regras próprias...): o "Publicar" confere a resposta das câmeras. */
+  detalhes: DetalhesCasa;
+  /**
+   * O centro PÚBLICO do círculo do mapa (casas.centro_lat e casas.centro_lng), que o banco calcula quando o dono marca a
+   * casa no painel; null enquanto ela não está marcada. Nunca é o ponto da casa, que fica só na tabela fechada.
+   */
+  centro: Ponto | null;
 }
 
 /**
@@ -65,7 +72,9 @@ export type CasaDoSite = Casa & {
 const CAMPOS_TEXTO = ['nome', 'local', 'resumo', 'descricao'] as const;
 const CAMPOS_LISTA = ['camas', 'comodidades', 'regras', 'cancelamento'] as const;
 const CAMPOS_SIMPLES = ['cidade', 'quartos', 'suites', 'banheiros', 'capacidade', 'diaria', 'minimoNoites', 'taxaLimpeza', 'caucao'] as const;
-const CAMPOS_TEXTO_UNICO = ['endereco', 'checkIn', 'checkOut', 'icalUrl'] as const;
+// Pacote 32: sem o endereço exato e sem latitude e longitude. O ponto da casa vai pela parte "Marcar a casa no mapa"
+// (lerCoordenadas, mais abaixo), que grava só na tabela fechada do banco.
+const CAMPOS_TEXTO_UNICO = ['checkIn', 'checkOut', 'icalUrl'] as const;
 
 const texto = (maximo: number) => z.object({ pt: z.string().max(maximo), es: z.string().max(maximo), en: z.string().max(maximo) });
 const lista = z.object({ pt: z.array(z.string().max(200)), es: z.array(z.string().max(200)), en: z.array(z.string().max(200)) });
@@ -77,8 +86,6 @@ export const EsquemaCasa = z.object({
   cidade: z.enum(CIDADES_CASA),
   nome: texto(120).extend({ pt: z.string().min(2).max(120) }),
   local: texto(120),
-  endereco: z.string().max(300),
-  pontoAproximado: z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }),
   resumo: texto(400),
   descricao: texto(8000),
   quartos: inteiro(1),
@@ -104,7 +111,6 @@ const ROTULOS: Record<string, string> = {
   slug: 'endereço da página',
   cidade: 'cidade',
   nome: 'nome em português',
-  pontoAproximado: 'ponto no mapa',
   quartos: 'quartos',
   suites: 'suítes',
   banheiros: 'banheiros',
@@ -144,7 +150,6 @@ export function lerFormularioCasa(campos: Record<string, string>): { ok: true; d
     ...Object.fromEntries([...CAMPOS_SIMPLES, ...CAMPOS_TEXTO_UNICO].map((c) => [c, valor(c)])),
     ...Object.fromEntries(CAMPOS_TEXTO.map((c) => [c, porIdioma(c, (v) => v)])),
     ...Object.fromEntries(CAMPOS_LISTA.map((c) => [c, porIdioma(c, paraLinhas)])),
-    pontoAproximado: { lat: valor('lat'), lng: valor('lng') },
     fotos: paraLinhas(valor('fotos')),
   });
   if (r.success) return { ok: true, dados: r.data };
@@ -155,16 +160,13 @@ export function lerFormularioCasa(campos: Record<string, string>): { ok: true; d
 const temTexto = (t: Texto) => Boolean(t.pt && t.es && t.en);
 const temLista = (l: Lista) => l.pt.length > 0 && l.es.length > 0 && l.en.length > 0;
 
-/** O que ainda falta para a casa ir ao ar. Sem isso, a página do site sairia pela metade. */
-export function faltaParaPublicar(c: CasaPainel): string[] {
-  const { lat, lng } = c.pontoAproximado;
+/** O que ainda falta no cadastro da casa (o formulário do painel). Sem isso, a página do site sairia pela metade. */
+export function faltaNoCadastro(c: CasaPainel): string[] {
   const itens: [boolean, string][] = [
     [temTexto(c.nome), 'nome nos três idiomas'],
     [temTexto(c.local), 'praia ou bairro nos três idiomas'],
     [temTexto(c.resumo), 'resumo nos três idiomas'],
     [temTexto(c.descricao), 'descrição nos três idiomas'],
-    [Boolean(c.endereco), 'endereço'],
-    [lat !== 0 && lng !== 0, 'ponto no mapa'],
     [c.banheiros > 0, 'banheiros'],
     [temLista(c.camas), 'camas nos três idiomas'],
     [temLista(c.comodidades), 'comodidades nos três idiomas'],
@@ -175,6 +177,59 @@ export function faltaParaPublicar(c: CasaPainel): string[] {
     [c.fotos.length > 0, 'fotos'],
   ];
   return itens.filter(([ok]) => !ok).map(([, rotulo]) => rotulo);
+}
+
+/** Os dois itens do "Publicar" que não estão no formulário do cadastro. */
+export const FALTA_MAPA = 'casa marcada no mapa';
+export const FALTA_CAMERAS = 'câmeras respondidas';
+
+/**
+ * O que ainda falta para a casa ir ao ar (Pacote 32, item 7(b) do plano do painel): o cadastro; a casa marcada no mapa
+ * (o centro público do círculo existe, e só a função do banco que grava o ponto o calcula); e a resposta sobre as
+ * câmeras (regras_proprias), porque a página tem de avisar se a casa tem câmera. O endereço não entra mais: o site e o
+ * voucher não mostram (a localização exata vai pela equipe, no WhatsApp, depois da reserva). As câmeras não têm campo
+ * no painel: a resposta vem do cadastro das casas (scripts/dados/casas.ts).
+ */
+export function faltaParaPublicar(c: CasaPainel): string[] {
+  return [...faltaNoCadastro(c), ...(c.centro ? [] : [FALTA_MAPA]), ...(c.detalhes.regrasProprias.cameras ? [] : [FALTA_CAMERAS])];
+}
+
+/* ------------------------------------------------------------------ */
+/* Marcar a casa no mapa (Pacote 32)                                    */
+
+/**
+ * A Região dos Lagos do RJ, de Saquarema a Macaé, com folga: Búzios, Cabo Frio, Arraial do Cabo e os vizinhos. O ponto
+ * colado no painel tem de cair aqui; fora disso, é engano (outra casa, outro lugar, o sinal de menos esquecido).
+ */
+export const REGIAO_DOS_LAGOS = { latMin: -23.2, latMax: -22.3, lngMin: -42.6, lngMax: -41.6 } as const;
+
+/** O que se lê das coordenadas coladas: o ponto, ou o motivo da recusa (o formato, ou o ponto fora da região). */
+export type CoordenadasLidas = { ok: true; ponto: Ponto } | { ok: false; erro: 'formato' | 'fora' };
+
+/** Um número de coordenada como o Google Maps mostra: o sinal, até 3 dígitos, o ponto e de 4 a 15 casas (uns 11 m ou menos). */
+const NUMERO = String.raw`-?\d{1,3}\.\d{4,15}`;
+const COORDENADAS = new RegExp(`^(${NUMERO})\\s*,\\s*(${NUMERO})$`);
+
+/**
+ * As coordenadas que o dono cola do Google Maps ("-22.75012, -41.88034"): a latitude e a longitude, com ponto decimal,
+ * separadas por vírgula, com ou sem espaços em volta. Saem antes as marcas invisíveis que às vezes vêm junto ao copiar,
+ * e o sinal de menos tipográfico vira o comum. Qualquer outra coisa é recusada: vírgula decimal, número sem as casas
+ * depois do ponto (o "-23, -42" não é uma casa), graus e minutos, texto, um número só. Um ponto fora da Região dos Lagos
+ * também. Nada daqui vai para o log: é o ponto exato da casa.
+ */
+export function lerCoordenadas(colado: string): CoordenadasLidas {
+  const limpo = colado
+    .replace(/[\u200b-\u200f\u2060\ufeff]/g, '')
+    .replace(/\u2212/g, '-')
+    .trim();
+  const m = COORDENADAS.exec(limpo);
+  if (!m) return { ok: false, erro: 'formato' };
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return { ok: false, erro: 'formato' };
+  const R = REGIAO_DOS_LAGOS;
+  if (lat < R.latMin || lat > R.latMax || lng < R.lngMin || lng > R.lngMax) return { ok: false, erro: 'fora' };
+  return { ok: true, ponto: { lat, lng } };
 }
 
 const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);

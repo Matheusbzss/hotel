@@ -6,10 +6,13 @@ import type { Cidade, Lista, Texto } from './passeios';
  * pendência 6 do FASE-4), reservadas no site com sinal de SINAL_PORCENTO (src/lib/diarias.ts) do total.
  *
  * As casas ficam no banco (tabelas casas, casas_tarifas e casas_bloqueios; src/lib/casas.ts) e são
- * cadastradas no painel, em /admin/casas. Com as fotos, as informações e o endereço que o dono mandar:
+ * cadastradas no painel, em /admin/casas. Com as fotos e as informações que o dono mandar:
  * 1. Fotos em /public/fotos/casas/<slug>/ (a primeira é a capa).
  * 2. Preencha o cadastro. Não invente nada: o que o dono não mandou, pergunte.
- * 3. O mapa da localização aproximada sai sozinho da foto de satélite do site (/mapa/casas/<slug>).
+ * 3. O dono marca a casa no mapa do painel, colando as coordenadas do Google Maps (Pacote 32). O ponto fica só numa
+ *    tabela fechada do banco; a página mostra um círculo em volta de um centro sorteado perto da casa, na foto de
+ *    satélite do site (/mapa/casas/<slug>). O endereço exato não é cadastrado: a equipe manda a localização pelo
+ *    WhatsApp depois da reserva.
  * Sem casa no ar, a página mostra "Em breve", e "Casas" fica fora do menu e do Google.
  *
  * DIÁRIAS (as contas estão em src/lib/diarias.ts): `diaria` vale fora dos períodos; um período de
@@ -26,13 +29,9 @@ export interface Casa extends TabelaDiarias {
   nome: Texto;
   /** A praia ou o bairro, que aparece antes da reserva ("Praia de Geribá"). */
   local: Texto;
-  /** O endereço exato: só no voucher, depois da reserva paga. */
-  endereco: string;
-  /**
-   * Um ponto PERTO da casa (por exemplo, o meio da praia), não a casa: o mapa mostra a área em volta,
-   * com um círculo.
-   */
-  pontoAproximado: { lat: number; lng: number };
+  // Pacote 32: sem o endereço exato e sem o ponto digitado à mão (as colunas casas.endereco, lat_aprox e lng_aprox
+  // continuam no banco, com o que tiverem, mas o site não lê nem grava mais). O mapa usa só o centro público do
+  // círculo (CasaDoSite.centro, src/lib/casa.ts), que o banco calcula quando o dono marca a casa no painel.
   resumo: Texto;
   descricao: Texto;
   quartos: number;

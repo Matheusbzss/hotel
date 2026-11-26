@@ -29,6 +29,7 @@ export function Rodape({ idioma, d }: { idioma: Idioma; d: Dicionario }) {
             <p className="font-semibold text-white">{EMPRESA.razaoSocial}</p>
             <p className="numeros">CNPJ {EMPRESA.cnpj}</p>
             <p>{EMPRESA.enderecoRua}</p>
+            <p>{EMPRESA.enderecoBairro}</p>
             <p>{EMPRESA.enderecoCidade}</p>
             <p>
               {R.suporte}{' '}

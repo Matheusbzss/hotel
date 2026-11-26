@@ -20,6 +20,7 @@ import {
   telaDoCancelamento,
   telaDoReembolso,
   type CampoDoResumo,
+  type DataDoPedidoDoCliente,
   type FormularioDoResumo,
   type TelaDoResumo,
   type TomDoAviso,
@@ -107,6 +108,10 @@ function Formulario({ f, volta }: { f: FormularioDoResumo; volta: VoltaDoPainel 
       <input type="hidden" name="filtro" value={volta.filtro ?? ''} />
       {volta.busca && <input type="hidden" name="q" value={volta.busca} />}
       {f.voucher && <input type="hidden" name="voucher" value={f.voucher} />}
+      {/* o dia em que o cliente pediu, no cancelamento de uma casa (a rota confere de novo) */}
+      {f.escondidos?.map((e) => (
+        <input key={e.nome} type="hidden" name={e.nome} value={e.valor} />
+      ))}
       {f.campos.map((campo) => (
         <Campo key={campo.nome} campo={campo} />
       ))}
@@ -123,6 +128,40 @@ function Formulario({ f, volta }: { f: FormularioDoResumo; volta: VoltaDoPainel 
         {f.botao}
       </button>
       {f.nota && <p className="text-small text-tinta-suave">{f.nota}</p>}
+    </form>
+  );
+}
+
+/**
+ * O dia em que o cliente pediu o cancelamento, no "Cancelar sem reembolso…" de um pedido com casa (revisão do pacote 2): um
+ * formulário GET que refaz esta tela com a regra das casas contada desse dia (a linha "Regra das casas" e os motivos), sem
+ * JavaScript, como as opções do alto. O navegador só deixa escolher do dia da compra até hoje, e a tela confere de novo.
+ */
+function DiaDoPedido({ d }: { d: DataDoPedidoDoCliente }) {
+  return (
+    <form method="get" action={d.endereco} className="mt-5 space-y-3 bg-white p-5">
+      {d.escondidos.map((e) => (
+        <input key={e.nome} type="hidden" name={e.nome} value={e.valor} />
+      ))}
+      <div>
+        <label htmlFor="campo-pedidoEm" className="rotulo">
+          {d.rotulo}
+        </label>
+        <input
+          id="campo-pedidoEm"
+          type="date"
+          name={d.nome}
+          defaultValue={d.valor}
+          min={d.minimo}
+          max={d.maximo}
+          required
+          className="campo"
+        />
+        <p className="ajuda">{d.ajuda}</p>
+      </div>
+      <button type="submit" className="min-h-11 w-full bg-superficie px-4 py-2 font-semibold text-mar hover:bg-borda sm:w-auto">
+        {d.botao}
+      </button>
     </form>
   );
 }
@@ -184,6 +223,8 @@ function Tela({ tela, volta, painel }: { tela: TelaDoResumo; volta: VoltaDoPaine
           ))}
         </dl>
       </section>
+
+      {tela.dataDoPedido && <DiaDoPedido d={tela.dataDoPedido} />}
 
       {tela.avisos.map((a, n) => (
         <p key={n} role={a.tom === 'perigo' ? 'alert' : undefined} className={`mt-3 px-5 py-3 text-small ${COR_DO_AVISO[a.tom]}`}>
@@ -255,7 +296,16 @@ export default async function ResumoDoPainel({
   if (escolha && ehCancelamento(escolha)) {
     // só com o segredo do painel criado na Vercel (decisão P14 do dono); a rota recusa do mesmo jeito
     if (!segredoDoPainelCriado()) return <SemResumo frase={ESPERA_O_SEGREDO_DO_PAINEL} painel={painel} titulo={TITULO_DO_CANCELAMENTO} />;
-    const cancelamento = telaDoCancelamento(p, escolha, { agora: new Date(), saldo: null, emailLigado: emailLigado(), descrever, volta });
+    // revisão do pacote 2: o dia em que o cliente pediu o cancelamento, no pedido com casa (conferido em telaDoCancelamento)
+    const pedidoEm = typeof q.pedidoEm === 'string' ? q.pedidoEm.trim() : undefined;
+    const cancelamento = telaDoCancelamento(p, escolha, {
+      agora: new Date(),
+      saldo: null,
+      emailLigado: emailLigado(),
+      descrever,
+      volta,
+      ...(pedidoEm ? { pedidoEm } : {}),
+    });
     if (!cancelamento) return <SemResumo frase={RESUMO_NAO_VALE} painel={painel} titulo={TITULO_DO_CANCELAMENTO} />;
     return <Tela tela={cancelamento} volta={volta} painel={painel} />;
   }

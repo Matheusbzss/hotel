@@ -541,6 +541,8 @@ export async function enviarLembretes(agora: Date = new Date()): Promise<ResumoD
           linkVoltar: voltar,
           linkSair: sair,
           site,
+          // revisão do pacote 2: com casa, os totais são o que se paga hoje ("A pagar agora no Pix"), nunca um segundo "Total"
+          ...(itens.some((i) => i.casa) ? { comCasa: true } : {}),
         });
         const resultado = await enviarEmail({
           tipo: n === 1 ? 'lembrete-1' : 'lembrete-2',

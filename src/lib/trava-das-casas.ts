@@ -181,10 +181,20 @@ const INICIO_DO_AVISO_DAS_DATAS = 'Aviso: as datas da casa ';
 /**
  * A linha do histórico do pedido pago sem as datas de uma casa presas (a conferência do aviso da Stripe não conseguiu
  * prender: as noites já são de outra reserva ou de um bloqueio). Começa com "Aviso:", e o painel destaca e abre o histórico
- * do pedido (ehAviso, src/lib/pedidos-painel.ts). Só para a equipe, em português. Uma por voucher.
+ * do pedido (ehAviso, src/lib/pedidos-painel.ts). Só para a equipe, em português. Uma por voucher. Revisão do pacote 2
+ * (achado 3): o cliente já viu o pagamento confirmado (a página do pedido mostra a reserva como paga, e o e-mail que saiu
+ * antes deste aviso pode ter levado o voucher), então a linha pede que a equipe fale com ele no mesmo dia.
  */
 export const avisoDasDatasNaoPresas = (v: { codigo: string; casa: { nome: string }; data: string; saida: string }): string =>
-  `${INICIO_DO_AVISO_DAS_DATAS}${v.casa.nome} (entrada ${dataBr(v.data)}, saída ${dataBr(v.saida)}, voucher ${v.codigo}) não ficaram presas para este pedido pago: outra reserva ou um bloqueio ocupa essas noites. Conferir o calendário da casa no painel antes de confirmar com o cliente`;
+  `${INICIO_DO_AVISO_DAS_DATAS}${v.casa.nome} (entrada ${dataBr(v.data)}, saída ${dataBr(v.saida)}, voucher ${v.codigo}) não ficaram presas para este pedido pago: outra reserva ou um bloqueio ocupa essas noites. O cliente já tem o pagamento confirmado e pode ter o voucher desta casa (a página do pedido mostra a reserva como paga): fale com ele hoje e confira o calendário da casa no painel`;
+
+/** As casas (pelo voucher) que já têm a linha do aviso das datas não presas no histórico. */
+export const vouchersComAvisoDasDatas = (historico: readonly { evento: string }[]): Set<string> =>
+  new Set(
+    historico
+      .flatMap((h) => (h.evento.startsWith(INICIO_DO_AVISO_DAS_DATAS) ? [voucherDoAvisoDasDatas(h.evento) ?? ''] : []))
+      .filter(Boolean),
+  );
 
 /**
  * As linhas do aviso das datas não presas no histórico do pedido, sem o "Aviso: " do começo e sem repetir: o e-mail à

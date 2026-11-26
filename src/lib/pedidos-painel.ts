@@ -218,7 +218,10 @@ export const ERROS_DO_PAINEL = {
     'O texto escrito só vai ao cliente com "Outro motivo". Escolha "Outro motivo" ou deixe o texto vazio. Nada foi feito.',
   // revisão do Pacote 33: o motivo que a data do serviço não deixa (motivosQueCombinam, src/lib/cancelar-sem-reembolso.ts)
   'motivo-fora-da-data':
-    'Este motivo não combina com a data do serviço: "Fora da política" vale só a menos de 24 horas do início ou depois dele (na casa de temporada, a menos de 30 dias da entrada e fora dos 7 dias da compra), e "Não compareceu", só depois do início. Abra de novo "Cancelar sem reembolso…" e escolha outro motivo. Nada foi feito.',
+    'Este motivo não combina com a data do serviço: "Fora da política" vale só a menos de 24 horas do início ou depois dele (na casa de temporada, a menos de 30 dias da entrada e fora dos 7 dias da compra, contados do dia em que o cliente pediu, com a estadia ainda por começar), e "Não compareceu", só depois do início. Abra de novo "Cancelar sem reembolso…" e escolha outro motivo. Nada foi feito.',
+  // revisão do pacote 2: o dia em que o cliente pediu o cancelamento de uma casa (a regra das casas conta dele)
+  'data-do-pedido-invalida':
+    'O dia em que o cliente pediu o cancelamento não vale: escolha um dia entre o dia da compra e hoje. Abra de novo "Cancelar sem reembolso…". Nada foi feito.',
   'cancelamento-nao-vale':
     'Este pedido não pode ser cancelado sem reembolso no status em que está: só o pedido pago pela Stripe, sem contestação. Nada foi feito.',
   'reembolso-a-resolver':

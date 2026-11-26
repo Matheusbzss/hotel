@@ -57,6 +57,11 @@ export interface ItemDoPedido {
   nome: string;
   linhas: string[];
   voucher?: { codigo: string; link: string; pdf: string };
+  /**
+   * Etapa 7 (revisão do pacote 2): a casa paga cujas datas não estão presas na hora do e-mail do pagamento aprovado (outra
+   * reserva ou um bloqueio ocupa as noites). Vai sem o voucher, com a linha de que a equipe confirma as datas.
+   */
+  datasAConfirmar?: boolean;
 }
 
 export interface DadosDoPedido {
@@ -128,7 +133,7 @@ export interface CasaDoEmail {
 function itensDoPedido(T: TextosEmail, itens: ItemDoPedido[]): ItemEmail[] {
   return itens.map((i) => ({
     nome: i.nome,
-    linhas: i.linhas,
+    linhas: i.datasAConfirmar ? [...i.linhas, T.comum.datasAConfirmar] : i.linhas,
     ...(i.voucher
       ? {
           voucher: {
@@ -194,7 +199,9 @@ export function emailPedidoRecebido(
 /**
  * (2) Pagamento aprovado (cartão ou Pix pela Stripe, ou marcado como pago no painel num pedido do WhatsApp): um
  * voucher por item, cada um com o link e o PDF, o total pago e o link do pedido. O WhatsApp da equipe entra aqui,
- * porque o pagamento já foi aprovado.
+ * porque o pagamento já foi aprovado. Etapa 7 (revisão do pacote 2): a casa com `datasAConfirmar` (as datas não ficaram
+ * presas: outra reserva ou um bloqueio ocupa as noites) vai sem o voucher, com o parágrafo de que a equipe confirma as datas
+ * pelo WhatsApp; sem nenhum voucher no e-mail, o começo e o pré-cabeçalho dizem só que o pagamento chegou.
  */
 export function emailPagamentoAprovado(
   d: DadosDoPedido & {
@@ -214,13 +221,21 @@ export function emailPagamentoAprovado(
   const T = textosEmail(d.idioma);
   const A = T.pagamentoAprovado;
   const forma = d.forma === 'pix' ? T.comum.formaPix : d.forma === 'cartao' ? T.comum.formaCartao : '';
+  const aConfirmar = d.itens.some((i) => i.datasAConfirmar);
+  // só a casa sem as datas presas tira os vouchers do e-mail: o pedido de sempre fica como era
+  const semVoucher = aConfirmar && !d.itens.some((i) => i.voucher);
   return mensagem({
     ...basePedido(T, d),
     assunto: fmt(A.assunto, { codigo: d.codigo }),
-    preCabecalho: A.preCabecalho,
+    preCabecalho: semVoucher ? A.preCabecalhoAConfirmar : A.preCabecalho,
     titulo: A.titulo,
-    paragrafos: [A.texto, ...(d.casa ? [A.casa] : []), ...(d.anexos ? [A.anexos] : [])],
-    tituloItens: A.vouchers,
+    paragrafos: [
+      semVoucher ? A.textoSemVoucher : A.texto,
+      ...(aConfirmar ? [A.casaAConfirmar] : []),
+      ...(d.casa ? [A.casa] : []),
+      ...(d.anexos ? [A.anexos] : []),
+    ],
+    tituloItens: semVoucher ? T.pedidoRecebido.itens : A.vouchers,
     itens: itensDoPedido(T, d.itens),
     totais: [
       linhaTotal(forma ? `${T.comum.totalPago} (${forma})` : T.comum.totalPago, d.total),
@@ -427,7 +442,9 @@ export function emailAvisoDoPagamentoRetido(d: {
  * as noites já eram de outra reserva ou de um bloqueio (o pagamento que chegou depois de a sessão vencer, uma trava que se
  * perdeu e a rede de segurança não conseguiu prender de novo). A reserva continua paga e nada foi devolvido: a equipe
  * confere o calendário da casa e decide com o cliente. Cada linha é um "Aviso:" do histórico (sem o "Aviso: " do começo).
- * Nenhum dado do cliente: estão no painel.
+ * Revisão do pacote 2 (achado 3): o cliente já viu o pagamento confirmado na página do pedido, e o e-mail do pagamento
+ * aprovado só leva o voucher da casa com as datas presas na hora do envio (o que saiu antes deste aviso pode ter levado):
+ * o e-mail diz isso e pede que a equipe fale com o cliente no mesmo dia. Nenhum dado do cliente: estão no painel.
  */
 export function emailAvisoDasDatasDaCasa(d: { codigo: string; linhas: string[]; linkPainel: string; site: SiteDoEmail }): MensagemEmail {
   const pago = `O pedido ${d.codigo} foi pago, mas as datas de uma casa não ficaram presas para ele.`;
@@ -439,7 +456,8 @@ export function emailAvisoDasDatasDaCasa(d: { codigo: string; linhas: string[]; 
     paragrafos: [
       `${pago} Outra reserva ou um bloqueio ocupa essas noites. A reserva continua paga e nada foi devolvido ao cliente.`,
       ...d.linhas.map((linha) => `Atenção: ${linha}.`),
-      'Abra o pedido e o calendário da casa no painel: se as noites forem mesmo de outra pessoa, fale com o cliente antes de confirmar e, se for o caso, devolva o pagamento pelo painel.',
+      'O cliente já recebeu a confirmação automática do pagamento e vê a reserva como paga na página do pedido. O e-mail do pagamento aprovado só leva o voucher da casa com as datas presas na hora do envio; se ele saiu antes deste aviso, o cliente já tem o voucher. Fale com o cliente hoje.',
+      'Abra o pedido e o calendário da casa no painel: se as noites forem mesmo de outra pessoa, combine com o cliente e, se for o caso, devolva o pagamento pelo painel.',
     ],
     codigo: { rotulo: 'Pedido', valor: d.codigo },
     botao: { texto: 'Abrir o pedido no painel', href: d.linkPainel },
@@ -662,7 +680,9 @@ const precoDoItem = (v: ValorEmail, forma: string) => `${v.valor} ${forma}${v.do
  * O lembrete do carrinho abandonado: o primeiro (1 hora depois) e o segundo (24 horas depois). Os itens como
  * estavam, o preço nas formas que valem (o Pix só quando ainda dá para pagar com ele), o link que devolve o carrinho e
  * o link de sair da lista (também nos cabeçalhos List-Unsubscribe, montados por quem envia). Sem urgência: só o que foi
- * escolhido e como voltar, e a frase para quem já reservou por outro caminho.
+ * escolhido e como voltar, e a frase para quem já reservou por outro caminho. Com casa no carrinho (`comCasa`; revisão do
+ * pacote 2, achado 6), os totais são o que se paga hoje (o sinal da casa mais o resto), com "A pagar agora no Pix" no lugar
+ * de "Total no Pix", como nos e-mails do pedido: o "Total da estadia" da linha da casa nunca fica ao lado de outro "Total".
  */
 export function emailLembrete(d: {
   idioma: Idioma;
@@ -672,6 +692,7 @@ export function emailLembrete(d: {
   linkVoltar: string;
   linkSair: string;
   site: SiteDoEmail;
+  comCasa?: boolean;
 }): MensagemEmail {
   const T = textosEmail(d.idioma);
   const L = T.lembrete;
@@ -688,7 +709,7 @@ export function emailLembrete(d: {
       const precos = [...(i.pix ? [precoDoItem(i.pix, L.noPix)] : []), ...(i.cartao ? [precoDoItem(i.cartao, L.noCartao)] : [])];
       return { nome: i.nome, linhas: [...i.linhas, ...(varios && precos.length ? [precos.join(' · ')] : [])] };
     }),
-    totais: totaisDasFormas(T, d.totais),
+    totais: totaisDasFormas(T, d.totais, Boolean(d.comCasa)),
     botao: { texto: L.botao, href: d.linkVoltar },
     depois: [L.nota],
     rodape: { linhas: [fmt(L.motivo, { site: d.site.dominio })], link: { texto: L.sair, href: d.linkSair } },

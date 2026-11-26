@@ -702,7 +702,11 @@ test('o aviso do pedido pago sem as datas presas: uma linha de "Aviso:", só par
     linha,
     /^Aviso: as datas da casa Mansão Ferradura Vista Mar \(entrada 14\/12\/2026, saída 16\/12\/2026, voucher ON-CASA01\)/,
   );
-  assert.match(linha, /Conferir o calendário da casa no painel/);
+  // revisão do pacote 2 (achado 3): o cliente já viu o pagamento confirmado, e a equipe fala com ele no mesmo dia
+  assert.match(
+    linha,
+    /O cliente já tem o pagamento confirmado e pode ter o voucher desta casa \(a página do pedido mostra a reserva como paga\): fale com ele hoje e confira o calendário da casa no painel$/,
+  );
 });
 
 /* ------------------------------------------------------------------ */

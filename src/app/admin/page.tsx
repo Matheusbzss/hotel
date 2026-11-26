@@ -594,7 +594,8 @@ function Acoes({ p, filtro, busca }: { p: PedidoPainel; filtro: string; busca: s
   // de lá sozinho (o status deixa de ser pago). Pacote 33: a desistência que chegou dentro dos 7 dias do arrependimento,
   // respondida sem reembolso, ganha o aviso vermelho e a caixa "Estou ciente" (travaDaDesistencia; a rota confere de novo)
   if (desistenciaParaResponder(p.itens)) {
-    const trava = travaDaDesistencia(r);
+    // revisão do pacote 2: no pedido com casa, também os 7 dias corridos da casa (a trava só avisa a mais; a rota confere igual)
+    const trava = travaDaDesistencia(r, p.itens.some(ehCasa));
     acoes.push({
       acao: 'desistencia_respondida',
       rotulo: rotuloDaDesistenciaRespondida(p.reembolsoCentavos),

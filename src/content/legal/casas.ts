@@ -9,8 +9,11 @@ import type { MudancasDoDocumento } from './mudancas.ts';
  * pagamento online (src/content/legal/online.ts, textosLegais): o que não está aqui continua igual, palavra por palavra, e
  * nenhuma outra regra muda.
  * - Termos (item 8, "Casas de temporada"): o restante pago na chegada, a entrada e a saída e as 3 regras de cancelamento
- *   das casas (CANCELAMENTO_DAS_CASAS, src/data/regras-casas.ts, que a página da casa e o checkout já mostram).
- * - Cancelamento (item 11, "Casas de temporada"): as 3 regras, uma por parágrafo, e como a antecedência é contada.
+ *   das casas (CANCELAMENTO_DAS_CASAS, src/data/regras-casas.ts, que a página da casa e o checkout já mostram). Revisão do
+ *   pacote 2: o item 2 (O que vendemos) ganha as estadias nas casas, e o prazo do Pix (item 5) ganha o da casa, que nunca se
+ *   paga no dia da entrada (Pix até as 22h e cartão até as 23h30 da véspera: limiteParaPagar, src/lib/formas-pagamento.ts).
+ * - Cancelamento (item 11, "Casas de temporada"): as 3 regras, uma por parágrafo, e como a antecedência é contada; o prazo
+ *   do Pix do item 10 ganha o da casa.
  * - Privacidade: a reserva da casa (a casa, as datas e os hóspedes); os dados dos hóspedes que a equipe pede pelo WhatsApp
  *   depois do pagamento (nome completo, documento e placa do carro), para quê, com quem são compartilhados (o proprietário
  *   do imóvel e a portaria, quando houver) e por quanto tempo ficam (30 dias depois da saída: PERGUNTA AO DONO, o prazo que o
@@ -22,6 +25,9 @@ import type { MudancasDoDocumento } from './mudancas.ts';
 /**
  * A data de "Atualizado em" dos três textos com as casas: um lugar só, para trocar no dia de publicar (o dia em que
  * RESERVA_CASAS=publico entrar na Vercel). Nunca antes das datas da versão do pagamento online (ATUALIZADO_EM_ONLINE).
+ * NO DIA DE LIGAR (o passo está no roteiro do pacote 3, no README e em docs/pagamentos-stripe.md): conferir a data em Búzios
+ * com `TZ=America/Sao_Paulo date +%F` e trocar aqui, no mesmo deploy que liga RESERVA_CASAS=publico (os Termos, item 11,
+ * dizem que vale a versão publicada na data da compra). O teste dos textos com as casas confere esta data: troque lá também.
  */
 export const ATUALIZADO_EM_CASAS = '2026-11-26';
 
@@ -30,6 +36,20 @@ export const ATUALIZADO_EM_CASAS = '2026-11-26';
 
 export const MUDANCAS_TERMOS_CASAS: Record<IdiomaConteudo, MudancasDoDocumento> = {
   pt: {
+    trocas: [
+      // revisão do pacote 2: o item 2 (O que vendemos) passa a dizer que a agência também vende as estadias nas casas
+      [
+        'Somos uma agência de turismo que vende, pela internet, passeios e transfers em Búzios, Cabo Frio, Arraial do Cabo e região, executados por operadores locais parceiros (donos das embarcações, veículos e equipes).',
+        'Somos uma agência de turismo que vende, pela internet, passeios e transfers em Búzios, Cabo Frio, Arraial do Cabo e região, executados por operadores locais parceiros (donos das embarcações, veículos e equipes), e estadias em casas de temporada de proprietários parceiros.',
+      ],
+      // revisão do pacote 2: o prazo de pagar a casa (decisão do dono de 26/11: nunca no dia da entrada; limiteParaPagar,
+      // src/lib/formas-pagamento.ts, com HORA_LIMITE_PARA_PAGAR_A_CASA: Pix até 2 horas antes e cartão até 30 minutos antes
+      // da meia-noite que começa o dia da entrada)
+      [
+        'Prazo: o Pix vale até 2 horas antes do início do primeiro serviço do pedido (passeio, transfer ou entrada na casa). Depois disso, só cartão: um pedido já feito pode ser pago com cartão até 30 minutos antes do primeiro serviço.',
+        'Prazo: o Pix vale até 2 horas antes do início do primeiro serviço do pedido (passeio ou transfer). Depois disso, só cartão: um pedido já feito pode ser pago com cartão até 30 minutos antes do primeiro serviço. Na casa de temporada, o pagamento vai só até a véspera da entrada: Pix até as 22h e cartão até as 23h30, no horário de Brasília. Num pedido com mais de um item, vale o prazo que termina primeiro.',
+      ],
+    ],
     depois: [
       [
         'As casas de temporada são reservadas no site, com sinal de 50% do valor. As regras de cada casa (diárias, mínimo de noites e cancelamento) aparecem na página da casa antes da reserva, e a localização exata é enviada pela nossa equipe pelo WhatsApp, depois do pagamento confirmado.',
@@ -41,6 +61,16 @@ export const MUDANCAS_TERMOS_CASAS: Record<IdiomaConteudo, MudancasDoDocumento> 
     ],
   },
   en: {
+    trocas: [
+      [
+        'We are a travel agency that sells, online, tours and transfers in Búzios, Cabo Frio, Arraial do Cabo and the surrounding area, run by local partner operators (the owners of the boats, vehicles and crews).',
+        'We are a travel agency that sells, online, tours and transfers in Búzios, Cabo Frio, Arraial do Cabo and the surrounding area, run by local partner operators (the owners of the boats, vehicles and crews), and stays in holiday homes of partner property owners.',
+      ],
+      [
+        'Deadline: Pix is available up to 2 hours before the first service in your order starts (tour, transfer or check-in at the home). After that, by card only: an order already placed can be paid by card up to 30 minutes before the first service.',
+        'Deadline: Pix is available up to 2 hours before the first service in your order starts (tour or transfer). After that, by card only: an order already placed can be paid by card up to 30 minutes before the first service. For holiday homes, payment is only possible until the day before check-in: Pix until 10 p.m. and card until 11:30 p.m., Brasília time. In an order with more than one item, the deadline that ends first applies.',
+      ],
+    ],
     depois: [
       [
         'Holiday homes are booked on the site with a 50% deposit. Each home’s rules (nightly rates, minimum stay and cancellation) are shown on its page before booking, and our team sends the exact location on WhatsApp once the payment is confirmed.',
@@ -52,6 +82,16 @@ export const MUDANCAS_TERMOS_CASAS: Record<IdiomaConteudo, MudancasDoDocumento> 
     ],
   },
   es: {
+    trocas: [
+      [
+        'Somos una agencia de turismo que vende por internet paseos y traslados en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos).',
+        'Somos una agencia de turismo que vende por internet paseos y traslados en Búzios, Cabo Frio, Arraial do Cabo y la región, realizados por operadores locales asociados (dueños de las embarcaciones, vehículos y equipos), y estadías en casas de temporada de propietarios asociados.',
+      ],
+      [
+        'Plazo: el Pix vale hasta 2 horas antes del inicio del primer servicio del pedido (paseo, traslado o entrada a la casa). Después, solo con tarjeta: un pedido ya hecho se puede pagar con tarjeta hasta 30 minutos antes del primer servicio.',
+        'Plazo: el Pix vale hasta 2 horas antes del inicio del primer servicio del pedido (paseo o traslado). Después, solo con tarjeta: un pedido ya hecho se puede pagar con tarjeta hasta 30 minutos antes del primer servicio. En la casa de temporada, el pago es posible solo hasta la víspera de la entrada: Pix hasta las 22 h y tarjeta hasta las 23:30 h, en el horario de Brasilia. En un pedido con más de un ítem, vale el plazo que termina primero.',
+      ],
+    ],
     depois: [
       [
         'Las casas de temporada se reservan en el sitio, con un anticipo del 50% del valor. Las reglas de cada casa (tarifas por noche, mínimo de noches y cancelación) aparecen en la página de la casa antes de reservar, y nuestro equipo envía la ubicación exacta por WhatsApp después de confirmado el pago.',
@@ -69,6 +109,13 @@ export const MUDANCAS_TERMOS_CASAS: Record<IdiomaConteudo, MudancasDoDocumento> 
 
 export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocumento> = {
   pt: {
+    // revisão do pacote 2: o prazo do Pix no item 10 (Pedidos pagos por Pix), com o da casa (até as 22h da véspera da entrada)
+    trocas: [
+      [
+        'Prazo: o Pix só vale até 2 horas antes do início do primeiro serviço do pedido.',
+        'Prazo: o Pix só vale até 2 horas antes do início do primeiro serviço do pedido; na casa de temporada, só até as 22h da véspera da entrada, no horário de Brasília.',
+      ],
+    ],
     depois: [
       [
         'As casas de temporada têm regras próprias de sinal e cancelamento, mostradas na página de cada casa antes da reserva.',
@@ -83,6 +130,12 @@ export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocum
     ],
   },
   en: {
+    trocas: [
+      [
+        'Deadline: Pix is only available up to 2 hours before the first service in your order starts.',
+        'Deadline: Pix is only available up to 2 hours before the first service in your order starts; for holiday homes, only until 10 p.m. on the day before check-in, Brasília time.',
+      ],
+    ],
     depois: [
       [
         'Holiday homes have their own deposit and cancellation rules, shown on each home’s page before booking.',
@@ -97,6 +150,12 @@ export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocum
     ],
   },
   es: {
+    trocas: [
+      [
+        'Plazo: el Pix solo vale hasta 2 horas antes del inicio del primer servicio del pedido.',
+        'Plazo: el Pix solo vale hasta 2 horas antes del inicio del primer servicio del pedido; en la casa de temporada, solo hasta las 22 h de la víspera de la entrada, en el horario de Brasilia.',
+      ],
+    ],
     depois: [
       [
         'Las casas de temporada tienen reglas propias de anticipo y cancelación, que se muestran en la página de cada casa antes de reservar.',

@@ -378,13 +378,19 @@ test('a trava na desistência respondida sem reembolso: a desistência que chego
 
   // a página e a rota: o aviso e a caixa no botão de sempre, conferidos de novo na rota (antes e dentro da trava)
   const pagina = codigo('app', 'admin', 'page.tsx');
-  assert.match(pagina, /const trava = travaDaDesistencia\(r\);/);
+  // revisão do pacote 2 das casas: o segundo argumento só liga os 7 dias corridos da casa (sem casa, false: a conta de sempre)
+  assert.match(pagina, /const trava = travaDaDesistencia\(r, p\.itens\.some\(ehCasa\)\);/);
   assert.match(pagina, /\.\.\.\(trava \? \{ aviso: avisoDaDesistenciaNosSeteDias\(trava\), ciente: CIENTE_DOS_SETE_DIAS \} : \{\}\),/);
   const botao = pagina.slice(pagina.indexOf('function BotaoAcao('), pagina.indexOf('function ReembolsoStripe('));
   assert.match(botao, /<input type="checkbox" name="ciente" value="sim" required/);
   const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
   assert.match(rota, /const ciente = form\.get\('ciente'\) === 'sim';/);
-  assert.match(rota, /if \(travaDaDesistencia\(alvo\) && !ciente\) return voltar\('falta-ciente'\);/);
+  assert.match(rota, /if \(travaDaDesistencia\(alvo, comCasa\) && !ciente\) return voltar\('falta-ciente'\);/);
+  // o pedido sem casa passa false: a mesma trava de antes, também com a desistência pedida pelo site
+  assert.deepEqual(
+    travaDaDesistencia(comDesistencia(PAGO_HA_11_DIAS, '2026-11-18T12:00:00.000Z'), false),
+    travaDaDesistencia(comDesistencia(PAGO_HA_11_DIAS, '2026-11-18T12:00:00.000Z')),
+  );
 });
 
 /* ------------------------------------------------------------------ */
@@ -567,8 +573,9 @@ test('a rota do cancelamento sem reembolso: a caixa, o motivo e a trava antes de
     'await atualizarReserva(primeiro.codigo, (r) => {',
     'const conferencia = conferirNaTrava(r, depois, escolha, registro, agora, ciente);',
     "if (conferencia.resultado !== 'gravar') return null;",
-    // Etapa 7, pacote 2: o motivo no histórico com a regra dos vouchers cancelados (a das casas, a dos passeios ou as duas)
-    'for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar))) registrar(r, linha);',
+    // Etapa 7, pacote 2: o motivo no histórico com a regra dos vouchers cancelados (a das casas, a dos passeios ou as duas) e,
+    // desde a revisão do pacote 2, o dia do pedido do cliente de que a regra das casas foi contada
+    'for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar), pedido)) registrar(r, linha);',
     "if (resultado === 'repetida') return voltar();",
     'if (resultado !== \'gravar\') return voltar(resultado);',
     "if (!(await completarCancelados(resto, codigoDoPedido))) return voltar('cancelamento-pela-metade');",
@@ -1089,9 +1096,18 @@ test('o motivo combina com a data do serviço: "fora da política" só a menos d
   // a rota confere de novo, depois do motivo do formulário e antes da caixa "Estou ciente", com a frase fixa do painel
   const trecho = trechoDaAcao('cancelar_sem_reembolso');
   const motivo = trecho.indexOf('if (!motivo.ok) return voltar(motivo.erro);');
-  const data = trecho.indexOf("if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora)) return voltar('motivo-fora-da-data');");
+  // revisão do pacote 2 das casas: o quarto argumento é o momento do pedido do cliente, que só a regra das casas lê (sem
+  // casa, o campo do dia nem é lido, e a conta dos passeios continua sendo a de agora)
+  const data = trecho.indexOf(
+    "if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora, pedido.em)) return voltar('motivo-fora-da-data');",
+  );
   const ciente = trecho.indexOf("if (plano.trava && !ciente) return voltar('falta-ciente');");
   assert.ok(motivo !== -1 && motivo < data && data < ciente, `${motivo} ${data} ${ciente}`);
+  assert.ok(trecho.indexOf("const informado = comCasa ? String(form.get('pedidoEm') ?? '').trim() : '';") > motivo);
+  // sem casa, o momento do pedido não muda nada nos passeios: qualquer dia dá os mesmos motivos de agora
+  for (const v of [em('2026-12-17'), em('2026-11-27', '08:00'), em('2026-11-26', '08:00')]) {
+    assert.deepEqual(motivosQueCombinam([v], AGORA, new Date('2026-11-01T12:00:00Z')), motivosQueCombinam([v], AGORA));
+  }
   assert.match(ERROS_DO_PAINEL['motivo-fora-da-data'], /^Este motivo não combina com a data do serviço: .*Nada foi feito\.$/);
   assert.equal(fraseDoErro('motivo-fora-da-data'), ERROS_DO_PAINEL['motivo-fora-da-data']);
   // a página desenha a frase embaixo da escolha

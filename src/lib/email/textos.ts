@@ -42,6 +42,11 @@ export interface TextosEmail {
     aPagarNoPix: string;
     aPagarNoCartao: string;
     naChegadaDaCasa: string;
+    /**
+     * Etapa 7 (revisão do pacote 2): a linha embaixo da casa paga cujas datas não estão presas na hora do e-mail (outra reserva
+     * ou um bloqueio ocupa as noites): ela vai sem o voucher.
+     */
+    datasAConfirmar: string;
   };
   pedidoRecebido: {
     /** {codigo} é o código do pedido. */
@@ -66,6 +71,14 @@ export interface TextosEmail {
     botaoWhatsapp: string;
     /** Etapa 7: o pedido com casa, o restante na chegada e a localização e o cadastro dos hóspedes pelo WhatsApp. */
     casa: string;
+    /**
+     * Etapa 7 (revisão do pacote 2): a casa paga cujas datas não estão presas na hora do e-mail. `casaAConfirmar`: o parágrafo
+     * (a equipe confirma as datas pelo WhatsApp, e o voucher da casa não vai neste e-mail); `textoSemVoucher` e
+     * `preCabecalhoAConfirmar`: no lugar de `texto` e `preCabecalho` quando nenhum item do pedido leva o voucher.
+     */
+    casaAConfirmar: string;
+    textoSemVoucher: string;
+    preCabecalhoAConfirmar: string;
   };
   pixVencido: {
     assunto: string;
@@ -223,6 +236,7 @@ const PT: TextosEmail = {
     aPagarNoPix: 'A pagar agora no Pix',
     aPagarNoCartao: 'A pagar agora no cartão',
     naChegadaDaCasa: 'Na chegada à casa',
+    datasAConfirmar: 'Datas a confirmar pela nossa equipe',
   },
   pedidoRecebido: {
     assunto: 'Recebemos o seu pedido {codigo}',
@@ -244,6 +258,10 @@ const PT: TextosEmail = {
     whatsapp: 'Para combinar os detalhes, fale com a equipe pelo WhatsApp.',
     botaoWhatsapp: 'Falar com a equipe no WhatsApp',
     casa: 'Na casa, o restante é pago na chegada, em Pix, dinheiro ou cartão. A nossa equipe manda pelo WhatsApp a localização exata e pede o cadastro dos hóspedes.',
+    casaAConfirmar:
+      'As datas da casa ainda precisam ser confirmadas pela nossa equipe, que fala com você pelo WhatsApp. Por isso, o voucher da casa não vai neste e-mail.',
+    textoSemVoucher: 'Recebemos o pagamento do pedido.',
+    preCabecalhoAConfirmar: 'Recebemos o pagamento. A nossa equipe confirma as datas da casa pelo WhatsApp.',
   },
   pixVencido: {
     assunto: 'O Pix do pedido {codigo} venceu',
@@ -365,6 +383,7 @@ const EN: TextosEmail = {
     aPagarNoPix: 'Due now with Pix',
     aPagarNoCartao: 'Due now by card',
     naChegadaDaCasa: 'On arrival at the home',
+    datasAConfirmar: 'Dates to be confirmed by our team',
   },
   pedidoRecebido: {
     assunto: 'We received your order {codigo}',
@@ -387,6 +406,10 @@ const EN: TextosEmail = {
     whatsapp: 'To arrange the details, talk to the team on WhatsApp.',
     botaoWhatsapp: 'Talk to the team on WhatsApp',
     casa: "For the home, the balance is paid on arrival, by Pix, cash or card. Our team will send you the exact location on WhatsApp and ask for the guests' details.",
+    casaAConfirmar:
+      "The home's dates still need to be confirmed by our team, who will contact you on WhatsApp. That is why the home's voucher is not in this email.",
+    textoSemVoucher: 'We received the payment for your order.',
+    preCabecalhoAConfirmar: "We received the payment. Our team will confirm the home's dates on WhatsApp.",
   },
   pixVencido: {
     assunto: 'The Pix for order {codigo} expired',
@@ -509,6 +532,7 @@ const ES: TextosEmail = {
     aPagarNoPix: 'A pagar ahora con Pix',
     aPagarNoCartao: 'A pagar ahora con tarjeta',
     naChegadaDaCasa: 'Al llegar a la casa',
+    datasAConfirmar: 'Fechas a confirmar por nuestro equipo',
   },
   pedidoRecebido: {
     assunto: 'Recibimos tu pedido {codigo}',
@@ -532,6 +556,11 @@ const ES: TextosEmail = {
     botaoWhatsapp: 'Hablar con el equipo por WhatsApp',
     // sem verbo em tú: o es-ar usa a mesma frase
     casa: 'En la casa, el resto se paga al llegar, con Pix, efectivo o tarjeta. Nuestro equipo te envía por WhatsApp la ubicación exacta y te pide el registro de los huéspedes.',
+    // revisão do pacote 2, a casa sem as datas presas: também sem verbo em tú (o es-ar usa as mesmas frases)
+    casaAConfirmar:
+      'Las fechas de la casa todavía tienen que ser confirmadas por nuestro equipo, que se va a comunicar por WhatsApp. Por eso, el voucher de la casa no va en este e-mail.',
+    textoSemVoucher: 'Recibimos el pago del pedido.',
+    preCabecalhoAConfirmar: 'Recibimos el pago. Nuestro equipo confirma las fechas de la casa por WhatsApp.',
   },
   pixVencido: {
     assunto: 'El Pix del pedido {codigo} venció',

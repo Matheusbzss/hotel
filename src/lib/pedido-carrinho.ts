@@ -334,6 +334,19 @@ export async function liberarDatasDosVouchers(vouchers: readonly Reserva[]): Pro
 }
 
 /**
+ * As casas que valem deste pedido que estão SEM a estadia do site presa agora (os códigos dos vouchers), só lendo: nada é
+ * preso nem solto. Revisão do pacote 2 (achado 3): o e-mail do pagamento aprovado (src/lib/email/pedidos.ts) só leva o
+ * voucher da casa com as datas presas, e quem prende é sempre a conferência das rotas (conferirDatasDoPedidoPago), que
+ * também refaz o calendário das páginas. Sem casa, nada.
+ */
+export async function casasSemATrava(vouchers: readonly Reserva[]): Promise<string[]> {
+  const estadias = await estadiasDoPedido(vouchers);
+  if (!estadias.length) return [];
+  const presos = new Set(await itensComBloqueio(estadias.map((e) => e.itemPedidoId)));
+  return estadias.filter((e) => !presos.has(e.itemPedidoId)).map((e) => e.voucher);
+}
+
+/**
  * Na virada para pago (o aviso da Stripe, nunca a página: crítica de 26/11, furo 1, correção 3, e furo 3): cada casa do
  * pedido tem a estadia do site presa? A que não tem (o pagamento que chegou depois de a sessão vencer, uma trava perdida)
  * é presa agora, com a sessão paga; se as noites já forem de outra pessoa, ela volta na lista `semTrava`, e quem chamou

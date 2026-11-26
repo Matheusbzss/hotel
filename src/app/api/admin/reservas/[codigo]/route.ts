@@ -8,9 +8,11 @@ import {
   cancelamentoJaFeito,
   cancelamentosDosVouchers,
   conferirNaTrava,
+  diaDoPedidoValido,
   linhaDaTravaDosSeteDias,
   motivoCombinaComAData,
   motivoDoFormulario,
+  pedidoDoCliente,
   planoDoCancelamento,
   regraDosVouchers,
   registroDoCancelamento,
@@ -249,10 +251,10 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
     try {
       await prenderDatasDoPedido(vouchers, retido.sessaoId, { todas: true });
     } catch (e) {
-      // nada foi reativado: o que a tentativa passou para a sessão paga (uma trava que tinha sobrado do pedido) não fica presa
-      await liberarBloqueiosDaSessao(retido.sessaoId).catch((e2) =>
-        console.error(`[admin] não deu para soltar as datas da reativação recusada do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e2)}`),
-      );
+      // nada foi reativado por este toque: o que a tentativa passou para a sessão paga (uma trava que tinha sobrado do pedido)
+      // não fica presa. Revisão do pacote 2: antes, o pedido é relido, e se outro toque já o reativou com este pagamento (o
+      // duplo toque), as datas são dele e nada sai
+      await soltarAsDatasDaReativacaoRecusada(alvo, retido.sessaoId);
       if (e instanceof DatasIndisponiveis) return 'reativar-datas-ocupadas';
       console.error(`[admin] não deu para prender as datas da casa do pedido ${alvo.pedido?.codigo ?? alvo.codigo}: ${mensagem(e)}`);
       return 'datas-sem-conferir';
@@ -288,6 +290,24 @@ async function reativarPagamentoRetido(alvo: Reserva, vouchers: readonly Reserva
 
 /** A linha do histórico da reativação de um pedido com casa: as datas presas de novo. Só para a equipe. */
 const LINHA_DAS_DATAS_NA_REATIVACAO = 'Datas da casa presas de novo para o pedido reativado';
+
+/**
+ * A tentativa de prender as datas da reativação falhou (as noites de outra pessoa, ou o banco): o que ela passou para a sessão
+ * paga sai, para não ficar uma trava de um pedido que continua cancelado. Revisão do pacote 2 (achado 9a): o pedido é relido
+ * antes, e se ele já está pago por este pagamento (outro toque reativou no meio-tempo: o duplo toque), as datas são da
+ * reativação que deu certo e nada sai. Sem conseguir reler, nada sai também: a rede de segurança de hora em hora solta a
+ * trava que sobrar de um pedido cancelado, e uma trava a mais nunca põe duas pessoas na mesma casa.
+ */
+async function soltarAsDatasDaReativacaoRecusada(alvo: Reserva, sessaoId: string): Promise<void> {
+  const codigo = alvo.pedido?.codigo ?? alvo.codigo;
+  try {
+    const [relido] = await vouchersDoPedido(codigo);
+    if (!relido || pagoPeloRetidoReativado(relido)) return;
+    await liberarBloqueiosDaSessao(sessaoId);
+  } catch (e) {
+    console.error(`[admin] não deu para soltar as datas da reativação recusada do pedido ${codigo}: ${mensagem(e)}`);
+  }
+}
 
 /**
  * A conferência de depois da reativação de um pedido com casa: relido, cada casa do pedido pago tem a trava (a rede de
@@ -525,11 +545,13 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     // nenhum, pede a caixa "Estou ciente" (o painel avisa em vermelho que o cliente tem direito ao dinheiro de volta), e a
     // linha da trava fica no histórico, junto com a da resposta. Relida dentro da trava de versão: o valor devolvido só
     // cresce, então a trava só pode sumir no meio-tempo, nunca aparecer
-    if (travaDaDesistencia(alvo) && !ciente) return voltar('falta-ciente');
+    // revisão do pacote 2: no pedido com casa, os 7 dias corridos da casa também contam (a trava só avisa a mais)
+    const comCasa = vouchers.some(ehCasa);
+    if (travaDaDesistencia(alvo, comCasa) && !ciente) return voltar('falta-ciente');
     await atualizarReserva(alvo.codigo, (r) => {
       if (desistenciaRespondida(r)) return null;
       registrar(r, linhaDaDesistenciaRespondida(r.reembolsoCentavos ?? 0));
-      const trava = travaDaDesistencia(r);
+      const trava = travaDaDesistencia(r, comCasa);
       return trava ? registrar(r, linhaDaTravaDosSeteDias(trava, 'desistencia')) : r;
     });
     return voltar();
@@ -573,9 +595,17 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
     if (!confirmou) return voltar('falta-confirmar');
     const motivo = motivoDoFormulario(form.get('motivo'), form.get('texto'));
     if (!motivo.ok) return voltar(motivo.erro);
+    // revisão do pacote 2: com casa, a regra das casas conta do dia em que o CLIENTE pediu (a desistência pelo site ou o dia
+    // informado na tela, o campo `pedidoEm`), e não de agora; o dia que não vale volta com o erro. Sem casa, o campo não é
+    // lido e nada muda
+    const comCasa = plano.cancelar.some(ehCasa);
+    const informado = comCasa ? String(form.get('pedidoEm') ?? '').trim() : '';
+    if (informado && !diaDoPedidoValido(informado, alvo, agora)) return voltar('data-do-pedido-invalida');
+    const pedido = pedidoDoCliente(alvo, informado || undefined, agora);
     // o motivo que a data do serviço não deixa (o "fora da política" a mais de 24 horas do início, o "não compareceu"
-    // antes dele): a tela não mostra, e o formulário antigo ou montado à mão também não passa
-    if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora)) return voltar('motivo-fora-da-data');
+    // antes dele; na casa, a regra das casas contada do dia do pedido do cliente): a tela não mostra, e o formulário antigo
+    // ou montado à mão também não passa
+    if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora, pedido.em)) return voltar('motivo-fora-da-data');
     if (plano.trava && !ciente) return voltar('falta-ciente');
     const registro = registroDoCancelamento(
       escolha,
@@ -592,7 +622,8 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
       lido.conferencia = conferencia;
       if (conferencia.resultado !== 'gravar') return null;
       // Etapa 7, pacote 2: o motivo no histórico com a regra dos vouchers cancelados (a das casas, a dos passeios ou as duas)
-      for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar))) registrar(r, linha);
+      // e, na casa, o dia de que a regra foi contada (revisão do pacote 2)
+      for (const linha of aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar), pedido)) registrar(r, linha);
       return r;
     });
     const resultado = lido.conferencia?.resultado ?? 'nao-encontrado';
@@ -736,6 +767,13 @@ export async function POST(req: Request, ctx: RouteContext<'/api/admin/reservas/
         await religarIrmaos(alvo).catch((e) =>
           console.error(`[admin] não deu para refazer a volta dos vouchers do pedido ${codigoDoPedido}: ${mensagem(e)}`),
         );
+      }
+      // revisão do pacote 2 (achado 9b): no pedido com casa, as datas são conferidas de novo depois do toque repetido, como na
+      // primeira reativação: a casa que só agora voltou a valer (a volta dela tinha falhado, e a rede de segurança pode ter
+      // soltado a trava dela enquanto ela estava 'cancelado') é presa de novo; sem conseguir, o "Aviso:" e o e-mail à equipe
+      if (repetida && daStripe && acao === 'reativar_retido' && pagoPeloRetidoReativado(alvo) && vouchers.some(ehCasa)) {
+        await conferirAsDatasDaReativacao(alvo, alvo.pagamento.retido?.sessaoId ?? alvo.pagamentoExternoId ?? `reativar-${codigoDoPedido}`);
+        calendarioMudou();
       }
       return voltar(repetida ? undefined : 'acao-nao-vale');
     }

@@ -13,7 +13,14 @@ import {
   vouchersDosItens,
 } from './pedido-carrinho';
 import { atualizarReserva, ehCasa, obterReserva, registrar, type Reserva, type ReservaCasa } from './reservas';
-import { avisoDasDatasNaoPresas, datasASoltar, decidirATrava, seguraAsDatas, type VoucherDaRede } from './trava-das-casas';
+import {
+  avisoDasDatasNaoPresas,
+  datasASoltar,
+  decidirATrava,
+  seguraAsDatas,
+  vouchersComAvisoDasDatas,
+  type VoucherDaRede,
+} from './trava-das-casas';
 import { hojeEmBuzios } from './validacao';
 
 /**
@@ -31,9 +38,10 @@ const mensagem = mensagemDoErro;
  */
 export async function avisarDatasNaoPresas(reserva: Reserva, semTrava: readonly ReservaCasa[]): Promise<void> {
   if (!semTrava.length) return;
-  const linhas = semTrava.map(avisoDasDatasNaoPresas);
   await atualizarReserva(reserva.codigo, (r) => {
-    const faltam = linhas.filter((l) => !r.historico.some((h) => h.evento === l));
+    // uma linha por voucher, uma vez (pelo voucher da linha: a frase pode mudar de uma versão do site para a outra)
+    const ja = vouchersComAvisoDasDatas(r.historico);
+    const faltam = semTrava.filter((v) => !ja.has(v.codigo)).map(avisoDasDatasNaoPresas);
     if (!faltam.length) return null;
     for (const l of faltam) registrar(r, l);
     return r;

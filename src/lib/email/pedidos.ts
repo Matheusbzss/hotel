@@ -23,11 +23,12 @@ import {
   retidoComCasa,
   recebidoDoPedido,
 } from '../pedidos-painel';
+import { casasSemATrava } from '../pedido-carrinho';
 import { itensPagaveis, paraPublico, statusDoVoucher } from '../reserva-publica';
 import { atualizarReserva, ehCasa, ehPasseio, ehTransfer, obterPedido, obterReservaDoPedido, registrar, type Reserva } from '../reservas';
 import { urlDoSite } from '../site';
 import { stripe } from '../stripe';
-import { avisosDasDatasNaoPresas, voucherDoAvisoDasDatas } from '../trava-das-casas';
+import { avisosDasDatasNaoPresas, voucherDoAvisoDasDatas, vouchersComAvisoDasDatas } from '../trava-das-casas';
 import { formatarDataIso } from '../validacao';
 import { chegadaDasCasas } from '../voucher-casa';
 import { linkWhatsApp } from '../whatsapp';
@@ -153,8 +154,11 @@ export function linkPrivado(idioma: Idioma, codigo: string, token: string, umIte
   return `${urlDoSite()}${pagina}?t=${encodeURIComponent(token)}`;
 }
 
-/** Os itens do pedido como o e-mail mostra; `comVouchers`: os vouchers pagos levam o link e o PDF. */
-function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean): ItemDoPedido[] {
+/**
+ * Os itens do pedido como o e-mail mostra; `comVouchers`: os vouchers pagos levam o link e o PDF. `aConfirmar` (Etapa 7,
+ * revisão do pacote 2): as casas pagas sem as datas presas, que vão sem o voucher e com a linha de que a equipe confirma.
+ */
+function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean, aConfirmar: ReadonlySet<string> = new Set()): ItemDoPedido[] {
   const d = dicionario(idioma);
   const intl = LOCALE_INTL[idioma];
   const dataHora = (data: string, hora?: string) => {
@@ -178,6 +182,7 @@ function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean): I
           p.pessoasTexto,
         ];
     const t = encodeURIComponent(v.token);
+    if (aConfirmar.has(v.codigo)) return { nome, linhas, datasAConfirmar: true };
     const voucher =
       comVouchers && statusDoVoucher(v) === 'pago'
         ? {
@@ -188,6 +193,31 @@ function itensDoEmail(lista: Reserva[], idioma: Idioma, comVouchers: boolean): I
         : undefined;
     return { nome, linhas, ...(voucher ? { voucher } : {}) };
   });
+}
+
+/**
+ * Etapa 7 (revisão do pacote 2, achado 3): o que o e-mail do pagamento aprovado de um pedido com casa faz com cada casa, pela
+ * trava de agora, só lendo (casasSemATrava): quem prende as datas é a conferência das rotas (o aviso da Stripe, a rede de
+ * segurança e a reativação), e o calendário das páginas só é refeito nelas (crítica de 26/11, furo 3), nunca aqui.
+ * - a casa com as datas presas leva o voucher, como sempre (também a que teve um aviso antes e já se resolveu);
+ * - a casa sem as datas e com o "Aviso:" no histórico (a conferência não conseguiu prender: outra pessoa tem as noites) vai
+ *   sem o voucher e sem o PDF (`aConfirmar`), com a frase de que a equipe confirma as datas pelo WhatsApp;
+ * - a casa sem as datas e ainda sem o aviso (a conferência do aviso da Stripe ainda não rodou: o pedido que virou pago pela
+ *   página): o e-mail espera ('esperar'), sem gravar nada, e o agendamento dos e-mails pendentes (/api/email/pendentes,
+ *   faltaOEmailDoPagamento) o manda depois da conferência, já com a casa presa ou com o aviso.
+ * Sem conseguir ler a trava (o banco), as casas com o "Aviso:" vão sem o voucher e as outras com ele. Nada é devolvido.
+ */
+async function casasDoEmailDoPagamento(lista: Reserva[], r: Reserva, pedido: string): Promise<{ aConfirmar: Set<string> } | 'esperar'> {
+  const comAviso = vouchersComAvisoDasDatas(r.historico);
+  let semTrava: string[];
+  try {
+    semTrava = await casasSemATrava(lista);
+  } catch (e) {
+    console.error(`[email] pagamento-aprovado ${pedido}: não deu para ler as datas da casa: ${mensagemDeErro(e)}`);
+    return { aConfirmar: comAviso };
+  }
+  if (semTrava.some((voucher) => !comAviso.has(voucher))) return 'esperar';
+  return { aConfirmar: new Set(semTrava) };
 }
 
 /** Um valor em reais no idioma, com o aproximado em dólar em espanhol e inglês (quando há cotação). */
@@ -302,12 +332,22 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
     const chegada = chegadaDasCasas(lista, forma);
     return comCasa && chegada > 0 ? { chegada: valorNoIdioma(chegada, idioma, taxa) } : undefined;
   };
+  // Etapa 7 (revisão do pacote 2, achado 3): no pagamento aprovado, o voucher da casa só vai com as datas presas; a casa sem
+  // elas (outra pessoa já tem as noites) vai sem o voucher e sem o PDF, com a frase de que a equipe confirma as datas pelo
+  // WhatsApp; a casa ainda sem a conferência das datas faz o e-mail esperar, antes de gravar qualquer linha (o agendamento
+  // dos pendentes manda depois). O pedido sem casa não lê nada a mais
+  const casas = tipo === 'pagamento-aprovado' && comCasa ? await casasDoEmailDoPagamento(lista, r, pedido) : { aConfirmar: new Set<string>() };
+  if (casas === 'esperar') {
+    console.log(`[email] ${tipo} ${pedido}: espera a conferência das datas da casa (o agendamento dos pendentes manda depois)`);
+    return;
+  }
+  const { aConfirmar } = casas;
   const base: DadosDoPedido = {
     idioma,
     nome: r.cliente.nome,
     codigo: pedido,
     linkPedido: linkPrivado(idioma, pedido, r.token, lista.length === 1 && !r.pedido),
-    itens: itensDoEmail(lista, idioma, tipo === 'pagamento-aprovado' || tipo === 'link-do-pedido'),
+    itens: itensDoEmail(lista, idioma, tipo === 'pagamento-aprovado' || tipo === 'link-do-pedido', aConfirmar),
     site: siteDoEmail(),
     ...(comCasa ? { comCasa: true } : {}),
   };
@@ -350,7 +390,8 @@ export async function enviarEmailDoPedido(tipo: TipoEmailDoPedido, codigo: strin
     case 'pagamento-aprovado': {
       // antes de tudo, o aviso de que o e-mail está saindo: se a função for cortada no meio, ele fica no histórico
       await anotar(r.codigo, AVISO_EMAIL_PAGO_SAINDO);
-      anexos = await anexosDosVouchers(lista);
+      // a casa sem as datas presas (aConfirmar, acima) não leva o PDF
+      anexos = await anexosDosVouchers(aConfirmar.size ? lista.filter((v) => !aConfirmar.has(v.codigo)) : lista);
       // o que entrou: com um valor recebido pela Stripe diferente do esperado (Pacote 23), o que ela recebeu de verdade
       const recebido = recebidoDoPedido(lista);
       const forma = r.pagamento.metodo === 'whatsapp' ? undefined : r.pagamento.metodo;

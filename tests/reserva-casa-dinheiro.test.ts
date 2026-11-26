@@ -356,8 +356,9 @@ test('"fora da política" na casa só a menos de 30 dias da entrada, fora dos 7 
   // a menos de 30 dias, mas comprada há 2 dias (dentro dos 7 do arrependimento, antes da entrada): devolução total
   const recente = casaEntrando('2026-12-10', { pagamento: { ...CASA.pagamento, pagoEm: '2026-11-24T15:00:00.000Z' } });
   assert.deepEqual(motivosQueCombinam([recente], AGORA), ['outro']);
-  // a estadia já começou (a entrada às 15h de ontem): os três motivos
-  assert.deepEqual(motivosQueCombinam([casaEntrando('2026-11-25')], AGORA), ['fora-da-politica', 'nao-compareceu', 'outro']);
+  // a estadia já começou (a entrada às 15h de ontem): "não compareceu" e "outro"; "fora da política" não (revisão do pacote 2,
+  // achado 4: depois da entrada, "fora dos 7 dias da compra" pode não ser verdade)
+  assert.deepEqual(motivosQueCombinam([casaEntrando('2026-11-25')], AGORA), ['nao-compareceu', 'outro']);
   // no dia da entrada, antes das 15h: fora da política, ainda sem o "não compareceu"
   assert.deepEqual(motivosQueCombinam([casaEntrando('2026-11-26')], AGORA), ['fora-da-politica', 'outro']);
   // o passeio continua com as 24 horas (às 20h de hoje: menos de 24 horas)
@@ -390,7 +391,13 @@ test('o painel escreve a regra das casas: o rótulo do motivo, a frase do que fa
   assert.match(rotuloDoMotivo('fora-da-politica', 'casas'), /a menos de 30 dias da entrada na casa, fora dos 7 dias da compra$/);
   assert.match(rotuloDoMotivo('fora-da-politica', 'as-duas'), /no passeio, com menos de 24 horas.*na casa, a menos de 30 dias/);
   assert.equal(rotuloDoMotivo('outro', 'casas'), ROTULO_DO_MOTIVO.outro);
-  assert.match(motivosQueNaoAparecem(['outro'], 'casas') ?? '', /a entrada na casa é daqui a 30 dias ou mais.*devolve o sinal inteiro/);
+  assert.match(
+    motivosQueNaoAparecem(['outro'], 'casas') ?? '',
+    /^"Fora da política" não aparece: pela regra das casas, contada do dia em que o cliente pediu .*devolve o sinal inteiro.* "Não compareceu" só aparece/,
+  );
+  // com a estadia já começada quando o cliente pediu: só a frase do "fora da política"
+  assert.match(motivosQueNaoAparecem(['nao-compareceu', 'outro'], 'casas') ?? '', /a estadia já tinha começado quando ele pediu\.$/);
+  assert.equal(motivosQueNaoAparecem(['fora-da-politica', 'nao-compareceu', 'outro'], 'casas'), undefined);
   // o histórico
   const registro = registroDoCancelamento({ acao: 'cancelar_sem_reembolso' }, ['ON-CASA01'], { motivo: 'fora-da-politica' }, AGORA, false);
   assert.match(
@@ -405,7 +412,7 @@ test('o painel escreve a regra das casas: o rótulo do motivo, a frase do que fa
   const [trinta] = linhasDaRegraDasCasas([{ ...casaEntrando('2026-12-26'), codigo: 'ON-CASA01' }], AGORA);
   assert.equal(
     trinta,
-    'ON-CASA01: faltam 30 dias para a entrada (dias de calendário até a entrada (26/12/2026), contados de hoje, 26/11/2026, no horário de Brasília; se o cliente pediu o cancelamento antes, conte do dia da mensagem dele): pela regra das casas, o cancelamento devolve o sinal inteiro.',
+    'ON-CASA01: faltam 30 dias para a entrada (dias de calendário até a entrada (26/12/2026), contados de hoje, 26/11/2026, no horário de Brasília; se o cliente pediu o cancelamento antes, informe abaixo o dia em que ele pediu): pela regra das casas, o cancelamento devolve o sinal inteiro.',
   );
   assert.match(
     linhasDaRegraDasCasas([casaEntrando('2026-12-25')], AGORA)[0],
@@ -500,8 +507,8 @@ test('a página do pedido e o e-mail: o motivo e a regra das casas nos 4 idiomas
 
 test('no código: a casa passa a regra das casas ao histórico, ao e-mail e à página do pedido', () => {
   const painel = codigo('src', 'app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
-  tem(painel, 'aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar))');
-  tem(painel, "if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora)) return voltar('motivo-fora-da-data');");
+  tem(painel, 'aplicarCancelamento(r, registro, conferencia.trava, regraDosVouchers(plano.cancelar), pedido)');
+  tem(painel, "if (!motivoCombinaComAData(motivo.motivo, plano.cancelar, agora, pedido.em)) return voltar('motivo-fora-da-data');");
   const pedidos = codigo('src', 'lib', 'email', 'pedidos.ts');
   tem(pedidos, 'regra: regraDosVouchers(cancelados)');
   const publica = codigo('src', 'lib', 'reserva-publica.ts');

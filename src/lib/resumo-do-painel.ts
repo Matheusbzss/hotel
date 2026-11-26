@@ -4,17 +4,21 @@ import {
   CIENTE_DOS_SETE_DIAS,
   avisoDosSeteDias,
   botaoDoCancelamento,
+  compraDoPedido,
   confirmacaoDoCancelamento,
   continuamValendo,
+  diaDoPedidoValido,
   escolhasDoCancelamento,
   linhasDaRegraDasCasas,
   motivosQueCombinam,
   motivosQueNaoAparecem,
+  pedidoDoCliente,
   planoDoCancelamento,
   reembolsoACaminhoDoSite,
   regraDosVouchers,
   rotuloDoMotivo,
   type EscolhaDoCancelamento,
+  type PedidoDoCliente,
 } from './cancelar-sem-reembolso.ts';
 import { formatarCifra } from './cifra.ts';
 import { codigoValido } from './codigo-reserva.ts';
@@ -36,6 +40,7 @@ import {
 import { reembolsosFalhos, vouchersDevolvidosPorOutroMeio } from './reembolsos-a-resolver.ts';
 import type { Reserva } from './reservas';
 import type { LeituraDoSaldo, SaldoIndisponivel } from './saldo-stripe';
+import { hojeEmBuzios } from './validacao.ts';
 
 /**
  * A tela de resumo do painel antes de devolver dinheiro (Pacote 33, item 1; FASE-5, Etapa 2: "antes de confirmar, o
@@ -115,14 +120,16 @@ export function enderecoDoPainel(volta: VoltaDoPainel): string {
 
 /**
  * O endereço da tela de resumo: o pedido no caminho e, pelo URLSearchParams, a escolha, o filtro (como `status`, o nome
- * que o painel usa) e a busca. Nunca o que veio de fora sem passar por aqui.
+ * que o painel usa) e a busca. Nunca o que veio de fora sem passar por aqui. `pedidoEm`: no cancelamento de uma casa, o dia
+ * em que o cliente pediu, já conferido (as opções do alto o levam junto).
  */
-export function enderecoDoResumo(pedido: string, escolha: EscolhaDoResumo, volta: VoltaDoPainel): string {
+export function enderecoDoResumo(pedido: string, escolha: EscolhaDoResumo, volta: VoltaDoPainel, pedidoEm?: string): string {
   const q = new URLSearchParams({ acao: escolha.acao });
   if ('voucher' in escolha) q.set('voucher', escolha.voucher);
   if (volta.filtro) q.set('status', volta.filtro);
   const busca = buscaDoPainel(volta.busca);
   if (busca) q.set('q', busca);
+  if (pedidoEm) q.set('pedidoEm', pedidoEm);
   return `/admin/resumo/${encodeURIComponent(pedido)}?${q}`;
 }
 
@@ -261,6 +268,8 @@ export interface FormularioDoResumo {
   /** As caixas que o navegador exige marcadas (a rota confere a 'confirmo' de novo); o valor de cada uma é "sim". */
   confirmacoes: { nome: string; texto: string }[];
   campos: CampoDoResumo[];
+  /** Campos escondidos a mais (o dia em que o cliente pediu, no cancelamento de uma casa); a rota confere de novo. */
+  escondidos?: { nome: string; valor: string }[];
   botao: string;
   /** O botão em vermelho claro (devolver tudo), como o "Reembolsar tudo" de antes. */
   perigo: boolean;
@@ -284,6 +293,28 @@ export interface SecaoDoResumo {
   formularios: FormularioDoResumo[];
 }
 
+/**
+ * O dia em que o cliente pediu o cancelamento, no "Cancelar sem reembolso…" de um pedido com casa (revisão do pacote 2): um
+ * formulário simples (GET) que refaz a própria tela com a regra das casas contada desse dia, sem JavaScript, como as opções
+ * do alto. A tela seguinte leva o dia num campo escondido do segundo toque, e a rota confere de novo.
+ */
+export interface DataDoPedidoDoCliente {
+  /** O endereço da própria tela, sem os parâmetros (os campos escondidos os refazem). */
+  endereco: string;
+  /** A ação, o voucher, o filtro e a busca: a mesma tela. */
+  escondidos: { nome: string; valor: string }[];
+  nome: 'pedidoEm';
+  rotulo: string;
+  /** O dia que vale agora (AAAA-MM-DD), já no campo. */
+  valor: string;
+  /** O dia da compra (AAAA-MM-DD), quando dá para ler. */
+  minimo?: string;
+  /** Hoje (AAAA-MM-DD). */
+  maximo: string;
+  ajuda: string;
+  botao: string;
+}
+
 export interface TelaDoResumo {
   titulo: string;
   subtitulo: string;
@@ -291,6 +322,8 @@ export interface TelaDoResumo {
   /** As opções do alto, com a escolhida marcada; vazia quando só há uma. */
   opcoes: { rotulo: string; href: string; atual: boolean }[];
   linhas: LinhaDoResumo[];
+  /** Só no cancelamento sem reembolso com casa: o dia em que o cliente pediu (a regra das casas conta dele). */
+  dataDoPedido?: DataDoPedidoDoCliente;
   avisos: AvisoDoResumo[];
   /** O segundo toque. null quando a Stripe não entra (já há devolução registrada por outro meio): `semFormulario` diz por quê. */
   formulario: FormularioDoResumo | null;
@@ -310,6 +343,12 @@ export interface ContextoDoResumo {
   /** O voucher como a página escreve: o passeio (ou o transfer) e a data. */
   descrever: (r: Reserva) => string;
   volta: VoltaDoPainel;
+  /**
+   * Só no "Cancelar sem reembolso…" de um pedido com casa (revisão do pacote 2): o dia em que o cliente pediu o
+   * cancelamento, como veio no endereço da tela (AAAA-MM-DD, conferido aqui por diaDoPedidoValido). A regra das casas conta
+   * dele.
+   */
+  pedidoEm?: string;
 }
 
 /** O idioma do pedido, como o painel escreve (o cliente recebe os e-mails nele). */
@@ -632,17 +671,23 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
   const umVoucher = (v: Reserva) => `${v.codigo} · ${c.descrever(v)} · ${cifra(valorRecebido(v))}`;
   const { forma: formaNoPainel } = formaEProvedorNoPainel(p);
   const pais = r.pagamento.cartaoPais ? ` · cartão ${r.pagamento.cartaoPais}` : '';
-  const escolhas = escolhasDoCancelamento(p.itens, c.agora);
-  // só os motivos que combinam com a data do serviço (a rota confere de novo: motivo-fora-da-data)
-  const motivos = motivosQueCombinam(plano.cancelar, c.agora);
   // Etapa 7, pacote 2: a casa segue a regra das casas (30 dias e os 7 dias do arrependimento), e não a das 24 horas
   const regra = regraDosVouchers(plano.cancelar);
+  // revisão do pacote 2: a regra das casas conta do dia em que o CLIENTE pediu (a desistência pelo site ou o dia informado
+  // aqui, no endereço da tela), e não de quando a equipe abre o painel; sem casa, nada muda (conta de agora, como sempre)
+  const comCasa = regra !== 'passeios';
+  const informado = comCasa && c.pedidoEm && diaDoPedidoValido(c.pedidoEm, r, c.agora) ? c.pedidoEm : undefined;
+  const pedido = pedidoDoCliente(r, informado, c.agora);
+  const escolhas = escolhasDoCancelamento(p.itens, c.agora);
+  // só os motivos que combinam com a data do serviço (a rota confere de novo, com o mesmo dia: motivo-fora-da-data)
+  const motivos = motivosQueCombinam(plano.cancelar, c.agora, pedido.em);
   const semAlgumMotivo = motivosQueNaoAparecem(motivos, regra);
-  const regraDasCasas = linhasDaRegraDasCasas(plano.cancelar, c.agora);
+  const regraDasCasas = linhasDaRegraDasCasas(plano.cancelar, c.agora, pedido);
   const formulario: FormularioDoResumo = {
     acao: escolha.acao,
     codigoNaRota: doItem ?? r.codigo,
     ...(doItem ? { voucher: doItem } : {}),
+    ...(informado ? { escondidos: [{ nome: 'pedidoEm', valor: informado }] } : {}),
     confirmacoes: [
       { nome: 'confirmo', texto: confirmacaoDoCancelamento(codigos) },
       ...(plano.trava ? [{ nome: 'ciente', texto: CIENTE_DOS_SETE_DIAS }] : []),
@@ -676,7 +721,8 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
         ? escolhas.map((o) => ({
             // com mais de uma opção, a do pedido inteiro cancela os vouchers que ainda valem, um por opção de voucher
             rotulo: o.acao === 'cancelar_sem_reembolso' ? `O pedido inteiro (${escolhas.length - 1} vouchers)` : `Só o voucher ${o.voucher}`,
-            href: enderecoDoResumo(p.codigo, o, c.volta),
+            // o dia informado vai junto (vale para o pedido, qualquer que seja a opção)
+            href: enderecoDoResumo(p.codigo, o, c.volta, c.pedidoEm && diaDoPedidoValido(c.pedidoEm, r, c.agora) ? c.pedidoEm : undefined),
             atual: mesmaEscolha(o, escolha),
           }))
         : [],
@@ -695,8 +741,46 @@ export function telaDoCancelamento(p: PedidoPainel, escolha: EscolhaDoCancelamen
       { rotulo: 'Idioma da compra', valor: [NOME_DO_IDIOMA[r.idioma]] },
       { rotulo: 'E-mail que o cliente recebe', valor: linhasDoEmailSemReembolso(p, escolha, continuam, c.emailLigado) },
     ],
+    ...(comCasa ? { dataDoPedido: dataDoPedidoDoCliente(p.codigo, escolha, c, r, pedido) } : {}),
     avisos: plano.trava ? [{ tom: 'perigo', texto: avisoDosSeteDias(plano.trava) }] : [],
     formulario,
     transferencia: null,
+  };
+}
+
+/** O rótulo, a ajuda e o botão do dia em que o cliente pediu o cancelamento (a tela do cancelamento de uma casa). */
+export const ROTULO_DO_DIA_DO_PEDIDO = 'Dia em que o cliente pediu o cancelamento';
+export const AJUDA_DO_DIA_DO_PEDIDO =
+  'Vale o dia da mensagem do cliente pedindo o cancelamento (item 8 da política), pelo WhatsApp, por e-mail ou pela desistência no site. Sem trocar, a conta é de hoje (ou do dia da desistência pelo site, quando ela veio antes). Escolha o dia e toque em "Recalcular com este dia": a linha "Regra das casas" e os motivos mudam com ele.';
+export const BOTAO_DO_DIA_DO_PEDIDO = 'Recalcular com este dia';
+
+/**
+ * O formulário do dia em que o cliente pediu (revisão do pacote 2): o dia que vale agora no campo, do dia da compra até
+ * hoje, e os campos escondidos que refazem a mesma tela (a ação, o voucher, o filtro e a busca), como enderecoDoResumo.
+ */
+function dataDoPedidoDoCliente(
+  pedidoCodigo: string,
+  escolha: EscolhaDoCancelamento,
+  c: ContextoDoResumo,
+  r: Reserva,
+  pedido: PedidoDoCliente,
+): DataDoPedidoDoCliente {
+  const compra = Date.parse(compraDoPedido(r));
+  const busca = buscaDoPainel(c.volta.busca);
+  return {
+    endereco: `/admin/resumo/${encodeURIComponent(pedidoCodigo)}`,
+    escondidos: [
+      { nome: 'acao', valor: escolha.acao },
+      ...('voucher' in escolha ? [{ nome: 'voucher', valor: escolha.voucher }] : []),
+      ...(c.volta.filtro ? [{ nome: 'status', valor: c.volta.filtro }] : []),
+      ...(busca ? [{ nome: 'q', valor: busca }] : []),
+    ],
+    nome: 'pedidoEm',
+    rotulo: ROTULO_DO_DIA_DO_PEDIDO,
+    valor: hojeEmBuzios(pedido.em),
+    ...(Number.isNaN(compra) ? {} : { minimo: hojeEmBuzios(new Date(compra)) }),
+    maximo: hojeEmBuzios(c.agora),
+    ajuda: AJUDA_DO_DIA_DO_PEDIDO,
+    botao: BOTAO_DO_DIA_DO_PEDIDO,
   };
 }

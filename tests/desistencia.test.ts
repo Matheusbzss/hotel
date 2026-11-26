@@ -285,10 +285,11 @@ test('o painel e a rota do painel usam a mesma regra da faixa, com os vouchers d
   const rota = codigo('app', 'api', 'admin', 'reservas', '[codigo]', 'route.ts');
   assert.match(rota, /if \(!desistenciaParaResponder\(vouchers\)\) return voltar\('acao-nao-vale'\);/);
   // desde o Pacote 33, com a trava dos 7 dias: a caixa "Estou ciente" antes da gravação e, dentro da trava (relida), a
-  // linha da trava junto da linha da resposta
+  // linha da trava junto da linha da resposta. Desde a revisão do pacote 2 das casas, as duas leituras recebem se o pedido
+  // tem casa (só a casa conta também os 7 dias corridos; sem casa, a trava de sempre)
   assert.match(
     rota,
-    /if \(travaDaDesistencia\(alvo\) && !ciente\) return voltar\('falta-ciente'\);\s+await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+if \(desistenciaRespondida\(r\)\) return null;\s+registrar\(r, linhaDaDesistenciaRespondida\(r\.reembolsoCentavos \?\? 0\)\);\s+const trava = travaDaDesistencia\(r\);\s+return trava \? registrar\(r, linhaDaTravaDosSeteDias\(trava, 'desistencia'\)\) : r;\s+\}\);/,
+    /const comCasa = vouchers\.some\(ehCasa\);\s+if \(travaDaDesistencia\(alvo, comCasa\) && !ciente\) return voltar\('falta-ciente'\);\s+await atualizarReserva\(alvo\.codigo, \(r\) => \{\s+if \(desistenciaRespondida\(r\)\) return null;\s+registrar\(r, linhaDaDesistenciaRespondida\(r\.reembolsoCentavos \?\? 0\)\);\s+const trava = travaDaDesistencia\(r, comCasa\);\s+return trava \? registrar\(r, linhaDaTravaDosSeteDias\(trava, 'desistencia'\)\) : r;\s+\}\);/,
   );
   assert.doesNotMatch(rota, /registrar\(r, DESISTENCIA_RESPONDIDA\)/);
 });

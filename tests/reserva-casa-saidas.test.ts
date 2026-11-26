@@ -601,7 +601,11 @@ test('o aviso à equipe do pedido pago com casa: a localização e o cadastro pe
   );
   const semDatas = emailAvisoDoPedidoPago({ ...base, casa: { chegada: 'R$ 900,00', datasNaoPresas } });
   assert.equal(semDatas.assunto, 'Pedido pago: ON-CASA01 (R$ 900,00) · datas da casa não presas');
-  assert.match(semDatas.texto, /Atenção: as datas da casa Mansão Ferradura Vista Mar .*antes de confirmar com o cliente\./);
+  // revisão do pacote 2 (achado 3): a linha diz que o cliente já tem o pagamento confirmado e pede que a equipe fale com ele hoje
+  assert.match(
+    semDatas.texto,
+    /Atenção: as datas da casa Mansão Ferradura Vista Mar .*pode ter o voucher desta casa .*fale com ele hoje e confira o calendário da casa no painel\./,
+  );
   // o pedido sem casa: como antes, sem nenhuma linha da casa
   const semCasa = emailAvisoDoPedidoPago(base);
   assert.doesNotMatch(semCasa.texto, /Casa de temporada/);

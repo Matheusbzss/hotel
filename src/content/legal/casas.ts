@@ -111,6 +111,11 @@ export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocum
   pt: {
     // revisão do pacote 2: o prazo do Pix no item 10 (Pedidos pagos por Pix), com o da casa (até as 22h da véspera da entrada)
     trocas: [
+      // o resumo do topo também avisa das casas (achado dos prints de 26/11: só falava das 24 horas dos passeios)
+      [
+        'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado por chuva, mau tempo ou condições do mar? Você escolhe entre reembolso integral ou nova data. Compras pelo site também têm 7 dias de direito de arrependimento, desde que o serviço ainda não tenha acontecido.',
+        'Cancelou com 24 horas ou mais de antecedência? Reembolso integral. Passeio cancelado por chuva, mau tempo ou condições do mar? Você escolhe entre reembolso integral ou nova data. Compras pelo site também têm 7 dias de direito de arrependimento, desde que o serviço ainda não tenha acontecido. Casas de temporada têm regras próprias: até 30 dias antes da entrada, o sinal pago no site é devolvido inteiro (item 11).',
+      ],
       [
         'Prazo: o Pix só vale até 2 horas antes do início do primeiro serviço do pedido.',
         'Prazo: o Pix só vale até 2 horas antes do início do primeiro serviço do pedido; na casa de temporada, só até as 22h da véspera da entrada, no horário de Brasília.',
@@ -131,6 +136,11 @@ export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocum
   },
   en: {
     trocas: [
+      // o resumo do topo também avisa das casas (achado dos prints de 26/11: só falava das 24 horas dos passeios)
+      [
+        'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of rain, bad weather or sea conditions? You choose between a full refund or a new date. Online purchases also have a 7-day withdrawal right, provided the service has not yet taken place.',
+        'Cancelled 24 hours or more in advance? Full refund. Tour cancelled because of rain, bad weather or sea conditions? You choose between a full refund or a new date. Online purchases also have a 7-day withdrawal right, provided the service has not yet taken place. Holiday homes have their own rules: up to 30 days before check-in, the deposit paid on the site is refunded in full (item 11).',
+      ],
       [
         'Deadline: Pix is only available up to 2 hours before the first service in your order starts.',
         'Deadline: Pix is only available up to 2 hours before the first service in your order starts; for holiday homes, only until 10 p.m. on the day before check-in, Brasília time.',
@@ -151,6 +161,11 @@ export const MUDANCAS_CANCELAMENTO_CASAS: Record<IdiomaConteudo, MudancasDoDocum
   },
   es: {
     trocas: [
+      // o resumo do topo também avisa das casas (achado dos prints de 26/11: só falava das 24 horas dos passeios)
+      [
+        '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Eliges entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado.',
+        '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Eliges entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado. Las casas de temporada tienen reglas propias: hasta 30 días antes de la entrada, lo pagado en el sitio se devuelve completo (punto 11).',
+      ],
       [
         'Plazo: el Pix solo vale hasta 2 horas antes del inicio del primer servicio del pedido.',
         'Plazo: el Pix solo vale hasta 2 horas antes del inicio del primer servicio del pedido; en la casa de temporada, solo hasta las 22 h de la víspera de la entrada, en el horario de Brasilia.',
@@ -287,5 +302,11 @@ export const MUDANCAS_PRIVACIDADE_CASAS: Record<IdiomaConteudo, MudancasDoDocume
  * verbo em "tú" saber onde pôr o par (comAjustesAR falha alto se faltar o par de uma frase que mudou).
  */
 export const NOVOS_PARES_TERMOS_CASAS: readonly ParAR[] = [];
-export const NOVOS_PARES_CANCELAMENTO_CASAS: readonly ParAR[] = [];
+export const NOVOS_PARES_CANCELAMENTO_CASAS: readonly ParAR[] = [
+  // o resumo do topo com a frase das casas: o mesmo par do resumo de hoje (Eliges → Elegís), com a frase nova no fim
+  [
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Eliges entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado. Las casas de temporada tienen reglas propias: hasta 30 días antes de la entrada, lo pagado en el sitio se devuelve completo (punto 11).',
+    '¿Cancelaste con 24 horas o más de anticipación? Reembolso total. ¿El paseo se canceló por lluvia, mal tiempo o condiciones del mar? Elegís entre reembolso total o nueva fecha. Las compras en el sitio también tienen 7 días de derecho de arrepentimiento, siempre que el servicio todavía no se haya realizado. Las casas de temporada tienen reglas propias: hasta 30 días antes de la entrada, lo pagado en el sitio se devuelve completo (punto 11).',
+  ],
+];
 export const NOVOS_PARES_PRIVACIDADE_CASAS: readonly ParAR[] = [];
